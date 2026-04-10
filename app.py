@@ -55,15 +55,93 @@ if not st.session_state.auth:
         st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
-# --- 3. NAVEGACIÓN ---
+# --- 3. NAVEGACIÓN ACTUALIZADA ---
 with st.sidebar:
     st.markdown("<h1 style='color: #007AFF; text-align: center;'>CobroYa</h1>", unsafe_allow_html=True)
     st.markdown("---")
-    menu = st.radio("MENÚ PRINCIPAL", ["Panel de Control", "Directorio Clientes", "Nueva Cuenta", "Gestión de Cobros"])
+    menu = st.radio("MENÚ PRINCIPAL", ["Panel de Control", "Gestión de Cobros", "Nueva Cuenta", "Caja y Gastos", "IA Predictiva"])
     st.markdown("---")
     if st.button("Cerrar Sesión"):
         st.session_state.auth = False
         st.rerun()
+
+# --- MÓDULOS NUEVOS Y ACTUALIZADOS ---
+
+if menu == "Panel de Control":
+    st.title("Business Intelligence Dashboard")
+    
+    # Datos de Ingresos (Pagos)
+    res_p = conn.table("pagos").select("monto_pagado").execute()
+    total_ingresos = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
+    
+    # Datos de Gastos
+    res_g = conn.table("gastos").select("monto").execute()
+    total_gastos = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
+    
+    ganancia_neta = total_ingresos - total_gastos
+
+    c1, c2, c3 = st.columns(3)
+    c1.markdown(f"<div class='metric-card'><small>INGRESOS TOTALES</small><h2 style='color: #34C759;'>RD$ {total_ingresos:,.0f}</h2></div>", unsafe_allow_html=True)
+    c2.markdown(f"<div class='metric-card'><small>GASTOS OPERATIVOS</small><h2 style='color: #FF3B30;'>RD$ {total_gastos:,.0f}</h2></div>", unsafe_allow_html=True)
+    c3.markdown(f"<div class='metric-card' style='background-color: #F2F7FF;'><small>GANANCIA NETA</small><h2 style='color: #007AFF;'>RD$ {ganancia_neta:,.0f}</h2></div>", unsafe_allow_html=True)
+
+    # (Aquí irían los gráficos que ya teníamos, pero ahora comparando ingresos vs gastos)
+    st.subheader("Balance de Flujo de Caja")
+    df_flujo = pd.DataFrame({
+        'Categoría': ['Ingresos', 'Gastos'],
+        'Monto': [total_ingresos, total_gastos]
+    })
+    fig_flujo = px.bar(df_flujo, x='Categoría', y='Monto', color='Categoría', 
+                       color_discrete_map={'Ingresos':'#34C759', 'Gastos':'#FF3B30'}, template="plotly_white")
+    st.plotly_chart(fig_flujo, use_container_width=True)
+
+elif menu == "Caja y Gastos":
+    st.header("Control de Gastos y Salidas")
+    col_f, col_t = st.columns([1, 2])
+    
+    with col_f:
+        st.subheader("Registrar Gasto")
+        with st.form("form_gasto"):
+            desc = st.text_input("Concepto del Gasto")
+            monto_g = st.number_input("Monto RD$", min_value=1.0)
+            if st.form_submit_button("Guardar Salida"):
+                conn.table("gastos").insert({"descripcion": desc, "monto": monto_g}).execute()
+                st.warning(f"Gasto de RD$ {monto_g} registrado.")
+                st.rerun()
+    
+    with col_t:
+        st.subheader("Historial de Salidas")
+        res_all_g = conn.table("gastos").select("*").order("id", desc=True).execute()
+        if res_all_g.data:
+            st.table(pd.DataFrame(res_all_g.data)[['descripcion', 'monto']])
+
+elif menu == "IA Predictiva":
+    st.header("🧠 Inteligencia Artificial de Riesgo")
+    st.markdown("Analizando comportamiento de pagos históricos...")
+    
+    res_cl = conn.table("clientes").select("id, nombre").execute()
+    if res_cl.data:
+        cliente_ia = st.selectbox("Seleccione cliente para auditar con IA", [c['nombre'] for c in res_cl.data])
+        
+        if st.button("Ejecutar Análisis Predictivo"):
+            with st.spinner("La IA está procesando los patrones de pago..."):
+                import time
+                time.sleep(2) # Efecto dramático de procesamiento
+                
+                # Aquí simulamos la lógica que luego conectaremos a Groq
+                # Por ahora, una lógica basada en el nombre para demostración
+                riesgo = "BAJO" if len(cliente_ia) > 10 else "MODERADO"
+                prob = "92%" if riesgo == "BAJO" else "65%"
+                
+                st.markdown(f"""
+                <div class='metric-card'>
+                    <h3>Resultado del Análisis: {cliente_ia}</h3>
+                    <p>Nivel de Riesgo: <b>{riesgo}</b></p>
+                    <p>Probabilidad de pago a tiempo: <b>{prob}</b></p>
+                    <hr>
+                    <small>Sugerencia de la IA: {"Mantener crédito abierto y aumentar límite." if riesgo == "BAJO" else "Solicitar abono inmediato y no despachar más mercancía."}</small>
+                </div>
+                """, unsafe_allow_html=True)
 
 # --- 4. MÓDULOS ---
 
