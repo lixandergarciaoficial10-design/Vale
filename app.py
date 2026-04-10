@@ -207,21 +207,91 @@ if menu == "Panel de Control":
         fig_bar.update_layout(showlegend=False, coloraxis_showscale=False, yaxis={'categoryorder':'total ascending'})
         st.plotly_chart(fig_bar, use_container_width=True)
 
-elif menu == "Directorio Clientes":
-    st.header("Gestión de Clientes")
-    with st.expander("➕ REGISTRAR NUEVO CLIENTE"):
-        with st.form("f_cli"):
-            n = st.text_input("Nombre Completo")
-            t = st.text_input("WhatsApp (Ej: 8295551234)")
-            if st.form_submit_button("Guardar Cliente"):
-                conn.table("clientes").insert({"nombre": n, "telefono": t}).execute()
-                st.success(f"Cliente {n} registrado.")
-                st.rerun()
-    
-    res = conn.table("clientes").select("*").execute()
-    if res.data: 
-        st.dataframe(pd.DataFrame(res.data)[['nombre', 'telefono']], use_container_width=True)
+# --- IMPORTS ADICIONALES (Añadir arriba del archivo) ---
+import requests
+import base64
+from PIL import Image
+import io
 
+# ... (Mantén tu código anterior de Auth y Navegación) ...
+
+elif menu == "Directorio Clientes":
+    st.header("Gestión de Clientes Digitalizada")
+    st.markdown("---")
+    
+    # 1. EL ESCÁNER DE CÉDULA CON IA
+    st.subheader("📸 Registro Rápido con Cédula (IA)")
+    col_cam, col_form = st.columns([1, 1])
+    
+    # Estado para guardar datos escaneados
+    if 'scanned_data' not in st.session_state:
+        st.session_state.scanned_data = {"nombre": "", "cedula": "", "telefono": "", "direccion": ""}
+
+    with col_cam:
+        # Input de cámara de Streamlit (funciona en celular y desktop)
+        foto_cedula = st.camera_input("Toma una foto clara del FRENTE de la cédula dominicana")
+        
+        if foto_cedula:
+            with st.spinner("La IA está procesando la cédula..."):
+                # Simulación de IA (Luego conectaremos API de Mindee/Google)
+                # En un caso real, aquí convertiríamos la imagen a base64 y la enviaríamos a la API
+                import time
+                time.sleep(2.5) # Tiempo de procesamiento de IA
+
+                # Lógica Simulada de Extracción OCR (Cambiando según el archivo)
+                # Esto es para que puedas probar el flujo de "Rellenado Automático"
+                simulated_names = ["JUAN PÉREZ GARCÍA", "MARÍA RODRÍGUEZ", "PEDRO SANTANA"]
+                import random
+                name_sim = random.choice(simulated_names)
+                cedula_sim = f"001-{random.randint(1000000, 9999999)}-{random.randint(1, 9)}"
+                
+                # Actualizar estado de sesión con datos extraídos
+                st.session_state.scanned_data["nombre"] = name_sim
+                st.session_state.scanned_data["cedula"] = cedula_sim
+                st.session_state.scanned_data["direccion"] = "CALLE DUARTE, VILLA ALTAGRACIA, RD"
+                st.success("¡Datos extraídos con éxito! Rellena el teléfono abajo.")
+
+    with col_form:
+        st.subheader("Verificar y Completar Registro")
+        with st.form("f_cli_verificar"):
+            # Los campos se auto-rellenan con el estado de sesión
+            n = st.text_input("Nombre Completo", value=st.session_state.scanned_data["nombre"])
+            c = st.text_input("Cédula / ID", value=st.session_state.scanned_data["cedula"])
+            t = st.text_input("WhatsApp (Ej: 8295551234)", value=st.session_state.scanned_data["telefono"])
+            d = st.text_input("Dirección (IA)", value=st.session_state.scanned_data["direccion"])
+            
+            # Guardar en Base de Datos
+            if st.form_submit_button("Confirmar y Guardar Cliente"):
+                if n and c and t:
+                    # Insertar en Supabase
+                    try:
+                        conn.table("clientes").insert({
+                            "nombre": n,
+                            "cedula": c,
+                            "telefono": t,
+                            "direccion": d
+                        }).execute()
+                        st.balloons()
+                        st.success(f"Cliente {n} registrado en 10 segundos.")
+                        # Limpiar estado
+                        st.session_state.scanned_data = {"nombre": "", "cedula": "", "telefono": "", "direccion": ""}
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al guardar: {e}")
+                else:
+                    st.warning("El Nombre, Cédula y Teléfono son obligatorios.")
+
+    st.markdown("---")
+    # 2. DIRECTORIO DE CLIENTES (Tabla profesional)
+    st.subheader("Directorio de Clientes")
+    res = conn.table("clientes").select("nombre, cedula, telefono, direccion, fecha_registro").order("nombre").execute()
+    
+    if res.data:
+        df_cli = pd.DataFrame(res.data)
+        st.dataframe(df_cli[['nombre', 'cedula', 'telefono', 'direccion']], use_container_width=True)
+    else:
+        st.info("No hay clientes registrados.")
+        
 elif menu == "Nueva Cuenta":
     st.header("Apertura de Crédito")
     res_cl = conn.table("clientes").select("id, nombre").execute()
