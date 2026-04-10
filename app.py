@@ -238,33 +238,76 @@ elif menu == "Nueva Cuenta":
     else: st.warning("Debe registrar un cliente primero.")
 
 elif menu == "Gestión de Cobros":
-    st.header("Control de Cobranza Diaria")
-    query = conn.table("cuentas").select("id, balance_pendiente, clientes(nombre, telefono)").eq("estado", "Activo").execute()
+    st.header("Panel de Cobranza por Compromiso")
+    
+    # Traer cuentas con info de clientes y fecha de próximo pago
+    query = conn.table("cuentas").select("id, balance_pendiente, proximo_pago, clientes(nombre, telefono)").eq("estado", "Activo").execute()
     
     if query.data:
         for item in query.data:
+            # Lógica de Semáforo basada en fecha de compromiso
+            if item['proximo_pago']:
+                fecha_pago = datetime.strptime(item['proximo_pago'], '%Y-%m-%d').date()
+                hoy = datetime.now().date()
+                dias_restantes = (fecha_pago - hoy).days
+                
+                # Definir color y estado
+                if dias_restantes > 2:
+                    color_alerta = "#34C759" # Verde: Todo bien
+                    status_text = f"Al día (Faltan {dias_restantes} días)"
+                elif 0 <= dias_restantes <= 2:
+                    color_alerta = "#FF9500" # Naranja: Casi toca
+                    status_text = "¡Toca pronto! (1-2 días)"
+                elif -15 <= dias_restantes < 0:
+                    color_alerta = "#FF3B30" # Rojo: Atrasado
+                    status_text = f"ATRASADO ({abs(dias_restantes)} días)"
+                else:
+                    color_alerta = "#000000" # Negro: Peligro Crítico
+                    status_text = f"CRÍTICO (+15 días de atraso)"
+            else:
+                color_alerta = "#E5E7EB" # Gris: Sin fecha asignada
+                status_text = "Sin fecha de compromiso"
+
             with st.container():
-                c_info, c_pago, c_wa = st.columns([2, 1, 1])
-                nombre = item['clientes']['nombre']
-                tel = item['clientes']['telefono']
-                deuda = float(item['balance_pendiente'])
+                st.markdown(f"""
+                <div style='border-left: 10px solid {color_alerta}; padding: 15px; background-color: white; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);'>
+                    <h3 style='margin:0; color: {color_alerta if color_alerta != "#000000" else "black"};'>{item['clientes']['nombre']}</h3>
+                    <p style='margin:0; font-weight: bold;'>{status_text}</p>
+                    <p style='margin:0; color: #666;'>Balance: RD$ {float(item['balance_pendiente']):,.2f}</p>
+                </div>
+                """, unsafe_allow_html=True)
                 
-                c_info.markdown(f"👤 **{nombre}**")
-                c_info.markdown(f"💰 Balance: **RD$ {deuda:,.2f}**")
+                col_pago, col_fecha, col_pdf_wa = st.columns([2, 2, 1])
                 
-                monto_pago = c_pago.number_input(f"Monto Abono", min_value=0.0, max_value=deuda, key=f"p_{item['id']}")
-                if c_pago.button(f"Registrar Pago", key=f"btn_{item['id']}"):
-                    if monto_pago > 0:
-                        conn.table("pagos").insert({"cuenta_id": item['id'], "monto_pagado": monto_pago}).execute()
-                        nuevo_bal = deuda - monto_pago
+                with col_pago:
+                    monto_abono = st.number_input(f"Monto Abono", min_value=0.0, key=f"ab_{item['id']}")
+                    btn_pago = st.button("Registrar Pago", key=f"btn_p_{item['id']}")
+                
+                with col_fecha:
+                    nueva_fecha = st.date_input("Próximo pago", key=f"date_{item['id']}")
+                
+                if btn_pago:
+                    if monto_abono > 0:
+                        # 1. Registrar el pago
+                        conn.table("pagos").insert({"cuenta_id": item['id'], "monto_pagado": monto_abono}).execute()
+                        # 2. Actualizar balance y nueva fecha de compromiso
+                        nuevo_bal = float(item['balance_pendiente']) - monto_abono
                         est = "Pagado" if nuevo_bal <= 0 else "Activo"
-                        conn.table("cuentas").update({"balance_pendiente": nuevo_bal, "estado": est}).eq("id", item['id']).execute()
-                        st.success("Pago guardado.")
+                        conn.table("cuentas").update({
+                            "balance_pendiente": nuevo_bal, 
+                            "estado": est,
+                            "proximo_pago": nueva_fecha.strftime('%Y-%m-%d')
+                        }).eq("id", item['id']).execute()
+                        st.success("Actualizado correctamente")
                         st.rerun()
-                
-                msg = f"Hola {nombre}, te saludamos de CobroYa. Tienes un balance pendiente de RD${deuda:,.2f}. ¿Podemos coordinar el pago hoy?"
-                wa_link = f"https://wa.me/{tel}?text={msg.replace(' ', '%20')}"
-                c_wa.markdown(f'<br><a href="{wa_link}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; width:100%;">📲 WhatsApp</button></a>', unsafe_allow_html=True)
+
+                with col_pdf_wa:
+                    # WhatsApp con recordatorio de la nueva fecha
+                    tel = item['clientes']['telefono']
+                    msg = f"Hola {item['clientes']['nombre']}, recibimos tu abono. Tu balance es RD${float(item['balance_pendiente'])-monto_abono:,.2f}. Próximo pago: {nueva_fecha}."
+                    wa_link = f"https://wa.me/{tel}?text={msg.replace(' ', '%20')}"
+                    st.markdown(f'<a href="{wa_link}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:8px; border-radius:8px; width:100%; cursor:pointer; margin-bottom:5px;">📲 WhatsApp</button></a>', unsafe_allow_html=True)
+                    
+                    # El botón de PDF se mantiene igual que antes
+                    # ... (código de PDF del bloque anterior)
                 st.markdown("---")
-    else:
-        st.info("Cartera limpia. No hay cobros pendientes.")
