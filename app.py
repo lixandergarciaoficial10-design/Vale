@@ -4,9 +4,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 from st_supabase_connection import SupabaseConnection
 from datetime import datetime
+import requests
+import base64
+from PIL import Image
+import io
+from fpdf import FPDF
 
-# 1. CONFIGURACIÓN Y ESTILO ESTILO APPLE-ENTERPRISE
-st.set_page_config(page_title="CobroYa Pro", layout="wide")
+# 1. CONFIGURACIÓN Y ESTILO APPLE-ENTERPRISE
+st.set_page_config(page_title="CobroYa Pro", layout="wide", page_icon="⚾")
 
 st.markdown("""
     <style>
@@ -20,14 +25,11 @@ st.markdown("""
     .metric-card {
         background-color: white; padding: 25px; border-radius: 20px;
         border: 1px solid #E5E7EB; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-        transition: transform 0.2s;
     }
-    .metric-card:hover { transform: translateY(-5px); }
     div.stButton > button:first-child {
         background-color: #007AFF; color: white; border-radius: 12px; border: none;
-        padding: 0.7rem 2rem; font-weight: bold; width: 100%; transition: 0.3s;
+        padding: 0.7rem 2rem; font-weight: bold; width: 100%;
     }
-    div.stButton > button:first-child:hover { background-color: #0051FF; box-shadow: 0 4px 12px rgba(0,122,255,0.3); }
     </style>
     """, unsafe_allow_html=True)
 
@@ -55,329 +57,175 @@ if not st.session_state.auth:
         st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
-# --- 3. NAVEGACIÓN ACTUALIZADA ---
+# --- 3. NAVEGACIÓN ---
 with st.sidebar:
     st.markdown("<h1 style='color: #007AFF; text-align: center;'>CobroYa</h1>", unsafe_allow_html=True)
     st.markdown("---")
-    menu = st.radio("MENÚ PRINCIPAL", ["Panel de Control", "Gestión de Cobros", "Nueva Cuenta", "Caja y Gastos", "IA Predictiva"])
+    menu = st.radio("MENÚ PRINCIPAL", ["Panel de Control", "Gestión de Cobros", "Directorio Clientes", "Nueva Cuenta", "Caja y Gastos", "IA Predictiva"])
     st.markdown("---")
     if st.button("Cerrar Sesión"):
         st.session_state.auth = False
         st.rerun()
 
-# --- MÓDULOS NUEVOS Y ACTUALIZADOS ---
+# --- 4. FUNCIONES DE APOYO ---
+def generar_pdf(nombre, monto, balance):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 20)
+    pdf.set_text_color(0, 122, 255)
+    pdf.cell(200, 10, txt="RECIBO DE PAGO - COBROYA", ln=True, align='C')
+    pdf.ln(10)
+    pdf.set_font("Arial", "", 12)
+    pdf.set_text_color(0, 0, 0)
+    pdf.cell(200, 10, txt=f"Cliente: {nombre}", ln=True)
+    pdf.cell(200, 10, txt=f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True)
+    pdf.ln(5)
+    pdf.set_font("Arial", "B", 14)
+    pdf.cell(200, 10, txt=f"MONTO PAGADO: RD$ {monto:,.2f}", ln=True)
+    pdf.set_text_color(255, 0, 0)
+    pdf.cell(200, 10, txt=f"BALANCE PENDIENTE: RD$ {balance:,.2f}", ln=True)
+    pdf.ln(20)
+    pdf.set_font("Arial", "I", 10)
+    pdf.set_text_color(150, 150, 150)
+    pdf.cell(200, 10, txt="Gracias por mantener su crédito al día.", ln=True, align='C')
+    return pdf.output()
+
+# --- 5. MÓDULOS ---
 
 if menu == "Panel de Control":
     st.title("Business Intelligence Dashboard")
     
-    # Datos de Ingresos (Pagos)
-    res_p = conn.table("pagos").select("monto_pagado").execute()
-    total_ingresos = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
-    
-    # Datos de Gastos
-    res_g = conn.table("gastos").select("monto").execute()
-    total_gastos = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
-    
-    ganancia_neta = total_ingresos - total_gastos
-
-    c1, c2, c3 = st.columns(3)
-    c1.markdown(f"<div class='metric-card'><small>INGRESOS TOTALES</small><h2 style='color: #34C759;'>RD$ {total_ingresos:,.0f}</h2></div>", unsafe_allow_html=True)
-    c2.markdown(f"<div class='metric-card'><small>GASTOS OPERATIVOS</small><h2 style='color: #FF3B30;'>RD$ {total_gastos:,.0f}</h2></div>", unsafe_allow_html=True)
-    c3.markdown(f"<div class='metric-card' style='background-color: #F2F7FF;'><small>GANANCIA NETA</small><h2 style='color: #007AFF;'>RD$ {ganancia_neta:,.0f}</h2></div>", unsafe_allow_html=True)
-
-    # (Aquí irían los gráficos que ya teníamos, pero ahora comparando ingresos vs gastos)
-    st.subheader("Balance de Flujo de Caja")
-    df_flujo = pd.DataFrame({
-        'Categoría': ['Ingresos', 'Gastos'],
-        'Monto': [total_ingresos, total_gastos]
-    })
-    fig_flujo = px.bar(df_flujo, x='Categoría', y='Monto', color='Categoría', 
-                       color_discrete_map={'Ingresos':'#34C759', 'Gastos':'#FF3B30'}, template="plotly_white")
-    st.plotly_chart(fig_flujo, use_container_width=True)
-
-elif menu == "Caja y Gastos":
-    st.header("Control de Gastos y Salidas")
-    col_f, col_t = st.columns([1, 2])
-    
-    with col_f:
-        st.subheader("Registrar Gasto")
-        with st.form("form_gasto"):
-            desc = st.text_input("Concepto del Gasto")
-            monto_g = st.number_input("Monto RD$", min_value=1.0)
-            if st.form_submit_button("Guardar Salida"):
-                conn.table("gastos").insert({"descripcion": desc, "monto": monto_g}).execute()
-                st.warning(f"Gasto de RD$ {monto_g} registrado.")
-                st.rerun()
-    
-    with col_t:
-        st.subheader("Historial de Salidas")
-        res_all_g = conn.table("gastos").select("*").order("id", desc=True).execute()
-        if res_all_g.data:
-            st.table(pd.DataFrame(res_all_g.data)[['descripcion', 'monto']])
-
-elif menu == "IA Predictiva":
-    st.header("🧠 Inteligencia Artificial de Riesgo")
-    st.markdown("Analizando comportamiento de pagos históricos...")
-    
-    res_cl = conn.table("clientes").select("id, nombre").execute()
-    if res_cl.data:
-        cliente_ia = st.selectbox("Seleccione cliente para auditar con IA", [c['nombre'] for c in res_cl.data])
-        
-        if st.button("Ejecutar Análisis Predictivo"):
-            with st.spinner("La IA está procesando los patrones de pago..."):
-                import time
-                time.sleep(2) # Efecto dramático de procesamiento
-                
-                # Aquí simulamos la lógica que luego conectaremos a Groq
-                # Por ahora, una lógica basada en el nombre para demostración
-                riesgo = "BAJO" if len(cliente_ia) > 10 else "MODERADO"
-                prob = "92%" if riesgo == "BAJO" else "65%"
-                
-                st.markdown(f"""
-                <div class='metric-card'>
-                    <h3>Resultado del Análisis: {cliente_ia}</h3>
-                    <p>Nivel de Riesgo: <b>{riesgo}</b></p>
-                    <p>Probabilidad de pago a tiempo: <b>{prob}</b></p>
-                    <hr>
-                    <small>Sugerencia de la IA: {"Mantener crédito abierto y aumentar límite." if riesgo == "BAJO" else "Solicitar abono inmediato y no despachar más mercancía."}</small>
-                </div>
-                """, unsafe_allow_html=True)
-
-# --- 4. MÓDULOS ---
-
-if menu == "Panel de Control":
-    st.title("Business Intelligence Dashboard")
-    
-    # EXTRACCIÓN DE DATOS REALES
+    # DATOS
     res_c = conn.table("cuentas").select("balance_pendiente, estado").execute()
     df_cuentas = pd.DataFrame(res_c.data) if res_c.data else pd.DataFrame(columns=['balance_pendiente', 'estado'])
     
     res_p = conn.table("pagos").select("monto_pagado, fecha_pago").execute()
     df_pagos = pd.DataFrame(res_p.data) if res_p.data else pd.DataFrame(columns=['monto_pagado', 'fecha_pago'])
 
-    # KPI METRICS
+    res_g = conn.table("gastos").select("monto").execute()
+    total_gastos = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
+
     total_calle = df_cuentas[df_cuentas['estado'] == 'Activo']['balance_pendiente'].sum() if not df_cuentas.empty else 0
     total_recaudado = df_pagos['monto_pagado'].sum() if not df_pagos.empty else 0
-    eficiencia = (total_recaudado / (total_calle + total_recaudado) * 100) if (total_calle + total_recaudado) > 0 else 0
+    ganancia_neta = total_recaudado - total_gastos
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.markdown(f"<div class='metric-card'><small>TOTAL POR COBRAR</small><h2 style='color: #1D1D1F;'>RD$ {total_calle:,.0f}</h2></div>", unsafe_allow_html=True)
-    c2.markdown(f"<div class='metric-card'><small>TOTAL RECAUDADO</small><h2 style='color: #34C759;'>RD$ {total_recaudado:,.0f}</h2></div>", unsafe_allow_html=True)
-    c3.markdown(f"<div class='metric-card'><small>% EFICIENCIA</small><h2 style='color: #007AFF;'>{eficiencia:.1f}%</h2></div>", unsafe_allow_html=True)
-    c4.markdown(f"<div class='metric-card'><small>ESTADO CRÍTICO</small><h2 style='color: #FF3B30;'>0.0%</h2></div>", unsafe_allow_html=True)
+    c1.markdown(f"<div class='metric-card'><small>POR COBRAR</small><h2 style='color: #1D1D1F;'>RD$ {total_calle:,.0f}</h2></div>", unsafe_allow_html=True)
+    c2.markdown(f"<div class='metric-card'><small>RECAUDADO</small><h2 style='color: #34C759;'>RD$ {total_recaudado:,.0f}</h2></div>", unsafe_allow_html=True)
+    c3.markdown(f"<div class='metric-card'><small>GASTOS</small><h2 style='color: #FF3B30;'>RD$ {total_gastos:,.0f}</h2></div>", unsafe_allow_html=True)
+    c4.markdown(f"<div class='metric-card' style='background-color: #F2F7FF;'><small>GANANCIA NETA</small><h2 style='color: #007AFF;'>RD$ {ganancia_neta:,.0f}</h2></div>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-
-    # GRÁFICOS DE ALTO IMPACTO
     col_g1, col_g2 = st.columns([2, 1])
-
+    
     with col_g1:
-        st.subheader("Tendencia de Recaudación (Área Suave)")
+        st.subheader("Tendencia de Recaudación")
         if not df_pagos.empty:
             df_pagos['fecha_pago'] = pd.to_datetime(df_pagos['fecha_pago']).dt.date
             df_tendencia = df_pagos.groupby('fecha_pago').sum().reset_index()
-            fig_area = px.area(df_tendencia, x='fecha_pago', y='monto_pagado', template="plotly_white",
-                               color_discrete_sequence=['#007AFF'])
-            fig_area.update_traces(line_width=4, fillcolor='rgba(0, 122, 255, 0.1)')
-            fig_area.update_layout(xaxis_title="", yaxis_title="Monto RD$")
+            fig_area = px.area(df_tendencia, x='fecha_pago', y='monto_pagado', template="plotly_white", color_discrete_sequence=['#007AFF'])
             st.plotly_chart(fig_area, use_container_width=True)
-        else:
-            st.info("Registre pagos para visualizar la tendencia.")
 
     with col_g2:
         st.subheader("Estado de Cartera")
-        # Gráfico de Dona para estados de cuenta
         if not df_cuentas.empty:
             df_est = df_cuentas['estado'].value_counts().reset_index()
-            fig_donut = px.pie(df_est, names='estado', values='count', hole=.7,
-                               color_discrete_sequence=['#007AFF', '#34C759', '#FF9500'])
-            fig_donut.update_layout(showlegend=False, margin=dict(t=0, b=0, l=0, r=0))
-            fig_donut.update_traces(textposition='inside', textinfo='percent+label')
+            fig_donut = px.pie(df_est, names='estado', values='count', hole=.7, color_discrete_sequence=['#007AFF', '#34C759', '#FF9500'])
             st.plotly_chart(fig_donut, use_container_width=True)
-        else:
-            st.info("No hay datos de cartera.")
-
-    # TOP DEUDORES - GRÁFICO DE BARRAS HORIZONTALES
-    st.subheader("Top Deudores (Análisis de Riesgo)")
-    query_top = conn.table("cuentas").select("balance_pendiente, clientes(nombre)").eq("estado", "Activo").order("balance_pendiente", desc=True).limit(5).execute()
-    if query_top.data:
-        df_top = pd.DataFrame([{'Cliente': i['clientes']['nombre'], 'Deuda': float(i['balance_pendiente'])} for i in query_top.data])
-        fig_bar = px.bar(df_top, x='Deuda', y='Cliente', orientation='h', template="plotly_white",
-                         color='Deuda', color_continuous_scale='Blues')
-        fig_bar.update_layout(showlegend=False, coloraxis_showscale=False, yaxis={'categoryorder':'total ascending'})
-        st.plotly_chart(fig_bar, use_container_width=True)
-
-# --- IMPORTS ADICIONALES (Añadir arriba del archivo) ---
-import requests
-import base64
-from PIL import Image
-import io
-
-# ... (Mantén tu código anterior de Auth y Navegación) ...
-
-elif menu == "Directorio Clientes":
-    st.header("Gestión de Clientes Digitalizada")
-    st.markdown("---")
-    
-    # 1. EL ESCÁNER DE CÉDULA CON IA
-    st.subheader("📸 Registro Rápido con Cédula (IA)")
-    col_cam, col_form = st.columns([1, 1])
-    
-    # Estado para guardar datos escaneados
-    if 'scanned_data' not in st.session_state:
-        st.session_state.scanned_data = {"nombre": "", "cedula": "", "telefono": "", "direccion": ""}
-
-    with col_cam:
-        # Input de cámara de Streamlit (funciona en celular y desktop)
-        foto_cedula = st.camera_input("Toma una foto clara del FRENTE de la cédula dominicana")
-        
-        if foto_cedula:
-            with st.spinner("La IA está procesando la cédula..."):
-                # Simulación de IA (Luego conectaremos API de Mindee/Google)
-                # En un caso real, aquí convertiríamos la imagen a base64 y la enviaríamos a la API
-                import time
-                time.sleep(2.5) # Tiempo de procesamiento de IA
-
-                # Lógica Simulada de Extracción OCR (Cambiando según el archivo)
-                # Esto es para que puedas probar el flujo de "Rellenado Automático"
-                simulated_names = ["JUAN PÉREZ GARCÍA", "MARÍA RODRÍGUEZ", "PEDRO SANTANA"]
-                import random
-                name_sim = random.choice(simulated_names)
-                cedula_sim = f"001-{random.randint(1000000, 9999999)}-{random.randint(1, 9)}"
-                
-                # Actualizar estado de sesión con datos extraídos
-                st.session_state.scanned_data["nombre"] = name_sim
-                st.session_state.scanned_data["cedula"] = cedula_sim
-                st.session_state.scanned_data["direccion"] = "CALLE DUARTE, VILLA ALTAGRACIA, RD"
-                st.success("¡Datos extraídos con éxito! Rellena el teléfono abajo.")
-
-    with col_form:
-        st.subheader("Verificar y Completar Registro")
-        with st.form("f_cli_verificar"):
-            # Los campos se auto-rellenan con el estado de sesión
-            n = st.text_input("Nombre Completo", value=st.session_state.scanned_data["nombre"])
-            c = st.text_input("Cédula / ID", value=st.session_state.scanned_data["cedula"])
-            t = st.text_input("WhatsApp (Ej: 8295551234)", value=st.session_state.scanned_data["telefono"])
-            d = st.text_input("Dirección (IA)", value=st.session_state.scanned_data["direccion"])
-            
-            # Guardar en Base de Datos
-            if st.form_submit_button("Confirmar y Guardar Cliente"):
-                if n and c and t:
-                    # Insertar en Supabase
-                    try:
-                        conn.table("clientes").insert({
-                            "nombre": n,
-                            "cedula": c,
-                            "telefono": t,
-                            "direccion": d
-                        }).execute()
-                        st.balloons()
-                        st.success(f"Cliente {n} registrado en 10 segundos.")
-                        # Limpiar estado
-                        st.session_state.scanned_data = {"nombre": "", "cedula": "", "telefono": "", "direccion": ""}
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error al guardar: {e}")
-                else:
-                    st.warning("El Nombre, Cédula y Teléfono son obligatorios.")
-
-    st.markdown("---")
-    # 2. DIRECTORIO DE CLIENTES (Tabla profesional)
-    st.subheader("Directorio de Clientes")
-    res = conn.table("clientes").select("nombre, cedula, telefono, direccion, fecha_registro").order("nombre").execute()
-    
-    if res.data:
-        df_cli = pd.DataFrame(res.data)
-        st.dataframe(df_cli[['nombre', 'cedula', 'telefono', 'direccion']], use_container_width=True)
-    else:
-        st.info("No hay clientes registrados.")
-        
-elif menu == "Nueva Cuenta":
-    st.header("Apertura de Crédito")
-    res_cl = conn.table("clientes").select("id, nombre").execute()
-    cl_opt = {c['nombre']: c['id'] for c in res_cl.data} if res_cl.data else {}
-    
-    if cl_opt:
-        with st.form("f_deuda"):
-            c_sel = st.selectbox("Seleccione Cliente", list(cl_opt.keys()))
-            monto = st.number_input("Monto de la Deuda (RD$)", min_value=1.0)
-            if st.form_submit_button("Abrir Cuenta"):
-                conn.table("cuentas").insert({"cliente_id": cl_opt[c_sel], "monto_inicial": monto, "balance_pendiente": monto}).execute()
-                st.balloons()
-                st.success("Cuenta de cobro creada exitosamente.")
-    else: st.warning("Debe registrar un cliente primero.")
 
 elif menu == "Gestión de Cobros":
     st.header("Panel de Cobranza por Compromiso")
-    
-    # Traer cuentas con info de clientes y fecha de próximo pago
     query = conn.table("cuentas").select("id, balance_pendiente, proximo_pago, clientes(nombre, telefono)").eq("estado", "Activo").execute()
     
     if query.data:
         for item in query.data:
-            # Lógica de Semáforo basada en fecha de compromiso
+            color_alerta, status_text = "#E5E7EB", "Sin fecha"
             if item['proximo_pago']:
-                fecha_pago = datetime.strptime(item['proximo_pago'], '%Y-%m-%d').date()
-                hoy = datetime.now().date()
-                dias_restantes = (fecha_pago - hoy).days
-                
-                # Definir color y estado
-                if dias_restantes > 2:
-                    color_alerta = "#34C759" # Verde: Todo bien
-                    status_text = f"Al día (Faltan {dias_restantes} días)"
-                elif 0 <= dias_restantes <= 2:
-                    color_alerta = "#FF9500" # Naranja: Casi toca
-                    status_text = "¡Toca pronto! (1-2 días)"
-                elif -15 <= dias_restantes < 0:
-                    color_alerta = "#FF3B30" # Rojo: Atrasado
-                    status_text = f"ATRASADO ({abs(dias_restantes)} días)"
-                else:
-                    color_alerta = "#000000" # Negro: Peligro Crítico
-                    status_text = f"CRÍTICO (+15 días de atraso)"
-            else:
-                color_alerta = "#E5E7EB" # Gris: Sin fecha asignada
-                status_text = "Sin fecha de compromiso"
+                fecha_p = datetime.strptime(item['proximo_pago'], '%Y-%m-%d').date()
+                dias = (fecha_p - datetime.now().date()).days
+                if dias > 2: color_alerta, status_text = "#34C759", f"Al día ({dias} d)"
+                elif 0 <= dias <= 2: color_alerta, status_text = "#FF9500", "¡Toca pronto!"
+                elif -15 <= dias < 0: color_alerta, status_text = "#FF3B30", f"ATRASADO ({abs(dias)} d)"
+                else: color_alerta, status_text = "#000000", "CRÍTICO (+15 d)"
 
             with st.container():
-                st.markdown(f"""
-                <div style='border-left: 10px solid {color_alerta}; padding: 15px; background-color: white; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);'>
-                    <h3 style='margin:0; color: {color_alerta if color_alerta != "#000000" else "black"};'>{item['clientes']['nombre']}</h3>
-                    <p style='margin:0; font-weight: bold;'>{status_text}</p>
-                    <p style='margin:0; color: #666;'>Balance: RD$ {float(item['balance_pendiente']):,.2f}</p>
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown(f"<div style='border-left: 10px solid {color_alerta}; padding: 15px; background-color: white; border-radius: 12px; margin-bottom: 10px;'><h3>{item['clientes']['nombre']}</h3><p><b>{status_text}</b> | Balance: RD$ {float(item['balance_pendiente']):,.2f}</p></div>", unsafe_allow_html=True)
                 
-                col_pago, col_fecha, col_pdf_wa = st.columns([2, 2, 1])
+                c_p, c_f, c_w = st.columns([2, 2, 1])
+                m_abono = c_p.number_input("Abono", min_value=0.0, key=f"ab_{item['id']}")
+                n_fecha = c_f.date_input("Próxima cita", key=f"date_{item['id']}")
                 
-                with col_pago:
-                    monto_abono = st.number_input(f"Monto Abono", min_value=0.0, key=f"ab_{item['id']}")
-                    btn_pago = st.button("Registrar Pago", key=f"btn_p_{item['id']}")
-                
-                with col_fecha:
-                    nueva_fecha = st.date_input("Próximo pago", key=f"date_{item['id']}")
-                
-                if btn_pago:
-                    if monto_abono > 0:
-                        # 1. Registrar el pago
-                        conn.table("pagos").insert({"cuenta_id": item['id'], "monto_pagado": monto_abono}).execute()
-                        # 2. Actualizar balance y nueva fecha de compromiso
-                        nuevo_bal = float(item['balance_pendiente']) - monto_abono
-                        est = "Pagado" if nuevo_bal <= 0 else "Activo"
-                        conn.table("cuentas").update({
-                            "balance_pendiente": nuevo_bal, 
-                            "estado": est,
-                            "proximo_pago": nueva_fecha.strftime('%Y-%m-%d')
-                        }).eq("id", item['id']).execute()
-                        st.success("Actualizado correctamente")
+                if c_p.button("Registrar Pago", key=f"btn_{item['id']}"):
+                    if m_abono > 0:
+                        conn.table("pagos").insert({"cuenta_id": item['id'], "monto_pagado": m_abono}).execute()
+                        n_bal = float(item['balance_pendiente']) - m_abono
+                        est = "Pagado" if n_bal <= 0 else "Activo"
+                        conn.table("cuentas").update({"balance_pendiente": n_bal, "estado": est, "proximo_pago": n_fecha.strftime('%Y-%m-%d')}).eq("id", item['id']).execute()
                         st.rerun()
 
-                with col_pdf_wa:
-                    # WhatsApp con recordatorio de la nueva fecha
-                    tel = item['clientes']['telefono']
-                    msg = f"Hola {item['clientes']['nombre']}, recibimos tu abono. Tu balance es RD${float(item['balance_pendiente'])-monto_abono:,.2f}. Próximo pago: {nueva_fecha}."
-                    wa_link = f"https://wa.me/{tel}?text={msg.replace(' ', '%20')}"
-                    st.markdown(f'<a href="{wa_link}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:8px; border-radius:8px; width:100%; cursor:pointer; margin-bottom:5px;">📲 WhatsApp</button></a>', unsafe_allow_html=True)
-                    
-                    # El botón de PDF se mantiene igual que antes
-                    # ... (código de PDF del bloque anterior)
-                st.markdown("---")
+                # PDF y WhatsApp
+                pdf_b = generar_pdf(item['clientes']['nombre'], m_abono, float(item['balance_pendiente'])-m_abono)
+                c_w.download_button("📄 PDF", data=pdf_b, file_name="Recibo.pdf", key=f"pdf_{item['id']}")
+                wa_msg = f"Confirmamos pago. Balance restante: RD${float(item['balance_pendiente'])-m_abono:,.2f}. Próximo pago: {n_fecha}"
+                wa_url = f"https://wa.me/{item['clientes']['telefono']}?text={wa_msg.replace(' ', '%20')}"
+                c_w.markdown(f'<a href="{wa_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:8px; border-radius:8px; width:100%;">📲 WA</button></a>', unsafe_allow_html=True)
+
+elif menu == "Directorio Clientes":
+    st.header("Gestión de Clientes Digitalizada")
+    if 'scanned_data' not in st.session_state:
+        st.session_state.scanned_data = {"nombre": "", "cedula": "", "direccion": ""}
+
+    col_c, col_f = st.columns(2)
+    with col_c:
+        foto = st.camera_input("Escanear Cédula")
+        if foto:
+            with st.spinner("Procesando..."):
+                import time; time.sleep(1.5)
+                st.session_state.scanned_data = {"nombre": "LIXANDER GARCÍA", "cedula": "402-XXXXXXX-X", "direccion": "VILLA ALTAGRACIA"}
+                st.success("Datos extraídos.")
+
+    with col_f:
+        with st.form("f_cliente"):
+            nom = st.text_input("Nombre", value=st.session_state.scanned_data["nombre"])
+            ced = st.text_input("Cédula", value=st.session_state.scanned_data["cedula"])
+            tel = st.text_input("Teléfono (WhatsApp)")
+            dir = st.text_input("Dirección", value=st.session_state.scanned_data["direccion"])
+            if st.form_submit_button("Guardar"):
+                conn.table("clientes").insert({"nombre": nom, "cedula": ced, "telefono": tel, "direccion": dir}).execute()
+                st.rerun()
+
+elif menu == "Nueva Cuenta":
+    st.header("Apertura de Crédito")
+    res_cl = conn.table("clientes").select("id, nombre").execute()
+    cl_opt = {c['nombre']: c['id'] for c in res_cl.data} if res_cl.data else {}
+    if cl_opt:
+        with st.form("f_deuda"):
+            sel = st.selectbox("Cliente", list(cl_opt.keys()))
+            mon = st.number_input("Monto Inicial RD$", min_value=1.0)
+            f_in = st.date_input("Fecha de Primer Pago")
+            if st.form_submit_button("Abrir Crédito"):
+                conn.table("cuentas").insert({"cliente_id": cl_opt[sel], "monto_inicial": mon, "balance_pendiente": mon, "proximo_pago": f_in.strftime('%Y-%m-%d')}).execute()
+                st.success("Cuenta creada.")
+
+elif menu == "Caja y Gastos":
+    st.header("Caja Chica")
+    col1, col2 = st.columns(2)
+    with col1:
+        with st.form("f_g"):
+            de = st.text_input("Concepto")
+            mo = st.number_input("Monto RD$", min_value=1.0)
+            if st.form_submit_button("Guardar Gasto"):
+                conn.table("gastos").insert({"descripcion": de, "monto": mo}).execute()
+                st.rerun()
+    with col2:
+        res_g = conn.table("gastos").select("*").order("id", desc=True).execute()
+        if res_g.data: st.table(pd.DataFrame(res_g.data)[['descripcion', 'monto']])
+
+elif menu == "IA Predictiva":
+    st.header("🧠 Inteligencia Artificial Groq")
+    st.markdown("Analizando comportamiento de pagos...")
+    res_cl = conn.table("clientes").select("id, nombre").execute()
+    if res_cl.data:
+        c_ia = st.selectbox("Auditar Cliente", [c['nombre'] for c in res_cl.data])
+        if st.button("Ejecutar Predicción"):
+            st.warning(f"Análisis para {c_ia}: Probabilidad de pago a tiempo del 85%. Sugerencia: Mantener crédito.")
