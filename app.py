@@ -74,11 +74,14 @@ def generar_pdf(nombre, monto, balance):
     pdf.cell(200, 10, txt="RECIBO DE PAGO OFICIAL", ln=True, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", "", 12)
-    pdf.cell(200, 10, txt=f"Cliente: {nombre}", ln=True)
+    # Usamos latin-1 para evitar errores de caracteres en nombres dominicanos
+    pdf.cell(200, 10, txt=f"Cliente: {nombre}".encode('latin-1', 'replace').decode('latin-1'), ln=True)
     pdf.cell(200, 10, txt=f"Monto Recibido: RD$ {monto:,.2f}", ln=True)
     pdf.cell(200, 10, txt=f"Balance Restante: RD$ {balance:,.2f}", ln=True)
     pdf.cell(200, 10, txt=f"Fecha: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
-    return pdf.output(dest='S').encode('latin-1')
+    
+    # IMPORTANTE: En fpdf2, output() sin argumentos devuelve los bytes directamente
+    return pdf.output()
 
 # --- 5. MÓDULOS ---
 
@@ -181,8 +184,17 @@ elif menu == "Gestión de Cobros":
                 wa_url = f"https://wa.me/{item['clientes']['telefono']}?text={wa_msg.replace(' ', '%20')}"
                 c3.markdown(f'<a href="{wa_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%;">WhatsApp</button></a>', unsafe_allow_html=True)
                 
-                pdf_data = generar_pdf(item['clientes']['nombre'], abono, float(item['balance_pendiente'])-abono)
-                c3.download_button("Recibo PDF", data=pdf_data, file_name=f"Recibo_{item['id']}.pdf", key=f"pdf_{item['id']}")
+               # Generamos los bytes del PDF
+pdf_bytes = generar_pdf(item['clientes']['nombre'], abono, float(item['balance_pendiente']) - abono)
+
+# El botón ahora recibe los bytes limpios
+c3.download_button(
+    label="📄 Recibo PDF",
+    data=pdf_bytes,
+    file_name=f"Recibo_{item['clientes']['nombre']}_{datetime.now().strftime('%d%m')}.pdf",
+    mime="application/pdf",
+    key=f"pdf_{item['id']}"
+)
 
 elif menu == "Directorio Clientes":
     st.header("Escáner de Clientes IA")
