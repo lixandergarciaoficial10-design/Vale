@@ -3,3 +3,4 @@ pandas
 plotly
 st-supabase-connection
 supabase
+fpdf2
