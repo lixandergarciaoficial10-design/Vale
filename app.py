@@ -193,8 +193,7 @@ c3.download_button(
     data=pdf_bytes,
     file_name=f"Recibo_{item['clientes']['nombre']}_{datetime.now().strftime('%d%m')}.pdf",
     mime="application/pdf",
-    key=f"pdf_{item['id']}"
-)
+    key=f"pdf_{item['id']}")
 
 elif menu == "Directorio Clientes":
     st.header("Escáner de Clientes IA")
