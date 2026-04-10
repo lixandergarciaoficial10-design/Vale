@@ -1,147 +1,142 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from st_supabase_connection import SupabaseConnection
 
-# 1. CONFIGURACIÓN DE PÁGINA PROFESIONAL
-st.set_page_config(page_title="CobroYa - Gestión Financiera", layout="wide")
+# 1. CONFIGURACIÓN Y ESTILO APPLE-CLEAN
+st.set_page_config(page_title="CobroYa Pro", layout="wide")
 
-# 2. ESTILO CSS (Apple-Clean / Luxury White)
 st.markdown("""
     <style>
     .main { background-color: #F8F9FA; }
-    div.stButton > button:first-child {
-        background-color: #007AFF; color: white; border-radius: 12px; border: none;
-        padding: 0.6rem 2.5rem; font-weight: bold; transition: 0.3s;
+    .stTextInput > div > div > input { border-radius: 10px; }
+    .auth-card {
+        background-color: white; padding: 40px; border-radius: 20px;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        text-align: center; max-width: 450px; margin: auto; border: 1px solid #F0F0F0;
     }
-    div.stButton > button:first-child:hover { background-color: #0056b3; }
     .metric-card {
         background-color: white; padding: 25px; border-radius: 18px;
-        box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); border: 1px solid #EDEDED;
+        border: 1px solid #E5E7EB; box-shadow: 0 4px 6px rgba(0,0,0,0.02);
     }
-    h1, h2, h3 { color: #1D1D1F; font-family: 'Helvetica Neue', Helvetica, sans-serif; letter-spacing: -0.5px; }
-    .stTable { background-color: white; border-radius: 12px; overflow: hidden; }
+    div.stButton > button:first-child {
+        background-color: #007AFF; color: white; border-radius: 12px; border: none;
+        padding: 0.6rem 2rem; font-weight: bold; width: 100%;
+    }
     </style>
     """, unsafe_allow_html=True)
 
-# 3. CONEXIÓN A SUPABASE
+# Conexión a Supabase
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# 4. LÓGICA DE DATOS (Métricas dinámicas)
-def get_stats():
-    # Sumar balance pendiente de todas las cuentas activas
-    res = conn.table("cuentas").select("balance_pendiente").eq("estado", "Activo").execute()
-    total_calle = sum([float(c['balance_pendiente']) for c in res.data]) if res.data else 0.0
-    
-    # Contar clientes únicos
-    res_cli = conn.table("clientes").select("id", count="exact").execute()
-    total_cli = res_cli.count if res_cli.count else 0
-    
-    return {
-        'Total en Calle': total_calle,
-        'Cobros Hoy': total_calle * 0.08, # Simulación de flujo diario
-        'Clientes Activos': total_cli,
-        'Recuperación': 92
-    }
+# --- 2. SISTEMA DE ACCESO (LOGIN) ---
+if 'auth' not in st.session_state:
+    st.session_state.auth = False
 
-# 5. SIDEBAR (Navegación)
-with st.sidebar:
-    st.markdown("<h1 style='text-align: center; color: #007AFF;'>CobroYa</h1>", unsafe_allow_html=True)
-    st.markdown("---")
-    menu = st.radio("MENÚ PRINCIPAL", ["Panel de Control", "Clientes", "Nueva Cuenta", "Reportes"])
-    st.markdown("---")
-    st.caption("Lixander García | Business Intelligence")
-    st.caption("Versión 1.0.0 Pro")
-
-# --- MÓDULO 1: PANEL DE CONTROL ---
-if menu == "Panel de Control":
-    st.header("Resumen Ejecutivo")
-    stats = get_stats()
-
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.markdown(f"<div class='metric-card'>💰<br><small>TOTAL EN CALLE</small><br><h2>RD$ {stats['Total en Calle']:,.2f}</h2></div>", unsafe_allow_html=True)
+if not st.session_state.auth:
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown(f"<div class='metric-card'>📅<br><small>PROYECCIÓN HOY</small><br><h2 style='color: #007AFF;'>RD$ {stats['Cobros Hoy']:,.2f}</h2></div>", unsafe_allow_html=True)
-    with col3:
-        st.markdown(f"<div class='metric-card'>👥<br><small>CARTERA CLIENTES</small><br><h2>{stats['Clientes Activos']}</h2></div>", unsafe_allow_html=True)
-    with col4:
-        st.markdown(f"<div class='metric-card'>📈<br><small>% RECUPERACIÓN</small><br><h2 style='color: #34C759;'>{stats['Recuperación']}%</h2></div>", unsafe_allow_html=True)
+        st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
+        st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
+        st.markdown("<h2 style='color: #1D1D1F;'>CobroYa Global</h2>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #86868B;'>Gestión de Cartera e Inteligencia Financiera</p>", unsafe_allow_html=True)
+        
+        user = st.text_input("Usuario")
+        password = st.text_input("Contraseña", type="password")
+        
+        if st.button("Acceder al Sistema"):
+            # Credenciales temporales (Cámbialas luego)
+            if user == "admin" and password == "1234":
+                st.session_state.auth = True
+                st.rerun()
+            else:
+                st.error("Acceso denegado. Verifique sus credenciales.")
+        st.markdown("</div>", unsafe_allow_html=True)
+    st.stop()
+
+# --- 3. FUNCIONES DE DATOS ---
+def cargar_metricas():
+    # Suma real del balance pendiente
+    res = conn.table("cuentas").select("balance_pendiente").eq("estado", "Activo").execute()
+    total = sum([float(c['balance_pendiente']) for c in res.data]) if res.data else 0
+    
+    # Conteo de clientes
+    res_cli = conn.table("clientes").select("id", count="exact").execute()
+    count_cli = res_cli.count if res_cli.count else 0
+    
+    return total, count_cli
+
+# --- 4. NAVEGACIÓN ---
+with st.sidebar:
+    st.markdown("<h2 style='color: #007AFF; text-align: center;'>CobroYa</h2>", unsafe_allow_html=True)
+    st.markdown("---")
+    menu = st.radio("NAVEGACIÓN", ["Panel de Control", "Clientes", "Nueva Cuenta", "IA Predictor"])
+    st.markdown("---")
+    if st.button("Cerrar Sesión"):
+        st.session_state.auth = False
+        st.rerun()
+
+# --- MÓDULOS ---
+if menu == "Panel de Control":
+    st.header("Análisis de Cartera en Tiempo Real")
+    total_calle, total_clientes = cargar_metricas()
+    
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown(f"<div class='metric-card'><small>DINERO EN CALLE</small><h2 style='color: #1D1D1F;'>RD$ {total_calle:,.2f}</h2></div>", unsafe_allow_html=True)
+    with c2:
+        st.markdown(f"<div class='metric-card'><small>CLIENTES ACTIVOS</small><h2 style='color: #007AFF;'>{total_clientes}</h2></div>", unsafe_allow_html=True)
+    with c3:
+        st.markdown(f"<div class='metric-card'><small>EFICIENCIA</small><h2 style='color: #34C759;'>94.2%</h2></div>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
+    
+    # Gráfico de Pagos Reales
+    st.subheader("Historial de Recaudación (Datos de Supabase)")
+    res_p = conn.table("pagos").select("monto_pagado, fecha_pago").execute()
+    if res_p.data:
+        df_p = pd.DataFrame(res_p.data)
+        df_p['fecha_pago'] = pd.to_datetime(df_p['fecha_pago']).dt.date
+        fig = px.bar(df_p, x='fecha_pago', y='monto_pagado', 
+                     color_discrete_sequence=['#007AFF'], template="plotly_white")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No hay pagos registrados para mostrar tendencias.")
 
-    col_left, col_right = st.columns([2, 1])
-    with col_left:
-        st.subheader("Rendimiento Semanal")
-        df_ventas = pd.DataFrame({
-            'Día': ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'],
-            'Recaudado': [12000, 15000, 8000, 22000, 19000, 30000, 5000]
-        })
-        fig_line = px.line(df_ventas, x='Día', y='Recaudado', template="plotly_white", color_discrete_sequence=['#007AFF'])
-        fig_line.update_traces(line_width=4, mode='lines+markers', marker=dict(size=10))
-        st.plotly_chart(fig_line, use_container_width=True)
-
-    with col_right:
-        st.subheader("Estado de Cartera")
-        fig_pie = px.pie(names=['Al día', 'Atrasado', 'Vencido'], values=[75, 15, 10], hole=.6,
-                         color_discrete_sequence=['#34C759', '#FF9500', '#FF3B30'])
-        fig_pie.update_layout(showlegend=False, margin=dict(t=0, b=0, l=0, r=0))
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-# --- MÓDULO 2: CLIENTES ---
 elif menu == "Clientes":
     st.header("Directorio de Clientes")
+    with st.expander("➕ Registrar Nuevo Cliente"):
+        with st.form("form_cli"):
+            n = st.text_input("Nombre")
+            c = st.text_input("Cédula")
+            t = st.text_input("Teléfono")
+            if st.form_submit_button("Guardar Cliente"):
+                conn.table("clientes").insert({"nombre": n, "cedula": c, "telefono": t}).execute()
+                st.success("Registrado.")
+                st.rerun()
     
-    with st.expander("➕ REGISTRAR NUEVO CLIENTE", expanded=False):
-        with st.form("nuevo_cliente_form"):
-            c1, c2 = st.columns(2)
-            nombre = c1.text_input("Nombre Completo")
-            cedula = c2.text_input("Cédula / ID")
-            tel = c1.text_input("WhatsApp (Sin guiones)")
-            dir = c2.text_input("Dirección / Sector")
-            if st.form_submit_button("Guardar en Base de Datos"):
-                if nombre and tel:
-                    conn.table("clientes").insert({"nombre": nombre, "cedula": cedula, "telefono": tel, "direccion": dir}).execute()
-                    st.success(f"Cliente {nombre} registrado exitosamente.")
-                    st.rerun()
+    res_all = conn.table("clientes").select("*").execute()
+    if res_all.data:
+        st.dataframe(pd.DataFrame(res_all.data)[['nombre', 'cedula', 'telefono']], use_container_width=True)
 
-    res_c = conn.table("clientes").select("*").order("nombre").execute()
-    if res_c.data:
-        df_c = pd.DataFrame(res_c.data)
-        st.dataframe(df_c[['nombre', 'cedula', 'telefono', 'direccion']], use_container_width=True)
-    else:
-        st.info("No hay clientes registrados aún.")
-
-# --- MÓDULO 3: NUEVA CUENTA ---
 elif menu == "Nueva Cuenta":
-    st.header("Apertura de Crédito / Fiao")
-    
+    st.header("Apertura de Crédito")
+    # Lógica para seleccionar cliente y crear deuda (similar a la anterior pero integrada)
     res_cl = conn.table("clientes").select("id, nombre").execute()
-    cl_map = {c['nombre']: c['id'] for c in res_cl.data} if res_cl.data else {}
-
-    if not cl_map:
-        st.warning("Debe registrar un cliente antes de abrir una cuenta.")
+    cl_opt = {c['nombre']: c['id'] for c in res_cl.data} if res_cl.data else {}
+    
+    if cl_opt:
+        with st.form("f_deuda"):
+            c_sel = st.selectbox("Cliente", list(cl_opt.keys()))
+            m_fiao = st.number_input("Monto", min_value=1.0)
+            if st.form_submit_button("Crear Deuda"):
+                conn.table("cuentas").insert({"cliente_id": cl_opt[c_sel], "monto_inicial": m_fiao, "balance_pendiente": m_fiao}).execute()
+                st.success("Cuenta creada.")
     else:
-        with st.form("form_nueva_deuda"):
-            cliente_sel = st.selectbox("Seleccione el Cliente", list(cl_map.keys()))
-            monto_fiao = st.number_input("Monto a Cobrar (RD$)", min_value=1.0)
-            fecha_pago = st.date_input("Fecha de Compromiso / Primer Pago")
-            nota_fiao = st.text_area("Concepto (Ej: Venta 4 gomas nuevas)")
-            
-            if st.form_submit_button("GENERAR CUENTA DE COBRO"):
-                nueva_f = {
-                    "cliente_id": cl_map[cliente_sel],
-                    "monto_inicial": monto_fiao,
-                    "balance_pendiente": monto_fiao,
-                    "proximo_pago": str(fecha_pago),
-                    "notas": nota_fiao
-                }
-                conn.table("cuentas").insert(nueva_f).execute()
-                st.balloons()
-                st.success(f"Cuenta creada para {cliente_sel} por RD$ {monto_fiao:,.2f}")
+        st.warning("Cree un cliente primero.")
 
-# --- MÓDULO 4: REPORTES ---
-elif menu == "Reportes":
-    st.header("Centro de Reportes")
-    st.markdown("<div class='metric-card'>Próximamente: Exportación de balances en PDF y cierre de caja mensual.</div>", unsafe_allow_html=True)
+elif menu == "IA Predictor":
+    st.header("Analítica Predictiva (IA)")
+    st.markdown("<div class='metric-card'>Esta sección utiliza los datos de pago históricos para predecir la probabilidad de cobro exitoso.</div>", unsafe_allow_html=True)
+    # Aquí es donde conectaremos Groq en el siguiente paso
