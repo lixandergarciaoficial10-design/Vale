@@ -418,20 +418,23 @@ elif menu == "Nueva Cuenta":
                     
                     # --- ESTO ES LO NUEVO: GENERAR PDF ---
                     # Le pasamos st.session_state["mis_clausulas"] como el último parámetro
-pdf_bin = generar_pdf_contrato_legal(
-    cliente_obj['nombre'], 
-    cliente_obj['cedula'], 
-    capital, 
-    total_real, 
-    df_editable, 
-    freq_sel,
-    st.session_state.get("mis_clausulas", "Sin cláusulas configuradas") # <--- ESTO ES LA CLAVE
-)
+# --- GENERACIÓN DEL PDF CON CLÁUSULAS ---
+                    pdf_bin = generar_pdf_contrato_legal(
+                        cliente_obj['nombre'], 
+                        cliente_obj['cedula'], 
+                        capital, 
+                        total_real, 
+                        df_editable, 
+                        freq_sel,
+                        st.session_state.get("mis_clausulas", "Sin clausulas configuradas")
+                    )
+                    
+                    st.session_state.pdf_ready = pdf_bin
                     # -------------------------------------
-
+                    
                     st.success(f"¡Préstamo de RD$ {total_real:,.2f} activado!")
                     time.sleep(1)
-                    st.rerun()    
+                    st.rerun()  
 
 # Este botón aparecerá justo debajo de todo cuando el PDF esté listo
         if "pdf_ready" in st.session_state:
