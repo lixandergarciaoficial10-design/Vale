@@ -207,8 +207,7 @@ with st.spinner("Creando contrato y sincronizando..."):
                     st.success(f"¡Préstamo de RD$ {total_real:,.2f} activado!")
                     time.sleep(1)
                     st.rerun()
-    pdf = FPDF()
-    pdf.add_page()
+    
     # Encabezado [cite: 1]
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(190, 10, "CONTRATO DE PRESTAMO Y COMPROMISO DE PAGO", ln=True, align='C')
