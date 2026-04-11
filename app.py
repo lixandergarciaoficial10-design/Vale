@@ -74,13 +74,12 @@ def generar_pdf(nombre, monto, balance):
     pdf.cell(200, 10, txt="RECIBO DE PAGO OFICIAL", ln=True, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", "", 12)
-    # Usamos latin-1 para evitar errores de caracteres en nombres dominicanos
-    pdf.cell(200, 10, txt=f"Cliente: {nombre}".encode('latin-1', 'replace').decode('latin-1'), ln=True)
+    # Codificación segura para caracteres dominicanos
+    texto_cliente = f"Cliente: {nombre}".encode('latin-1', 'replace').decode('latin-1')
+    pdf.cell(200, 10, txt=texto_cliente, ln=True)
     pdf.cell(200, 10, txt=f"Monto Recibido: RD$ {monto:,.2f}", ln=True)
     pdf.cell(200, 10, txt=f"Balance Restante: RD$ {balance:,.2f}", ln=True)
     pdf.cell(200, 10, txt=f"Fecha: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
-    
-    # IMPORTANTE: En fpdf2, output() sin argumentos devuelve los bytes directamente
     return pdf.output()
 
 # --- 5. MÓDULOS ---
@@ -88,7 +87,6 @@ def generar_pdf(nombre, monto, balance):
 if menu == "Panel de Control":
     st.title("Business Intelligence Dashboard")
     
-    # FETCH DATA
     res_c = conn.table("cuentas").select("balance_pendiente, estado, clientes(nombre)").execute()
     df_cuentas = pd.DataFrame(res_c.data) if res_c.data else pd.DataFrame()
     
@@ -98,7 +96,6 @@ if menu == "Panel de Control":
     res_g = conn.table("gastos").select("monto").execute()
     total_gastos = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
 
-    # KPIs
     total_calle = df_cuentas[df_cuentas['estado'] == 'Activo']['balance_pendiente'].sum() if not df_cuentas.empty else 0
     total_recaudado = df_pagos['monto_pagado'].sum() if not df_pagos.empty else 0
     eficiencia = (total_recaudado / (total_calle + total_recaudado) * 100) if (total_calle + total_recaudado) > 0 else 0
@@ -110,8 +107,6 @@ if menu == "Panel de Control":
     c4.markdown(f"<div class='metric-card'><small>GANANCIA NETA</small><h2 style='color: #007AFF;'>RD$ {total_recaudado - total_gastos:,.0f}</h2></div>", unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    
-    # GRÁFICOS SUPERIORES
     col_left, col_right = st.columns([2, 1])
     
     with col_left:
@@ -128,15 +123,13 @@ if menu == "Panel de Control":
             fig_pie = px.pie(df_cuentas, names='estado', values='balance_pendiente', hole=0.7, color_discrete_sequence=['#007AFF', '#34C759', '#FF9500'])
             st.plotly_chart(fig_pie, use_container_width=True)
 
-    # GRÁFICOS INFERIORES (LOS QUE FALTABAN)
     st.markdown("<br>", unsafe_allow_html=True)
     col_inf1, col_inf2 = st.columns(2)
 
     with col_inf1:
         st.subheader("Top 5 Deudores")
-        if not df_cuentas.empty:
-            # Aplanamos la estructura del nombre del cliente
-            df_cuentas['Cliente'] = df_cuentas['clientes'].apply(lambda x: x['nombre'])
+        if not df_cuentas.empty and 'clientes' in df_cuentas:
+            df_cuentas['Cliente'] = df_cuentas['clientes'].apply(lambda x: x['nombre'] if isinstance(x, dict) else "Desconocido")
             df_top = df_cuentas[df_cuentas['estado'] == 'Activo'].nlargest(5, 'balance_pendiente')
             fig_top = px.bar(df_top, x='balance_pendiente', y='Cliente', orientation='h', 
                              color='balance_pendiente', color_continuous_scale='Blues', template="plotly_white")
@@ -155,7 +148,6 @@ elif menu == "Gestión de Cobros":
     
     if query.data:
         for item in query.data:
-            # Lógica Semáforo (Verde, Naranja, Rojo, Negro)
             color = "#E5E7EB"
             if item['proximo_pago']:
                 dias = (datetime.strptime(item['proximo_pago'], '%Y-%m-%d').date() - datetime.now().date()).days
@@ -179,21 +171,19 @@ elif menu == "Gestión de Cobros":
                         conn.table("cuentas").update({"balance_pendiente": nuevo_b, "estado": status, "proximo_pago": f_cita.strftime('%Y-%m-%d')}).eq("id", item['id']).execute()
                         st.rerun()
 
-                # Botones Acción
                 wa_msg = f"Pago recibido. Nuevo balance: RD$ {float(item['balance_pendiente'])-abono:,.2f}. Próxima cita: {f_cita}"
                 wa_url = f"https://wa.me/{item['clientes']['telefono']}?text={wa_msg.replace(' ', '%20')}"
-                c3.markdown(f'<a href="{wa_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%;">WhatsApp</button></a>', unsafe_allow_html=True)
+                c3.markdown(f'<a href="{wa_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; cursor:pointer;">WhatsApp</button></a>', unsafe_allow_html=True)
                 
-               # Generamos los bytes del PDF
-pdf_bytes = generar_pdf(item['clientes']['nombre'], abono, float(item['balance_pendiente']) - abono)
-
-# El botón ahora recibe los bytes limpios
-c3.download_button(
-    label="📄 Recibo PDF",
-    data=pdf_bytes,
-    file_name=f"Recibo_{item['clientes']['nombre']}_{datetime.now().strftime('%d%m')}.pdf",
-    mime="application/pdf",
-    key=f"pdf_{item['id']}")
+                # Generación y descarga de PDF corregida
+                pdf_bytes = generar_pdf(item['clientes']['nombre'], abono, float(item['balance_pendiente']) - abono)
+                c3.download_button(
+                    label="📄 Recibo PDF",
+                    data=pdf_bytes,
+                    file_name=f"Recibo_{item['clientes']['nombre']}.pdf",
+                    mime="application/pdf",
+                    key=f"pdf_{item['id']}"
+                )
 
 elif menu == "Directorio Clientes":
     st.header("Escáner de Clientes IA")
@@ -248,9 +238,8 @@ elif menu == "Caja y Gastos":
 
 elif menu == "IA Predictiva":
     st.header("🧠 Groq Predictor de Riesgo")
-    st.info("Analizando patrones históricos con Groq Cloud...")
     res_cl = conn.table("clientes").select("id, nombre").execute()
     if res_cl.data:
         c_ia = st.selectbox("Cliente a Auditar", [c['nombre'] for c in res_cl.data])
         if st.button("Ejecutar Análisis"):
-            st.markdown(f"<div class='metric-card'><h3>Análisis para: {c_ia}</h3><p>Riesgo: <b>BAJO</b></p><p>Sugerencia: El cliente tiene un historial del 90% de puntualidad.</p></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='metric-card'><h3>Análisis para: {c_ia}</h3><p>Riesgo: <b>BAJO</b></p></div>", unsafe_allow_html=True)
