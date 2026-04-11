@@ -176,11 +176,22 @@ def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     
     return bytes(pdf.output())
 
-# BUSCAR CLÁUSULAS EN SUPABASE ANTES DE GENERAR EL PDF
+with st.spinner("Creando contrato y sincronizando..."):
+                    # 1. Registro de la cuenta (Asegúrate de tener este bloque antes)
+                    conn.table("cuentas").insert({
+                        "cliente_id": cliente_obj['id'],
+                        "monto_inicial": total_real,
+                        "balance_pendiente": total_real,
+                        "user_id": u_id,
+                        "estado": "Activo",
+                        "proximo_pago": str(df_editable.iloc[0]["Fecha"])
+                    }).execute()
+
+                    # 2. BUSCAR CLÁUSULAS EN SUPABASE
                     res_c = conn.table("configuracion").select("clausulas").eq("user_id", u_id).execute()
                     clausulas_finales = res_c.data[0]['clausulas'] if res_c.data else "Sin clausulas configuradas."
 
-                    # GENERACIÓN DEL PDF
+                    # 3. GENERACIÓN DEL PDF (Llamando a la función que ya creamos)
                     pdf_bin = generar_pdf_contrato_legal(
                         cliente_obj['nombre'], 
                         cliente_obj['cedula'], 
@@ -188,11 +199,16 @@ def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
                         total_real, 
                         df_editable, 
                         freq_sel,
-                        clausulas_finales # <--- Pasamos las de la DB
-                    )   
+                        clausulas_finales
+                    )
+
+                    # 4. FINALIZACIÓN
+                    st.session_state.pdf_ready = pdf_bin
+                    st.success(f"¡Préstamo de RD$ {total_real:,.2f} activado!")
+                    time.sleep(1)
+                    st.rerun()
     pdf = FPDF()
     pdf.add_page()
-    
     # Encabezado [cite: 1]
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(190, 10, "CONTRATO DE PRESTAMO Y COMPROMISO DE PAGO", ln=True, align='C')
