@@ -54,8 +54,7 @@ def login_ui():
     with col2:
         st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
-        st.markdown("<h2 style='color: #1D1D1F;'>CobroYa Global</h2>")
-
+        st.markdown("<h2 style='color: #1D1D1F;'>CobroYa Global</h2>", unsafe_allow_html=True)
         if st.session_state.auth_mode == "login":
             email = st.text_input("Correo Electrónico")
             pwd = st.text_input("Contraseña", type="password")
