@@ -61,9 +61,18 @@ def login_ui():
             if st.button("Iniciar Sesión"):
                 try:
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                    st.session_state.user = res.user
-                    st.rerun()
-                except: st.error("Acceso incorrecto.")
+                    # Verificamos si el usuario realmente entró
+                    if res.user:
+                        st.session_state.user = res.user
+                        st.success("¡Bienvenido!")
+                        st.rerun()
+                except Exception as e:
+                    # Si el error es por falta de confirmación, Supabase lo avisa
+                    error_msg = str(e).lower()
+                    if "email not confirmed" in error_msg:
+                        st.warning("⚠️ Debes confirmar tu correo antes de entrar. Revisa tu bandeja de entrada.")
+                    else:
+                        st.error("❌ Correo o contraseña incorrectos.")
             
             st.markdown("---")
             c1, c2 = st.columns(2)
