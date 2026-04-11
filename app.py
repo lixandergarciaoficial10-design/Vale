@@ -413,7 +413,7 @@ elif menu == "Nueva Cuenta":
                     }).execute()
                     
                     # --- ESTO ES LO NUEVO: GENERAR PDF ---
-                    pdf_bin = generar_pdf_contrato(
+                    pdf_bin = generar_pdf_contrato_legal(
                         cliente_obj['nombre'], 
                         "Cédula", # O cliente_obj['cedula'] si la tienes en el select
                         capital, 
