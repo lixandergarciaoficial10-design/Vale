@@ -125,6 +125,8 @@ u_id = st.session_state.user.id
 
 # --- 3. FUNCIONES AUXILIARES (CORREGIDAS) ---
 
+# --- FUNCIONES AUXILIARES ---
+
 def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     pdf = FPDF()
     pdf.add_page()
@@ -176,47 +178,18 @@ def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     
     return bytes(pdf.output())
 
-with st.spinner("Creando contrato y sincronizando..."):
-                    # 1. Registro de la cuenta (Asegúrate de tener este bloque antes)
-                    conn.table("cuentas").insert({
-                        "cliente_id": cliente_obj['id'],
-                        "monto_inicial": total_real,
-                        "balance_pendiente": total_real,
-                        "user_id": u_id,
-                        "estado": "Activo",
-                        "proximo_pago": str(df_editable.iloc[0]["Fecha"])
-                    }).execute()
-
-                    # 2. BUSCAR CLÁUSULAS EN SUPABASE
-                    res_c = conn.table("configuracion").select("clausulas").eq("user_id", u_id).execute()
-                    clausulas_finales = res_c.data[0]['clausulas'] if res_c.data else "Sin clausulas configuradas."
-
-                    # 3. GENERACIÓN DEL PDF (Llamando a la función que ya creamos)
-                    pdf_bin = generar_pdf_contrato_legal(
-                        cliente_obj['nombre'], 
-                        cliente_obj['cedula'], 
-                        capital, 
-                        total_real, 
-                        df_editable, 
-                        freq_sel,
-                        clausulas_finales
-                    )
-
-                    # 4. FINALIZACIÓN
-                    st.session_state.pdf_ready = pdf_bin
-                    st.success(f"¡Préstamo de RD$ {total_real:,.2f} activado!")
-                    time.sleep(1)
-                    st.rerun()
+def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df, freq, clausulas_texto):
+    pdf = FPDF()
+    pdf.add_page()
     
-    # Encabezado [cite: 1]
+    # Encabezado
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(190, 10, "CONTRATO DE PRESTAMO Y COMPROMISO DE PAGO", ln=True, align='C')
     pdf.line(10, 22, 200, 22)
     pdf.ln(10)
     
-    # Declaración [cite: 2]
+    # Declaración
     pdf.set_font("Helvetica", "", 11)
-    # Limpiamos el texto para evitar errores de encoding
     nombre_clean = nombre_cli.encode('latin-1', 'replace').decode('latin-1')
     texto_declaracion = (f"Yo, {nombre_clean.upper()}, portador de la cedula {cedula_cli}, declaro haber recibido "
                          f"la suma de RD$ {capital:,.2f} en calidad de prestamo, comprometiendome a pagar "
@@ -224,16 +197,14 @@ with st.spinner("Creando contrato y sincronizando..."):
     pdf.multi_cell(190, 7, texto_declaracion)
     pdf.ln(5)
     
-    # Cláusulas Personalizadas 
+    # Cláusulas
     pdf.set_font("Helvetica", "B", 11)
     pdf.cell(190, 10, "CLAUSULAS DEL COMPROMISO:", ln=True)
     pdf.set_font("Helvetica", "", 10)
-    
-    # Procesamos el texto que viene de la configuración
     pdf.multi_cell(190, 6, clausulas_texto.encode('latin-1', 'replace').decode('latin-1'))
     pdf.ln(10)
     
-    # Tabla de pagos (Aseguramos que no se salga de la página) [cite: 5]
+    # Tabla
     pdf.set_fill_color(0, 51, 102)
     pdf.set_text_color(255, 255, 255)
     pdf.cell(30, 8, "Cuota", border=1, align='C', fill=True)
@@ -242,15 +213,14 @@ with st.spinner("Creando contrato y sincronizando..."):
     
     pdf.set_text_color(0, 0, 0)
     for i, row in cuotas_df.iterrows():
-        # Verificamos si la tabla va a chocar con el final de la página
         if pdf.get_y() > 250:
             pdf.add_page()
         pdf.cell(30, 7, str(int(row['Nº'])), border=1, align='C')
         pdf.cell(80, 7, str(row['Fecha']), border=1, align='C')
         pdf.cell(80, 7, f"RD$ {row['Monto Cuota (RD$)']:,.2f}", border=1, align='C', ln=True)
     
-    # Firmas (Posicionadas al final) 
-    pdf.set_y(-40) # 40mm desde el final de la página
+    # Firmas
+    pdf.set_y(-40)
     pdf.line(20, pdf.get_y(), 90, pdf.get_y()) 
     pdf.line(120, pdf.get_y(), 190, pdf.get_y()) 
     pdf.set_font("Helvetica", "B", 10)
@@ -258,7 +228,6 @@ with st.spinner("Creando contrato y sincronizando..."):
     pdf.text(135, pdf.get_y() + 5, "FIRMA ACREEDOR")
     
     return bytes(pdf.output())
-
 def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_pagos):
     pdf = FPDF()
     pdf.add_page()
