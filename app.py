@@ -137,6 +137,32 @@ def generar_pdf(nombre, monto, balance):
     pdf.cell(200, 10, txt=f"Balance Restante: RD$ {balance:,.2f}", ln=True)
     pdf.cell(200, 10, txt=f"Fecha: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
     return pdf.output(dest='S').encode('latin-1')
+    
+def generar_pdf_contrato(nombre_cli, cedula_cli, capital, total, cuotas_df, freq):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", "B", 18)
+    pdf.cell(190, 10, "PAGARE NOTARIAL - COBROYA PRO", ln=True, align='C')
+    pdf.set_font("Arial", "", 10)
+    pdf.cell(190, 5, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='C')
+    pdf.ln(10)
+    pdf.set_font("Arial", "B", 12)
+    pdf.cell(95, 8, "ACREEDOR: CobroYa Global", border=1)
+    pdf.cell(95, 8, f"DEUDOR: {nombre_cli}", border=1, ln=True)
+    pdf.ln(5)
+    pdf.set_font("Arial", "B", 11)
+    pdf.cell(40, 8, "Cuota #", border=1, align='C')
+    pdf.cell(75, 8, "Fecha", border=1, align='C')
+    pdf.cell(75, 8, "Monto", border=1, align='C', ln=True)
+    pdf.set_font("Arial", "", 10)
+    for index, row in cuotas_df.iterrows():
+        pdf.cell(40, 7, str(int(row['Nº'])), border=1, align='C')
+        pdf.cell(75, 7, str(row['Fecha']), border=1, align='C')
+        pdf.cell(75, 7, f"RD$ {row['Monto Cuota (RD$)']:,.2f}", border=1, align='C', ln=True)
+    pdf.ln(10)
+    pdf.cell(190, 10, f"TOTAL A PAGAR: RD$ {total:,.2f}", ln=True, align='R')
+    return pdf.output(dest='S').encode('latin-1', 'replace')
+
 
 # --- 4. NAVEGACIÓN ---
 
@@ -285,24 +311,46 @@ elif menu == "Nueva Cuenta":
         # 6. GUARDADO CON DOBLE CONFIRMACIÓN
         if st.button("🚀 Confirmar y Activar Préstamo", use_container_width=True):
             if capital > 0:
-                with st.spinner("Creando contrato y sincronizando calendario de pagos..."):
-                    # Registrar cuenta
-                    res_cta = conn.table("cuentas").insert({
+                with st.spinner("Creando contrato y sincronizando..."):
+                    # ESTO YA LO TIENES: Registrar cuenta
+                    conn.table("cuentas").insert({
                         "cliente_id": cliente_obj['id'],
                         "monto_inicial": total_real,
                         "balance_pendiente": total_real,
                         "user_id": u_id,
                         "estado": "Activo",
-                        "proximo_pago": str(df_editable.iloc[0]["Fecha"]) # Primera fecha del calendario
+                        "proximo_pago": str(df_editable.iloc[0]["Fecha"])
                     }).execute()
                     
+                    # --- ESTO ES LO NUEVO: GENERAR PDF ---
+                    pdf_bin = generar_pdf_contrato(
+                        cliente_obj['nombre'], 
+                        "Cédula", # O cliente_obj['cedula'] si la tienes en el select
+                        capital, 
+                        total_real, 
+                        df_editable, 
+                        freq_sel
+                    )
+                    st.session_state.pdf_ready = pdf_bin # Guardamos el PDF en la memoria
+                    # -------------------------------------
+
                     st.success(f"¡Préstamo de RD$ {total_real:,.2f} activado!")
                     time.sleep(1)
-                    st.rerun()
-            else:
-                st.error("Debes poner un capital mayor a 0.")
-    else:
-        st.error("Registra primero un cliente para abrir su cuenta.")
+                    st.rerun()    
+
+# Este botón aparecerá justo debajo de todo cuando el PDF esté listo
+        if "pdf_ready" in st.session_state:
+            st.divider()
+            st.download_button(
+                label="📥 DESCARGAR CONTRATO Y FACTURA (PDF)",
+                data=st.session_state.pdf_ready,
+                file_name=f"Contrato_{cliente_obj['nombre']}.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+            if st.button("Limpiar y nueva transacción"):
+                del st.session_state.pdf_ready
+                st.rerun()
 elif menu == "Caja y Gastos":
     st.header("Movimientos de Efectivo")
     # Mostrar balance neto arriba
