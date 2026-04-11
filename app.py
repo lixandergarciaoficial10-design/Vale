@@ -74,25 +74,23 @@ def generar_pdf(nombre, monto, balance):
     pdf.cell(200, 10, txt="RECIBO DE PAGO OFICIAL", ln=True, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", "", 12)
-    # Codificación segura para caracteres dominicanos
+    # Manejo de caracteres dominicanos (ñ, acentos)
     texto_cliente = f"Cliente: {nombre}".encode('latin-1', 'replace').decode('latin-1')
     pdf.cell(200, 10, txt=texto_cliente, ln=True)
     pdf.cell(200, 10, txt=f"Monto Recibido: RD$ {monto:,.2f}", ln=True)
     pdf.cell(200, 10, txt=f"Balance Restante: RD$ {balance:,.2f}", ln=True)
     pdf.cell(200, 10, txt=f"Fecha: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
+    # Retornamos los bytes directamente
     return pdf.output()
 
 # --- 5. MÓDULOS ---
 
 if menu == "Panel de Control":
     st.title("Business Intelligence Dashboard")
-    
     res_c = conn.table("cuentas").select("balance_pendiente, estado, clientes(nombre)").execute()
     df_cuentas = pd.DataFrame(res_c.data) if res_c.data else pd.DataFrame()
-    
     res_p = conn.table("pagos").select("monto_pagado, fecha_pago").execute()
     df_pagos = pd.DataFrame(res_p.data) if res_p.data else pd.DataFrame()
-
     res_g = conn.table("gastos").select("monto").execute()
     total_gastos = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
 
@@ -108,7 +106,6 @@ if menu == "Panel de Control":
 
     st.markdown("<br>", unsafe_allow_html=True)
     col_left, col_right = st.columns([2, 1])
-    
     with col_left:
         st.subheader("Tendencia de Recaudación")
         if not df_pagos.empty:
@@ -116,7 +113,6 @@ if menu == "Panel de Control":
             df_tend = df_pagos.groupby('fecha_pago').sum().reset_index()
             fig_area = px.area(df_tend, x='fecha_pago', y='monto_pagado', template="plotly_white", color_discrete_sequence=['#007AFF'])
             st.plotly_chart(fig_area, use_container_width=True)
-
     with col_right:
         st.subheader("Estado de Cartera")
         if not df_cuentas.empty:
@@ -125,27 +121,22 @@ if menu == "Panel de Control":
 
     st.markdown("<br>", unsafe_allow_html=True)
     col_inf1, col_inf2 = st.columns(2)
-
     with col_inf1:
         st.subheader("Top 5 Deudores")
-        if not df_cuentas.empty and 'clientes' in df_cuentas:
+        if not df_cuentas.empty and 'clientes' in df_cuentas.columns:
             df_cuentas['Cliente'] = df_cuentas['clientes'].apply(lambda x: x['nombre'] if isinstance(x, dict) else "Desconocido")
             df_top = df_cuentas[df_cuentas['estado'] == 'Activo'].nlargest(5, 'balance_pendiente')
-            fig_top = px.bar(df_top, x='balance_pendiente', y='Cliente', orientation='h', 
-                             color='balance_pendiente', color_continuous_scale='Blues', template="plotly_white")
+            fig_top = px.bar(df_top, x='balance_pendiente', y='Cliente', orientation='h', color='balance_pendiente', color_continuous_scale='Blues', template="plotly_white")
             st.plotly_chart(fig_top, use_container_width=True)
-
     with col_inf2:
         st.subheader("Comparativa Mensual (Ingresos vs Gastos)")
         df_comp = pd.DataFrame({'Tipo': ['Ingresos', 'Gastos'], 'Total': [total_recaudado, total_gastos]})
-        fig_comp = px.bar(df_comp, x='Tipo', y='Total', color='Tipo', 
-                          color_discrete_map={'Ingresos':'#34C759', 'Gastos':'#FF3B30'}, template="plotly_white")
+        fig_comp = px.bar(df_comp, x='Tipo', y='Total', color='Tipo', color_discrete_map={'Ingresos':'#34C759', 'Gastos':'#FF3B30'}, template="plotly_white")
         st.plotly_chart(fig_comp, use_container_width=True)
 
 elif menu == "Gestión de Cobros":
     st.header("Gestión de Cobranza Real-Time")
     query = conn.table("cuentas").select("id, balance_pendiente, proximo_pago, clientes(nombre, telefono)").eq("estado", "Activo").execute()
-    
     if query.data:
         for item in query.data:
             color = "#E5E7EB"
@@ -158,11 +149,9 @@ elif menu == "Gestión de Cobros":
 
             with st.container():
                 st.markdown(f"<div style='border-left: 10px solid {color}; padding: 15px; background-color: white; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);'><h3>{item['clientes']['nombre']}</h3><p>Balance: RD$ {float(item['balance_pendiente']):,.2f} | Próximo Pago: {item['proximo_pago']}</p></div>", unsafe_allow_html=True)
-                
                 c1, c2, c3 = st.columns([2, 2, 1])
                 abono = c1.number_input("Monto Abono", min_value=0.0, key=f"a_{item['id']}")
                 f_cita = c2.date_input("Nueva Fecha", key=f"f_{item['id']}")
-                
                 if c1.button("Registrar", key=f"b_{item['id']}"):
                     if abono > 0:
                         conn.table("pagos").insert({"cuenta_id": item['id'], "monto_pagado": abono}).execute()
@@ -175,21 +164,23 @@ elif menu == "Gestión de Cobros":
                 wa_url = f"https://wa.me/{item['clientes']['telefono']}?text={wa_msg.replace(' ', '%20')}"
                 c3.markdown(f'<a href="{wa_url}" target="_blank"><button style="background-color:#25D366; color:white; border:none; padding:10px; border-radius:8px; width:100%; cursor:pointer;">WhatsApp</button></a>', unsafe_allow_html=True)
                 
-                # Generación y descarga de PDF corregida
-                pdf_bytes = generar_pdf(item['clientes']['nombre'], abono, float(item['balance_pendiente']) - abono)
-                c3.download_button(
-                    label="📄 Recibo PDF",
-                    data=pdf_bytes,
-                    file_name=f"Recibo_{item['clientes']['nombre']}.pdf",
-                    mime="application/pdf",
-                    key=f"pdf_{item['id']}"
-                )
+                # LA CORRECCIÓN DE INDENTACIÓN Y BYTES AQUÍ:
+                try:
+                    pdf_bytes = generar_pdf(item['clientes']['nombre'], abono, float(item['balance_pendiente']) - abono)
+                    c3.download_button(
+                        label="📄 Recibo PDF",
+                        data=pdf_bytes,
+                        file_name=f"Recibo_{item['clientes']['nombre']}.pdf",
+                        mime="application/pdf",
+                        key=f"pdf_{item['id']}"
+                    )
+                except Exception as e:
+                    c3.error("Error PDF")
 
 elif menu == "Directorio Clientes":
     st.header("Escáner de Clientes IA")
     if 'scanned_data' not in st.session_state:
         st.session_state.scanned_data = {"nombre": "", "cedula": "", "direccion": ""}
-
     c_cam, c_form = st.columns(2)
     with c_cam:
         foto = st.camera_input("Capturar Cédula")
@@ -198,7 +189,6 @@ elif menu == "Directorio Clientes":
                 import time; time.sleep(1.5)
                 st.session_state.scanned_data = {"nombre": "LIXANDER GARCÍA", "cedula": "402-XXXXXXX-X", "direccion": "VILLA ALTAGRACIA, RD"}
                 st.success("Extracción completada.")
-
     with c_form:
         with st.form("f_new_cli"):
             n = st.text_input("Nombre", value=st.session_state.scanned_data["nombre"])
