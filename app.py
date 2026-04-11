@@ -123,6 +123,8 @@ if 'user' not in st.session_state:
 
 u_id = st.session_state.user.id
 
+# --- 3. FUNCIONES AUXILIARES (CORREGIDAS) ---
+
 def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     pdf = FPDF()
     pdf.add_page()
@@ -145,10 +147,9 @@ def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     pdf.set_font("Helvetica", "", 12)
     pdf.cell(90, 10, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='R')
     
-    pdf.line(10, 55, 200, 55) # Línea divisoria
+    pdf.line(10, 55, 200, 55) 
     pdf.ln(10)
     
-    # Detalles en tabla limpia
     pdf.set_fill_color(245, 245, 245)
     pdf.cell(95, 10, " Concepto", border=1, fill=True)
     pdf.cell(95, 10, " Detalle", border=1, fill=True, ln=True)
@@ -166,50 +167,45 @@ def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
         pdf.cell(95, 10, f" {detalle}", border=1, ln=True)
         pdf.set_font("Helvetica", "", 12)
 
-    # --- CÓDIGO QR SIMULADO (Link de validación) ---
     qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Verificado:{recibo_id}:Monto:{monto}"
     pdf.image(qr_url, 160, 110, 30, 30)
     
-    # Pie de página
     pdf.set_y(140)
     pdf.set_font("Helvetica", "I", 8)
     pdf.cell(190, 10, "Este documento es un comprobante oficial de pago generado por CobroYa Pro.", align='C', ln=True)
     
     return bytes(pdf.output())
-    def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df, freq):
+
+def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df, freq):
     pdf = FPDF()
     pdf.add_page()
     
-    # Encabezado Formal
     pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(190, 10, "CONTRATO DE PRÉSTAMO Y COMPROMISO DE PAGO", ln=True, align='C')
+    pdf.cell(190, 10, "CONTRATO DE PRESTAMO Y COMPROMISO DE PAGO", ln=True, align='C')
     pdf.line(10, 22, 200, 22)
     pdf.ln(10)
     
-    # Declaración
     pdf.set_font("Helvetica", "", 11)
-    texto_legal = (f"Yo, {nombre_cli.upper()}, portador de la cédula {cedula_cli}, declaro haber recibido "
-                   f"la suma de RD$ {capital:,.2f} en calidad de préstamo, comprometiéndome a pagar "
-                   f"un total de RD$ {total:,.2f} bajo los términos acordados.")
+    texto_legal = (f"Yo, {nombre_cli.upper()}, portador de la cedula {cedula_cli}, declaro haber recibido "
+                   f"la suma de RD$ {capital:,.2f} en calidad de prestamo, comprometiendome a pagar "
+                   f"un total de RD$ {total:,.2f} bajo los terminos acordados.")
     pdf.multi_cell(190, 7, texto_legal)
     pdf.ln(5)
     
-    # Cláusulas (Lo que te da el poder)
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(190, 10, "CLÁUSULAS DEL COMPROMISO:", ln=True)
+    pdf.cell(190, 10, "CLAUSULAS DEL COMPROMISO:", ln=True)
     pdf.set_font("Helvetica", "", 10)
     clausulas = [
-        "1. MORA: El retraso de más de 3 días generará una penalidad del 5% sobre la cuota.",
-        "2. CANCELACIÓN: El cliente puede abonar al capital en cualquier momento sin penalidad.",
-        "3. AUTORIZACIÓN: El deudor autoriza el contacto vía WhatsApp y llamadas para cobros.",
-        "4. JURISDICCIÓN: En caso de litigio, se procederá bajo las leyes de la República Dominicana."
+        "1. MORA: El retraso de mas de 3 dias generara una penalidad del 5% sobre la cuota.",
+        "2. CANCELACION: El cliente puede abonar al capital en cualquier momento sin penalidad.",
+        "3. AUTORIZACION: El deudor autoriza el contacto via WhatsApp y llamadas para cobros.",
+        "4. JURISDICCION: En caso de litigio, se procedera bajo las leyes de la Republica Dominicana."
     ]
     for c in clausulas:
         pdf.multi_cell(190, 6, c)
     
     pdf.ln(10)
     
-    # Tabla de pagos estilizada
     pdf.set_fill_color(0, 51, 102)
     pdf.set_text_color(255, 255, 255)
     pdf.cell(30, 8, "Cuota", border=1, align='C', fill=True)
@@ -222,23 +218,22 @@ def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
         pdf.cell(80, 7, str(row['Fecha']), border=1, align='C')
         pdf.cell(80, 7, f"RD$ {row['Monto Cuota (RD$)']:,.2f}", border=1, align='C', ln=True)
     
-    # Firmas
     pdf.ln(25)
-    pdf.line(20, 240, 90, 240) # Línea deudor
-    pdf.line(120, 240, 190, 240) # Línea acreedor
+    pdf.line(20, 240, 90, 240) 
+    pdf.line(120, 240, 190, 240) 
     pdf.set_font("Helvetica", "B", 10)
     pdf.text(35, 245, "FIRMA DEUDOR")
     pdf.text(135, 245, "FIRMA ACREEDOR")
     
     return bytes(pdf.output())
-    def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_pagos):
+
+def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_pagos):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(190, 15, "ESTADO DE CUENTA CONSOLIDADO", ln=True, align='C')
     pdf.ln(5)
     
-    # Cuadros de resumen
     pdf.set_fill_color(230, 240, 255)
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(63, 20, f"PRESTADO: RD$ {total_prestado:,.0f}", border=1, align='C', fill=True)
@@ -250,7 +245,6 @@ def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     pdf.cell(190, 8, "HISTORIAL DE ABONOS RECIBIDOS:", ln=True)
     pdf.set_font("Helvetica", "", 10)
     
-    # Encabezado historial
     pdf.cell(60, 8, "Fecha de Pago", border=1)
     pdf.cell(130, 8, "Monto Abonado", border=1, ln=True)
     
