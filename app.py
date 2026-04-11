@@ -490,29 +490,37 @@ elif menu == "IA Predictiva":
 
 #esta es la parte de la configuracion
 elif menu == "Configuración":
-    st.header("⚙️ Configuración del Sistema")
+    st.header("⚙️ Configuración Permanente")
     
-    st.subheader("📝 Cláusulas del Contrato")
-    st.info("Lo que escribas aquí aparecerá automáticamente en la sección de cláusulas de tus nuevos PDFs.")
-
-    # Texto por defecto si el usuario nunca ha escrito nada
+    # 1. Intentar cargar configuración existente de Supabase
+    res_conf = conn.table("configuracion").select("clausulas").eq("user_id", u_id).execute()
+    
+    # Si no hay nada en la base de datos, usamos el texto por defecto
     default_txt = (
-        "1. MORA: El retraso de mas de 3 dias generara una penalidad del 5% sobre la cuota.\n"
-        "2. CANCELACION: El cliente puede abonar al capital en cualquier momento sin penalidad.\n"
-        "3. AUTORIZACION: El deudor autoriza el contacto via WhatsApp y llamadas para cobros.\n"
-        "4. JURISDICCION: En caso de litigio, se procedera bajo las leyes de la Republica Dominicana."
+        "1. MORA: El retraso de mas de 3 dias generara una penalidad del 5%.\n"
+        "2. CANCELACION: El cliente puede abonar al capital sin penalidad.\n"
+        "3. AUTORIZACION: El deudor autoriza el contacto via WhatsApp."
     )
+    
+    # Determinar qué texto mostrar en el área de edición
+    texto_actual = res_conf.data[0]['clausulas'] if res_conf.data else default_txt
 
-    # st.session_state permite que el texto se mantenga mientras la app esté abierta
-    if "mis_clausulas" not in st.session_state:
-        st.session_state["mis_clausulas"] = default_txt
-
+    st.subheader("📝 Cláusulas del Contrato")
     clausulas_editadas = st.text_area(
-        "Edite sus términos legales:",
-        value=st.session_state["mis_clausulas"],
+        "Estas cláusulas se guardarán permanentemente en tu cuenta:",
+        value=texto_actual,
         height=250
     )
 
-    if st.button("💾 Guardar Cambios"):
-        st.session_state["mis_clausulas"] = clausulas_editadas
-        st.success("¡Configuración guardada! Los próximos PDFs usarán este texto.")
+    if st.button("💾 Guardar en Base de Datos"):
+        with st.spinner("Guardando..."):
+            if res_conf.data:
+                # Si ya existe, actualizamos (UPDATE)
+                conn.table("configuracion").update({"clausulas": clausulas_editadas}).eq("user_id", u_id).execute()
+            else:
+                # Si es la primera vez, insertamos (INSERT)
+                conn.table("configuracion").insert({"clausulas": clausulas_editadas, "user_id": u_id}).execute()
+            
+            # Actualizamos también el session_state para que el cambio sea inmediato
+            st.session_state["mis_clausulas"] = clausulas_editadas
+            st.success("✅ ¡Configuración guardada permanentemente en Supabase!")
