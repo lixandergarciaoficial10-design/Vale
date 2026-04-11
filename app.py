@@ -264,7 +264,7 @@ with st.sidebar:
     st.markdown("<h1 style='color: #007AFF; text-align: center;'>CobroYa</h1>", unsafe_allow_html=True)
     st.caption(f"Operador: {st.session_state.user.email}")
     st.markdown("---")
-    menu = st.radio("MENÚ PRINCIPAL", ["Panel de Control", "Gestión de Cobros", "Directorio Clientes", "Nueva Cuenta", "Caja y Gastos", "IA Predictiva"])
+    menu = st.radio("MENÚ PRINCIPAL", ["Panel de Control", "Gestión de Cobros", "Directorio Clientes", "Nueva Cuenta", "Caja y Gastos", "IA Predictiva", "Configuración"])
     if st.button("Cerrar Sesión"):
         conn.client.auth.sign_out()
         st.session_state.user = None
@@ -417,15 +417,16 @@ elif menu == "Nueva Cuenta":
                     }).execute()
                     
                     # --- ESTO ES LO NUEVO: GENERAR PDF ---
-                    pdf_bin = generar_pdf_contrato_legal(
-                        cliente_obj['nombre'], 
-                        "Cédula", # O cliente_obj['cedula'] si la tienes en el select
-                        capital, 
-                        total_real, 
-                        df_editable, 
-                        freq_sel
-                    )
-                    st.session_state.pdf_ready = pdf_bin # Guardamos el PDF en la memoria
+                    # Le pasamos st.session_state["mis_clausulas"] como el último parámetro
+pdf_bin = generar_pdf_contrato_legal(
+    cliente_obj['nombre'], 
+    cliente_obj['cedula'], 
+    capital, 
+    total_real, 
+    df_editable, 
+    freq_sel,
+    st.session_state.get("mis_clausulas", "Sin cláusulas configuradas") # <--- ESTO ES LA CLAVE
+)
                     # -------------------------------------
 
                     st.success(f"¡Préstamo de RD$ {total_real:,.2f} activado!")
@@ -486,22 +487,29 @@ elif menu == "IA Predictiva":
 
 #esta es la parte de la configuracion
 elif menu == "Configuración":
-    st.header("⚙️ Configuración del Contrato")
+    st.header("⚙️ Configuración del Sistema")
     
-    # Texto por defecto si no hay nada guardado
-    default_clausulas = (
-        "1. MORA: El retraso de más de 3 días generará una penalidad del 5%.\n"
-        "2. CANCELACIÓN: El cliente puede abonar al capital sin penalidad.\n"
-        "3. AUTORIZACIÓN: El deudor autoriza el contacto vía WhatsApp."
+    st.subheader("📝 Cláusulas del Contrato")
+    st.info("Lo que escribas aquí aparecerá automáticamente en la sección de cláusulas de tus nuevos PDFs.")
+
+    # Texto por defecto si el usuario nunca ha escrito nada
+    default_txt = (
+        "1. MORA: El retraso de mas de 3 dias generara una penalidad del 5% sobre la cuota.\n"
+        "2. CANCELACION: El cliente puede abonar al capital en cualquier momento sin penalidad.\n"
+        "3. AUTORIZACION: El deudor autoriza el contacto via WhatsApp y llamadas para cobros.\n"
+        "4. JURISDICCION: En caso de litigio, se procedera bajo las leyes de la Republica Dominicana."
     )
-    
-    # Guardamos en session_state para que persista
-    clausulas_personalizadas = st.text_area(
-        "Edita las cláusulas legales que aparecerán en el PDF:",
-        value=st.session_state.get("mis_clausulas", default_clausulas),
-        height=200
+
+    # st.session_state permite que el texto se mantenga mientras la app esté abierta
+    if "mis_clausulas" not in st.session_state:
+        st.session_state["mis_clausulas"] = default_txt
+
+    clausulas_editadas = st.text_area(
+        "Edite sus términos legales:",
+        value=st.session_state["mis_clausulas"],
+        height=250
     )
-    
-    if st.button("Guardar Configuración"):
-        st.session_state["mis_clausulas"] = clausulas_personalizadas
-        st.success("¡Cláusulas actualizadas correctamente!")
+
+    if st.button("💾 Guardar Cambios"):
+        st.session_state["mis_clausulas"] = clausulas_editadas
+        st.success("¡Configuración guardada! Los próximos PDFs usarán este texto.")
