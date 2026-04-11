@@ -261,7 +261,7 @@ with st.sidebar:
     st.markdown("<h1 style='color: #007AFF; text-align: center;'>CobroYa</h1>", unsafe_allow_html=True)
     st.caption(f"Operador: {st.session_state.user.email}")
     st.markdown("---")
-    menu = st.radio("MENÚ PRINCIPAL", ["Panel de Control", "Gestión de Cobros", "Directorio Clientes", "Nueva Cuenta", "Caja y Gastos", "IA Predictiva", "Configuración"])
+    menu = st.radio("MENÚ PRINCIPAL", ["Panel de Control", "Gestión de Cobros", "Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"])
     if st.button("Cerrar Sesión"):
         conn.client.auth.sign_out()
         st.session_state.user = None
@@ -323,7 +323,7 @@ elif menu == "Gestión de Cobros":
                             st.success("Cobro guardado")
                             st.rerun()
 
-elif menu == "Nueva Cuenta":
+elif menu == "Nueva Cuenta por Cobrar":
     st.header("Configuración de Desembolso Pro")
     res_cli = conn.table("clientes").select("id, nombre, cedula").eq("user_id", u_id).execute()
     if res_cli.data:
@@ -445,7 +445,7 @@ elif menu == "Nueva Cuenta":
             if st.button("Limpiar y nueva transacción"):
                 del st.session_state.pdf_ready
                 st.rerun()
-elif menu == "Caja y Gastos":
+elif menu == "Cuentas por Pagar":
     st.header("Movimientos de Efectivo")
     # Mostrar balance neto arriba
     res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
