@@ -161,8 +161,7 @@ def generar_pdf_contrato(nombre_cli, cedula_cli, capital, total, cuotas_df, freq
         pdf.cell(75, 7, f"RD$ {row['Monto Cuota (RD$)']:,.2f}", border=1, align='C', ln=True)
     pdf.ln(10)
     pdf.cell(190, 10, f"TOTAL A PAGAR: RD$ {total:,.2f}", ln=True, align='R')
-    return pdf.output(dest='S').encode('latin-1', 'replace')
-
+    return bytes(pdf.output())
 
 # --- 4. NAVEGACIÓN ---
 
