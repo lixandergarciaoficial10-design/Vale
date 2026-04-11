@@ -176,7 +176,20 @@ def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     
     return bytes(pdf.output())
 
-def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df, freq, clausulas_texto):
+# BUSCAR CLÁUSULAS EN SUPABASE ANTES DE GENERAR EL PDF
+                    res_c = conn.table("configuracion").select("clausulas").eq("user_id", u_id).execute()
+                    clausulas_finales = res_c.data[0]['clausulas'] if res_c.data else "Sin clausulas configuradas."
+
+                    # GENERACIÓN DEL PDF
+                    pdf_bin = generar_pdf_contrato_legal(
+                        cliente_obj['nombre'], 
+                        cliente_obj['cedula'], 
+                        capital, 
+                        total_real, 
+                        df_editable, 
+                        freq_sel,
+                        clausulas_finales # <--- Pasamos las de la DB
+                    )   
     pdf = FPDF()
     pdf.add_page()
     
