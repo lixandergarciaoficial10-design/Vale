@@ -176,36 +176,36 @@ def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     
     return bytes(pdf.output())
 
-def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df, freq):
+def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df, freq, clausulas_texto):
     pdf = FPDF()
     pdf.add_page()
     
+    # Encabezado [cite: 1]
     pdf.set_font("Helvetica", "B", 16)
     pdf.cell(190, 10, "CONTRATO DE PRESTAMO Y COMPROMISO DE PAGO", ln=True, align='C')
     pdf.line(10, 22, 200, 22)
     pdf.ln(10)
     
+    # Declaración [cite: 2]
     pdf.set_font("Helvetica", "", 11)
-    texto_legal = (f"Yo, {nombre_cli.upper()}, portador de la cedula {cedula_cli}, declaro haber recibido "
-                   f"la suma de RD$ {capital:,.2f} en calidad de prestamo, comprometiendome a pagar "
-                   f"un total de RD$ {total:,.2f} bajo los terminos acordados.")
-    pdf.multi_cell(190, 7, texto_legal)
+    # Limpiamos el texto para evitar errores de encoding
+    nombre_clean = nombre_cli.encode('latin-1', 'replace').decode('latin-1')
+    texto_declaracion = (f"Yo, {nombre_clean.upper()}, portador de la cedula {cedula_cli}, declaro haber recibido "
+                         f"la suma de RD$ {capital:,.2f} en calidad de prestamo, comprometiendome a pagar "
+                         f"un total de RD$ {total:,.2f} bajo los terminos acordados.")
+    pdf.multi_cell(190, 7, texto_declaracion)
     pdf.ln(5)
     
+    # Cláusulas Personalizadas 
     pdf.set_font("Helvetica", "B", 11)
     pdf.cell(190, 10, "CLAUSULAS DEL COMPROMISO:", ln=True)
     pdf.set_font("Helvetica", "", 10)
-    clausulas = [
-        "1. MORA: El retraso de mas de 3 dias generara una penalidad del 5% sobre la cuota.",
-        "2. CANCELACION: El cliente puede abonar al capital en cualquier momento sin penalidad.",
-        "3. AUTORIZACION: El deudor autoriza el contacto via WhatsApp y llamadas para cobros.",
-        "4. JURISDICCION: En caso de litigio, se procedera bajo las leyes de la Republica Dominicana."
-    ]
-    for c in clausulas:
-        pdf.multi_cell(190, 6, c)
     
+    # Procesamos el texto que viene de la configuración
+    pdf.multi_cell(190, 6, clausulas_texto.encode('latin-1', 'replace').decode('latin-1'))
     pdf.ln(10)
     
+    # Tabla de pagos (Aseguramos que no se salga de la página) [cite: 5]
     pdf.set_fill_color(0, 51, 102)
     pdf.set_text_color(255, 255, 255)
     pdf.cell(30, 8, "Cuota", border=1, align='C', fill=True)
@@ -214,16 +214,20 @@ def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df
     
     pdf.set_text_color(0, 0, 0)
     for i, row in cuotas_df.iterrows():
+        # Verificamos si la tabla va a chocar con el final de la página
+        if pdf.get_y() > 250:
+            pdf.add_page()
         pdf.cell(30, 7, str(int(row['Nº'])), border=1, align='C')
         pdf.cell(80, 7, str(row['Fecha']), border=1, align='C')
         pdf.cell(80, 7, f"RD$ {row['Monto Cuota (RD$)']:,.2f}", border=1, align='C', ln=True)
     
-    pdf.ln(25)
-    pdf.line(20, 240, 90, 240) 
-    pdf.line(120, 240, 190, 240) 
+    # Firmas (Posicionadas al final) 
+    pdf.set_y(-40) # 40mm desde el final de la página
+    pdf.line(20, pdf.get_y(), 90, pdf.get_y()) 
+    pdf.line(120, pdf.get_y(), 190, pdf.get_y()) 
     pdf.set_font("Helvetica", "B", 10)
-    pdf.text(35, 245, "FIRMA DEUDOR")
-    pdf.text(135, 245, "FIRMA ACREEDOR")
+    pdf.text(35, pdf.get_y() + 5, "FIRMA DEUDOR")
+    pdf.text(135, pdf.get_y() + 5, "FIRMA ACREEDOR")
     
     return bytes(pdf.output())
 
@@ -479,3 +483,25 @@ elif menu == "IA Predictiva":
     st.header("🧠 Predictor de Riesgo Groq")
     st.markdown("<div class='metric-card'><h3>Auditando Cartera...</h3><p>Basado en el historial de pagos de tus clientes.</p></div>", unsafe_allow_html=True)
     # Aquí puedes integrar tu llamada real a Groq usando los datos de df_pagos
+
+#esta es la parte de la configuracion
+elif menu == "Configuración":
+    st.header("⚙️ Configuración del Contrato")
+    
+    # Texto por defecto si no hay nada guardado
+    default_clausulas = (
+        "1. MORA: El retraso de más de 3 días generará una penalidad del 5%.\n"
+        "2. CANCELACIÓN: El cliente puede abonar al capital sin penalidad.\n"
+        "3. AUTORIZACIÓN: El deudor autoriza el contacto vía WhatsApp."
+    )
+    
+    # Guardamos en session_state para que persista
+    clausulas_personalizadas = st.text_area(
+        "Edita las cláusulas legales que aparecerán en el PDF:",
+        value=st.session_state.get("mis_clausulas", default_clausulas),
+        height=200
+    )
+    
+    if st.button("Guardar Configuración"):
+        st.session_state["mis_clausulas"] = clausulas_personalizadas
+        st.success("¡Cláusulas actualizadas correctamente!")
