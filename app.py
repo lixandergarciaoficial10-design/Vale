@@ -325,8 +325,7 @@ elif menu == "Gestión de Cobros":
 
 elif menu == "Nueva Cuenta":
     st.header("Configuración de Desembolso Pro")
-    res_cli = conn.table("clientes").select("id, nombre").eq("user_id", u_id).execute()
-    
+    res_cli = conn.table("clientes").select("id, nombre, cedula").eq("user_id", u_id).execute()
     if res_cli.data:
         # 1. PARAMETRIZACIÓN INICIAL
         col1, col2, col3 = st.columns(3)
@@ -418,7 +417,7 @@ elif menu == "Nueva Cuenta":
 # --- GENERACIÓN DEL PDF CON CLÁUSULAS ---
                     pdf_bin = generar_pdf_contrato_legal(
                         cliente_obj['nombre'], 
-                        cliente_obj['cedula'], 
+                        cliente_obj.get('cedula', '000-0000000-0'), # <-- .get evita el KeyError
                         capital, 
                         total_real, 
                         df_editable, 
