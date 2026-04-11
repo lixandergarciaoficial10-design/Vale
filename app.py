@@ -207,33 +207,54 @@ elif menu == "Gestión de Cobros":
                             st.rerun()
 
 elif menu == "Nueva Cuenta":
-    st.header("Nuevo Préstamo (Desembolso)")
+    st.header("Desembolso de Préstamo")
     res_cli = conn.table("clientes").select("id, nombre").eq("user_id", u_id).execute()
     
     if res_cli.data:
-        with st.form("loan_logic"):
-            cliente = st.selectbox("Cliente", options=res_cli.data, format_func=lambda x: x['nombre'])
-            capital = st.number_input("Dinero entregado (Capital)", min_value=0.0, step=500.0)
-            tipo_interes = st.selectbox("Tipo de Interés", ["Fijo", "Sobre Saldo"])
-            porcentaje = st.number_input("Porcentaje de Interés (%)", min_value=1, value=20)
-            
-            # SENTIDO COMÚN: Calcular el total real antes de guardar
-            total_deuda = capital + (capital * (porcentaje / 100))
-            
-            st.warning(f"El cliente recibirá RD$ {capital:,.2f} y deberá pagar un total de RD$ {total_deuda:,.2f}")
-            
-            if st.form_submit_button("Confirmar Desembolso"):
-                if capital > 0:
+        # 1. ENTRADA DE DATOS (Fuera de un formulario para que sea reactivo)
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            cliente_obj = st.selectbox("Cliente", options=res_cli.data, format_func=lambda x: x['nombre'])
+            # El step=100.0 ayuda a subir rápido el monto
+            capital = st.number_input("Dinero entregado (Capital)", min_value=0.0, step=100.0, value=0.0)
+        
+        with col2:
+            # Opción de interés 0 habilitada
+            porcentaje = st.number_input("Porcentaje de Interés (%)", min_value=0, max_value=200, value=20, step=1)
+            modalidad = st.selectbox("Frecuencia", ["Diario", "Semanal", "Quincenal", "Mensual"])
+
+        # 2. CÁLCULO DINÁMICO (Se actualiza al instante)
+        interes_monto = capital * (porcentaje / 100)
+        total_deuda = capital + interes_monto
+
+        # 3. VISUALIZACIÓN DE IMPACTO (Para que el prestamista vea el negocio)
+        st.markdown("---")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Entregas", f"RD$ {capital:,.2f}")
+        c2.metric("Ganancia (Interés)", f"RD$ {interes_monto:,.2f}")
+        c3.metric("Total a Cobrar", f"RD$ {total_deuda:,.2f}", delta=f"{porcentaje}%", delta_color="normal")
+
+        # 4. BOTÓN DE CONFIRMACIÓN
+        # Usamos un botón normal, no un form_submit, para mantener la reactividad de arriba
+        if st.button("🚀 Confirmar y Registrar Préstamo", use_container_width=True):
+            if capital > 0:
+                with st.spinner("Registrando en base de datos..."):
                     conn.table("cuentas").insert({
-                        "cliente_id": cliente['id'],
+                        "cliente_id": cliente_obj['id'],
                         "monto_inicial": total_deuda,
                         "balance_pendiente": total_deuda,
                         "user_id": u_id,
-                        "estado": "Activo"
+                        "estado": "Activo",
+                        "proximo_pago": str(datetime.now().date())
                     }).execute()
-                    st.success("Préstamo registrado")
+                    st.success(f"¡Listo! Préstamo registrado para {cliente_obj['nombre']}")
+                    time.sleep(1)
+                    st.rerun()
+            else:
+                st.error("El capital debe ser mayor a 0 para abrir una cuenta.")
     else:
-        st.error("No tienes clientes creados.")
+        st.error("Primero registra un cliente en el 'Directorio Clientes'.")
 
 elif menu == "Caja y Gastos":
     st.header("Movimientos de Efectivo")
