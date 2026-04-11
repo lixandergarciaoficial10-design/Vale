@@ -460,25 +460,40 @@ if res.data:
     
     st.table(df) # O st.dataframe(df)
 else:
-    st.info("Aún no tienes clientes registrados. Ve a 'Nuevo Cliente' para empezar.")
-    
+        st.info("Aún no tienes clientes registrados. Ve a 'Nuevo Cliente' para empezar.")
+
 elif menu == "Cuentas por Pagar":
     st.header("Movimientos de Efectivo")
-    # Mostrar balance neto arriba
+    
+    # 1. Recuperar datos de Supabase
     res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
     res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
-    neto = sum([p['monto_pagado'] for p in res_p.data]) - sum([g['monto'] for g in res_g.data])
     
+    # 2. Calcular balance neto
+    total_pagos = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
+    total_gastos = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
+    neto = total_pagos - total_gastos
+    
+    # 3. Mostrar métrica
     st.metric("Balance Neto en Mano", f"RD$ {neto:,.2f}")
     
+    # 4. Formulario de Gastos
     with st.expander("Registrar Nuevo Gasto"):
         with st.form("gasto_real"):
             motivo = st.text_input("¿En qué se gastó?")
-            m_gasto = st.number_input("Monto RD$", min_value=0.0)
+            m_gasto = st.number_input("Monto RD$", min_value=0.0, step=100.0)
+            
             if st.form_submit_button("Guardar Gasto"):
-                conn.table("gastos").insert({"descripcion": motivo, "monto": m_gasto, "user_id": u_id}).execute()
-                st.rerun()
-
+                if motivo and m_gasto > 0:
+                    conn.table("gastos").insert({
+                        "descripcion": motivo, 
+                        "monto": m_gasto, 
+                        "user_id": u_id
+                    }).execute()
+                    st.success("Gasto registrado correctamente")
+                    st.rerun()
+                else:
+                    st.error("Por favor rellena todos los campos")
 elif menu == "IA Predictiva":
     st.header("🧠 Predictor de Riesgo Groq")
     st.markdown("<div class='metric-card'><h3>Estado de la Cartera</h3></div>", unsafe_allow_html=True)
