@@ -123,44 +123,141 @@ if 'user' not in st.session_state:
 
 u_id = st.session_state.user.id
 
-# --- 3. FUNCIONES AUXILIARES ---
-
-def generar_pdf(nombre, monto, balance):
+def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(200, 10, txt="RECIBO DE PAGO OFICIAL", ln=True, align='C')
-    pdf.ln(10)
-    pdf.set_font("Arial", "", 12)
-    pdf.cell(200, 10, txt=f"Cliente: {nombre}".encode('latin-1', 'replace').decode('latin-1'), ln=True)
-    pdf.cell(200, 10, txt=f"Monto Pagado: RD$ {monto:,.2f}", ln=True)
-    pdf.cell(200, 10, txt=f"Balance Restante: RD$ {balance:,.2f}", ln=True)
-    pdf.cell(200, 10, txt=f"Fecha: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
-    return bytes(pdf.output())
     
-def generar_pdf_contrato(nombre_cli, cedula_cli, capital, total, cuotas_df, freq):
+    # --- ENCABEZADO Y LOGO ---
+    pdf.set_fill_color(0, 51, 102) # Azul CobroYa
+    pdf.rect(0, 0, 210, 40, 'F')
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 24)
+    pdf.cell(190, 20, "CobroYa Pro", ln=True, align='L')
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(190, -5, "Villa Altagracia, RD | Soporte: 829-XXX-XXXX", ln=True, align='L')
+    
+    # --- CUERPO DEL RECIBO ---
+    pdf.ln(25)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "B", 14)
+    recibo_id = f"REC-{datetime.now().strftime('%y%m%d%H%M')}"
+    pdf.cell(100, 10, f"COMPROBANTE: {recibo_id}")
+    pdf.set_font("Helvetica", "", 12)
+    pdf.cell(90, 10, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='R')
+    
+    pdf.line(10, 55, 200, 55) # Línea divisoria
+    pdf.ln(10)
+    
+    # Detalles en tabla limpia
+    pdf.set_fill_color(245, 245, 245)
+    pdf.cell(95, 10, " Concepto", border=1, fill=True)
+    pdf.cell(95, 10, " Detalle", border=1, fill=True, ln=True)
+    
+    detalles = [
+        ("Cliente", nombre),
+        ("Monto Recibido", f"RD$ {monto:,.2f}"),
+        ("Método de Pago", metodo),
+        ("Balance Restante", f"RD$ {balance:,.2f}")
+    ]
+    
+    for concepto, detalle in detalles:
+        pdf.cell(95, 10, f" {concepto}", border=1)
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(95, 10, f" {detalle}", border=1, ln=True)
+        pdf.set_font("Helvetica", "", 12)
+
+    # --- CÓDIGO QR SIMULADO (Link de validación) ---
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Verificado:{recibo_id}:Monto:{monto}"
+    pdf.image(qr_url, 160, 110, 30, 30)
+    
+    # Pie de página
+    pdf.set_y(140)
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.cell(190, 10, "Este documento es un comprobante oficial de pago generado por CobroYa Pro.", align='C', ln=True)
+    
+    return bytes(pdf.output())
+    def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df, freq):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", "B", 18)
-    pdf.cell(190, 10, "PAGARE NOTARIAL - COBROYA PRO", ln=True, align='C')
-    pdf.set_font("Arial", "", 10)
-    pdf.cell(190, 5, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='C')
+    
+    # Encabezado Formal
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(190, 10, "CONTRATO DE PRÉSTAMO Y COMPROMISO DE PAGO", ln=True, align='C')
+    pdf.line(10, 22, 200, 22)
     pdf.ln(10)
-    pdf.set_font("Arial", "B", 12)
-    pdf.cell(95, 8, "ACREEDOR: CobroYa Global", border=1)
-    pdf.cell(95, 8, f"DEUDOR: {nombre_cli}", border=1, ln=True)
+    
+    # Declaración
+    pdf.set_font("Helvetica", "", 11)
+    texto_legal = (f"Yo, {nombre_cli.upper()}, portador de la cédula {cedula_cli}, declaro haber recibido "
+                   f"la suma de RD$ {capital:,.2f} en calidad de préstamo, comprometiéndome a pagar "
+                   f"un total de RD$ {total:,.2f} bajo los términos acordados.")
+    pdf.multi_cell(190, 7, texto_legal)
     pdf.ln(5)
-    pdf.set_font("Arial", "B", 11)
-    pdf.cell(40, 8, "Cuota #", border=1, align='C')
-    pdf.cell(75, 8, "Fecha", border=1, align='C')
-    pdf.cell(75, 8, "Monto", border=1, align='C', ln=True)
-    pdf.set_font("Arial", "", 10)
-    for index, row in cuotas_df.iterrows():
-        pdf.cell(40, 7, str(int(row['Nº'])), border=1, align='C')
-        pdf.cell(75, 7, str(row['Fecha']), border=1, align='C')
-        pdf.cell(75, 7, f"RD$ {row['Monto Cuota (RD$)']:,.2f}", border=1, align='C', ln=True)
+    
+    # Cláusulas (Lo que te da el poder)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(190, 10, "CLÁUSULAS DEL COMPROMISO:", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    clausulas = [
+        "1. MORA: El retraso de más de 3 días generará una penalidad del 5% sobre la cuota.",
+        "2. CANCELACIÓN: El cliente puede abonar al capital en cualquier momento sin penalidad.",
+        "3. AUTORIZACIÓN: El deudor autoriza el contacto vía WhatsApp y llamadas para cobros.",
+        "4. JURISDICCIÓN: En caso de litigio, se procederá bajo las leyes de la República Dominicana."
+    ]
+    for c in clausulas:
+        pdf.multi_cell(190, 6, c)
+    
     pdf.ln(10)
-    pdf.cell(190, 10, f"TOTAL A PAGAR: RD$ {total:,.2f}", ln=True, align='R')
+    
+    # Tabla de pagos estilizada
+    pdf.set_fill_color(0, 51, 102)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(30, 8, "Cuota", border=1, align='C', fill=True)
+    pdf.cell(80, 8, "Fecha Vencimiento", border=1, align='C', fill=True)
+    pdf.cell(80, 8, "Monto Cuota", border=1, align='C', fill=True, ln=True)
+    
+    pdf.set_text_color(0, 0, 0)
+    for i, row in cuotas_df.iterrows():
+        pdf.cell(30, 7, str(int(row['Nº'])), border=1, align='C')
+        pdf.cell(80, 7, str(row['Fecha']), border=1, align='C')
+        pdf.cell(80, 7, f"RD$ {row['Monto Cuota (RD$)']:,.2f}", border=1, align='C', ln=True)
+    
+    # Firmas
+    pdf.ln(25)
+    pdf.line(20, 240, 90, 240) # Línea deudor
+    pdf.line(120, 240, 190, 240) # Línea acreedor
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.text(35, 245, "FIRMA DEUDOR")
+    pdf.text(135, 245, "FIRMA ACREEDOR")
+    
+    return bytes(pdf.output())
+    def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_pagos):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(190, 15, "ESTADO DE CUENTA CONSOLIDADO", ln=True, align='C')
+    pdf.ln(5)
+    
+    # Cuadros de resumen
+    pdf.set_fill_color(230, 240, 255)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(63, 20, f"PRESTADO: RD$ {total_prestado:,.0f}", border=1, align='C', fill=True)
+    pdf.cell(63, 20, f"PAGADO: RD$ {pagado:,.0f}", border=1, align='C', fill=True)
+    pdf.cell(64, 20, f"RESTANTE: RD$ {pendiente:,.0f}", border=1, align='C', fill=True, ln=True)
+    
+    pdf.ln(10)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(190, 8, "HISTORIAL DE ABONOS RECIBIDOS:", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    
+    # Encabezado historial
+    pdf.cell(60, 8, "Fecha de Pago", border=1)
+    pdf.cell(130, 8, "Monto Abonado", border=1, ln=True)
+    
+    for pago in historial_pagos:
+        pdf.cell(60, 7, str(pago['fecha_pago']), border=1)
+        pdf.cell(130, 7, f"RD$ {pago['monto_pagado']:,.2f}", border=1, ln=True)
+        
     return bytes(pdf.output())
 
 # --- 4. NAVEGACIÓN ---
