@@ -136,7 +136,7 @@ def generar_pdf(nombre, monto, balance):
     pdf.cell(200, 10, txt=f"Monto Pagado: RD$ {monto:,.2f}", ln=True)
     pdf.cell(200, 10, txt=f"Balance Restante: RD$ {balance:,.2f}", ln=True)
     pdf.cell(200, 10, txt=f"Fecha: {datetime.now().strftime('%Y-%m-%d')}", ln=True)
-    return pdf.output(dest='S').encode('latin-1')
+    return bytes(pdf.output())
     
 def generar_pdf_contrato(nombre_cli, cedula_cli, capital, total, cuotas_df, freq):
     pdf = FPDF()
