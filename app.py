@@ -207,55 +207,93 @@ elif menu == "Gestión de Cobros":
                             st.rerun()
 
 elif menu == "Nueva Cuenta":
-    st.header("Desembolso de Préstamo")
+    st.header("Desembolso y Plan de Pagos")
     res_cli = conn.table("clientes").select("id, nombre").eq("user_id", u_id).execute()
     
     if res_cli.data:
-        # 1. ENTRADA DE DATOS (Fuera de un formulario para que sea reactivo)
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         
         with col1:
             cliente_obj = st.selectbox("Cliente", options=res_cli.data, format_func=lambda x: x['nombre'])
-            # El step=100.0 ayuda a subir rápido el monto
-            capital = st.number_input("Dinero entregado (Capital)", min_value=0.0, step=100.0, value=0.0)
+            capital = st.number_input("Capital Prestado (RD$)", min_value=0.0, step=100.0, value=0.0)
         
         with col2:
-            # Opción de interés 0 habilitada
-            porcentaje = st.number_input("Porcentaje de Interés (%)", min_value=0, max_value=200, value=20, step=1)
-            modalidad = st.selectbox("Frecuencia", ["Diario", "Semanal", "Quincenal", "Mensual"])
+            porcentaje = st.number_input("Interés Total (%)", min_value=0, max_value=200, value=20)
+            meses = st.number_input("Cantidad de Meses", min_value=1, max_value=60, value=1)
+            
+        with col3:
+            fecha_inicio = st.date_input("Fecha de Primer Pago", value=datetime.now().date())
+            modalidad = st.info(f"Frecuencia: Mensual ({meses} cuotas)")
 
-        # 2. CÁLCULO DINÁMICO (Se actualiza al instante)
-        interes_monto = capital * (porcentaje / 100)
-        total_deuda = capital + interes_monto
+        # CÁLCULOS BASE
+        total_deuda = capital + (capital * (porcentaje / 100))
+        monto_cuota = total_deuda / meses if meses > 0 else 0
 
-        # 3. VISUALIZACIÓN DE IMPACTO (Para que el prestamista vea el negocio)
         st.markdown("---")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Entregas", f"RD$ {capital:,.2f}")
-        c2.metric("Ganancia (Interés)", f"RD$ {interes_monto:,.2f}")
-        c3.metric("Total a Cobrar", f"RD$ {total_deuda:,.2f}", delta=f"{porcentaje}%", delta_color="normal")
+        
+        # GENERACIÓN DE LA TABLA TIPO EXCEL (Amortización)
+        st.subheader("🗓️ Plan de Pagos Proyectado")
+        st.caption("Puedes editar las fechas o los montos directamente en la tabla si necesitas ajustar una cuota específica.")
+        
+        cronograma = []
+        for i in range(1, meses + 1):
+            # Calculamos la fecha sumando meses (lógica simple)
+            fecha_cuota = fecha_inicio + pd.DateOffset(months=i-1)
+            cronograma.append({
+                "Cuota #": i,
+                "Fecha de Pago": fecha_cuota.date(),
+                "Monto Cuota (RD$)": round(monto_cuota, 2)
+            })
+        
+        df_cronograma = pd.DataFrame(cronograma)
 
-        # 4. BOTÓN DE CONFIRMACIÓN
-        # Usamos un botón normal, no un form_submit, para mantener la reactividad de arriba
-        if st.button("🚀 Confirmar y Registrar Préstamo", use_container_width=True):
+        # TABLA EDITABLE (El "Excel" dentro de Streamlit)
+        # El usuario puede cambiar fechas o montos aquí mismo
+        tabla_editada = st.data_editor(
+            df_cronograma,
+            column_config={
+                "Fecha de Pago": st.column_config.DateColumn("Fecha de Pago", format="DD/MM/YYYY", required=True),
+                "Monto Cuota (RD$)": st.column_config.NumberColumn("Monto cuota", min_value=0, format="RD$ %.2f"),
+            },
+            disabled=["Cuota #"], # No dejamos editar el número de cuota
+            hide_index=True,
+            use_container_width=True,
+            key="editor_cuotas"
+        )
+
+        # TOTAL REAL TRAS EDICIÓN
+        total_final_editado = tabla_editada["Monto Cuota (RD$)"].sum()
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Capital", f"RD$ {capital:,.2f}")
+        c2.metric("Interés Sugerido", f"{porcentaje}%")
+        c3.metric("Total Real a Cobrar", f"RD$ {total_final_editado:,.2f}", 
+                  delta=f"RD$ {total_final_editado - capital:,.2f} Ganancia")
+
+        # BOTÓN DE GUARDADO FINAL
+        if st.button("🚀 Confirmar y Activar Préstamo", use_container_width=True):
             if capital > 0:
-                with st.spinner("Registrando en base de datos..."):
-                    conn.table("cuentas").insert({
+                with st.spinner("Guardando contrato y plan de pagos..."):
+                    # 1. Guardar la Cuenta Principal
+                    res_cta = conn.table("cuentas").insert({
                         "cliente_id": cliente_obj['id'],
-                        "monto_inicial": total_deuda,
-                        "balance_pendiente": total_deuda,
+                        "monto_inicial": total_final_editado,
+                        "balance_pendiente": total_final_editado,
                         "user_id": u_id,
                         "estado": "Activo",
-                        "proximo_pago": str(datetime.now().date())
+                        "proximo_pago": str(tabla_editada.iloc[0]["Fecha de Pago"]) # La primera cuota
                     }).execute()
-                    st.success(f"¡Listo! Préstamo registrado para {cliente_obj['nombre']}")
-                    time.sleep(1)
+                    
+                    # 2. Guardar el desglose de cuotas en una tabla detalle (Opcional pero recomendado)
+                    # Aquí podrías insertar en una tabla 'plan_pagos' si la tienes creada
+                    
+                    st.success(f"¡Contrato creado! Total a cobrar: RD$ {total_final_editado:,.2f}")
+                    time.sleep(1.5)
                     st.rerun()
             else:
-                st.error("El capital debe ser mayor a 0 para abrir una cuenta.")
+                st.error("El capital no puede ser 0.")
     else:
-        st.error("Primero registra un cliente en el 'Directorio Clientes'.")
-
+        st.error("No hay clientes en el directorio.")
 elif menu == "Caja y Gastos":
     st.header("Movimientos de Efectivo")
     # Mostrar balance neto arriba
