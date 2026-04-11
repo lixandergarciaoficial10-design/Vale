@@ -68,7 +68,7 @@ def login_ui():
             
             st.markdown("---")
             c1, c2 = st.columns(2)
-            if c1.button("Olvidé Clave"):
+            if c1.button("Olvidé mi contraseña"):
                 st.session_state.auth_mode = "forgot"
                 st.rerun()
             if c2.button("Registrarme"):
