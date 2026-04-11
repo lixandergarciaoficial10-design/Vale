@@ -261,7 +261,7 @@ with st.sidebar:
     st.markdown("<h1 style='color: #007AFF; text-align: center;'>CobroYa</h1>", unsafe_allow_html=True)
     st.caption(f"Operador: {st.session_state.user.email}")
     st.markdown("---")
-    menu = st.radio("MENÚ PRINCIPAL", ["Panel de Control", "Gestión de Cobros", "Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"])
+    menu = st.radio("MENÚ PRINCIPAL", ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"])
     if st.button("Cerrar Sesión"):
         conn.client.auth.sign_out()
         st.session_state.user = None
@@ -445,6 +445,23 @@ elif menu == "Nueva Cuenta por Cobrar":
             if st.button("Limpiar y nueva transacción"):
                 del st.session_state.pdf_ready
                 st.rerun()
+                st.header("👥 Todos mis Clientes")
+
+# Consulta a Supabase
+res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
+
+if res.data:
+    df = pd.DataFrame(res.data)
+    
+    # Buscador simple
+    busqueda = st.text_input("Buscar cliente por nombre o cédula")
+    if busqueda:
+        df = df[df['nombre'].str.contains(busqueda, case=False) | df['cedula'].contains(busqueda)]
+    
+    st.table(df) # O st.dataframe(df)
+else:
+    st.info("Aún no tienes clientes registrados. Ve a 'Nuevo Cliente' para empezar.")
+    
 elif menu == "Cuentas por Pagar":
     st.header("Movimientos de Efectivo")
     # Mostrar balance neto arriba
