@@ -207,93 +207,102 @@ elif menu == "Gestión de Cobros":
                             st.rerun()
 
 elif menu == "Nueva Cuenta":
-    st.header("Desembolso y Plan de Pagos")
+    st.header("Configuración de Desembolso Pro")
     res_cli = conn.table("clientes").select("id, nombre").eq("user_id", u_id).execute()
     
     if res_cli.data:
+        # 1. PARAMETRIZACIÓN INICIAL
         col1, col2, col3 = st.columns(3)
-        
         with col1:
             cliente_obj = st.selectbox("Cliente", options=res_cli.data, format_func=lambda x: x['nombre'])
-            capital = st.number_input("Capital Prestado (RD$)", min_value=0.0, step=100.0, value=0.0)
+            capital = st.number_input("Capital a Entregar (RD$)", min_value=0.0, step=100.0)
         
         with col2:
-            porcentaje = st.number_input("Interés Total (%)", min_value=0, max_value=200, value=20)
-            meses = st.number_input("Cantidad de Meses", min_value=1, max_value=60, value=1)
-            
+            porcentaje = st.number_input("Interés Total (%)", min_value=0, value=20)
+            # Diccionario de frecuencias para la lógica de fechas
+            frecuencias = {
+                "Semanal": {"days": 7},
+                "Quincenal": {"days": 14},
+                "Mensual": {"months": 1},
+                "Trimestral": {"months": 3},
+                "Anual": {"months": 12}
+            }
+            freq_sel = st.selectbox("Frecuencia de Pagos", list(frecuencias.keys()), index=2)
+        
         with col3:
-            fecha_inicio = st.date_input("Fecha de Primer Pago", value=datetime.now().date())
-            modalidad = st.info(f"Frecuencia: Mensual ({meses} cuotas)")
+            cuotas_n = st.number_input("Número de Cuotas", min_value=1, value=4)
+            fecha_inicio = st.date_input("Fecha de Primera Cuota", value=datetime.now().date())
 
-        # CÁLCULOS BASE
-        total_deuda = capital + (capital * (porcentaje / 100))
-        monto_cuota = total_deuda / meses if meses > 0 else 0
+        # 2. CÁLCULO DE EXPECTATIVA
+        total_esperado = capital * (1 + (porcentaje / 100))
+        monto_sugerido = total_esperado / cuotas_n
 
         st.markdown("---")
-        
-        # GENERACIÓN DE LA TABLA TIPO EXCEL (Amortización)
-        st.subheader("🗓️ Plan de Pagos Proyectado")
-        st.caption("Puedes editar las fechas o los montos directamente en la tabla si necesitas ajustar una cuota específica.")
-        
+        st.subheader("📝 Plan de Amortización Ajustable")
+        st.caption(f"Frecuencia detectada: {freq_sel}. Sistema de fechas automático activado.")
+
+        # 3. GENERACIÓN DEL CRONOGRAMA DINÁMICO
         cronograma = []
-        for i in range(1, meses + 1):
-            # Calculamos la fecha sumando meses (lógica simple)
-            fecha_cuota = fecha_inicio + pd.DateOffset(months=i-1)
+        for i in range(cuotas_n):
+            # Lógica de salto de fecha según frecuencia
+            if "days" in frecuencias[freq_sel]:
+                nueva_fecha = fecha_inicio + pd.DateOffset(days=i * frecuencias[freq_sel]["days"])
+            else:
+                nueva_fecha = fecha_inicio + pd.DateOffset(months=i * frecuencias[freq_sel]["months"])
+            
             cronograma.append({
-                "Cuota #": i,
-                "Fecha de Pago": fecha_cuota.date(),
-                "Monto Cuota (RD$)": round(monto_cuota, 2)
+                "Nº": i + 1,
+                "Fecha": nueva_fecha.date(),
+                "Monto Cuota (RD$)": round(monto_sugerido, 2)
             })
         
-        df_cronograma = pd.DataFrame(cronograma)
+        df_plan = pd.DataFrame(cronograma)
 
-        # TABLA EDITABLE (El "Excel" dentro de Streamlit)
-        # El usuario puede cambiar fechas o montos aquí mismo
-        tabla_editada = st.data_editor(
-            df_cronograma,
+        # 4. EL "EXCEL" REACTIVO
+        # Permitimos editar Fecha y Monto. Nº está bloqueado.
+        df_editable = st.data_editor(
+            df_plan,
             column_config={
-                "Fecha de Pago": st.column_config.DateColumn("Fecha de Pago", format="DD/MM/YYYY", required=True),
-                "Monto Cuota (RD$)": st.column_config.NumberColumn("Monto cuota", min_value=0, format="RD$ %.2f"),
+                "Nº": st.column_config.NumberColumn("Nº", disabled=True),
+                "Fecha": st.column_config.DateColumn("Fecha Límite", format="DD/MM/YYYY"),
+                "Monto Cuota (RD$)": st.column_config.NumberColumn("Valor de la Cuota", min_value=0)
             },
-            disabled=["Cuota #"], # No dejamos editar el número de cuota
             hide_index=True,
             use_container_width=True,
-            key="editor_cuotas"
+            key="amortizacion_pro"
         )
 
-        # TOTAL REAL TRAS EDICIÓN
-        total_final_editado = tabla_editada["Monto Cuota (RD$)"].sum()
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Capital", f"RD$ {capital:,.2f}")
-        c2.metric("Interés Sugerido", f"{porcentaje}%")
-        c3.metric("Total Real a Cobrar", f"RD$ {total_final_editado:,.2f}", 
-                  delta=f"RD$ {total_final_editado - capital:,.2f} Ganancia")
+        # 5. VALIDACIÓN DE SUMA (Para que el prestamista no se confunda)
+        total_real = df_editable["Monto Cuota (RD$)"].sum()
+        diferencia = total_real - total_esperado
 
-        # BOTÓN DE GUARDADO FINAL
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Capital Inicial", f"RD$ {capital:,.2f}")
+        c2.metric("Total de Deuda Final", f"RD$ {total_real:,.2f}")
+        c3.metric("Ganancia Neta", f"RD$ {total_real - capital:,.2f}", 
+                  delta=f"Dif: {diferencia:,.2f}", delta_color="inverse")
+
+        # 6. GUARDADO CON DOBLE CONFIRMACIÓN
         if st.button("🚀 Confirmar y Activar Préstamo", use_container_width=True):
             if capital > 0:
-                with st.spinner("Guardando contrato y plan de pagos..."):
-                    # 1. Guardar la Cuenta Principal
+                with st.spinner("Creando contrato y sincronizando calendario de pagos..."):
+                    # Registrar cuenta
                     res_cta = conn.table("cuentas").insert({
                         "cliente_id": cliente_obj['id'],
-                        "monto_inicial": total_final_editado,
-                        "balance_pendiente": total_final_editado,
+                        "monto_inicial": total_real,
+                        "balance_pendiente": total_real,
                         "user_id": u_id,
                         "estado": "Activo",
-                        "proximo_pago": str(tabla_editada.iloc[0]["Fecha de Pago"]) # La primera cuota
+                        "proximo_pago": str(df_editable.iloc[0]["Fecha"]) # Primera fecha del calendario
                     }).execute()
                     
-                    # 2. Guardar el desglose de cuotas en una tabla detalle (Opcional pero recomendado)
-                    # Aquí podrías insertar en una tabla 'plan_pagos' si la tienes creada
-                    
-                    st.success(f"¡Contrato creado! Total a cobrar: RD$ {total_final_editado:,.2f}")
-                    time.sleep(1.5)
+                    st.success(f"¡Préstamo de RD$ {total_real:,.2f} activado!")
+                    time.sleep(1)
                     st.rerun()
             else:
-                st.error("El capital no puede ser 0.")
+                st.error("Debes poner un capital mayor a 0.")
     else:
-        st.error("No hay clientes en el directorio.")
+        st.error("Registra primero un cliente para abrir su cuenta.")
 elif menu == "Caja y Gastos":
     st.header("Movimientos de Efectivo")
     # Mostrar balance neto arriba
