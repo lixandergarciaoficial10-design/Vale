@@ -144,13 +144,13 @@ def asistente_ia_cobroya(datos_negocio, pregunta_usuario):
     4. Prohibido inventar datos que no estén en la lista.
     """
 
-    completion = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": pregunta_usuario}
-        ]
-    )
+completion = client.chat.completions.create(
+    model="llama-3.3-70b-versatile", # <--- El nuevo estándar, potente y rápido
+    messages=[
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": pregunta_usuario}
+    ]
+)
     return completion.choices[0].message.content
 
 
