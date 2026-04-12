@@ -255,6 +255,33 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
         
     return bytes(pdf.output())
 
+# --- COLOCA ESTO ARRIBA, CERCA DE TUS OTROS IMPORTS ---
+from groq import Groq
+
+def asistente_ia_cobroya(datos_negocio, pregunta_usuario):
+    # Aquí pones tu clave de Groq
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"]) 
+    
+    system_prompt = f"""
+    Eres el Asistente Senior de Riesgos de 'CobroYa Pro'. 
+    Tu objetivo es ayudar al dueño del negocio a tomar decisiones financieras.
+    
+    REGLAS CRÍTICAS:
+    1. Solo usa estos datos reales: {datos_negocio}
+    2. Si no sabes la respuesta, di: 'No tengo datos suficientes'.
+    3. Habla de forma sencilla, como un banquero amigo de Villa Altagracia. No seas técnico.
+    4. Prohibido inventar datos que no estén en la lista.
+    """
+
+    completion = client.chat.completions.create(
+        model="llama3-70b-8192",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": pregunta_usuario}
+        ]
+    )
+    return completion.choices[0].message.content
+
 # --- 4. NAVEGACIÓN ---
 
 with st.sidebar:
@@ -516,10 +543,51 @@ elif menu == "IA Predictiva":
         st.info("Registra préstamos en 'Nueva Cuenta' para que la IA pueda analizarlos.")
 
 elif menu == "IA Predictiva":
-    st.header("🧠 Predictor de Riesgo Groq")
-    st.markdown("<div class='metric-card'><h3>Auditando Cartera...</h3><p>Basado en el historial de pagos de tus clientes.</p></div>", unsafe_allow_html=True)
-    # Aquí puedes integrar tu llamada real a Groq usando los datos de df_pagos
+    st.header("🤖 Inteligencia Financiera CobroYa")
+    st.info("Analiza tu negocio en tiempo real con tecnología de punta.")
 
+    # 1. Recopilar datos para la IA (Contexto real)
+    # Traemos pagos y gastos para que la IA sepa qué hay en caja
+    pagos = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
+    gastos = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
+    prestamos = conn.table("prestamos").select("monto_prestado, estado").eq("user_id", u_id).execute()
+
+    resumen_datos = {
+        "total_cobrado": sum([p['monto_pagado'] for p in pagos.data]) if pagos.data else 0,
+        "total_gastado": sum([g['monto'] for g in gastos.data]) if gastos.data else 0,
+        "prestamos_activos": len([p for p in prestamos.data if p['estado'] == 'Activo']) if prestamos.data else 0
+    }
+
+    # 2. Botones de preguntas rápidas
+    col1, col2 = st.columns(2)
+    pregunta = ""
+    
+    with col1:
+        if st.button("📈 ¿Cuál es mi riesgo hoy?"):
+            pregunta = "¿Cuál es el riesgo de mi cartera hoy basado en mis préstamos activos?"
+        if st.button("💸 ¿Cuánto efectivo debo tener?"):
+            pregunta = "¿Cuánto dinero real debería tener en mano restando mis gastos de los cobros?"
+            
+    with col2:
+        if st.button("🚀 Proyección del mes"):
+            pregunta = "Basado en mis cobros actuales, ¿qué proyección de ganancias tengo para este mes?"
+        if st.button("📊 Resumen de rentabilidad"):
+            pregunta = "Hazme un resumen de qué tan rentable es mi negocio ahora mismo."
+
+    # 3. Chat personalizado
+    usuario_pregunta = st.chat_input("Hazle una pregunta a tu asistente bancario...")
+    if usuario_pregunta:
+        pregunta = usuario_pregunta
+
+    # 4. Respuesta de la IA
+    if pregunta:
+        with st.spinner("Consultando al gerente de riesgos..."):
+            try:
+                respuesta = asistente_ia_cobroya(resumen_datos, pregunta)
+                with st.chat_message("assistant"):
+                    st.write(respuesta)
+            except Exception as e:
+                st.error("La IA está descansando ahora mismo. Verifica tu conexión o la API Key.")
 #esta es la parte de la configuracion
 elif menu == "Configuración":
     st.header("⚙️ Configuración Permanente")
