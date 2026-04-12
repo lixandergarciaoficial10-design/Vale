@@ -10,6 +10,7 @@ from PIL import Image
 import io
 import time
 from fpdf import FPDF
+from groq import Groq
 
 # 1. CONFIGURACIÓN Y ESTILO APPLE-ENTERPRISE
 st.set_page_config(page_title="CobroYa Pro", layout="wide", page_icon="📈")
@@ -256,7 +257,6 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
     return bytes(pdf.output())
 
 # --- COLOCA ESTO ARRIBA, CERCA DE TUS OTROS IMPORTS ---
-from groq import Groq
 
 def asistente_ia_cobroya(datos_negocio, pregunta_usuario):
     # Aquí pones tu clave de Groq
@@ -525,69 +525,43 @@ elif menu == "Cuentas por Pagar":
                     st.rerun()
                 else:
                     st.error("Por favor rellena todos los campos")
-elif menu == "IA Predictiva":
-    st.header("🧠 Predictor de Riesgo Groq")
-    st.markdown("<div class='metric-card'><h3>Estado de la Cartera</h3></div>", unsafe_allow_html=True)
-    
-    # Análisis dinámico basado en las cuentas del usuario
-    res_ia = conn.table("cuentas").select("balance_pendiente").eq("user_id", u_id).eq("estado", "Activo").execute()
-    
-    if res_ia.data:
-        total_deuda = sum([x['balance_pendiente'] for x in res_ia.data])
-        st.write(f"Analizando deuda total de: **RD$ {total_deuda:,.2f}**")
-        if st.button("Iniciar Auditoría IA"):
-            with st.spinner("Conectando con Groq..."):
-                time.sleep(2)
-                st.success("Análisis completado: Tus clientes actuales presentan un 92% de cumplimiento estimado.")
-    else:
-        st.info("Registra préstamos en 'Nueva Cuenta' para que la IA pueda analizarlos.")
 
 elif menu == "IA Predictiva":
     st.header("🤖 Inteligencia Financiera CobroYa")
-    st.info("Analiza tu negocio en tiempo real con tecnología de punta.")
+    st.info("Analiza tu negocio en tiempo real.")
 
-    # 1. Recopilar datos para la IA (Contexto real)
-    # Traemos pagos y gastos para que la IA sepa qué hay en caja
+    # 1. Datos reales para Groq
     pagos = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
     gastos = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
-    prestamos = conn.table("prestamos").select("monto_prestado, estado").eq("user_id", u_id).execute()
+    cuentas = conn.table("cuentas").select("balance_pendiente, estado").eq("user_id", u_id).execute()
 
-    resumen_datos = {
-        "total_cobrado": sum([p['monto_pagado'] for p in pagos.data]) if pagos.data else 0,
-        "total_gastado": sum([g['monto'] for g in gastos.data]) if gastos.data else 0,
-        "prestamos_activos": len([p for p in prestamos.data if p['estado'] == 'Activo']) if prestamos.data else 0
+    resumen = {
+        "cobrado": sum([p['monto_pagado'] for p in pagos.data]) if pagos.data else 0,
+        "gastado": sum([g['monto'] for g in gastos.data]) if gastos.data else 0,
+        "en_calle": sum([c['balance_pendiente'] for c in cuentas.data if c['estado'] == 'Activo']) if cuentas.data else 0
     }
 
-    # 2. Botones de preguntas rápidas
-    col1, col2 = st.columns(2)
-    pregunta = ""
-    
-    with col1:
-        if st.button("📈 ¿Cuál es mi riesgo hoy?"):
-            pregunta = "¿Cuál es el riesgo de mi cartera hoy basado en mis préstamos activos?"
-        if st.button("💸 ¿Cuánto efectivo debo tener?"):
-            pregunta = "¿Cuánto dinero real debería tener en mano restando mis gastos de los cobros?"
-            
-    with col2:
-        if st.button("🚀 Proyección del mes"):
-            pregunta = "Basado en mis cobros actuales, ¿qué proyección de ganancias tengo para este mes?"
-        if st.button("📊 Resumen de rentabilidad"):
-            pregunta = "Hazme un resumen de qué tan rentable es mi negocio ahora mismo."
+    # 2. Botones rápidos
+    c1, c2 = st.columns(2)
+    preg_ia = ""
+    with c1:
+        if st.button("📈 Ver Riesgo"): preg_ia = "¿Cuál es el riesgo de mi cartera?"
+        if st.button("💸 Efectivo real"): preg_ia = "¿Cuánto efectivo debo tener restando gastos?"
+    with c2:
+        if st.button("🚀 Proyecciones"): preg_ia = "¿Qué proyección de ganancias tengo este mes?"
+        if st.button("📊 Rentabilidad"): preg_ia = "Hazme un resumen de rentabilidad."
 
-    # 3. Chat personalizado
-    usuario_pregunta = st.chat_input("Hazle una pregunta a tu asistente bancario...")
-    if usuario_pregunta:
-        pregunta = usuario_pregunta
+    # 3. Chat Input (Ahora sí saldrá abajo)
+    chat_q = st.chat_input("Pregúntale a tu asistente bancario...")
+    if chat_q: preg_ia = chat_q
 
-    # 4. Respuesta de la IA
-    if pregunta:
-        with st.spinner("Consultando al gerente de riesgos..."):
+    if preg_ia:
+        with st.spinner("Pensando..."):
             try:
-                respuesta = asistente_ia_cobroya(resumen_datos, pregunta)
-                with st.chat_message("assistant"):
-                    st.write(respuesta)
-            except Exception as e:
-                st.error("La IA está descansando ahora mismo. Verifica tu conexión o la API Key.")
+                resp = asistente_ia_cobroya(resumen, preg_ia)
+                st.chat_message("assistant").write(resp)
+            except:
+                st.error("Error de conexión con la IA. Revisa tu API Key.")
 #esta es la parte de la configuracion
 elif menu == "Configuración":
     st.header("⚙️ Configuración Permanente")
