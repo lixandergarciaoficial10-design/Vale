@@ -462,9 +462,6 @@ if res.data:
 else:
         st.info("Aún no tienes clientes registrados. Ve a 'Nuevo Cliente' para empezar.")
 
-else:
-        st.info("Aún no tienes clientes registrados. Ve a 'Nuevo Cliente' para empezar.")
-
 elif menu == "Cuentas por Pagar":
     st.header("Movimientos de Efectivo")
     
