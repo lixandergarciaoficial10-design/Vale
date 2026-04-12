@@ -729,14 +729,16 @@ elif menu == "Configuración":
         with col_logo:
             logo_file = st.file_uploader("Cargar Logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
             if logo_file:
-                # Convertimos la imagen a Base64 para guardarla en Supabase
                 bytes_data = logo_file.getvalue()
                 base64_logo = base64.b64encode(bytes_data).decode()
                 st.image(bytes_data, width=150)
             else:
                 base64_logo = current_biz.get("logo_base64", "")
                 if base64_logo:
-                    st.image(base64.b64decode(base64_logo), width=150)
+                    try:
+                        st.image(base64.b64decode(base64_logo), width=150)
+                    except:
+                        st.warning("Logo no disponible")
 
         with col_info:
             biz_name = st.text_input("Nombre Comercial", value=current_biz.get("nombre_negocio", "CobroYa Pro"))
@@ -744,7 +746,7 @@ elif menu == "Configuración":
             biz_phone = st.text_input("Teléfono de Contacto", value=current_biz.get("telefono", ""))
             biz_addr = st.text_area("Dirección Física", value=current_biz.get("direccion", ""))
 
-if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
+        if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
             payload = {
                 "nombre_negocio": biz_name,
                 "rnc": biz_id,
@@ -755,7 +757,6 @@ if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
             }
             
             try:
-                # El bloque IF/ELSE debe estar perfectamente alineado
                 if current_biz:
                     conn.table("configuracion").update(payload).eq("user_id", u_id).execute()
                 else:
@@ -771,28 +772,29 @@ if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
                 st.rerun()
             except Exception as e:
                 st.error(f"Error al guardar: {e}")
-                
-# --- SECCIÓN DE SEGURIDAD ---
-        with st.container(border=True):
-            st.subheader("🔐 Seguridad de la Cuenta")
-            st.write("Cambia tu contraseña de acceso directamente.")
+
+    # --- SECCIÓN DE SEGURIDAD ---
+    with st.container(border=True):
+        st.subheader("🔐 Seguridad de la Cuenta")
+        st.write("Cambia tu contraseña de acceso directamente.")
         
-            with st.form("cambio_clave_directo"):
-                nueva_p = st.text_input("Nueva Contraseña", type="password", help="Mínimo 6 caracteres")
-                confirma_p = st.text_input("Confirmar Nueva Contraseña", type="password")
+        with st.form("cambio_clave_directo"):
+            nueva_p = st.text_input("Nueva Contraseña", type="password", help="Mínimo 6 caracteres")
+            confirma_p = st.text_input("Confirmar Nueva Contraseña", type="password")
             
-                submit_pass = st.form_submit_button("Actualizar Contraseña Ahora")
+            submit_pass = st.form_submit_button("Actualizar Contraseña Ahora")
             
-                if submit_pass:
-                    if len(nueva_p) < 6:
-                        st.error("La contraseña es muy corta.")
-                    elif nueva_p != confirma_p:
-                         st.error("Las contraseñas no coinciden.")
-                    else:
-                        try:
-                            # Esto cambia la clave en Supabase Auth inmediatamente
-                            conn.client.auth.update_user({"password": nueva_p})
-                            st.success("✅ ¡Contraseña actualizada con éxito!")
+            if submit_pass:
+                if len(nueva_p) < 6:
+                    st.error("La contraseña es muy corta.")
+                elif nueva_p != confirma_p:
+                    st.error("Las contraseñas no coinciden.")
+                else:
+                    try:
+                        # Esto cambia la clave en Supabase Auth inmediatamente
+                        conn.client.auth.update_user({"password": nueva_p})
+                        st.success("✅ ¡Contraseña actualizada con éxito!")
+                        import time
                         time.sleep(2)
-                        except Exception as e:
-                            st.error(f"Error al actualizar: {e}")
+                    except Exception as e:
+                        st.error(f"Error al actualizar: {e}")
