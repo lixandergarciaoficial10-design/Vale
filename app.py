@@ -128,31 +128,28 @@ u_id = st.session_state.user.id
 
 # --- FUNCIONES AUXILIARES ---
 # --- COLOCA ESTO ARRIBA, CERCA DE TUS OTROS IMPORTS ---
-
 def asistente_ia_cobroya(datos_negocio, pregunta_usuario):
-    # Usamos st.secrets para que sea seguro y profesional
+    # 1. Configuración del cliente
     client = Groq(api_key=st.secrets["GROQ_API_KEY"]) 
     
+    # 2. El mensaje del sistema
     system_prompt = f"""
     Eres el Asistente Senior de Riesgos de 'CobroYa Pro'. 
     Tu objetivo es ayudar al dueño del negocio a tomar decisiones financieras.
-    
-    REGLAS CRÍTICAS:
-    1. Solo usa estos datos reales: {datos_negocio}
-    2. Si no sabes la respuesta, di: 'No tengo datos suficientes'.
-    3. Habla de forma profesional y clara como un analista financiero.
-    4. Prohibido inventar datos que no estén en la lista.
+    REGLAS: Solo usa estos datos: {datos_negocio}. Habla profesional.
     """
 
-completion = client.chat.completions.create(
-    model="llama-3.3-70b-versatile", # <--- El nuevo estándar, potente y rápido
-    messages=[
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": pregunta_usuario}
-    ]
-)
-return completion.choices[0].message.content
-
+    # 3. Llamada al modelo (Actualizado a llama-3.3-70b-versatile)
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": pregunta_usuario}
+        ]
+    )
+    
+    # 4. El retorno (Asegúrate de que esta línea esté alineada con 'completion')
+    return completion.choices[0].message.content
 
 def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     pdf = FPDF()
