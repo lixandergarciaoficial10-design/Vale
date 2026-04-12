@@ -452,7 +452,7 @@ res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_
 
 # --- SECCIÓN DE DIRECTORIO DE CLIENTES ---
     if res.data:
-        df = pd.DataFrame(res.data)
+    df = pd.DataFrame(res.data)
         
         # Buscador simple
         busqueda = st.text_input("Buscar cliente por nombre o cédula")
