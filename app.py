@@ -433,49 +433,38 @@ elif menu == "Nueva Cuenta por Cobrar":
                     st.rerun()  
 
 # Este botón aparecerá justo debajo de todo cuando el PDF esté listo
-        if "pdf_ready" in st.session_state:
-            st.divider()
-            st.download_button(
-                label="📥 DESCARGAR CONTRATO Y FACTURA (PDF)",
-                data=st.session_state.pdf_ready,
-                file_name=f"Contrato_{cliente_obj['nombre']}.pdf",
-                mime="application/pdf",
-                use_container_width=True
-            )
-            if st.button("Limpiar y nueva transacción"):
-                del st.session_state.pdf_ready
-                st.rerun()
-                st.header("👥 Todos mis Clientes")
-
-# Consulta a Supabase
-res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
-
-# --- SECCIÓN DE DIRECTORIO DE CLIENTES ---
-
-elif menu == ("👥 Todos mis Clientes"):
-    st.header("👥 Todos mis Clientes")
     
     # 1. Consulta a Supabase
+if st.button("Limpiar y nueva transacción"):
+                del st.session_state.pdf_ready
+                st.rerun()
+
+# --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
+
+elif menu == "👥 Todos mis Clientes":
+    st.header("👥 Directorio de Clientes")
+    
+    # 1. Realizamos la consulta JUSTO dentro de su sección correspondiente
     res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
 
     if res.data:
         df = pd.DataFrame(res.data)
         
-        # 2. Buscador
+        # 2. Buscador integrado
         busqueda = st.text_input("🔍 Buscar cliente por nombre o cédula")
         
         if busqueda:
-            # Filtro con protección de tipos
+            # Filtro de seguridad para evitar errores con datos nulos
             df = df[
                 df['nombre'].astype(str).str.contains(busqueda, case=False) | 
                 df['cedula'].astype(str).str.contains(busqueda, case=False)
             ]
         
-        # 3. Mostrar Tabla
+        # 3. Mostrar la tabla de tecnología de punta
         st.dataframe(df, use_container_width=True)
     else:
-        st.info("Aún no tienes clientes registrados. Ve a 'Nuevo Cliente' para empezar.")
-
+        st.info("Aún no tienes clientes registrados.")
+        
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
     st.header("Movimientos de Efectivo")
