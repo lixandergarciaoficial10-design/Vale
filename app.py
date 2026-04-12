@@ -596,7 +596,6 @@ elif menu == "IA Predictiva":
                 except Exception as e:
                     # Esto nos dirá el error de verdad (ej. "Connection error" o "Rate limit")
                     st.error(f"Error real de la IA: {e}") 
-                    st.info("Si el error arriba dice 'Key not found', es el Secreto. Si dice otra cosa, es la conexión.")
 
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
