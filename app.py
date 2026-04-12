@@ -691,34 +691,32 @@ elif menu == "IA Predictiva":
                     st.error(f"Error real de la IA: {e}") 
 
 # --- DENTRO DE LA SECCIÓN DEL CHAT DE IA ---
-with st.container():
-    # Paso 1: Generar el contexto privado ANTES de que el usuario pregunte
-    contexto_seguro = obtener_contexto_privado_ia(u_id) # u_id es el id del usuario logueado
+if menu == "IA Analista":
+    with st.container():
+        # Paso 1: Generar el contexto privado ANTES de que el usuario pregunte
+        contexto_seguro = obtener_contexto_privado_ia(u_id) # u_id es el id del usuario logueado
 
-    # Paso 2: Configurar las instrucciones para Gemini
-    instrucciones_ia = f"""
-    Eres VALE AI, un analista financiero privado y seguro. 
-    Tu conocimiento se limita ESTRICTAMENTE a estos datos:
-    
-    {contexto_seguro}
-    
-    REGLAS DE ORO:
-    - No inventes datos que no estén arriba.
-    - No menciones que tienes un archivo de contexto, actúa con naturalidad.
-    - Si te preguntan por riesgo, analiza quién debe más y quién tiene pagos cerca.
-    - Tu objetivo es ayudar al dueño del negocio a cobrar mejor.
-    """
+        # Paso 2: Configurar las instrucciones para Gemini
+        instrucciones_ia = f"""
+        Eres VALE AI, un analista financiero privado y seguro. 
+        Tu conocimiento se limita ESTRICTAMENTE a estos datos:
+        
+        {contexto_seguro}
+        
+        REGLAS DE ORO:
+        - No inventes datos que no estén arriba.
+        - No menciones que tienes un archivo de contexto, actúa con naturalidad.
+        - Si te preguntan por riesgo, analiza quién debe más y quién tiene pagos cerca.
+        - Tu objetivo es ayudar al dueño del negocio a cobrar mejor.
+        """
 
-    # Aquí es donde llamas a tu función de chat de Gemini, 
-    # pasando 'instrucciones_ia' como el system_instruction
-    st.title("🤖 Tu Analista Senior Privado")
-    st.info("Estoy analizando tus datos en tiempo real para darte recomendaciones de cobro.")
-    
-    # Ejemplo de cómo se vería la interacción:
-    prompt = st.chat_input("Pregúntame sobre tus cobros o riesgos...")
-    if prompt:
-        # Aquí va tu código de response = model.generate_content(instrucciones_ia + prompt)
-        st.write(f"Analizando tu cartera para responder: '{prompt}'...")
+        # Aquí es donde llamas a tu función de chat de Gemini
+        st.title("🤖 Tu Analista Senior Privado")
+        st.info("Estoy analizando tus datos en tiempo real para darte recomendaciones de cobro.")
+        
+        prompt = st.chat_input("Pregúntame sobre tus cobros o riesgos...")
+        if prompt:
+            st.write(f"Analizando tu cartera para responder: '{prompt}'...")
 
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
@@ -727,7 +725,6 @@ elif menu == "Configuración":
     # 1. Recuperar configuración actual de Supabase
     res_conf = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
     
-    # Determinamos el texto inicial (si no hay nada, ponemos uno por defecto)
     clausulas_default = """1. EL DEUDOR se compromete a pagar la suma acordada en las fechas establecidas.
 2. El incumplimiento de dos cuotas consecutivas autoriza al ACREEDOR a ejecutar el cobro total.
 3. Este contrato tiene fuerza legal y ejecutiva."""
@@ -747,30 +744,26 @@ elif menu == "Configuración":
             help="Escribe aquí las condiciones que tus clientes deben firmar."
         )
         
-        # EL BOTÓN DE GUARDAR: Ahora está dentro de este elif y de este expander
         if st.button("💾 Guardar Configuración Legal", use_container_width=True):
             with st.spinner("Sincronizando con la base de datos..."):
                 try:
                     if res_conf.data:
-                        # Si ya existe registro para este usuario, actualizamos
                         conn.table("configuracion").update({"clausulas": clausulas_editadas}).eq("user_id", u_id).execute()
                     else:
-                        # Si es nuevo, insertamos
                         conn.table("configuracion").insert({"clausulas": clausulas_editadas, "user_id": u_id}).execute()
                     
-                    # Actualizamos el estado de la sesión para que el PDF lo use de inmediato
                     st.session_state["mis_clausulas"] = clausulas_editadas
                     st.success("✅ Cláusulas actualizadas correctamente.")
+                    import time
                     time.sleep(1)
                     st.rerun()
                 except Exception as e:
                     st.error(f"Error al guardar: {e}")
 
-# --- SECCIÓN DE DATOS DE EMPRESA ---
+    # --- SECCIÓN DE DATOS DE EMPRESA ---
     with st.expander("🏢 Perfil del Negocio & Facturación", expanded=False):
         st.markdown("### Configura la identidad de tu empresa")
         
-        # Recuperar datos actuales si existen
         biz_data = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
         current_biz = biz_data.data[0] if biz_data.data else {}
 
@@ -805,20 +798,20 @@ elif menu == "Configuración":
                 "logo_base64": base64_logo,
                 "user_id": u_id
             }
-            
             try:
                 if current_biz:
                     conn.table("configuracion").update(payload).eq("user_id", u_id).execute()
                 else:
                     conn.table("configuracion").insert(payload).execute()
 
-                # Actualizamos la memoria global (st.session_state)
                 st.session_state["nombre_negocio"] = biz_name
                 st.session_state["mi_logo"] = base64_logo
                 st.session_state["direccion_negocio"] = biz_addr
                 st.session_state["telefono_negocio"] = biz_phone
                 
                 st.success("¡Identidad corporativa actualizada!")
+                import time
+                time.sleep(1)
                 st.rerun()
             except Exception as e:
                 st.error(f"Error al guardar: {e}")
@@ -841,7 +834,6 @@ elif menu == "Configuración":
                     st.error("Las contraseñas no coinciden.")
                 else:
                     try:
-                        # Esto cambia la clave en Supabase Auth inmediatamente
                         conn.client.auth.update_user({"password": nueva_p})
                         st.success("✅ ¡Contraseña actualizada con éxito!")
                         import time
