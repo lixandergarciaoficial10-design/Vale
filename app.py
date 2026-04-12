@@ -451,7 +451,7 @@ elif menu == "Nueva Cuenta por Cobrar":
 res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
 
 # --- SECCIÓN DE DIRECTORIO DE CLIENTES ---
-    if res.data:
+if res.data:
     df = pd.DataFrame(res.data)
         
         # Buscador simple
