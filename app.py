@@ -151,7 +151,7 @@ completion = client.chat.completions.create(
         {"role": "user", "content": pregunta_usuario}
     ]
 )
-    return completion.choices[0].message.content
+return completion.choices[0].message.content
 
 
 def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
