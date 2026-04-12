@@ -155,7 +155,24 @@ def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     pdf = FPDF()
     pdf.add_page()
     
+def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # --- LOGO DINÁMICO DESDE SUPABASE ---
+    try:
+        res_conf = conn.table("configuracion").select("logo_base64").eq("user_id", u_id).execute()
+        if res_conf.data and res_conf.data[0]['logo_base64']:
+            logo_data = base64.b64decode(res_conf.data[0]['logo_base64'])
+            with open("temp_logo.png", "wb") as f:
+                f.write(logo_data)
+            # Colocamos el logo arriba a la izquierda (x=10, y=8) con un ancho de 30
+            pdf.image("temp_logo.png", 10, 8, 30) 
+    except:
+        pass # Si no hay logo, simplemente sigue sin el logo
+        
     # --- ENCABEZADO Y LOGO ---
+    pdf.set_fill_color(0, 51, 102) 
     pdf.set_fill_color(0, 51, 102) # Azul CobroYa
     pdf.rect(0, 0, 210, 40, 'F')
     pdf.set_text_color(255, 255, 255)
@@ -640,18 +657,71 @@ elif menu == "Configuración":
                 except Exception as e:
                     st.error(f"Error al guardar: {e}")
 
-    # --- SECCIÓN DE DATOS DE EMPRESA ---
-    with st.expander("🏢 Datos del Negocio"):
-        st.info("Estos datos se usarán para el encabezado de tus recibos de cobro.")
-        st.text_input("Nombre del Negocio", value="CobroYa Pro", disabled=True)
-        st.text_input("Ubicación Global", value="Gestión Multi-Región")
+# --- SECCIÓN DE DATOS DE EMPRESA ---
+    with st.expander("🏢 Perfil del Negocio & Facturación", expanded=False):
+        st.markdown("### Configura la identidad de tu empresa")
+        
+        # Recuperar datos actuales si existen
+        biz_data = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
+        current_biz = biz_data.data[0] if biz_data.data else {}
 
-    # --- SECCIÓN DE SEGURIDAD ---
+        col_logo, col_info = st.columns([1, 2])
+        
+        with col_logo:
+            logo_file = st.file_uploader("Cargar Logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
+            if logo_file:
+                # Convertimos la imagen a Base64 para guardarla en Supabase
+                bytes_data = logo_file.getvalue()
+                base64_logo = base64.b64encode(bytes_data).decode()
+                st.image(bytes_data, width=150)
+            else:
+                base64_logo = current_biz.get("logo_base64", "")
+                if base64_logo:
+                    st.image(base64.b64decode(base64_logo), width=150)
+
+        with col_info:
+            biz_name = st.text_input("Nombre Comercial", value=current_biz.get("nombre_negocio", "CobroYa Pro"))
+            biz_id = st.text_input("RNC / Cédula Fiscal", value=current_biz.get("rnc", ""))
+            biz_phone = st.text_input("Teléfono de Contacto", value=current_biz.get("telefono", ""))
+            biz_addr = st.text_area("Dirección Física", value=current_biz.get("direccion", ""))
+
+        if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
+            payload = {
+                "nombre_negocio": biz_name,
+                "rnc": biz_id,
+                "telefono": biz_phone,
+                "direccion": biz_addr,
+                "logo_base64": base64_logo,
+                "user_id": u_id
+            }
+            if current_biz:
+                conn.table("configuracion").update(payload).eq("user_id", u_id).execute()
+            else:
+                conn.table("configuracion").insert(payload).execute()
+            st.success("¡Identidad corporativa actualizada!")
+            st.rerun()
+
+# --- SECCIÓN DE SEGURIDAD ---
     with st.container(border=True):
-        st.subheader("🔐 Seguridad")
-        if st.button("Enviar correo para cambiar mi contraseña"):
-            try:
-                conn.client.auth.reset_password_for_email(st.session_state.user.email)
-                st.success("Se ha enviado un enlace a tu correo para cambiar la clave.")
-            except:
-                st.error("No se pudo procesar la solicitud en este momento.")
+        st.subheader("🔐 Seguridad de la Cuenta")
+        st.write("Cambia tu contraseña de acceso directamente.")
+        
+        with st.form("cambio_clave_directo"):
+            nueva_p = st.text_input("Nueva Contraseña", type="password", help="Mínimo 6 caracteres")
+            confirma_p = st.text_input("Confirmar Nueva Contraseña", type="password")
+            
+            submit_pass = st.form_submit_button("Actualizar Contraseña Ahora")
+            
+            if submit_pass:
+                if len(nueva_p) < 6:
+                    st.error("La contraseña es muy corta.")
+                elif nueva_p != confirma_p:
+                    st.error("Las contraseñas no coinciden.")
+                else:
+                    try:
+                        # Esto cambia la clave en Supabase Auth inmediatamente
+                        conn.client.auth.update_user({"password": nueva_p})
+                        st.success("✅ ¡Contraseña actualizada con éxito!")
+                        time.sleep(2)
+                    except Exception as e:
+                        st.error(f"Error al actualizar: {e}")
