@@ -130,8 +130,8 @@ u_id = st.session_state.user.id
 # --- COLOCA ESTO ARRIBA, CERCA DE TUS OTROS IMPORTS ---
 
 def asistente_ia_cobroya(datos_negocio, pregunta_usuario):
-    # Aquí pones tu clave de Groq
-    client = Groq(api_key=st.secrets["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"]) 
+    # Usamos st.secrets para que sea seguro y profesional
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"]) 
     
     system_prompt = f"""
     Eres el Asistente Senior de Riesgos de 'CobroYa Pro'. 
@@ -140,7 +140,7 @@ def asistente_ia_cobroya(datos_negocio, pregunta_usuario):
     REGLAS CRÍTICAS:
     1. Solo usa estos datos reales: {datos_negocio}
     2. Si no sabes la respuesta, di: 'No tengo datos suficientes'.
-    3. Habla de forma sencilla, como un banquero amigo de Villa Altagracia. No seas técnico.
+    3. Habla de forma profesional y clara como un analista financiero.
     4. Prohibido inventar datos que no estén en la lista.
     """
 
