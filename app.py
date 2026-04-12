@@ -745,20 +745,29 @@ elif menu == "Configuración":
             biz_addr = st.text_area("Dirección Física", value=current_biz.get("direccion", ""))
 
         if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
-            payload = {
-                "nombre_negocio": biz_name,
-                "rnc": biz_id,
-                "telefono": biz_phone,
-                "direccion": biz_addr,
-                "logo_base64": base64_logo,
-                "user_id": u_id
-            }
-            if current_biz:
-                conn.table("configuracion").update(payload).eq("user_id", u_id).execute()
-            else:
-                conn.table("configuracion").insert(payload).execute()
-            st.success("¡Identidad corporativa actualizada!")
-            st.rerun()
+    payload = {
+        "nombre_negocio": biz_name,
+        "rnc": biz_id,
+        "telefono": biz_phone,
+        "direccion": biz_addr,
+        "logo_base64": base64_logo,
+        "user_id": u_id
+    }
+    
+    # 1. Guardar en la base de datos (Supabase)
+    if current_biz:
+        conn.table("configuracion").update(payload).eq("user_id", u_id).execute()
+    else:
+        conn.table("configuracion").insert(payload).execute()
+
+    # --- 2. ¡ESTO ES LO QUE IBAMOS A AÑADIR! (Actualizar memoria al instante) ---
+    st.session_state["nombre_negocio"] = biz_name
+    st.session_state["mi_logo"] = base64_logo
+    st.session_state["direccion_negocio"] = biz_addr
+    st.session_state["telefono_negocio"] = biz_phone
+    
+    st.success("¡Identidad corporativa actualizada en el sistema y en memoria!")
+    st.rerun()
 
 # --- SECCIÓN DE SEGURIDAD ---
     with st.container(border=True):
