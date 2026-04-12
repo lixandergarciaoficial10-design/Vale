@@ -773,26 +773,26 @@ if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
                 st.error(f"Error al guardar: {e}")
                 
 # --- SECCIÓN DE SEGURIDAD ---
-    with st.container(border=True):
-        st.subheader("🔐 Seguridad de la Cuenta")
-        st.write("Cambia tu contraseña de acceso directamente.")
+        with st.container(border=True):
+            st.subheader("🔐 Seguridad de la Cuenta")
+            st.write("Cambia tu contraseña de acceso directamente.")
         
-        with st.form("cambio_clave_directo"):
-            nueva_p = st.text_input("Nueva Contraseña", type="password", help="Mínimo 6 caracteres")
-            confirma_p = st.text_input("Confirmar Nueva Contraseña", type="password")
+            with st.form("cambio_clave_directo"):
+                nueva_p = st.text_input("Nueva Contraseña", type="password", help="Mínimo 6 caracteres")
+                confirma_p = st.text_input("Confirmar Nueva Contraseña", type="password")
             
-            submit_pass = st.form_submit_button("Actualizar Contraseña Ahora")
+                submit_pass = st.form_submit_button("Actualizar Contraseña Ahora")
             
-            if submit_pass:
-                if len(nueva_p) < 6:
-                    st.error("La contraseña es muy corta.")
-                elif nueva_p != confirma_p:
-                    st.error("Las contraseñas no coinciden.")
-                else:
-                    try:
-                        # Esto cambia la clave en Supabase Auth inmediatamente
-                        conn.client.auth.update_user({"password": nueva_p})
-                        st.success("✅ ¡Contraseña actualizada con éxito!")
+                if submit_pass:
+                    if len(nueva_p) < 6:
+                        st.error("La contraseña es muy corta.")
+                    elif nueva_p != confirma_p:
+                         st.error("Las contraseñas no coinciden.")
+                    else:
+                        try:
+                            # Esto cambia la clave en Supabase Auth inmediatamente
+                            conn.client.auth.update_user({"password": nueva_p})
+                            st.success("✅ ¡Contraseña actualizada con éxito!")
                         time.sleep(2)
-                    except Exception as e:
-                        st.error(f"Error al actualizar: {e}")
+                        except Exception as e:
+                            st.error(f"Error al actualizar: {e}")
