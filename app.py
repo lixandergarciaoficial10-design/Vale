@@ -452,8 +452,8 @@ res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_
 
 # --- SECCIÓN DE DIRECTORIO DE CLIENTES ---
 
-elif menu == "👥 Todos mis Clientes":
-    st.header("👥 Directorio de Clientes")
+elif menu == ("👥 Todos mis Clientes"):
+    st.header("👥 Todos mis Clientes")
     
     # 1. Consulta a Supabase
     res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
