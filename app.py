@@ -455,7 +455,7 @@ if res.data:
     df = pd.DataFrame(res.data)
         
         # Buscador simple
-        busqueda = st.text_input("Buscar cliente por nombre o cédula")
+busqueda = st.text_input("Buscar cliente por nombre o cédula")
         if busqueda:
             # Filtramos asegurando que buscamos en texto
             df = df[
