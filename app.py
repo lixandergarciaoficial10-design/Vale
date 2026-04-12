@@ -451,22 +451,25 @@ elif menu == "Nueva Cuenta por Cobrar":
 res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
 
 # --- SECCIÓN DE DIRECTORIO DE CLIENTES ---
-if res.data:
-    df = pd.DataFrame(res.data)
+# --- SECCIÓN DE DIRECTORIO DE CLIENTES ---
+    res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
+
+    if res.data:
+        df = pd.DataFrame(res.data)
         
-        # Buscador simple
-busqueda = st.text_input("Buscar cliente por nombre o cédula")
-if busqueda:
-            # 1. CORREGIDO: astype(str) con la 'e' que faltaba
-            # 2. CORREGIDO: Alineación interna de los filtros
+        busqueda = st.text_input("🔍 Buscar cliente por nombre o cédula")
+        
+        if busqueda:
             df = df[
                 df['nombre'].astype(str).str.contains(busqueda, case=False) | 
                 df['cedula'].astype(str).str.contains(busqueda, case=False)
             ]
         
-        # 3. CORREGIDO: st.table debe estar alineado con el 'if busqueda' (un nivel fuera)
+        # Esta línea debe estar alineada con el 'if busqueda' (un nivel adentro de 'if res.data')
         st.table(df)
+
     else:
+        # Esta línea debe estar alineada con el 'if res.data'
         st.info("Aún no tienes clientes registrados. Ve a 'Nuevo Cliente' para empezar.")
 
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
