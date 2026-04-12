@@ -127,6 +127,32 @@ u_id = st.session_state.user.id
 # --- 3. FUNCIONES AUXILIARES (CORREGIDAS) ---
 
 # --- FUNCIONES AUXILIARES ---
+# --- COLOCA ESTO ARRIBA, CERCA DE TUS OTROS IMPORTS ---
+
+def asistente_ia_cobroya(datos_negocio, pregunta_usuario):
+    # Aquí pones tu clave de Groq
+    client = Groq(api_key=st.secrets["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"]) 
+    
+    system_prompt = f"""
+    Eres el Asistente Senior de Riesgos de 'CobroYa Pro'. 
+    Tu objetivo es ayudar al dueño del negocio a tomar decisiones financieras.
+    
+    REGLAS CRÍTICAS:
+    1. Solo usa estos datos reales: {datos_negocio}
+    2. Si no sabes la respuesta, di: 'No tengo datos suficientes'.
+    3. Habla de forma sencilla, como un banquero amigo de Villa Altagracia. No seas técnico.
+    4. Prohibido inventar datos que no estén en la lista.
+    """
+
+    completion = client.chat.completions.create(
+        model="llama3-70b-8192",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": pregunta_usuario}
+        ]
+    )
+    return completion.choices[0].message.content
+
 
 def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     pdf = FPDF()
@@ -255,32 +281,6 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
         pdf.cell(130, 7, f"RD$ {pago['monto_pagado']:,.2f}", border=1, ln=True)
         
     return bytes(pdf.output())
-
-# --- COLOCA ESTO ARRIBA, CERCA DE TUS OTROS IMPORTS ---
-
-def asistente_ia_cobroya(datos_negocio, pregunta_usuario):
-    # Aquí pones tu clave de Groq
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"]) 
-    
-    system_prompt = f"""
-    Eres el Asistente Senior de Riesgos de 'CobroYa Pro'. 
-    Tu objetivo es ayudar al dueño del negocio a tomar decisiones financieras.
-    
-    REGLAS CRÍTICAS:
-    1. Solo usa estos datos reales: {datos_negocio}
-    2. Si no sabes la respuesta, di: 'No tengo datos suficientes'.
-    3. Habla de forma sencilla, como un banquero amigo de Villa Altagracia. No seas técnico.
-    4. Prohibido inventar datos que no estén en la lista.
-    """
-
-    completion = client.chat.completions.create(
-        model="llama3-70b-8192",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": pregunta_usuario}
-        ]
-    )
-    return completion.choices[0].message.content
 
 # --- 4. NAVEGACIÓN ---
 
@@ -528,136 +528,118 @@ elif menu == "Cuentas por Pagar":
 
 elif menu == "IA Predictiva":
     # ---------------------------------------------------------
-    # 1. ESTILO GLOBAL META AI (Centrado y Minimalista)
+    # 1. CSS AVANZADO PARA ESTILO META AI (Tarjetas Flotantes)
     # ---------------------------------------------------------
     st.markdown("""
         <style>
-            /* Centrar todo el contenido */
-            .main .block-container {
-                max-width: 800px;
-                padding-top: 2rem;
-                margin: auto;
-            }
-            /* Ocultar header de Streamlit para limpieza total */
-            [data-testid="stHeader"] {
-                display: none;
-            }
-            /* Estilo para las burbujas de chat */
-            .stChatMessage {
-                background-color: white !important;
-                border-radius: 16px;
+            /* Contenedor principal centrado */
+            .main .block-container { max-width: 850px; padding-top: 3rem; }
+            [data-testid="stHeader"] { display: none; }
+            
+            /* Título estilo Meta */
+            .titulo-meta {
+                text-align: center;
+                font-size: 42px;
+                font-weight: 700;
                 margin-bottom: 10px;
-                padding: 10px;
+                color: #1c1e21;
             }
-            /* Botón de enviar estilizado (↑) */
-            div[data-testid="stChatInput"] button {
-                background-color: #007AFF !important;
-                color: white !important;
-                border-radius: 50% !important;
-                font-weight: bold !important;
+            .subtitulo-meta {
+                text-align: center;
+                color: #65676b;
+                font-size: 18px;
+                margin-bottom: 40px;
+            }
+
+            /* Estilo de las Sugerencias Flotantes */
+            .sugerencia-card {
+                background: white;
+                border: 1px solid #e4e6eb;
+                border-radius: 12px;
+                padding: 15px;
+                margin-bottom: 12px;
+                transition: all 0.3s ease;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+            .sugerencia-card:hover {
+                background-color: #f0f2f5;
+                border-color: #0084ff;
+                transform: translateY(-2px);
             }
         </style>
+        <h1 class="titulo-meta">¿En qué puedo ayudarte?</h1>
+        <p class="subtitulo-meta">Analiza tu cartera de cobros y riesgos con IA avanzada.</p>
     """, unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # 2. BLOQUE DE SEGURIDAD: REVISIÓN DEL API KEY
-    # ---------------------------------------------------------
-    if "GROQ_API_KEY" not in st.secrets:
-        st.error("❌ CONFIGURACIÓN INCOMPLETA: Falta la API Key de Groq.")
-        st.info("💡 Lixander, debes ir a Settings -> Secrets en Streamlit Cloud y pegar esto:\n`GROQ_API_KEY = 'TU_CLAVE_DE_GROQ_AQUI'`")
-        st.stop()
-
-    # ---------------------------------------------------------
-    # 3. SISTEMA DE MEMORIA DE CHAT Y ESTADO
+    # 2. SISTEMA DE MENSAJES
     # ---------------------------------------------------------
     if "messages" not in st.session_state:
-        # Iniciamos el historial de chat (vacío)
         st.session_state.messages = []
-    
-    if "prompt_sugerido" not in st.session_state:
-        # Estado para saber qué pregunta se eligió
-        st.session_state.prompt_sugerido = None
 
-    # ---------------------------------------------------------
-    # 4. PANTALLA DE INICIO (ESTILO META AI) - Solo se muestra si el chat está vacío
-    # ---------------------------------------------------------
-    if not st.session_state.messages:
-        # El título centrado y grande, igual que "¿Por dónde empezamos?"
-        st.markdown("<h1 style='text-align: center; color: #1D1D1F; font-weight: 500;'>Asistente Financiero Pro</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='text-align: center; color: #6E6E73; margin-top: -10px;'>Analiza tu cartera de clientes y riesgo en tiempo real con Inteligencia Artificial.</p>", unsafe_allow_html=True)
-        st.markdown("<br><br>", unsafe_allow_html=True) # Espaciador
-
-        # Botones rápidos con el mismo estilo y lógica financiera
-        c1, c2 = st.columns(2)
-        
-        # Guardamos la pregunta seleccionada en el estado
-        if c1.button("📉 Ver Riesgo de Cartera"): st.session_state.prompt_sugerido = "¿Cuál es el riesgo de mi cartera hoy?"
-        if c1.button("💸 Efectivo Real en Mano"): st.session_state.prompt_sugerido = "¿Cuánto dinero real debería tener en mano hoy restando gastos de los cobros?"
-        if c2.button("🚀 Ganancias Proyectadas"): st.session_state.prompt_sugerido = "¿Qué proyección de ganancias tengo este mes basado en los cobros actuales?"
-        if c2.button("📊 Resumen de Rentabilidad"): st.session_state.prompt_sugerido = "Hazme un resumen de la rentabilidad de mi negocio ahora mismo."
-
-    # ---------------------------------------------------------
-    # 5. SISTEMA DE CHAT ACTIVO
-    # ---------------------------------------------------------
-    
-    # Mostrar el historial de mensajes (si los hay)
+    # 3. MOSTRAR HISTORIAL (Si ya hay chat)
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Capturar la pregunta seleccionada o la escrita por el usuario
-    if st.session_state.prompt_sugerido:
-        # Si eligió una sugerida
-        prompt = st.session_state.prompt_sugerido
-        st.session_state.prompt_sugerido = None # Limpiamos el estado
-    else:
-        # Si el usuario escribe algo
-        prompt = st.chat_input("Pregúntale a tu asistente bancario...")
+    # ---------------------------------------------------------
+    # 4. PREGUNTAS SUGERIDAS (Solo si el chat está vacío)
+    # ---------------------------------------------------------
+    if not st.session_state.messages:
+        col1, col2 = st.columns(2)
+        
+        # Estas son las "preguntas flotantes" que querías
+        with col1:
+            if st.button("📈 Simular análisis de riesgo actual", use_container_width=True):
+                st.session_state.prompt_temporal = "¿Cuál es el riesgo de mi cartera hoy?"
+            if st.button("💸 Calcular efectivo real neto", use_container_width=True):
+                st.session_state.prompt_temporal = "¿Cuánto dinero real tengo restando los gastos?"
+        
+        with col2:
+            if st.button("🚀 Proyectar ganancias del mes", use_container_width=True):
+                st.session_state.prompt_temporal = "¿Qué proyección de ganancias tengo este mes?"
+            if st.button("📊 Informe de rentabilidad global", use_container_width=True):
+                st.session_state.prompt_temporal = "Hazme un resumen de la rentabilidad de mi negocio."
 
-    # Procesar la pregunta (ya sea sugerida o escrita)
+    # ---------------------------------------------------------
+    # 5. INPUT DE CHAT (Estilo Global)
+    # ---------------------------------------------------------
+    prompt = st.chat_input("Pregunta a la IA de CobroYa...")
+
+    # Si se usó un botón sugerido, lo capturamos
+    if "prompt_temporal" in st.session_state and st.session_state.prompt_temporal:
+        prompt = st.session_state.prompt_temporal
+        del st.session_state.prompt_temporal
+
     if prompt:
-        # 1. Mostrar tu pregunta inmediatamente
+        # Añadir pregunta del usuario
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # 2. Recopilar datos reales de Supabase (Blindaje de datos)
-        with st.spinner("Analizando tus cobros y préstamos..."):
-            pagos = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
-            gastos = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
-            cuentas = conn.table("cuentas").select("balance_pendiente, estado").eq("user_id", u_id).execute()
-
-            total_cobrado = sum([p['monto_pagado'] for p in pagos.data]) if pagos.data else 0
-            total_gastado = sum([g['monto'] for g in gastos.data]) if gastos.data else 0
-            capital_en_calle = sum([c['balance_pendiente'] for c in cuentas.data if c['estado'] == 'Activo']) if cuentas.data else 0
-            
-            contexto_real = f"""
-            DATOS ACTUALES DEL NEGOCIO (Contexto Administrativo):
-            - Dinero Cobrado: RD$ {total_cobrado:,.2f}
-            - Gastos Registrados: RD$ {total_gastado:,.2f}
-            - Efectivo en Mano (Caja): RD$ {total_cobrado - total_gastado:,.2f}
-            - Préstamos Activos (Riesgo): RD$ {capital_en_calle:,.2f}
-            """
-
-        # 3. Llamada a la IA (Groq)
+        # Lógica de respuesta (Groq)
         with st.chat_message("assistant"):
-            try:
-                # Usamos la función def asistente_ia_cobroya que ya tienes arriba
-                respuesta = asistente_ia_cobroya(contexto_real, prompt)
-                st.markdown(respuesta)
-                # Guardar la respuesta en el historial
-                st.session_state.messages.append({"role": "assistant", "content": respuesta})
-            except Exception as e:
-                # Si falla, damos un error controlado
-                st.error("Lo siento. Hubo un problema al conectar con el servidor de IA.")
-                st.write(f"Detalle técnico (para el operador): {e}")
-
-    # ---------------------------------------------------------
-    # 6. ¿Qué hace ese botón ahí? (Corregido)
-    # ---------------------------------------------------------
-    # Como ya unificamos la IA en un solo bloque con el chat input de Streamlit,
-    # el botón de "Limpiar y nueva transacción" que estaba "flotando" ya no aparecerá aquí.
-    # Ahora la interfaz está blindada para que el usuario solo vea el chat.
+            with st.spinner("Procesando datos del negocio..."):
+                # Recopilar datos reales
+                p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
+                g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
+                c = conn.table("cuentas").select("balance_pendiente").eq("user_id", u_id).eq("estado", "Activo").execute()
+                
+                cobrado = sum([i['monto_pagado'] for i in p.data]) if p.data else 0
+                gastado = sum([i['monto'] for i in g.data]) if g.data else 0
+                riesgo = sum([i['balance_pendiente'] for i in c.data]) if c.data else 0
+                
+                contexto = f"Cobrado: {cobrado}, Gastado: {gastado}, Riesgo: {riesgo}. Responde como un analista bancario profesional."
+                
+                try:
+                    respuesta = asistente_ia_cobroya(contexto, prompt)
+                    st.markdown(respuesta)
+                    st.session_state.messages.append({"role": "assistant", "content": respuesta})
+                except:
+                    st.error("Revisa tu API Key de Groq en los Secrets.")
     
     if st.button("💾 Guardar en Base de Datos"):
         with st.spinner("Guardando..."):
