@@ -164,6 +164,26 @@ def asistente_ia_cobroya(datos_negocio, pregunta_usuario):
     # 4. El retorno (Asegúrate de que esta línea esté alineada con 'completion')
     return completion.choices[0].message.content
 
+def obtener_contexto_privado_ia(u_id_actual):
+    """Filtra los datos para que la IA solo vea lo que le toca al usuario logueado"""
+    try:
+        # Traemos solo préstamos del usuario actual con el nombre del cliente
+        res = conn.table("prestamos").select("*, clientes(nombre)").eq("user_id", u_id_actual).execute()
+        datos = res.data if res.data else []
+        
+        if not datos:
+            return "No hay préstamos registrados para analizar."
+
+        # Construimos el 'libro de datos' exclusivo
+        contexto = "DATOS PRIVADOS DE TU CARTERA (SOLO PARA TUS OJOS):\n"
+        for p in datos:
+            nombre = p.get('clientes', {}).get('nombre', 'Cliente sin nombre')
+            contexto += f"- {nombre}: Debe RD$ {p['balance']:,.2f} | Estado: {p['estado']} | Próximo Pago: {p['proximo_pago']}\n"
+        
+        return contexto
+    except Exception as e:
+        return f"Error de seguridad al recuperar datos: {e}"
+
 def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     import requests  # Asegúrate de tener importado requests arriba
     pdf = FPDF()
@@ -669,6 +689,36 @@ elif menu == "IA Predictiva":
                 except Exception as e:
                     # Esto nos dirá el error de verdad (ej. "Connection error" o "Rate limit")
                     st.error(f"Error real de la IA: {e}") 
+
+# --- DENTRO DE LA SECCIÓN DEL CHAT DE IA ---
+with st.container():
+    # Paso 1: Generar el contexto privado ANTES de que el usuario pregunte
+    contexto_seguro = obtener_contexto_privado_ia(u_id) # u_id es el id del usuario logueado
+
+    # Paso 2: Configurar las instrucciones para Gemini
+    instrucciones_ia = f"""
+    Eres VALE AI, un analista financiero privado y seguro. 
+    Tu conocimiento se limita ESTRICTAMENTE a estos datos:
+    
+    {contexto_seguro}
+    
+    REGLAS DE ORO:
+    - No inventes datos que no estén arriba.
+    - No menciones que tienes un archivo de contexto, actúa con naturalidad.
+    - Si te preguntan por riesgo, analiza quién debe más y quién tiene pagos cerca.
+    - Tu objetivo es ayudar al dueño del negocio a cobrar mejor.
+    """
+
+    # Aquí es donde llamas a tu función de chat de Gemini, 
+    # pasando 'instrucciones_ia' como el system_instruction
+    st.title("🤖 Tu Analista Senior Privado")
+    st.info("Estoy analizando tus datos en tiempo real para darte recomendaciones de cobro.")
+    
+    # Ejemplo de cómo se vería la interacción:
+    prompt = st.chat_input("Pregúntame sobre tus cobros o riesgos...")
+    if prompt:
+        # Aquí va tu código de response = model.generate_content(instrucciones_ia + prompt)
+        st.write(f"Analizando tu cartera para responder: '{prompt}'...")
 
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
