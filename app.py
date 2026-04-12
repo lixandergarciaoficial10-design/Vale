@@ -450,18 +450,24 @@ elif menu == "Nueva Cuenta por Cobrar":
 # Consulta a Supabase
 res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
 
-if res.data:
-    df = pd.DataFrame(res.data)
-    
-    # Buscador simple
-    busqueda = st.text_input("Buscar cliente por nombre o cédula")
-    if busqueda:
-        df = df[df['nombre'].str.contains(busqueda, case=False) | df['cedula'].contains(busqueda)]
-    
-    st.table(df) # O st.dataframe(df)
-else:
+# --- SECCIÓN DE DIRECTORIO DE CLIENTES ---
+    if res.data:
+        df = pd.DataFrame(res.data)
+        
+        # Buscador simple
+        busqueda = st.text_input("Buscar cliente por nombre o cédula")
+        if busqueda:
+            # Filtramos asegurando que buscamos en texto
+            df = df[
+                df['nombre'].astyp(str).str.contains(busqueda, case=False) | 
+                df['cedula'].astype(str).str.contains(busqueda, case=False)
+            ]
+        
+        st.table(df)
+    else:
         st.info("Aún no tienes clientes registrados. Ve a 'Nuevo Cliente' para empezar.")
 
+# --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
     st.header("Movimientos de Efectivo")
     
