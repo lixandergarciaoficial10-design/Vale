@@ -451,7 +451,7 @@ elif menu == "Nueva Cuenta por Cobrar":
 res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
 
 # --- SECCIÓN DE DIRECTORIO DE CLIENTES ---
-elif menu == ("👥 Todos mis Clientes":
+elif menu == ("👥 Todos mis Clientes"):
     st.header("👥 Todos mis Clietes")
     
     # Esta línea (455) ahora está correctamente alineada con el header
