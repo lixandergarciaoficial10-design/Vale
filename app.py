@@ -151,41 +151,54 @@ def asistente_ia_cobroya(datos_negocio, pregunta_usuario):
     # 4. El retorno (Asegúrate de que esta línea esté alineada con 'completion')
     return completion.choices[0].message.content
 
-def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
+def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     pdf = FPDF()
     pdf.add_page()
     
-def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
-    pdf = FPDF()
-    pdf.add_page()
-    
-    # --- LOGO DINÁMICO DESDE SUPABASE ---
+    # 1. BUSCAR CONFIGURACIÓN (Logo y Nombre Real)
     try:
-        res_conf = conn.table("configuracion").select("logo_base64").eq("user_id", u_id).execute()
-        if res_conf.data and res_conf.data[0]['logo_base64']:
-            logo_data = base64.b64decode(res_conf.data[0]['logo_base64'])
+        res_conf = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
+        biz = res_conf.data[0] if res_conf.data else {}
+    except:
+        biz = {}
+
+    # --- LOGO DINÁMICO ---
+    tiene_logo = False
+    if biz.get('logo_base64'):
+        try:
+            logo_data = base64.b64decode(biz['logo_base64'])
             with open("temp_logo.png", "wb") as f:
                 f.write(logo_data)
-            # Colocamos el logo arriba a la izquierda (x=10, y=8) con un ancho de 30
-            pdf.image("temp_logo.png", 10, 8, 30) 
-    except:
-        pass # Si no hay logo, simplemente sigue sin el logo
+            pdf.image("temp_logo.png", 10, 8, 25) # Logo pequeño y elegante
+            tiene_logo = True
+        except:
+            pass
         
-    # --- ENCABEZADO Y LOGO ---
-    pdf.set_fill_color(0, 51, 102) 
+    # --- ENCABEZADO ---
     pdf.set_fill_color(0, 51, 102) # Azul CobroYa
     pdf.rect(0, 0, 210, 40, 'F')
     pdf.set_text_color(255, 255, 255)
+    
+    # Si hay logo, movemos el texto a la derecha (x=40), si no, a la izquierda (x=10)
+    pos_x = 40 if tiene_logo else 10
+    pdf.set_xy(pos_x, 10)
+    
+    nombre_negocio = biz.get("nombre_negocio", "CobroYa Pro")
     pdf.set_font("Helvetica", "B", 24)
-    pdf.cell(190, 20, "CobroYa Pro", ln=True, align='L')
+    pdf.cell(150, 15, nombre_negocio, ln=True)
+    
+    pdf.set_x(pos_x)
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(190, -5, "Villa Altagracia, RD | Soporte: 829-XXX-XXXX", ln=True, align='L')
+    direccion = biz.get("direccion", "Villa Altagracia, RD")
+    telefono = biz.get("telefono", "Soporte: 829-XXX-XXXX")
+    pdf.cell(150, 5, f"{direccion} | {telefono}", ln=True)
     
     # --- CUERPO DEL RECIBO ---
     pdf.ln(25)
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Helvetica", "B", 14)
     recibo_id = f"REC-{datetime.now().strftime('%y%m%d%H%M')}"
+    pdf.set_x(10)
     pdf.cell(100, 10, f"COMPROBANTE: {recibo_id}")
     pdf.set_font("Helvetica", "", 12)
     pdf.cell(90, 10, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='R')
@@ -205,17 +218,18 @@ def generar_pdf_recibo_pro(nombre, monto, balance, metodo="Efectivo"):
     ]
     
     for concepto, detalle in detalles:
+        pdf.set_font("Helvetica", "", 12)
         pdf.cell(95, 10, f" {concepto}", border=1)
         pdf.set_font("Helvetica", "B", 12)
         pdf.cell(95, 10, f" {detalle}", border=1, ln=True)
-        pdf.set_font("Helvetica", "", 12)
 
+    # QR Code
     qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Verificado:{recibo_id}:Monto:{monto}"
     pdf.image(qr_url, 160, 110, 30, 30)
     
     pdf.set_y(140)
     pdf.set_font("Helvetica", "I", 8)
-    pdf.cell(190, 10, "Este documento es un comprobante oficial de pago generado por CobroYa Pro.", align='C', ln=True)
+    pdf.cell(190, 10, f"Este documento es un comprobante oficial generado por {nombre_negocio}.", align='C', ln=True)
     
     return bytes(pdf.output())
 
@@ -352,17 +366,37 @@ elif menu == "Gestión de Cobros":
                     st.write("") # Espaciador
                     if st.button("Registrar Recibo", key=f"btn_{item['id']}"):
                         if abono > 0:
-                            # Registrar el dinero
+                            # 1. Registrar el dinero
                             conn.table("pagos").insert({"cuenta_id": item['id'], "monto_pagado": abono, "user_id": u_id}).execute()
-                            # Bajar la deuda
+                            
+                            # 2. Bajar la deuda
                             n_bal = float(item['balance_pendiente']) - abono
                             conn.table("cuentas").update({
                                 "balance_pendiente": n_bal, 
                                 "estado": "Pagado" if n_bal <= 0 else "Activo",
                                 "proximo_pago": str(f_prox)
                             }).eq("id", item['id']).execute()
-                            st.success("Cobro guardado")
-                            st.rerun()
+                            
+                            st.success(f"Cobro de RD$ {abono} guardado")
+
+                            # --- ESTA ES LA PARTE NUEVA PARA EL PDF ---
+                            # Generamos el PDF usando el u_id para que jale tu logo
+                            pdf_bin = generar_pdf_recibo_pro(
+                                item['clientes']['nombre'], 
+                                abono, 
+                                n_bal, 
+                                u_id, # <--- Aquí le pasamos tu ID de usuario
+                                metodo="Efectivo"
+                            )
+                            
+                            st.download_button(
+                                label="📥 Descargar Recibo PDF",
+                                data=pdf_bin,
+                                file_name=f"Recibo_{item['clientes']['nombre']}.pdf",
+                                mime="application/pdf",
+                                key=f"dl_{item['id']}"
+                            )
+                            # Quitamos el st.rerun() de aquí arriba para que el usuario pueda darle al botón de descargar antes de que la página se refresque.
 
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("Crear cuenta por Cobrar")
