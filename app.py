@@ -621,3 +621,65 @@ elif menu == "IA Predictiva":
                     st.session_state.messages.append({"role": "assistant", "content": respuesta})
                 except:
                     st.error("Revisa tu API Key de Groq en los Secrets.")
+
+elif menu == "Configuración":
+    st.header("⚙️ Configuración del Sistema")
+    st.caption("Administra las cláusulas legales de tus contratos y la seguridad de tu cuenta.")
+
+    # 1. Recuperar configuración actual de Supabase
+    res_conf = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
+    
+    # Determinamos el texto inicial (si no hay nada, ponemos uno por defecto)
+    clausulas_default = """1. EL DEUDOR se compromete a pagar la suma acordada en las fechas establecidas.
+2. El incumplimiento de dos cuotas consecutivas autoriza al ACREEDOR a ejecutar el cobro total.
+3. Este contrato tiene fuerza legal y ejecutiva."""
+    
+    if res_conf.data:
+        texto_actual = res_conf.data[0].get("clausulas", clausulas_default)
+    else:
+        texto_actual = clausulas_default
+
+    # --- SECCIÓN DE CLÁUSULAS LEGALES ---
+    with st.expander("📝 Editar Cláusulas del Contrato PDF", expanded=True):
+        st.write("Estas cláusulas aparecerán automáticamente en todos los contratos PDF que generes.")
+        clausulas_editadas = st.text_area(
+            "Texto legal del contrato:", 
+            value=texto_actual, 
+            height=250,
+            help="Escribe aquí las condiciones que tus clientes deben firmar."
+        )
+        
+        # EL BOTÓN DE GUARDAR: Ahora está dentro de este elif y de este expander
+        if st.button("💾 Guardar Configuración Legal", use_container_width=True):
+            with st.spinner("Sincronizando con la base de datos..."):
+                try:
+                    if res_conf.data:
+                        # Si ya existe registro para este usuario, actualizamos
+                        conn.table("configuracion").update({"clausulas": clausulas_editadas}).eq("user_id", u_id).execute()
+                    else:
+                        # Si es nuevo, insertamos
+                        conn.table("configuracion").insert({"clausulas": clausulas_editadas, "user_id": u_id}).execute()
+                    
+                    # Actualizamos el estado de la sesión para que el PDF lo use de inmediato
+                    st.session_state["mis_clausulas"] = clausulas_editadas
+                    st.success("✅ Cláusulas actualizadas correctamente.")
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al guardar: {e}")
+
+    # --- SECCIÓN DE DATOS DE EMPRESA ---
+    with st.expander("🏢 Datos del Negocio"):
+        st.info("Estos datos se usarán para el encabezado de tus recibos de cobro.")
+        st.text_input("Nombre del Negocio", value="CobroYa Pro", disabled=True)
+        st.text_input("Ubicación Global", value="Gestión Multi-Región")
+
+    # --- SECCIÓN DE SEGURIDAD ---
+    with st.container(border=True):
+        st.subheader("🔐 Seguridad")
+        if st.button("Enviar correo para cambiar mi contraseña"):
+            try:
+                conn.client.auth.reset_password_for_email(st.session_state.user.email)
+                st.success("Se ha enviado un enlace a tu correo para cambiar la clave.")
+            except:
+                st.error("No se pudo procesar la solicitud en este momento.")
