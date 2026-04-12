@@ -460,8 +460,7 @@ res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_
             # Filtramos asegurando que buscamos en texto
             df = df[
                 df['nombre'].astyp(str).str.contains(busqueda, case=False) | 
-                df['cedula'].astype(str).str.contains(busqueda, case=False)
-            ]
+                df['cedula'].astype(str).str.contains(busqueda, case=False)]
         
         st.table(df)
     else:
