@@ -442,7 +442,7 @@ if st.button("Limpiar y nueva transacción"):
 # --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
 
 elif menu == "👥 Todos mis Clientes":
-    st.header("👥 Directorio de Clientes")
+    st.header("👥 Todos mis Clientes")
     
     # 1. Realizamos la consulta JUSTO dentro de su sección correspondiente
     res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
