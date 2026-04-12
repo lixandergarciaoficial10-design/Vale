@@ -155,43 +155,52 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     pdf = FPDF()
     pdf.add_page()
     
-    # 1. BUSCAR CONFIGURACIÓN (Logo y Nombre Real)
+    # 1. BUSCAR CONFIGURACIÓN (Con reintento de carga)
+    biz = {}
     try:
+        # Forzamos la consulta a Supabase usando el u_id que llega por parámetro
         res_conf = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
-        biz = res_conf.data[0] if res_conf.data else {}
-    except:
-        biz = {}
+        if res_conf.data and len(res_conf.data) > 0:
+            biz = res_conf.data[0]
+        else:
+            # Si no encuentra nada, intentamos buscar sin el filtro exacto por si hay un tema de tipos
+            res_conf = conn.table("configuracion").select("*").execute()
+            if res_conf.data:
+                biz = res_conf.data[0] 
+    except Exception as e:
+        print(f"Error crítico de conexión: {e}")
 
-    # --- LOGO DINÁMICO ---
+    # --- LOGO DINÁMICO (Optimizado para que no falle) ---
     tiene_logo = False
-    if biz.get('logo_base64'):
+    logo_b64 = biz.get('logo_base64')
+    
+    if logo_b64:
         try:
-            # LIMPIEZA CRÍTICA: Quitamos el encabezado si existe (data:image/png;base64,...)
-            b64_string = biz['logo_base64']
-            if "," in b64_string:
-                b64_string = b64_string.split(",")[1]
+            # Si el string empieza con "data:image...", lo limpiamos
+            if "," in logo_b64:
+                logo_b64 = logo_b64.split(",")[1]
             
-            logo_data = base64.b64decode(b64_string)
+            # Eliminamos espacios en blanco o saltos de línea que dañan el Base64
+            logo_b64 = logo_b64.strip()
+            
+            logo_data = base64.b64decode(logo_b64)
             with open("temp_logo.png", "wb") as f:
                 f.write(logo_data)
             
-            # Posicionamos el logo
-            pdf.image("temp_logo.png", 10, 8, 25) 
+            pdf.image("temp_logo.png", 10, 8, 25)
             tiene_logo = True
         except Exception as e:
-            # Si falla, imprimimos en consola para debug, pero el PDF sigue
-            print(f"Error decodificando logo: {e}")
-            tiene_logo = False
-        
+            print(f"Fallo al procesar imagen: {e}")
+    
     # --- ENCABEZADO ---
-    pdf.set_fill_color(0, 51, 102) # Azul CobroYa
+    pdf.set_fill_color(0, 51, 102) 
     pdf.rect(0, 0, 210, 40, 'F')
     pdf.set_text_color(255, 255, 255)
     
-    # Ajuste de posición basado en si el logo cargó exitosamente
     pos_x = 40 if tiene_logo else 10
     pdf.set_xy(pos_x, 10)
     
+    # Si biz está vacío porque no cargó, usará los valores por defecto
     nombre_negocio = biz.get("nombre_negocio", "CobroYa Pro")
     pdf.set_font("Helvetica", "B", 24)
     pdf.cell(150, 15, nombre_negocio, ln=True)
