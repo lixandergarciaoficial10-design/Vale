@@ -124,6 +124,19 @@ if 'user' not in st.session_state:
 
 u_id = st.session_state.user.id
 
+# --- CARGA INICIAL DE CONFIGURACIÓN (Pegar justo después de definir u_id) ---
+if "config_cargada" not in st.session_state:
+    try:
+        res_c = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
+        if res_c.data:
+            conf = res_c.data[0]
+            st.session_state["mis_clausulas"] = conf.get("clausulas", "Sujeto a términos legales.")
+            st.session_state["mi_logo"] = conf.get("logo_base64", None)
+            st.session_state["nombre_negocio"] = conf.get("nombre_negocio", "CobroYa Pro")
+            st.session_state["config_cargada"] = True
+    except:
+        pass
+
 # --- 3. FUNCIONES AUXILIARES (CORREGIDAS) ---
 
 # --- FUNCIONES AUXILIARES ---
@@ -152,47 +165,34 @@ def asistente_ia_cobroya(datos_negocio, pregunta_usuario):
     return completion.choices[0].message.content
 
 def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
+    import requests  # Asegúrate de tener importado requests arriba
     pdf = FPDF()
     pdf.add_page()
     
-    # 1. BUSCAR CONFIGURACIÓN (Con reintento de carga)
-    biz = {}
-    try:
-        # Forzamos la consulta a Supabase usando el u_id que llega por parámetro
-        res_conf = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
-        if res_conf.data and len(res_conf.data) > 0:
-            biz = res_conf.data[0]
-        else:
-            # Si no encuentra nada, intentamos buscar sin el filtro exacto por si hay un tema de tipos
-            res_conf = conn.table("configuracion").select("*").execute()
-            if res_conf.data:
-                biz = res_conf.data[0] 
-    except Exception as e:
-        print(f"Error crítico de conexión: {e}")
+    # --- 1. CARGA DESDE MEMORIA (Datos del Negocio) ---
+    logo_b64 = st.session_state.get("mi_logo")
+    nombre_negocio = st.session_state.get("nombre_negocio", "CobroYa Pro")
+    direccion = st.session_state.get("direccion_negocio", "Villa Altagracia, RD")
+    telefono = st.session_state.get("telefono_negocio", "Soporte: 829-XXX-XXXX")
 
-    # --- LOGO DINÁMICO (Optimizado para que no falle) ---
+    # --- 2. LOGO DINÁMICO ---
     tiene_logo = False
-    logo_b64 = biz.get('logo_base64')
-    
     if logo_b64:
         try:
-            # Si el string empieza con "data:image...", lo limpiamos
             if "," in logo_b64:
                 logo_b64 = logo_b64.split(",")[1]
-            
-            # Eliminamos espacios en blanco o saltos de línea que dañan el Base64
             logo_b64 = logo_b64.strip()
-            
             logo_data = base64.b64decode(logo_b64)
+            
             with open("temp_logo.png", "wb") as f:
                 f.write(logo_data)
             
             pdf.image("temp_logo.png", 10, 8, 25)
             tiene_logo = True
         except Exception as e:
-            print(f"Fallo al procesar imagen: {e}")
+            print(f"Error al procesar logo: {e}")
     
-    # --- ENCABEZADO ---
+    # --- 3. ENCABEZADO ESTILO PROFESIONAL ---
     pdf.set_fill_color(0, 51, 102) 
     pdf.rect(0, 0, 210, 40, 'F')
     pdf.set_text_color(255, 255, 255)
@@ -200,18 +200,14 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     pos_x = 40 if tiene_logo else 10
     pdf.set_xy(pos_x, 10)
     
-    # Si biz está vacío porque no cargó, usará los valores por defecto
-    nombre_negocio = biz.get("nombre_negocio", "CobroYa Pro")
     pdf.set_font("Helvetica", "B", 24)
     pdf.cell(150, 15, nombre_negocio, ln=True)
     
     pdf.set_x(pos_x)
     pdf.set_font("Helvetica", "", 10)
-    direccion = biz.get("direccion", "Villa Altagracia, RD")
-    telefono = biz.get("telefono", "Soporte: 829-XXX-XXXX")
     pdf.cell(150, 5, f"{direccion} | {telefono}", ln=True)
     
-    # --- CUERPO DEL RECIBO ---
+    # --- 4. CUERPO DEL RECIBO ---
     pdf.ln(25)
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Helvetica", "B", 14)
@@ -224,6 +220,7 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     pdf.line(10, 55, 200, 55) 
     pdf.ln(10)
     
+    # Tabla de detalles
     pdf.set_fill_color(245, 245, 245)
     pdf.cell(95, 10, " Concepto", border=1, fill=True)
     pdf.cell(95, 10, " Detalle", border=1, fill=True, ln=True)
@@ -231,7 +228,7 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     detalles = [
         ("Cliente", nombre),
         ("Monto Recibido", f"RD$ {monto:,.2f}"),
-        ("Método de Pago", metodo),
+        ("Metodo de Pago", metodo),
         ("Balance Restante", f"RD$ {balance:,.2f}")
     ]
     
@@ -241,16 +238,26 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
         pdf.set_font("Helvetica", "B", 12)
         pdf.cell(95, 10, f" {detalle}", border=1, ln=True)
 
-    # QR Code
-    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=Verificado:{recibo_id}:Monto:{monto}"
-    pdf.image(qr_url, 160, 110, 30, 30)
+    # --- 5. QR DE VERIFICACIÓN (CORREGIDO) ---
+    try:
+        qr_data = f"Verificado:{recibo_id}:Monto:{monto}"
+        qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={qr_data}"
+        
+        # Descargamos el QR temporalmente para que fpdf lo lea sin errores
+        img_data = requests.get(qr_url).content
+        with open("temp_qr.png", "wb") as handler:
+            handler.write(img_data)
+            
+        pdf.image("temp_qr.png", 160, 110, 30, 30)
+    except Exception as e:
+        print(f"Error al generar QR: {e}")
     
-    pdf.set_y(140)
+    # --- 6. PIE DE PÁGINA ---
+    pdf.set_y(145)
     pdf.set_font("Helvetica", "I", 8)
     pdf.cell(190, 10, f"Este documento es un comprobante oficial generado por {nombre_negocio}.", align='C', ln=True)
     
     return bytes(pdf.output())
-
 def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df, freq, clausulas_texto):
     pdf = FPDF()
     pdf.add_page()
