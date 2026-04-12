@@ -744,8 +744,7 @@ elif menu == "Configuración":
             biz_phone = st.text_input("Teléfono de Contacto", value=current_biz.get("telefono", ""))
             biz_addr = st.text_area("Dirección Física", value=current_biz.get("direccion", ""))
 
-if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
-            # Todo lo que sigue debe tener un nivel más de sangría (4 espacios)
+     if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
             payload = {
                 "nombre_negocio": biz_name,
                 "rnc": biz_id,
