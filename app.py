@@ -451,7 +451,10 @@ elif menu == "Nueva Cuenta por Cobrar":
 res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
 
 # --- SECCIÓN DE DIRECTORIO DE CLIENTES ---
-# --- SECCIÓN DE DIRECTORIO DE CLIENTES ---
+elif menu == ("👥 Todos mis Clientes":
+    st.header("👥 Todos mis Clietes")
+    
+    # Esta línea (455) ahora está correctamente alineada con el header
     res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
 
     if res.data:
@@ -460,16 +463,14 @@ res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_
         busqueda = st.text_input("🔍 Buscar cliente por nombre o cédula")
         
         if busqueda:
+            # Filtro de búsqueda con protección de tipo de dato
             df = df[
                 df['nombre'].astype(str).str.contains(busqueda, case=False) | 
                 df['cedula'].astype(str).str.contains(busqueda, case=False)
             ]
         
-        # Esta línea debe estar alineada con el 'if busqueda' (un nivel adentro de 'if res.data')
-        st.table(df)
-
+        st.dataframe(df, use_container_width=True)
     else:
-        # Esta línea debe estar alineada con el 'if res.data'
         st.info("Aún no tienes clientes registrados. Ve a 'Nuevo Cliente' para empezar.")
 
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
