@@ -425,44 +425,25 @@ elif menu == "Nueva Cuenta por Cobrar":
         c3.metric("Ganancia Neta", f"RD$ {total_real - capital:,.2f}", 
                   delta=f"Dif: {diferencia:,.2f}", delta_color="inverse")
 
-        # 6. GUARDADO CON DOBLE CONFIRMACIÓN
+# 6. GUARDADO CON DOBLE CONFIRMACIÓN
         if st.button("🚀 Confirmar y Activar Préstamo", use_container_width=True):
             if capital > 0:
                 with st.spinner("Creando contrato y sincronizando..."):
-                    # ESTO YA LO TIENES: Registrar cuenta
-                    conn.table("cuentas").insert({
-                        "cliente_id": cliente_obj['id'],
-                        "monto_inicial": total_real,
-                        "balance_pendiente": total_real,
-                        "user_id": u_id,
-                        "estado": "Activo",
-                        "proximo_pago": str(df_editable.iloc[0]["Fecha"])
-                    }).execute()
+                    # (Toda tu lógica de insert en cuentas va aquí...)
                     
-                    # --- ESTO ES LO NUEVO: GENERAR PDF ---
-                    # Le pasamos st.session_state["mis_clausulas"] como el último parámetro
-# --- GENERACIÓN DEL PDF CON CLÁUSULAS ---
-                    pdf_bin = generar_pdf_contrato_legal(
-                        cliente_obj['nombre'], 
-                        cliente_obj.get('cedula', '000-0000000-0'), # <-- .get evita el KeyError
-                        capital, 
-                        total_real, 
-                        df_editable, 
-                        freq_sel,
-                        st.session_state.get("mis_clausulas", "Sin clausulas configuradas")
-                    )
-                    
+                    # Generación del PDF
+                    pdf_bin = generar_pdf_contrato_legal(...)
                     st.session_state.pdf_ready = pdf_bin
-                    # -------------------------------------
                     
-                    st.success(f"¡Préstamo de RD$ {total_real:,.2f} activado!")
+                    st.success(f"¡Préstamo activado!")
                     time.sleep(1)
-                    st.rerun()  
+                    st.rerun()
 
-# Este botón aparecerá justo debajo de todo cuando el PDF esté listo
-    
-    # 1. Consulta a Supabase
-if st.button("Limpiar y nueva transacción"):
+        # --- ESTO ES LO QUE TIENES QUE CORREGIR ---
+        # Ahora el botón de limpiar tiene 8 espacios de sangría
+        # para que pertenezca SOLO a "Nueva Cuenta por Cobrar"
+        if "pdf_ready" in st.session_state:
+            if st.button("Limpiar y nueva transacción"):
                 del st.session_state.pdf_ready
                 st.rerun()
 
