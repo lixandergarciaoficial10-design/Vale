@@ -456,12 +456,15 @@ if res.data:
         
         # Buscador simple
 busqueda = st.text_input("Buscar cliente por nombre o cédula")
-        if busqueda:
-            # Filtramos asegurando que buscamos en texto
+if busqueda:
+            # 1. CORREGIDO: astype(str) con la 'e' que faltaba
+            # 2. CORREGIDO: Alineación interna de los filtros
             df = df[
-                df['nombre'].astyp(str).str.contains(busqueda, case=False) | 
-                df['cedula'].astype(str).str.contains(busqueda, case=False)]
+                df['nombre'].astype(str).str.contains(busqueda, case=False) | 
+                df['cedula'].astype(str).str.contains(busqueda, case=False)
+            ]
         
+        # 3. CORREGIDO: st.table debe estar alineado con el 'if busqueda' (un nivel fuera)
         st.table(df)
     else:
         st.info("Aún no tienes clientes registrados. Ve a 'Nuevo Cliente' para empezar.")
