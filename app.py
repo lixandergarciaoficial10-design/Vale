@@ -621,16 +621,3 @@ elif menu == "IA Predictiva":
                     st.session_state.messages.append({"role": "assistant", "content": respuesta})
                 except:
                     st.error("Revisa tu API Key de Groq en los Secrets.")
-    
-    if st.button("💾 Guardar en Base de Datos"):
-        with st.spinner("Guardando..."):
-            if res_conf.data:
-                # Si ya existe, actualizamos (UPDATE)
-                conn.table("configuracion").update({"clausulas": clausulas_editadas}).eq("user_id", u_id).execute()
-            else:
-                # Si es la primera vez, insertamos (INSERT)
-                conn.table("configuracion").insert({"clausulas": clausulas_editadas, "user_id": u_id}).execute()
-            
-            # Actualizamos también el session_state para que el cambio sea inmediato
-            st.session_state["mis_clausulas"] = clausulas_editadas
-            st.success("✅ ¡Configuración guardada permanentemente en Supabase!")
