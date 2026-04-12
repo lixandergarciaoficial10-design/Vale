@@ -451,24 +451,27 @@ elif menu == "Nueva Cuenta por Cobrar":
 res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
 
 # --- SECCIÓN DE DIRECTORIO DE CLIENTES ---
-elif menu == ("👥 Todos mis Clientes"):
-    st.header("👥 Todos mis Clietes")
+
+elif menu == "👥 Todos mis Clientes":
+    st.header("👥 Directorio de Clientes")
     
-    # Esta línea (455) ahora está correctamente alineada con el header
+    # 1. Consulta a Supabase
     res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
 
     if res.data:
         df = pd.DataFrame(res.data)
         
+        # 2. Buscador
         busqueda = st.text_input("🔍 Buscar cliente por nombre o cédula")
         
         if busqueda:
-            # Filtro de búsqueda con protección de tipo de dato
+            # Filtro con protección de tipos
             df = df[
                 df['nombre'].astype(str).str.contains(busqueda, case=False) | 
                 df['cedula'].astype(str).str.contains(busqueda, case=False)
             ]
         
+        # 3. Mostrar Tabla
         st.dataframe(df, use_container_width=True)
     else:
         st.info("Aún no tienes clientes registrados. Ve a 'Nuevo Cliente' para empezar.")
