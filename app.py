@@ -166,20 +166,29 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     tiene_logo = False
     if biz.get('logo_base64'):
         try:
-            logo_data = base64.b64decode(biz['logo_base64'])
+            # LIMPIEZA CRÍTICA: Quitamos el encabezado si existe (data:image/png;base64,...)
+            b64_string = biz['logo_base64']
+            if "," in b64_string:
+                b64_string = b64_string.split(",")[1]
+            
+            logo_data = base64.b64decode(b64_string)
             with open("temp_logo.png", "wb") as f:
                 f.write(logo_data)
-            pdf.image("temp_logo.png", 10, 8, 25) # Logo pequeño y elegante
+            
+            # Posicionamos el logo
+            pdf.image("temp_logo.png", 10, 8, 25) 
             tiene_logo = True
-        except:
-            pass
+        except Exception as e:
+            # Si falla, imprimimos en consola para debug, pero el PDF sigue
+            print(f"Error decodificando logo: {e}")
+            tiene_logo = False
         
     # --- ENCABEZADO ---
     pdf.set_fill_color(0, 51, 102) # Azul CobroYa
     pdf.rect(0, 0, 210, 40, 'F')
     pdf.set_text_color(255, 255, 255)
     
-    # Si hay logo, movemos el texto a la derecha (x=40), si no, a la izquierda (x=10)
+    # Ajuste de posición basado en si el logo cargó exitosamente
     pos_x = 40 if tiene_logo else 10
     pdf.set_xy(pos_x, 10)
     
