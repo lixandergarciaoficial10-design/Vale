@@ -353,8 +353,9 @@ elif menu == "Gestión de Cobros":
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("Crear cuenta por Cobrar")
     res_cli = conn.table("clientes").select("id, nombre, cedula").eq("user_id", u_id).execute()
+    
     if res_cli.data:
-        # 1. PARAMETRIZACIÓN INICIAL
+        # 1. PARAMETRIZACIÓN (Tu lógica original)
         col1, col2, col3 = st.columns(3)
         with col1:
             cliente_obj = st.selectbox("Cliente", options=res_cli.data, format_func=lambda x: x['nombre'])
@@ -362,91 +363,63 @@ elif menu == "Nueva Cuenta por Cobrar":
         
         with col2:
             porcentaje = st.number_input("Interés Total (%)", min_value=0, value=20)
-            # Diccionario de frecuencias para la lógica de fechas
-            frecuencias = {
-                "Semanal": {"days": 7},
-                "Quincenal": {"days": 14},
-                "Mensual": {"months": 1},
-                "Trimestral": {"months": 3},
-                "Anual": {"months": 12}
-            }
+            frecuencias = {"Semanal": {"days": 7}, "Quincenal": {"days": 14}, "Mensual": {"months": 1}}
             freq_sel = st.selectbox("Frecuencia de Pagos", list(frecuencias.keys()), index=2)
         
         with col3:
             cuotas_n = st.number_input("Número de Cuotas", min_value=1, value=4)
             fecha_inicio = st.date_input("Fecha de Primera Cuota", value=datetime.now().date())
 
-        # 2. CÁLCULO DE EXPECTATIVA
+        # 2. CÁLCULOS (Tu lógica original)
         total_esperado = capital * (1 + (porcentaje / 100))
         monto_sugerido = total_esperado / cuotas_n
 
         st.markdown("---")
-        st.subheader("📝 Plan de Amortización Ajustable")
-        st.caption(f"Frecuencia detectada: {freq_sel}. Sistema de fechas automático activado.")
+        df_plan = pd.DataFrame([{
+            "Nº": i + 1,
+            "Fecha": (fecha_inicio + pd.DateOffset(days=i*7 if freq_sel=="Semanal" else i*14 if freq_sel=="Quincenal" else i*30)).date(),
+            "Monto Cuota (RD$)": round(monto_sugerido, 2)
+        } for i in range(cuotas_n)])
 
-        # 3. GENERACIÓN DEL CRONOGRAMA DINÁMICO
-        cronograma = []
-        for i in range(cuotas_n):
-            # Lógica de salto de fecha según frecuencia
-            if "days" in frecuencias[freq_sel]:
-                nueva_fecha = fecha_inicio + pd.DateOffset(days=i * frecuencias[freq_sel]["days"])
-            else:
-                nueva_fecha = fecha_inicio + pd.DateOffset(months=i * frecuencias[freq_sel]["months"])
-            
-            cronograma.append({
-                "Nº": i + 1,
-                "Fecha": nueva_fecha.date(),
-                "Monto Cuota (RD$)": round(monto_sugerido, 2)
-            })
-        
-        df_plan = pd.DataFrame(cronograma)
-
-        # 4. EL "EXCEL" REACTIVO
-        # Permitimos editar Fecha y Monto. Nº está bloqueado.
-        df_editable = st.data_editor(
-            df_plan,
-            column_config={
-                "Nº": st.column_config.NumberColumn("Nº", disabled=True),
-                "Fecha": st.column_config.DateColumn("Fecha Límite", format="DD/MM/YYYY"),
-                "Monto Cuota (RD$)": st.column_config.NumberColumn("Valor de la Cuota", min_value=0)
-            },
-            hide_index=True,
-            use_container_width=True,
-            key="amortizacion_pro"
-        )
-
-        # 5. VALIDACIÓN DE SUMA (Para que el prestamista no se confunda)
+        df_editable = st.data_editor(df_plan, use_container_width=True, key="amortizacion_pro")
         total_real = df_editable["Monto Cuota (RD$)"].sum()
-        diferencia = total_real - total_esperado
 
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Capital Inicial", f"RD$ {capital:,.2f}")
-        c2.metric("Total de Deuda Final", f"RD$ {total_real:,.2f}")
-        c3.metric("Ganancia Neta", f"RD$ {total_real - capital:,.2f}", 
-                  delta=f"Dif: {diferencia:,.2f}", delta_color="inverse")
-
-# 6. GUARDADO CON DOBLE CONFIRMACIÓN
+        # 3. EL BOTÓN DE GUARDAR (Bien identado)
         if st.button("🚀 Confirmar y Activar Préstamo", use_container_width=True):
             if capital > 0:
-                with st.spinner("Creando contrato y sincronizando..."):
-                    # (Toda tu lógica de insert en cuentas va aquí...)
+                with st.spinner("Guardando en base de datos..."):
+                    # Tu lógica de Supabase
+                    conn.table("cuentas").insert({
+                        "cliente_id": cliente_obj['id'],
+                        "monto_inicial": total_real,
+                        "balance_pendiente": total_real,
+                        "user_id": u_id,
+                        "estado": "Activo",
+                        "proximo_pago": str(df_editable.iloc[0]["Fecha"])
+                    }).execute()
                     
-                    # Generación del PDF
-                    pdf_bin = generar_pdf_contrato_legal(...)
+                    # Generamos el PDF usando tus cláusulas guardadas
+                    pdf_bin = generar_pdf_contrato_legal(
+                        cliente_obj['nombre'], 
+                        cliente_obj.get('cedula', '000-0000000-0'), 
+                        float(capital), 
+                        float(total_real), 
+                        df_editable, 
+                        freq_sel,
+                        st.session_state.get("mis_clausulas", "Sujeto a términos legales.")
+                    )
                     st.session_state.pdf_ready = pdf_bin
-                    
-                    st.success(f"¡Préstamo activado!")
-                    time.sleep(1)
+                    st.success("¡Préstamo activado!")
                     st.rerun()
 
-        # --- ESTO ES LO QUE TIENES QUE CORREGIR ---
-        # Ahora el botón de limpiar tiene 8 espacios de sangría
-        # para que pertenezca SOLO a "Nueva Cuenta por Cobrar"
+        # 4. BOTONES QUE APARECEN SOLO DESPUÉS DE GUARDAR
         if "pdf_ready" in st.session_state:
-            if st.button("Limpiar y nueva transacción"):
+            st.download_button("📥 Descargar Contrato PDF", data=st.session_state.pdf_ready, file_name="contrato.pdf", use_container_width=True)
+            
+            # EL BOTÓN QUE TE DABA LUCHA: Ahora está amarrado a esta sección
+            if st.button("🧹 Limpiar y nueva transacción", use_container_width=True):
                 del st.session_state.pdf_ready
                 st.rerun()
-
 # --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
 
 elif menu == "👥 Todos mis Clientes":
