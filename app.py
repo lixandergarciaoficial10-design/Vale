@@ -324,7 +324,7 @@ elif menu == "Gestión de Cobros":
                             st.rerun()
 
 elif menu == "Nueva Cuenta por Cobrar":
-    st.header("Configuración de Desembolso Pro")
+    st.header("Crear cuenta por Cobrar")
     res_cli = conn.table("clientes").select("id, nombre, cedula").eq("user_id", u_id).execute()
     if res_cli.data:
         # 1. PARAMETRIZACIÓN INICIAL
