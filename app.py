@@ -527,65 +527,87 @@ elif menu == "Cuentas por Pagar":
                     st.error("Por favor rellena todos los campos")
 
 elif menu == "IA Predictiva":
-    st.header("🤖 Inteligencia Financiera CobroYa")
-    st.info("Analiza tu negocio en tiempo real.")
+    st.header("🤖 Asistente de Inteligencia Financiera")
+    st.caption("Tecnología de Punta por Groq – Solo datos reales de CobroYa Pro.")
+    
+    # ---------------------------------------------------------
+    # 1. BLOQUE DE SEGURIDAD: REVISIÓN DEL API KEY (ARREGLA TU ERROR)
+    # ---------------------------------------------------------
+    # Si ves el error rojo en tu app, es porque falta la API KEY en 'Secrets' de Streamlit.
+    if "GROQ_API_KEY" not in st.secrets:
+        st.error("❌ ERROR CRÍTICO: No se encontró la API Key de Groq.")
+        st.info("💡 Lixander, debes ir a la configuración de tu app en Streamlit Cloud -> Settings -> Secrets y pegar esto:\n`GROQ_API_KEY = 'TU_CLAVE_DE_GROQ_AQUI'`")
+        st.stop() # Detenemos la app aquí si no hay clave.
+    # ---------------------------------------------------------
 
-    # 1. Datos reales para Groq
-    pagos = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
-    gastos = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
-    cuentas = conn.table("cuentas").select("balance_pendiente, estado").eq("user_id", u_id).execute()
+    # ---------------------------------------------------------
+    # 2. SISTEMA DE MEMORIA DE CHAT (Para que se vea como IA Real)
+    # ---------------------------------------------------------
+    if "messages" not in st.session_state:
+        # Mensaje de bienvenida del asistente
+        st.session_state.messages = [{
+            "role": "assistant", 
+            "content": f"Hola, soy tu Gerente de Riesgos Senior para CobroYa Pro en Villa Altagracia. ¿En qué podemos analizar tu negocio hoy?"
+        }]
 
-    resumen = {
-        "cobrado": sum([p['monto_pagado'] for p in pagos.data]) if pagos.data else 0,
-        "gastado": sum([g['monto'] for g in gastos.data]) if gastos.data else 0,
-        "en_calle": sum([c['balance_pendiente'] for c in cuentas.data if c['estado'] == 'Activo']) if cuentas.data else 0
-    }
+    # Mostrar el historial de mensajes con burbujas y avatares reales
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-    # 2. Botones rápidos
-    c1, c2 = st.columns(2)
-    preg_ia = ""
-    with c1:
-        if st.button("📈 Ver Riesgo"): preg_ia = "¿Cuál es el riesgo de mi cartera?"
-        if st.button("💸 Efectivo real"): preg_ia = "¿Cuánto efectivo debo tener restando gastos?"
-    with c2:
-        if st.button("🚀 Proyecciones"): preg_ia = "¿Qué proyección de ganancias tengo este mes?"
-        if st.button("📊 Rentabilidad"): preg_ia = "Hazme un resumen de rentabilidad."
+    # ---------------------------------------------------------
+    # 3. CHAT INPUT (El estilo que querías, abajo y siempre listo)
+    # ---------------------------------------------------------
+    if prompt := st.chat_input("Pregúntale a tu asistente bancario..."):
+        # Agregar tu pregunta al historial
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        # Mostrar tu pregunta en pantalla inmediatamente
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-    # 3. Chat Input (Ahora sí saldrá abajo)
-    chat_q = st.chat_input("Pregúntale a tu asistente bancario...")
-    if chat_q: preg_ia = chat_q
+        # -----------------------------------------------------
+        # 4. RECOPILAR DATOS REALES (Blindaje de datos)
+        # -----------------------------------------------------
+        with st.spinner("Analizando tus cobros y préstamos en Supabase..."):
+            # Traemos los datos frescos de la base de datos
+            res_ia = conn.table("cuentas").select("balance_pendiente, estado").eq("user_id", u_id).eq("estado", "Activo").execute()
+            pagos_ia = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
+            gastos_ia = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
 
-    if preg_ia:
-        with st.spinner("Pensando..."):
+            total_deuda = sum([x['balance_pendiente'] for x in res_ia.data]) if res_ia.data else 0
+            total_cobrado = sum([p['monto_pagado'] for p in pagos_ia.data]) if pagos_ia.data else 0
+            total_gastado = sum([g['monto'] for g in gastos_ia.data]) if gastos_ia.data else 0
+            
+            # Formateamos el contexto para la IA
+            contexto_real = f"""
+            DATOS ACTUALES DEL NEGOCIO:
+            - Clientes Activos: {len(res_ia.data) if res_ia.data else 0}
+            - Capital en la calle (Riesgo): RD$ {total_deuda:,.2f}
+            - Dinero Cobrado: RD$ {total_cobrado:,.2f}
+            - Gastos Registrados: RD$ {total_gastado:,.2f}
+            """
+
+        # -----------------------------------------------------
+        # 5. LLAMADA A LA IA (Usando Groq)
+        # -----------------------------------------------------
+        with st.chat_message("assistant"):
             try:
-                resp = asistente_ia_cobroya(resumen, preg_ia)
-                st.chat_message("assistant").write(resp)
-            except:
-                st.error("Error de conexión con la IA. Revisa tu API Key.")
-#esta es la parte de la configuracion
-elif menu == "Configuración":
-    st.header("⚙️ Configuración Permanente")
-    
-    # 1. Intentar cargar configuración existente de Supabase
-    res_conf = conn.table("configuracion").select("clausulas").eq("user_id", u_id).execute()
-    
-    # Si no hay nada en la base de datos, usamos el texto por defecto
-    default_txt = (
-        "1. MORA: El retraso de mas de 3 dias generara una penalidad del 5%.\n"
-        "2. CANCELACION: El cliente puede abonar al capital sin penalidad.\n"
-        "3. AUTORIZACION: El deudor autoriza el contacto via WhatsApp."
-    )
-    
-    # Determinar qué texto mostrar en el área de edición
-    texto_actual = res_conf.data[0]['clausulas'] if res_conf.data else default_txt
+                # Usamos la función def asistente_ia_cobroya que ya tienes arriba
+                respuesta = asistente_ia_cobroya(contexto_real, prompt)
+                st.markdown(respuesta)
+                # Guardar la respuesta en el historial
+                st.session_state.messages.append({"role": "assistant", "content": respuesta})
+            except Exception as e:
+                # Si Groq falla, damos un error controlado
+                st.error("Lo siento, Lixander. Tuve un problema al conectar con el servidor de IA.")
+                st.write(f"Detalle técnico (para ti): {e}")
 
-    st.subheader("📝 Cláusulas del Contrato")
-    clausulas_editadas = st.text_area(
-        "Estas cláusulas se guardarán permanentemente en tu cuenta:",
-        value=texto_actual,
-        height=250
-    )
-
+    # ---------------------------------------------------------
+    # 6. ¿QUÉ HACE ESE BOTÓN AHÍ? (Corregido)
+    # ---------------------------------------------------------
+    # Como ya unificamos la IA en un solo bloque, el botón de "Limpiar y nueva transacción"
+    # que estaba "flotando" ya no aparecerá aquí. Ahora todo está limpio y en su lugar.
+    
     if st.button("💾 Guardar en Base de Datos"):
         with st.spinner("Guardando..."):
             if res_conf.data:
