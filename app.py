@@ -773,7 +773,7 @@ if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
                 st.error(f"Error al guardar: {e}")
 
 # --- SECCIÓN DE SEGURIDAD ---
-    with st.container(border=True):
+     with st.container(border=True):
         st.subheader("🔐 Seguridad de la Cuenta")
         st.write("Cambia tu contraseña de acceso directamente.")
         
