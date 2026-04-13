@@ -383,21 +383,27 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
 # --- 4. NAVEGACIÓN ---
 
 with st.sidebar:
-    col_l, col_r = st.columns([1, 3])
+    # --- BLOQUE DE MARCA DEL CLIENTE (EL PROTAGONISTA) ---
+    logo_data = st.session_state.get("mi_logo")
+    nombre_biz = st.session_state.get("nombre_negocio", "Tu Negocio")
     
-    with col_l:
-        logo_data = st.session_state.get("mi_logo")
-        if logo_data:
-            if "," in str(logo_data): logo_data = logo_data.split(",")[1]
-            st.image(base64.b64decode(logo_data), width=40)
-        else:
-            st.title("🏢")
-            
-    with col_r:
-        st.markdown(f"**{st.session_state.get('nombre_negocio', 'CobroYa Pro')}**")
-        st.caption("Panel de Control")
+    # Contenedor con estilo para el Logo y Nombre
+    st.markdown(f"""
+        <div style='text-align: center; padding: 10px; border-bottom: 1px solid #f0f2f6; margin-bottom: 20px;'>
+            <p style='margin-bottom: 10px;'>
+                {"<img src='data:image/png;base64," + (logo_data.split(",")[1] if "," in logo_data else logo_data) + "' width='85'>" if logo_data else "🏢"}
+            </p>
+            <h2 style='font-size: 1.2rem; color: #1f2937; margin: 0;'>{nombre_biz.upper()}</h2>
+            <p style='font-size: 0.8rem; color: #6b7280;'>Panel Administrativo</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # --- MENÚ DE NAVEGACIÓN ---
+    # (Aquí van tus botones de Panel de Control, Gestión, etc.)
     
-    st.divider()
+    # --- PIE DE PÁGINA (BRANDING DE TU APP - SUTIL) ---
+    st.sidebar.markdown("---")
+    st.sidebar.caption("Powered by **Lixander Garcia**")
 
 with st.sidebar:
     st.markdown("<h1 style='color: #007AFF; text-align: center;'>CobroYa</h1>", unsafe_allow_html=True)
