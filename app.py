@@ -192,54 +192,58 @@ def obtener_contexto_privado_ia(u_id_actual):
 
 def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     import requests
+    from fpdf import FPDF
+    
     pdf = FPDF()
     pdf.add_page()
     
-    # 1. CARGA DESDE MEMORIA
+    # --- 1. DATOS DE MEMORIA ---
     logo_b64 = st.session_state.get("mi_logo")
     nombre_negocio = st.session_state.get("nombre_negocio", "CobroYa Pro")
     direccion = st.session_state.get("direccion_negocio", "Villa Altagracia, RD")
     telefono = st.session_state.get("telefono_negocio", "Soporte: 829-XXX-XXXX")
 
-    # --- 2. FONDO AZUL (DIBUJAR PRIMERO) ---
+    # --- 2. FONDO (CAPA INFERIOR) ---
     pdf.set_fill_color(0, 51, 102) 
-    pdf.rect(0, 0, 210, 40, 'F') # Esto crea la franja azul
+    pdf.rect(0, 0, 210, 40, 'F') # Dibujamos el bloque azul de fondo
 
-    # --- 3. LOGO DINÁMICO (DIBUJAR ENCIMA DEL AZUL) ---
+    # --- 3. LOGO (CAPA SUPERIOR) ---
     tiene_logo = False
     if logo_b64:
         try:
-            if "," in logo_b64:
-                logo_b64 = logo_b64.split(",")[1]
-            logo_data = base64.b64decode(logo_b64.strip())
+            # Limpiamos el string por si tiene encabezados de data:image
+            if "," in str(logo_b64):
+                logo_b64 = str(logo_b64).split(",")[1]
+            
+            logo_data = base64.b64decode(str(logo_b64).strip())
             
             with open("temp_logo.png", "wb") as f:
                 f.write(logo_data)
             
-            # Ajustamos posición para que luzca bien sobre el azul
+            # Colocamos el logo ENCIMA del cuadro azul
             pdf.image("temp_logo.png", 10, 8, 25)
             tiene_logo = True
         except Exception as e:
-            print(f"Error al procesar logo: {e}")
+            print(f"Error procesando logo: {e}")
 
-    # --- 4. TEXTO DEL ENCABEZADO ---
+    # --- 4. TEXTO SOBRE EL AZUL ---
     pdf.set_text_color(255, 255, 255)
     pos_x = 40 if tiene_logo else 10
     pdf.set_xy(pos_x, 10)
     
-    pdf.set_font("Helvetica", "B", 24)
-    pdf.cell(150, 15, nombre_negocio, ln=True)
+    pdf.set_font("Helvetica", "B", 22)
+    pdf.cell(150, 15, nombre_negocio.upper(), ln=True)
     
     pdf.set_x(pos_x)
     pdf.set_font("Helvetica", "", 10)
     pdf.cell(150, 5, f"{direccion} | {telefono}", ln=True)
 
-    # --- 5. CUERPO Y TABLA (RESTO IGUAL) ---
+    # --- 5. CUERPO DEL DOCUMENTO ---
     pdf.ln(25)
     pdf.set_text_color(0, 0, 0)
-    # ... (Tu código de detalles y QR está perfecto)
+    # Aquí sigue tu lógica de cuotas y montos (RD$ 3,600.00 total)
+    # ...
     
-    # Asegúrate de cerrar el archivo antes de retornar
     return bytes(pdf.output())
     
 def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df, freq, clausulas_texto):
