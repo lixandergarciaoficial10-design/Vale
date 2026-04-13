@@ -822,3 +822,5 @@ elif menu == "Configuración":
                         time.sleep(2)
                     except Exception as e:
                         st.error(f"Error al actualizar: {e}")
+
+st.info(f"¿Hay logo en memoria?: {st.session_state.get('mi_logo') is not None}")
