@@ -382,96 +382,81 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
 
 # --- 4. NAVEGACIÓN ---
 with st.sidebar:
-    # --- 1. IDENTIDAD CORPORATIVA (EL PROTAGONISTA) ---
-    # Recuperamos los datos de configuración
+    # --- 1. IDENTIDAD CORPORATIVA (TOP) ---
     logo_data = st.session_state.get("mi_logo")
     nombre_biz = st.session_state.get("nombre_negocio", "Mi Negocio").upper()
     rnc_biz = st.session_state.get("rnc", "")
     tel_biz = st.session_state.get("telefono_negocio", "")
     dir_biz = st.session_state.get("direccion_negocio", "")
 
-    # Logo más compacto y pegado arriba
     if logo_data:
         if "," in str(logo_data): logo_data = logo_data.split(",")[1]
         st.markdown(f"""
             <div style='display: flex; justify-content: center; padding-top: 10px;'>
                 <img src='data:image/png;base64,{logo_data}' 
-                     style='width: 70px; height: 70px; object-fit: cover; border-radius: 8px;'>
+                     style='width: 65px; height: 65px; object-fit: cover; border-radius: 8px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.05));'>
             </div>
         """, unsafe_allow_html=True)
     
-    # Bloque de datos del negocio (Compacto)
+    # Unificamos tipografía: Inter o Helvetica (las estándar de Streamlit)
     st.markdown(f"""
-        <div style='text-align: center; margin-top: 5px;'>
-            <h3 style='margin: 0; color: #1f2937; font-size: 1.1rem;'>{nombre_biz}</h3>
-            <p style='margin: 0; font-size: 0.75rem; color: #6b7280;'>ID/RNC: {rnc_biz}</p>
-            <p style='margin: 0; font-size: 0.75rem; color: #6b7280;'>📍 {dir_biz}</p>
-            <p style='margin: 0; font-size: 0.75rem; color: #6b7280;'>📞 {tel_biz}</p>
+        <div style='text-align: center; margin-top: 8px; font-family: "Inter", sans-serif;'>
+            <h3 style='margin: 0; color: #1e293b; font-size: 0.95rem; font-weight: 700; letter-spacing: -0.5px;'>{nombre_biz}</h3>
+            <div style='margin-top: 4px; line-height: 1.2;'>
+                <p style='margin: 0; font-size: 0.7rem; color: #64748b; font-weight: 400;'>RNC: {rnc_biz}</p>
+                <p style='margin: 0; font-size: 0.7rem; color: #64748b; font-weight: 400;'>📍 {dir_biz}</p>
+                <p style='margin: 0; font-size: 0.7rem; color: #64748b; font-weight: 400;'>📞 {tel_biz}</p>
+            </div>
         </div>
     """, unsafe_allow_html=True)
     
-    # Reducimos el espacio a solo 1 línea para que el menú suba
-    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("<div style='margin: 15px 0;'></div>", unsafe_allow_html=True) # Espacio controlado
     
-    # --- 2. OPERADOR EN TURNO (EL EMAIL DE SESIÓN) ---
-    # Usamos st.session_state.user.email para que sea el dato real de inicio de sesión
+    # --- 2. OPERADOR (COMPACTO Y MODERNO) ---
     user_email = st.session_state.user.email if hasattr(st.session_state, 'user') and st.session_state.user else "Usuario Activo"
-    
     st.markdown(f"""
-        <div style='padding: 5px 10px; background-color: #f8fafc; border-radius: 5px; border-left: 3px solid #007AFF;'>
-            <p style='font-size: 0.65rem; color: #9ca3af; margin-bottom: 0; text-transform: uppercase;'>Operador en turno</p>
-            <p style='font-size: 0.8rem; font-weight: 600; color: #334155; word-break: break-all;'>{user_email}</p>
+        <div style='padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 2px solid #0284c7;'>
+            <p style='font-size: 0.6rem; color: #94a3b8; margin: 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.3px;'>Sesión iniciada como</p>
+            <p style='font-size: 0.75rem; font-weight: 500; color: #334155; margin: 0; word-break: break-all;'>{user_email}</p>
         </div>
     """, unsafe_allow_html=True)
     
-    st.divider()
+    st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid #e2e8f0;'>", unsafe_allow_html=True)
 
-    # --- 3. MENÚ PRINCIPAL (SUBE AUTOMÁTICAMENTE) ---
+    # --- 3. MENÚ DE NAVEGACIÓN ---
     menu = st.radio(
         "MENÚ DE NAVEGACIÓN", 
-        ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
+        ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"],
+        label_visibility="collapsed" # Ocultamos el label para mayor limpieza
     )
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
     # --- 4. CIERRE DE SESIÓN ---
-    if st.button("🚪 Cerrar Sesión Segura", use_container_width=True):
-        if hasattr(conn, 'client'):
-            conn.client.auth.sign_out()
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+    if st.button("🚪 Salir del Sistema", use_container_width=True):
+        if hasattr(conn, 'client'): conn.client.auth.sign_out()
         st.session_state.clear()
         st.rerun()
 
-    # --- 5. FOOTER (BRANDING AL FONDO) ---
+    # --- 5. EL FOOTER PROFESIONAL (ESTILO APPLE/STRIPE) ---
+    # Aquí es donde ocurre la magia: igualamos el estilo de arriba
     st.markdown("""
         <style>
             [data-testid="stSidebarContent"] { display: flex; flex-direction: column; }
-            .sidebar-footer { margin-top: auto; text-align: center; padding: 15px 0; border-top: 1px solid #f0f2f6; }
-        </style>
-        <div class='sidebar-footer'>
-            <p style='font-size: 0.6rem; color: #ced4da; margin: 0;'>POWERED BY LIXANDER GARCIA</p>
-            <p style='font-size: 0.9rem; font-weight: 900; color: #007AFF; margin: 0; opacity: 0.3;'>CobroYa</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # --- 6. EL FOOTER FIJO (BRANDING MINIMALISTA) ---
-    # Este CSS asegura que CobroYa se quede al fondo sin importar cuánto crezca el menú
-    st.markdown("""
-        <style>
-            [data-testid="stSidebarContent"] {
-                display: flex;
-                flex-direction: column;
-            }
-            .sidebar-footer {
-                margin-top: auto;
-                text-align: center;
-                padding: 20px 0;
-                border-top: 1px solid #f0f2f6;
-                width: 100%;
+            .sidebar-footer { 
+                margin-top: auto; 
+                text-align: center; 
+                padding: 20px 0; 
+                border-top: 1px solid #f1f5f9;
+                font-family: "Inter", sans-serif;
             }
         </style>
         <div class='sidebar-footer'>
-            <p style='font-size: 0.6rem; color: #ced4da; margin: 0; letter-spacing: 1.2px; text-transform: uppercase;'>Powered by Lixander Garcia</p>
-            <p style='font-size: 1rem; font-weight: 900; color: #007AFF; margin: 0; opacity: 0.3;'>CobroYa</p>
+            <p style='font-size: 0.65rem; color: #94a3b8; margin: 0; font-weight: 500; letter-spacing: 0.5px;'>
+                POWERED BY <span style='color: #64748b;'>LIXANDER GARCIA</span>
+            </p>
+            <p style='font-size: 0.85rem; font-weight: 800; color: #0284c7; margin-top: 2px; letter-spacing: -0.5px;'>
+                CobroYa<span style='font-weight: 400; font-size: 0.7rem;'>®</span>
+            </p>
         </div>
     """, unsafe_allow_html=True)
     
