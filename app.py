@@ -381,49 +381,65 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
     return bytes(pdf.output())
 
 # --- 4. NAVEGACIÓN ---
-
 with st.sidebar:
-    # --- 1. SECCIÓN SUPERIOR: IDENTIDAD DEL CLIENTE ---
+    # --- 1. IDENTIDAD DEL CLIENTE (LIMPIA) ---
     logo_data = st.session_state.get("mi_logo")
     if logo_data:
         if "," in str(logo_data): logo_data = logo_data.split(",")[1]
         st.markdown(f"""
-            <div style='display: flex; justify-content: center;'>
+            <div style='display: flex; justify-content: center; padding-top: 20px;'>
                 <img src='data:image/png;base64,{logo_data}' 
-                     style='width: 80px; height: 80px; object-fit: cover; border-radius: 10px;'>
+                     style='width: 85px; height: 85px; object-fit: cover; border-radius: 12px; border: 1px solid #f0f2f6;'>
             </div>
         """, unsafe_allow_html=True)
     
-    st.markdown(f"<h3 style='text-align: center; margin-bottom: 0;'>{st.session_state.get('nombre_negocio', 'Operador').upper()}</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 0.8rem; color: #888;'>Panel Administrativo</p>", unsafe_allow_html=True)
+    st.markdown(f"<h3 style='text-align: center; margin-top: 10px; color: #1f2937;'>{st.session_state.get('nombre_negocio', 'OPERADOR').upper()}</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 0.85rem; color: #6b7280; margin-top: -15px;'>Panel Administrativo</p>", unsafe_allow_html=True)
     
-    # --- 2. EL OPERADOR (3 LÍNEAS ABAJO) ---
-    st.markdown("<br><br>", unsafe_allow_html=True) # Espacio de 3 líneas aproximadamente
-    st.caption(f"👤 Operador: {st.session_state.get('user_email', 'Sesión Activa')}")
+    # --- 2. ESPACIADO REQUERIDO (3 LÍNEAS) ---
+    st.markdown("<br><br><br>", unsafe_allow_html=True)
+    
+    # --- 3. OPERADOR (SESIÓN ACTIVA) ---
+    st.markdown(f"""
+        <div style='padding: 0 10px;'>
+            <p style='font-size: 0.8rem; color: #9ca3af; margin-bottom: 0;'>👤 Operador en turno:</p>
+            <p style='font-size: 0.9rem; font-weight: 500; color: #374151;'>{st.session_state.get('user_email', 'Sesión Activa')}</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     st.divider()
 
-    # --- 3. MENÚ PRINCIPAL (BOTONES) ---
-    # Aquí va tu código de navegación (Panel, Gestión, etc.)
-    # ...
-    
-    # --- 4. CIERRE DE SESIÓN ---
-    if st.button("🚪 Cerrar Sesión", use_container_width=True):
+    # --- 4. MENÚ DE NAVEGACIÓN ---
+    # (Aquí va tu código de st.page_link o botones de menú)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- 5. CIERRE DE SESIÓN (ESTILIZADO) ---
+    if st.button("🚪 Cerrar Sesión Segura", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
-    # --- 5. EL "FONDO" ABSOLUTO (BRANDING) ---
-    # Usamos este truco de CSS para que siempre esté al final
+    # --- 6. EL "FOOTER" INVISIBLE (BRANDING AL FONDO ABSOLUTO) ---
+    # Este bloque inyecta CSS para fijar tu marca abajo del todo sin que choque con nada
     st.markdown("""
         <style>
-            [data-testid="stSidebarNav"] {margin-bottom: 50px;}
+            .sidebar-footer {
+                position: fixed;
+                bottom: 10px;
+                left: 0;
+                width: 100%;
+                background-color: transparent;
+                text-align: center;
+                padding: 10px 0;
+                border-top: 1px solid #f0f2f6;
+            }
         </style>
-        <div style='position: fixed; bottom: 20px; width: 260px; text-align: center; background-color: white; padding-top: 10px;'>
-            <hr style='margin: 10px 0;'>
-            <p style='font-size: 0.7rem; color: #aaa; margin: 0;'>Powered by <b>Lixander Garcia</b></p>
-            <p style='font-size: 0.9rem; font-weight: bold; color: #003366; margin: 0;'>CobroYa</p>
+        <div class='sidebar-footer'>
+            <p style='font-size: 0.65rem; color: #ced4da; margin: 0; letter-spacing: 1px;'>POWERED BY LIXANDER GARCIA</p>
+            <p style='font-size: 0.95rem; font-weight: 800; color: #003366; margin: 0; opacity: 0.4;'>CobroYa</p>
         </div>
     """, unsafe_allow_html=True)
+
     
 with st.sidebar:
     st.markdown("<h1 style='color: #007AFF; text-align: center;'>CobroYa</h1>", unsafe_allow_html=True)
