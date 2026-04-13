@@ -276,7 +276,15 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
         ("Balance Restante", f"RD$ {balance:,.2f}")
     ]
 
-    def generar_factura_inicial(
+from fpdf import FPDF
+from datetime import datetime
+import qrcode
+import os
+
+# =========================================================
+# 🧾 FACTURA INICIAL / DOCUMENTO DE CRÉDITO (LEGAL PRO)
+# =========================================================
+def generar_factura_inicial_pro(
     cliente_nombre,
     cliente_cedula,
     descripcion,
@@ -284,123 +292,135 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     inicial=0,
     metodo_pago="Efectivo",
     clausulas="",
-    negocio_nombre="EMPRESA",
+    negocio_nombre="EMPRESA S.R.L.",
     negocio_rnc="000000000",
-    negocio_direccion="Republica Dominicana"
+    negocio_direccion="República Dominicana"
 ):
-    from fpdf import FPDF
-    from datetime import datetime
-    import qrcode
-    import os
-
     pdf = FPDF()
     pdf.add_page()
 
-    # --- CÁLCULOS ---
+    # -------------------------------
+    # CÁLCULOS
+    # -------------------------------
     balance = precio_total - inicial
     fecha = datetime.now().strftime('%d/%m/%Y')
     factura_id = f"FAC-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-    # --- ENCABEZADO ---
+    # -------------------------------
+    # ENCABEZADO LEGAL
+    # -------------------------------
     pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(190, 10, "FACTURA INICIAL / DOCUMENTO DE CREDITO", ln=True, align="C")
+    pdf.cell(190, 10, "FACTURA INICIAL / DOCUMENTO DE CRÉDITO", ln=True, align="C")
 
-    pdf.set_font("Helvetica", "", 10)
-    pdf.cell(190, 6, "Documento comercial con validez administrativa", ln=True, align="C")
+    pdf.set_font("Helvetica", "", 9)
+    pdf.cell(190, 5, "Documento comercial con posible validez legal en República Dominicana", ln=True, align="C")
 
     pdf.line(10, 25, 200, 25)
     pdf.ln(8)
 
-    # --- DATOS DEL NEGOCIO ---
+    # -------------------------------
+    # DATOS DEL EMISOR
+    # -------------------------------
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(190, 7, "DATOS DEL EMISOR", ln=True)
+    pdf.cell(190, 6, "DATOS DEL EMISOR", ln=True)
 
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(190, 6, f"Nombre: {negocio_nombre}", ln=True)
-    pdf.cell(190, 6, f"RNC / ID: {negocio_rnc}", ln=True)
-    pdf.cell(190, 6, f"Direccion: {negocio_direccion}", ln=True)
+    pdf.cell(190, 5, f"Empresa: {negocio_nombre}", ln=True)
+    pdf.cell(190, 5, f"RNC / ID: {negocio_rnc}", ln=True)
+    pdf.cell(190, 5, f"Dirección: {negocio_direccion}", ln=True)
 
     pdf.ln(5)
 
-    # --- DATOS DEL CLIENTE ---
+    # -------------------------------
+    # DATOS DEL CLIENTE
+    # -------------------------------
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(190, 7, "DATOS DEL CLIENTE", ln=True)
+    pdf.cell(190, 6, "DATOS DEL CLIENTE", ln=True)
 
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(190, 6, f"Nombre: {cliente_nombre}", ln=True)
-    pdf.cell(190, 6, f"Cedula / Identificacion: {cliente_cedula}", ln=True)
+    pdf.cell(190, 5, f"Nombre: {cliente_nombre}", ln=True)
+    pdf.cell(190, 5, f"Cédula / Identificación: {cliente_cedula}", ln=True)
 
     pdf.ln(5)
 
-    # --- INFO FACTURA ---
+    # -------------------------------
+    # INFO FACTURA
+    # -------------------------------
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(100, 6, f"No. Factura: {factura_id}")
-    pdf.cell(90, 6, f"Fecha: {fecha}", ln=True, align="R")
+    pdf.cell(100, 5, f"No. Factura: {factura_id}")
+    pdf.cell(90, 5, f"Fecha: {fecha}", ln=True, align="R")
 
     pdf.ln(5)
     pdf.line(10, pdf.get_y(), 200, pdf.get_y())
     pdf.ln(5)
 
-    # --- DESCRIPCIÓN ---
+    # -------------------------------
+    # DESCRIPCIÓN
+    # -------------------------------
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(190, 7, "DETALLE DEL PRODUCTO / SERVICIO", ln=True)
+    pdf.cell(190, 6, "DETALLE DEL PRODUCTO / SERVICIO", ln=True)
 
     pdf.set_font("Helvetica", "", 10)
-    pdf.multi_cell(190, 6, f"Descripcion: {descripcion}")
+    pdf.multi_cell(190, 5, f"{descripcion}")
 
     pdf.ln(5)
 
-    # --- TABLA FINANCIERA ---
+    # -------------------------------
+    # RESUMEN FINANCIERO
+    # -------------------------------
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(190, 7, "RESUMEN FINANCIERO", ln=True)
+    pdf.cell(190, 6, "RESUMEN FINANCIERO", ln=True)
 
     pdf.set_font("Helvetica", "", 10)
 
-    pdf.cell(95, 8, "Precio Total", border=1)
-    pdf.cell(95, 8, f"RD$ {precio_total:,.2f}", border=1, ln=True)
+    def fila(titulo, valor):
+        pdf.cell(95, 7, titulo, border=1)
+        pdf.cell(95, 7, valor, border=1, ln=True)
 
-    pdf.cell(95, 8, "Inicial Pagado", border=1)
-    pdf.cell(95, 8, f"RD$ {inicial:,.2f}", border=1, ln=True)
-
-    pdf.cell(95, 8, "Balance Pendiente", border=1)
-    pdf.cell(95, 8, f"RD$ {balance:,.2f}", border=1, ln=True)
-
-    pdf.cell(95, 8, "Metodo de Pago", border=1)
-    pdf.cell(95, 8, metodo_pago, border=1, ln=True)
+    fila("Precio Total", f"RD$ {precio_total:,.2f}")
+    fila("Pago Inicial", f"RD$ {inicial:,.2f}")
+    fila("Balance Pendiente", f"RD$ {balance:,.2f}")
+    fila("Método de Pago", metodo_pago)
 
     pdf.ln(6)
 
-    # --- DECLARACIÓN LEGAL ---
+    # -------------------------------
+    # DECLARACIÓN LEGAL
+    # -------------------------------
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(190, 7, "DECLARACION", ln=True)
+    pdf.cell(190, 6, "DECLARACIÓN DE COMPROMISO", ln=True)
 
     pdf.set_font("Helvetica", "", 9)
 
-    texto = (
-        f"El cliente {cliente_nombre} declara haber recibido el producto o servicio descrito, "
-        f"comprometiendose a pagar el monto restante de RD$ {balance:,.2f} bajo las condiciones "
-        f"acordadas con el proveedor {negocio_nombre}. Este documento constituye evidencia de la "
-        f"transaccion comercial realizada y podra ser utilizado con fines administrativos o legales."
+    declaracion = (
+        f"El cliente {cliente_nombre} declara haber recibido el bien o servicio descrito, "
+        f"comprometiéndose a pagar el monto pendiente de RD$ {balance:,.2f}. "
+        f"Este documento constituye evidencia de una transacción comercial válida "
+        f"y puede ser utilizado con fines administrativos, financieros o legales."
     )
 
-    pdf.multi_cell(190, 5, texto)
+    pdf.multi_cell(190, 5, declaracion)
 
     pdf.ln(5)
 
-    # --- CLÁUSULAS PERSONALIZABLES ---
+    # -------------------------------
+    # CLÁUSULAS PERSONALIZABLES
+    # -------------------------------
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(190, 7, "TERMINOS Y CONDICIONES", ln=True)
+    pdf.cell(190, 6, "TÉRMINOS Y CONDICIONES", ln=True)
 
     pdf.set_font("Helvetica", "", 9)
 
-    if clausulas.strip() == "":
-        clausulas = "No se han definido terminos adicionales."
+    if not clausulas.strip():
+        clausulas = "El cliente acepta las condiciones establecidas por el proveedor."
 
     pdf.multi_cell(190, 5, clausulas)
 
     pdf.ln(12)
 
-    # --- FIRMAS ---
+    # -------------------------------
+    # FIRMAS
+    # -------------------------------
     y = pdf.get_y()
 
     pdf.line(20, y, 90, y)
@@ -410,19 +430,57 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     pdf.text(30, y + 5, "FIRMA CLIENTE")
     pdf.text(130, y + 5, "FIRMA EMISOR")
 
-    # --- QR ---
+    # -------------------------------
+    # QR DE VALIDACIÓN
+    # -------------------------------
     try:
         qr_data = f"{factura_id}|{cliente_nombre}|{precio_total}|{balance}"
         qr = qrcode.make(qr_data)
 
-        qr.save("qr_temp.png")
+        qr_file = "qr_temp.png"
+        qr.save(qr_file)
 
         pdf.set_y(-50)
-        pdf.image("qr_temp.png", x=150, y=pdf.get_y(), w=45)
+        pdf.image(qr_file, x=150, y=pdf.get_y(), w=40)
 
-        os.remove("qr_temp.png")
+        os.remove(qr_file)
     except:
         pass
+
+    return bytes(pdf.output())
+
+
+# =========================================================
+# 🧾 RECIBO DE PAGO (SIMPLE Y LIMPIO)
+# =========================================================
+def generar_recibo_pago_pro(nombre, monto, balance, metodo="Efectivo"):
+    pdf = FPDF()
+    pdf.add_page()
+
+    fecha = datetime.now().strftime('%d/%m/%Y')
+    recibo_id = f"REC-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(190, 10, "RECIBO DE PAGO", ln=True, align="C")
+
+    pdf.ln(5)
+
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(100, 6, f"No: {recibo_id}")
+    pdf.cell(90, 6, f"Fecha: {fecha}", ln=True, align="R")
+
+    pdf.ln(8)
+
+    pdf.cell(190, 6, f"Recibimos de: {nombre}", ln=True)
+    pdf.cell(190, 6, f"Monto: RD$ {monto:,.2f}", ln=True)
+    pdf.cell(190, 6, f"Método de pago: {metodo}", ln=True)
+    pdf.cell(190, 6, f"Balance restante: RD$ {balance:,.2f}", ln=True)
+
+    pdf.ln(20)
+
+    pdf.line(60, pdf.get_y(), 150, pdf.get_y())
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(190, 6, "Firma autorizada", align="C")
 
     return bytes(pdf.output())
     
