@@ -276,6 +276,78 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
         ("Balance Restante", f"RD$ {balance:,.2f}")
     ]
 
+    def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
+    from fpdf import FPDF
+    from datetime import datetime
+    from io import BytesIO
+    import base64
+    import qrcode
+
+    pdf = FPDF()
+    pdf.add_page()
+
+    # --- DATOS ---
+    logo_b64 = st.session_state.get("mi_logo", "")
+    nombre_negocio = st.session_state.get("nombre_negocio", "CobroYa Pro")
+    direccion = st.session_state.get("direccion_negocio", "Villa Altagracia, RD")
+    telefono = st.session_state.get("telefono_negocio", "829-000-0000")
+
+    # --- HEADER ---
+    pdf.set_fill_color(0, 51, 102)
+    pdf.rect(0, 0, 210, 40, 'F')
+
+    # --- LOGO (VERSIÓN REAL FUNCIONAL) ---
+    tiene_logo = False
+    try:
+        if logo_b64 and len(logo_b64) > 100:
+            if "base64," in logo_b64:
+                logo_b64 = logo_b64.split("base64,")[1]
+
+            img_bytes = base64.b64decode(logo_b64)
+            img_io = BytesIO(img_bytes)
+
+            pdf.image(img_io, x=10, y=8, w=25)  # 🔥 SOLO FUNCIONA EN FPDF2
+            tiene_logo = True
+    except Exception as e:
+        st.write("ERROR LOGO:", e)
+
+    # --- TEXTO HEADER ---
+    pdf.set_text_color(255, 255, 255)
+    pos_x = 45 if tiene_logo else 15
+
+    pdf.set_xy(pos_x, 12)
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.cell(150, 10, nombre_negocio.upper(), ln=True)
+
+    pdf.set_x(pos_x)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(150, 5, f"{direccion} | {telefono}", ln=True)
+
+    # --- CUERPO ---
+    pdf.ln(25)
+    pdf.set_text_color(0, 0, 0)
+
+    recibo_id = f"REC-{datetime.now().strftime('%y%m%d%H%M')}"
+
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(100, 10, f"COMPROBANTE: {recibo_id}")
+
+    pdf.set_font("Helvetica", "", 12)
+    pdf.cell(90, 10, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='R')
+
+    pdf.line(10, 55, 200, 55)
+    pdf.ln(10)
+
+    # --- TABLA ---
+    pdf.set_fill_color(240, 240, 240)
+
+    detalles = [
+        ("Cliente", nombre),
+        ("Monto Recibido", f"RD$ {monto:,.2f}"),
+        ("Metodo de Pago", metodo),
+        ("Balance Restante", f"RD$ {balance:,.2f}")
+    ]
+
     for concepto, valor in detalles:
         pdf.set_font("Helvetica", "B", 12)
         pdf.cell(60, 10, f" {concepto}", border=1, fill=True)
@@ -283,31 +355,17 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
         pdf.set_font("Helvetica", "", 12)
         pdf.cell(130, 10, f" {valor}", border=1, ln=True)
 
-    # --- 6. QR ---
+    # --- QR REAL FUNCIONAL ---
     try:
-        qr = qrcode.QRCode(box_size=10, border=1)
-        qr.add_data(f"Recibo: {recibo_id}\nCliente: {nombre}\nMonto: {monto}")
-        qr.make(fit=True)
+        qr = qrcode.make(f"{recibo_id} | {nombre} | {monto}")
+        qr_io = BytesIO()
+        qr.save(qr_io, format="PNG")
+        qr_io.seek(0)
 
-        qr_img = qr.make_image(fill_color="black", back_color="white")
-
-        qr_img.save("qr_temp.png")
-
-        # Posición segura abajo
         pdf.set_y(-60)
-        pdf.image("qr_temp.png", x=160, y=pdf.get_y(), w=30)
-
+        pdf.image(qr_io, x=160, y=pdf.get_y(), w=30)  # 🔥 SOLO FUNCIONA EN FPDF2
     except Exception as e:
-        print("Error generando QR:", e)
-
-    # --- 7. LIMPIEZA DE ARCHIVOS TEMPORALES ---
-    try:
-        if os.path.exists("logo_temp.png"):
-            os.remove("logo_temp.png")
-        if os.path.exists("qr_temp.png"):
-            os.remove("qr_temp.png")
-    except:
-        pass
+        st.write("ERROR QR:", e)
 
     return bytes(pdf.output())
     
@@ -885,4 +943,4 @@ elif menu == "Configuración":
                     except Exception as e:
                         st.error(f"Error al actualizar: {e}")
 
-st.info(f"¿Hay logo en memoria?: {st.session_state.get('mi_logo') is not None}")
+st.write(type(st.session_state.get("mi_logo")))
