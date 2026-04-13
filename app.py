@@ -11,6 +11,11 @@ import io
 import time
 from fpdf import FPDF
 from groq import Groq
+from io import BytesIO
+import qrcode # Asegúrate de tener: pip install qrcode
+import base64
+from fpdf import FPDF
+from datetime import datetime
 
 # 1. CONFIGURACIÓN Y ESTILO APPLE-ENTERPRISE
 st.set_page_config(page_title="CobroYa Pro", layout="wide", page_icon="📈")
@@ -190,62 +195,89 @@ def obtener_contexto_privado_ia(u_id_actual):
     except Exception as e:
         return f"Error de seguridad al recuperar datos: {e}"
 
-from io import BytesIO # Asegúrate de tener esta importación arriba
-
 def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
-    import requests
-    from fpdf import FPDF
-    import base64
-    
     pdf = FPDF()
     pdf.add_page()
     
-    # 1. Recuperar datos
+    # 1. Recuperar datos de la sesión
     logo_b64 = st.session_state.get("mi_logo")
     nombre_negocio = st.session_state.get("nombre_negocio", "CobroYa Pro")
     direccion = st.session_state.get("direccion_negocio", "Villa Altagracia, RD")
     telefono = st.session_state.get("telefono_negocio", "Soporte: 829-XXX-XXXX")
 
-    # --- 2. FONDO AZUL (SIEMPRE PRIMERO) ---
+    # --- 2. ENCABEZADO AZUL ---
     pdf.set_fill_color(0, 51, 102) 
     pdf.rect(0, 0, 210, 40, 'F')
 
-    # --- 3. NUEVO MÉTODO DE LOGO (EN MEMORIA) ---
+    # --- 3. LOGO (SOLUCIÓN MEMORIA RAM) ---
     tiene_logo = False
-    if logo_b64:
+    if logo_b64 and len(str(logo_b64)) > 50: # Validamos que no esté vacío
         try:
-            # Limpiar el base64
             if "," in str(logo_b64):
                 logo_b64 = str(logo_b64).split(",")[1]
             
-            # Convertir a bytes y luego a un "archivo virtual"
-            img_bytes = base64.b64decode(logo_b64)
-            img_file = BytesIO(img_bytes)
+            img_data = base64.b64decode(logo_b64)
+            img_file = BytesIO(img_data)
             
-            # FPDF permite pasar un objeto BytesIO en lugar de una ruta de archivo
-            # IMPORTANTE: Debes especificar el formato (PNG o JPG)
-            pdf.image(img_file, x=10, y=8, w=25, type='PNG') 
+            # Insertar directamente desde memoria
+            pdf.image(img_file, x=10, y=8, w=25) 
             tiene_logo = True
         except Exception as e:
-            # Si falla el logo, al menos que el PDF se genere sin él
-            print(f"Error con BytesIO: {e}")
+            st.error(f"Error con Logo: {e}")
 
-    # --- 4. TEXTO DEL ENCABEZADO ---
+    # --- 4. TEXTO ENCABEZADO ---
     pdf.set_text_color(255, 255, 255)
-    pos_x = 45 if tiene_logo else 15 # Ajustamos el margen si hay logo
-    pdf.set_xy(pos_x, 10)
-    
-    pdf.set_font("Helvetica", "B", 22)
-    pdf.cell(150, 15, nombre_negocio.upper(), ln=True)
-    
+    pos_x = 45 if tiene_logo else 15
+    pdf.set_xy(pos_x, 12)
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.cell(150, 10, nombre_negocio.upper(), ln=True)
     pdf.set_x(pos_x)
     pdf.set_font("Helvetica", "", 10)
     pdf.cell(150, 5, f"{direccion} | {telefono}", ln=True)
 
-    # --- 5. CUERPO (IGUAL QUE ANTES) ---
+    # --- 5. CUERPO ---
     pdf.ln(25)
     pdf.set_text_color(0, 0, 0)
-    # ... resto de tu código de cuotas y QR ...
+    pdf.set_font("Helvetica", "B", 14)
+    recibo_id = f"REC-{datetime.now().strftime('%y%m%d%H%M')}"
+    pdf.cell(100, 10, f"COMPROBANTE: {recibo_id}")
+    pdf.set_font("Helvetica", "", 12)
+    pdf.cell(90, 10, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='R')
+    
+    pdf.line(10, 55, 200, 55)
+    pdf.ln(10)
+
+    # TABLA DE DATOS
+    pdf.set_fill_color(240, 240, 240)
+    detalles = [
+        ("Cliente", nombre),
+        ("Monto Recibido", f"RD$ {monto:,.2f}"),
+        ("Metodo de Pago", metodo),
+        ("Balance Restante", f"RD$ {balance:,.2f}")
+    ]
+    for concepto, valor in detalles:
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(60, 10, f" {concepto}", border=1, fill=True)
+        pdf.set_font("Helvetica", "", 12)
+        pdf.cell(130, 10, f" {valor}", border=1, ln=True)
+
+    # --- 6. QR (SOLUCIÓN LOCAL - NO API) ---
+    try:
+        # Generamos el QR nosotros mismos sin depender de internet (API externa)
+        qr = qrcode.QRCode(box_size=10, border=2)
+        qr.add_data(f"Recibo: {recibo_id} | Cliente: {nombre} | Total: {monto}")
+        qr.make(fit=True)
+        qr_img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Guardar QR en memoria
+        qr_buffer = BytesIO()
+        qr_img.save(qr_buffer, format="PNG")
+        qr_buffer.seek(0)
+        
+        # Insertar en el PDF
+        pdf.image(qr_buffer, x=160, y=110, w=35)
+    except Exception as e:
+        st.error(f"Error con QR: {e}")
 
     return bytes(pdf.output())
     
