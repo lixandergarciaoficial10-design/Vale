@@ -383,42 +383,47 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
 # --- 4. NAVEGACIÓN ---
 
 with st.sidebar:
-    # --- ESPACIADO SUPERIOR ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    # --- IDENTIDAD DEL CLIENTE (LIMPIA) ---
+    # --- 1. SECCIÓN SUPERIOR: IDENTIDAD DEL CLIENTE ---
     logo_data = st.session_state.get("mi_logo")
-    nombre_biz = st.session_state.get("nombre_negocio", "Tu Negocio")
-    
     if logo_data:
         if "," in str(logo_data): logo_data = logo_data.split(",")[1]
-        # Logo circular o con bordes suaves
         st.markdown(f"""
             <div style='display: flex; justify-content: center;'>
                 <img src='data:image/png;base64,{logo_data}' 
-                     style='width: 90px; height: 90px; object-fit: cover; border-radius: 10px; border: 1px solid #eee;'>
+                     style='width: 80px; height: 80px; object-fit: cover; border-radius: 10px;'>
             </div>
         """, unsafe_allow_html=True)
-    else:
-        st.markdown("<h1 style='text-align: center;'>🏢</h1>", unsafe_allow_html=True)
-
-    st.markdown(f"<h3 style='text-align: center; font-size: 1.1rem; color: #333; margin-top: 10px;'>{nombre_biz.upper()}</h3>", unsafe_allow_html=True)
+    
+    st.markdown(f"<h3 style='text-align: center; margin-bottom: 0;'>{st.session_state.get('nombre_negocio', 'Operador').upper()}</h3>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; font-size: 0.8rem; color: #888;'>Panel Administrativo</p>", unsafe_allow_html=True)
+    
+    # --- 2. EL OPERADOR (3 LÍNEAS ABAJO) ---
+    st.markdown("<br><br>", unsafe_allow_html=True) # Espacio de 3 líneas aproximadamente
+    st.caption(f"👤 Operador: {st.session_state.get('user_email', 'Sesión Activa')}")
     
     st.divider()
 
-    # --- MENÚ PRINCIPAL ---
-    # Aquí van tus st.page_link o botones de navegación...
+    # --- 3. MENÚ PRINCIPAL (BOTONES) ---
+    # Aquí va tu código de navegación (Panel, Gestión, etc.)
+    # ...
+    
+    # --- 4. CIERRE DE SESIÓN ---
+    if st.button("🚪 Cerrar Sesión", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()
 
-    # --- BRANDING DE LA APP (AL FINAL Y PEQUEÑO) ---
-    st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
-    st.sidebar.markdown(
-        "<div style='text-align: center; opacity: 0.5;'>"
-        "<p style='font-size: 0.7rem; margin-bottom: 0;'>Desarrollado por</p>"
-        "<p style='font-size: 0.9rem; font-weight: bold; color: #003366;'>CobroYa Pro</p>"
-        "</div>", 
-        unsafe_allow_html=True
-    )
+    # --- 5. EL "FONDO" ABSOLUTO (BRANDING) ---
+    # Usamos este truco de CSS para que siempre esté al final
+    st.markdown("""
+        <style>
+            [data-testid="stSidebarNav"] {margin-bottom: 50px;}
+        </style>
+        <div style='position: fixed; bottom: 20px; width: 260px; text-align: center; background-color: white; padding-top: 10px;'>
+            <hr style='margin: 10px 0;'>
+            <p style='font-size: 0.7rem; color: #aaa; margin: 0;'>Powered by <b>Lixander Garcia</b></p>
+            <p style='font-size: 0.9rem; font-weight: bold; color: #003366; margin: 0;'>CobroYa</p>
+        </div>
+    """, unsafe_allow_html=True)
     
 with st.sidebar:
     st.markdown("<h1 style='color: #007AFF; text-align: center;'>CobroYa</h1>", unsafe_allow_html=True)
