@@ -383,6 +383,23 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
 # --- 4. NAVEGACIÓN ---
 
 with st.sidebar:
+    col_l, col_r = st.columns([1, 3])
+    
+    with col_l:
+        logo_data = st.session_state.get("mi_logo")
+        if logo_data:
+            if "," in str(logo_data): logo_data = logo_data.split(",")[1]
+            st.image(base64.b64decode(logo_data), width=40)
+        else:
+            st.title("🏢")
+            
+    with col_r:
+        st.markdown(f"**{st.session_state.get('nombre_negocio', 'CobroYa Pro')}**")
+        st.caption("Panel de Control")
+    
+    st.divider()
+
+with st.sidebar:
     st.markdown("<h1 style='color: #007AFF; text-align: center;'>CobroYa</h1>", unsafe_allow_html=True)
     st.caption(f"Operador: {st.session_state.user.email}")
     st.markdown("---")
