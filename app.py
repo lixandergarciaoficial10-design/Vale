@@ -382,54 +382,77 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
 
 # --- 4. NAVEGACIÓN ---
 with st.sidebar:
-    # --- 1. IDENTIDAD DEL CLIENTE (EL PROTAGONISTA) ---
+    # --- 1. IDENTIDAD CORPORATIVA (EL PROTAGONISTA) ---
+    # Recuperamos los datos de configuración
     logo_data = st.session_state.get("mi_logo")
-    nombre_biz = st.session_state.get("nombre_negocio", "OPERADOR").upper()
-    
+    nombre_biz = st.session_state.get("nombre_negocio", "Mi Negocio").upper()
+    rnc_biz = st.session_state.get("rnc", "")
+    tel_biz = st.session_state.get("telefono_negocio", "")
+    dir_biz = st.session_state.get("direccion_negocio", "")
+
+    # Logo más compacto y pegado arriba
     if logo_data:
         if "," in str(logo_data): logo_data = logo_data.split(",")[1]
         st.markdown(f"""
-            <div style='display: flex; justify-content: center; padding-top: 20px;'>
+            <div style='display: flex; justify-content: center; padding-top: 10px;'>
                 <img src='data:image/png;base64,{logo_data}' 
-                     style='width: 85px; height: 85px; object-fit: cover; border-radius: 12px; border: 1px solid #f0f2f6;'>
+                     style='width: 70px; height: 70px; object-fit: cover; border-radius: 8px;'>
             </div>
         """, unsafe_allow_html=True)
     
-    st.markdown(f"<h3 style='text-align: center; margin-top: 10px; color: #1f2937; margin-bottom: 0;'>{nombre_biz}</h3>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; font-size: 0.85rem; color: #6b7280; margin-top: -5px;'>Panel Administrativo</p>", unsafe_allow_html=True)
-    
-    # --- 2. ESPACIADO DE 3 LÍNEAS ---
-    st.markdown("<br><br><br>", unsafe_allow_html=True)
-    
-    # --- 3. INFORMACIÓN DEL OPERADOR (SESIÓN ACTIVA) ---
-    user_email = st.session_state.user.email if hasattr(st.session_state, 'user') and st.session_state.user else "Sesión Activa"
+    # Bloque de datos del negocio (Compacto)
     st.markdown(f"""
-        <div style='padding: 0 10px;'>
-            <p style='font-size: 0.75rem; color: #9ca3af; margin-bottom: 0; text-transform: uppercase; letter-spacing: 0.5px;'>Operador en turno</p>
-            <p style='font-size: 0.9rem; font-weight: 500; color: #374151;'>{user_email}</p>
+        <div style='text-align: center; margin-top: 5px;'>
+            <h3 style='margin: 0; color: #1f2937; font-size: 1.1rem;'>{nombre_biz}</h3>
+            <p style='margin: 0; font-size: 0.75rem; color: #6b7280;'>ID/RNC: {rnc_biz}</p>
+            <p style='margin: 0; font-size: 0.75rem; color: #6b7280;'>📍 {dir_biz}</p>
+            <p style='margin: 0; font-size: 0.75rem; color: #6b7280;'>📞 {tel_biz}</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Reducimos el espacio a solo 1 línea para que el menú suba
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # --- 2. OPERADOR EN TURNO (EL EMAIL DE SESIÓN) ---
+    # Usamos st.session_state.user.email para que sea el dato real de inicio de sesión
+    user_email = st.session_state.user.email if hasattr(st.session_state, 'user') and st.session_state.user else "Usuario Activo"
+    
+    st.markdown(f"""
+        <div style='padding: 5px 10px; background-color: #f8fafc; border-radius: 5px; border-left: 3px solid #007AFF;'>
+            <p style='font-size: 0.65rem; color: #9ca3af; margin-bottom: 0; text-transform: uppercase;'>Operador en turno</p>
+            <p style='font-size: 0.8rem; font-weight: 600; color: #334155; word-break: break-all;'>{user_email}</p>
         </div>
     """, unsafe_allow_html=True)
     
     st.divider()
 
-    # --- 4. MENÚ DE NAVEGACIÓN (INTEGRADO) ---
-    # Usamos el estilo nativo pero dentro de la estructura limpia
+    # --- 3. MENÚ PRINCIPAL (SUBE AUTOMÁTICAMENTE) ---
     menu = st.radio(
-        "MENÚ PRINCIPAL", 
-        ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"],
-        label_visibility="visible"
+        "MENÚ DE NAVEGACIÓN", 
+        ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     )
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- 5. CIERRE DE SESIÓN (ESTILIZADO AL FINAL DEL MENÚ) ---
+    # --- 4. CIERRE DE SESIÓN ---
     if st.button("🚪 Cerrar Sesión Segura", use_container_width=True):
         if hasattr(conn, 'client'):
             conn.client.auth.sign_out()
-        st.session_state.user = None
         st.session_state.clear()
         st.rerun()
 
+    # --- 5. FOOTER (BRANDING AL FONDO) ---
+    st.markdown("""
+        <style>
+            [data-testid="stSidebarContent"] { display: flex; flex-direction: column; }
+            .sidebar-footer { margin-top: auto; text-align: center; padding: 15px 0; border-top: 1px solid #f0f2f6; }
+        </style>
+        <div class='sidebar-footer'>
+            <p style='font-size: 0.6rem; color: #ced4da; margin: 0;'>POWERED BY LIXANDER GARCIA</p>
+            <p style='font-size: 0.9rem; font-weight: 900; color: #007AFF; margin: 0; opacity: 0.3;'>CobroYa</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
     # --- 6. EL FOOTER FIJO (BRANDING MINIMALISTA) ---
     # Este CSS asegura que CobroYa se quede al fondo sin importar cuánto crezca el menú
     st.markdown("""
