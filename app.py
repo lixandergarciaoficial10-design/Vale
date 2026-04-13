@@ -383,28 +383,43 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
 # --- 4. NAVEGACIÓN ---
 
 with st.sidebar:
-    # --- BLOQUE DE MARCA DEL CLIENTE (EL PROTAGONISTA) ---
+    # --- ESPACIADO SUPERIOR ---
+    st.markdown("<br>", unsafe_allow_html=True)
+    
+    # --- IDENTIDAD DEL CLIENTE (LIMPIA) ---
     logo_data = st.session_state.get("mi_logo")
     nombre_biz = st.session_state.get("nombre_negocio", "Tu Negocio")
     
-    # Contenedor con estilo para el Logo y Nombre
-    st.markdown(f"""
-        <div style='text-align: center; padding: 10px; border-bottom: 1px solid #f0f2f6; margin-bottom: 20px;'>
-            <p style='margin-bottom: 10px;'>
-                {"<img src='data:image/png;base64," + (logo_data.split(",")[1] if "," in logo_data else logo_data) + "' width='85'>" if logo_data else "🏢"}
-            </p>
-            <h2 style='font-size: 1.2rem; color: #1f2937; margin: 0;'>{nombre_biz.upper()}</h2>
-            <p style='font-size: 0.8rem; color: #6b7280;'>Panel Administrativo</p>
-        </div>
-    """, unsafe_allow_html=True)
+    if logo_data:
+        if "," in str(logo_data): logo_data = logo_data.split(",")[1]
+        # Logo circular o con bordes suaves
+        st.markdown(f"""
+            <div style='display: flex; justify-content: center;'>
+                <img src='data:image/png;base64,{logo_data}' 
+                     style='width: 90px; height: 90px; object-fit: cover; border-radius: 10px; border: 1px solid #eee;'>
+            </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("<h1 style='text-align: center;'>🏢</h1>", unsafe_allow_html=True)
 
-    # --- MENÚ DE NAVEGACIÓN ---
-    # (Aquí van tus botones de Panel de Control, Gestión, etc.)
+    st.markdown(f"<h3 style='text-align: center; font-size: 1.1rem; color: #333; margin-top: 10px;'>{nombre_biz.upper()}</h3>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; font-size: 0.8rem; color: #888;'>Panel Administrativo</p>", unsafe_allow_html=True)
     
-    # --- PIE DE PÁGINA (BRANDING DE TU APP - SUTIL) ---
-    st.sidebar.markdown("---")
-    st.sidebar.caption("Powered by **Lixander Garcia**")
+    st.divider()
 
+    # --- MENÚ PRINCIPAL ---
+    # Aquí van tus st.page_link o botones de navegación...
+
+    # --- BRANDING DE LA APP (AL FINAL Y PEQUEÑO) ---
+    st.sidebar.markdown("<br><br>", unsafe_allow_html=True)
+    st.sidebar.markdown(
+        "<div style='text-align: center; opacity: 0.5;'>"
+        "<p style='font-size: 0.7rem; margin-bottom: 0;'>Desarrollado por</p>"
+        "<p style='font-size: 0.9rem; font-weight: bold; color: #003366;'>CobroYa Pro</p>"
+        "</div>", 
+        unsafe_allow_html=True
+    )
+    
 with st.sidebar:
     st.markdown("<h1 style='color: #007AFF; text-align: center;'>CobroYa</h1>", unsafe_allow_html=True)
     st.caption(f"Operador: {st.session_state.user.email}")
