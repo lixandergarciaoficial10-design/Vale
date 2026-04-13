@@ -8,3 +8,5 @@ requests
 Pillow
 groq
 qrcode[pil]
+pip uninstall fpdf -y
+pip install fpdf2
