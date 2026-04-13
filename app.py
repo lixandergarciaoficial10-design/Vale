@@ -1057,5 +1057,3 @@ elif menu == "Configuración":
                         time.sleep(2)
                     except Exception as e:
                         st.error(f"Error al actualizar: {e}")
-
-st.write(type(st.session_state.get("mi_logo")))
