@@ -123,19 +123,25 @@ if 'user' not in st.session_state:
     st.stop()
 
 u_id = st.session_state.user.id
-
-# --- CARGA INICIAL DE CONFIGURACIÓN (Pegar justo después de definir u_id) ---
+# --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
     try:
         res_c = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
         if res_c.data:
             conf = res_c.data[0]
             st.session_state["mis_clausulas"] = conf.get("clausulas", "Sujeto a términos legales.")
+            # IMPORTANTE: Guardamos el logo en la sesión para el PDF
             st.session_state["mi_logo"] = conf.get("logo_base64", None)
             st.session_state["nombre_negocio"] = conf.get("nombre_negocio", "CobroYa Pro")
+            st.session_state["direccion_negocio"] = conf.get("direccion_negocio", "Villa Altagracia, RD")
+            st.session_state["telefono_negocio"] = conf.get("telefono_negocio", "829-000-0000")
             st.session_state["config_cargada"] = True
-    except:
-        pass
+        else:
+            # Valores por defecto si el usuario es nuevo
+            st.session_state["mi_logo"] = None
+            st.session_state["nombre_negocio"] = "CobroYa Pro"
+    except Exception as e:
+        st.error(f"Error cargando config: {e}")
 
 # --- 3. FUNCIONES AUXILIARES (CORREGIDAS) ---
 
@@ -764,6 +770,7 @@ elif menu == "Configuración":
     with st.expander("🏢 Perfil del Negocio & Facturación", expanded=False):
         st.markdown("### Configura la identidad de tu empresa")
         
+        # 1. Recuperar datos actuales
         biz_data = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
         current_biz = biz_data.data[0] if biz_data.data else {}
 
@@ -771,17 +778,22 @@ elif menu == "Configuración":
         
         with col_logo:
             logo_file = st.file_uploader("Cargar Logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
+            
             if logo_file:
+                # Caso A: El usuario sube un archivo nuevo
                 bytes_data = logo_file.getvalue()
                 base64_logo = base64.b64encode(bytes_data).decode()
-                st.image(bytes_data, width=150)
+                st.image(bytes_data, width=150, caption="Nuevo Logo")
             else:
+                # Caso B: No hay archivo nuevo, usamos el de la base de datos
                 base64_logo = current_biz.get("logo_base64", "")
                 if base64_logo:
                     try:
-                        st.image(base64.b64decode(base64_logo), width=150)
+                        # Limpiamos el prefijo base64 si existe para mostrarlo en Streamlit
+                        clean_view = base64_logo.split("base64,")[1] if "base64," in base64_logo else base64_logo
+                        st.image(base64.b64decode(clean_view), width=150, caption="Logo Actual")
                     except:
-                        st.warning("Logo no disponible")
+                        st.warning("Error al previsualizar el logo guardado")
 
         with col_info:
             biz_name = st.text_input("Nombre Comercial", value=current_biz.get("nombre_negocio", "CobroYa Pro"))
@@ -789,7 +801,9 @@ elif menu == "Configuración":
             biz_phone = st.text_input("Teléfono de Contacto", value=current_biz.get("telefono", ""))
             biz_addr = st.text_area("Dirección Física", value=current_biz.get("direccion", ""))
 
+        # 2. Botón de Guardado con Sincronización Total
         if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
+            # Aseguramos que el logo guardado sea el "string" limpio
             payload = {
                 "nombre_negocio": biz_name,
                 "rnc": biz_id,
@@ -798,24 +812,27 @@ elif menu == "Configuración":
                 "logo_base64": base64_logo,
                 "user_id": u_id
             }
+            
             try:
                 if current_biz:
                     conn.table("configuracion").update(payload).eq("user_id", u_id).execute()
                 else:
                     conn.table("configuracion").insert(payload).execute()
 
+                # ACTUALIZACIÓN CRÍTICA DEL SESSION_STATE (Para que el PDF lo vea sin refrescar manual)
                 st.session_state["nombre_negocio"] = biz_name
                 st.session_state["mi_logo"] = base64_logo
                 st.session_state["direccion_negocio"] = biz_addr
                 st.session_state["telefono_negocio"] = biz_phone
+                st.session_state["config_cargada"] = True # Marcamos como cargado
                 
-                st.success("¡Identidad corporativa actualizada!")
-                import time
+                st.success("✅ ¡Identidad corporativa actualizada!")
                 time.sleep(1)
                 st.rerun()
+                
             except Exception as e:
-                st.error(f"Error al guardar: {e}")
-
+                st.error(f"❌ Error al guardar en base de datos: {e}")
+                
     # --- SECCIÓN DE SEGURIDAD ---
     with st.container(border=True):
         st.subheader("🔐 Seguridad de la Cuenta")
