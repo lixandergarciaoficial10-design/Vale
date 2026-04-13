@@ -276,96 +276,153 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
         ("Balance Restante", f"RD$ {balance:,.2f}")
     ]
 
-    def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
+    def generar_factura_inicial(
+    cliente_nombre,
+    cliente_cedula,
+    descripcion,
+    precio_total,
+    inicial=0,
+    metodo_pago="Efectivo",
+    clausulas="",
+    negocio_nombre="EMPRESA",
+    negocio_rnc="000000000",
+    negocio_direccion="Republica Dominicana"
+):
     from fpdf import FPDF
     from datetime import datetime
-    from io import BytesIO
-    import base64
     import qrcode
+    import os
 
     pdf = FPDF()
     pdf.add_page()
 
-    # --- DATOS ---
-    logo_b64 = st.session_state.get("mi_logo", "")
-    nombre_negocio = st.session_state.get("nombre_negocio", "CobroYa Pro")
-    direccion = st.session_state.get("direccion_negocio", "Villa Altagracia, RD")
-    telefono = st.session_state.get("telefono_negocio", "829-000-0000")
+    # --- CÁLCULOS ---
+    balance = precio_total - inicial
+    fecha = datetime.now().strftime('%d/%m/%Y')
+    factura_id = f"FAC-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-    # --- HEADER ---
-    pdf.set_fill_color(0, 51, 102)
-    pdf.rect(0, 0, 210, 40, 'F')
+    # --- ENCABEZADO ---
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(190, 10, "FACTURA INICIAL / DOCUMENTO DE CREDITO", ln=True, align="C")
 
-    # --- LOGO (VERSIÓN REAL FUNCIONAL) ---
-    tiene_logo = False
-    try:
-        if logo_b64 and len(logo_b64) > 100:
-            if "base64," in logo_b64:
-                logo_b64 = logo_b64.split("base64,")[1]
-
-            img_bytes = base64.b64decode(logo_b64)
-            img_io = BytesIO(img_bytes)
-
-            pdf.image(img_io, x=10, y=8, w=25)  # 🔥 SOLO FUNCIONA EN FPDF2
-            tiene_logo = True
-    except Exception as e:
-        st.write("ERROR LOGO:", e)
-
-    # --- TEXTO HEADER ---
-    pdf.set_text_color(255, 255, 255)
-    pos_x = 45 if tiene_logo else 15
-
-    pdf.set_xy(pos_x, 12)
-    pdf.set_font("Helvetica", "B", 18)
-    pdf.cell(150, 10, nombre_negocio.upper(), ln=True)
-
-    pdf.set_x(pos_x)
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(150, 5, f"{direccion} | {telefono}", ln=True)
+    pdf.cell(190, 6, "Documento comercial con validez administrativa", ln=True, align="C")
 
-    # --- CUERPO ---
-    pdf.ln(25)
-    pdf.set_text_color(0, 0, 0)
+    pdf.line(10, 25, 200, 25)
+    pdf.ln(8)
 
-    recibo_id = f"REC-{datetime.now().strftime('%y%m%d%H%M')}"
+    # --- DATOS DEL NEGOCIO ---
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(190, 7, "DATOS DEL EMISOR", ln=True)
 
-    pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(100, 10, f"COMPROBANTE: {recibo_id}")
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(190, 6, f"Nombre: {negocio_nombre}", ln=True)
+    pdf.cell(190, 6, f"RNC / ID: {negocio_rnc}", ln=True)
+    pdf.cell(190, 6, f"Direccion: {negocio_direccion}", ln=True)
 
-    pdf.set_font("Helvetica", "", 12)
-    pdf.cell(90, 10, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='R')
+    pdf.ln(5)
 
-    pdf.line(10, 55, 200, 55)
-    pdf.ln(10)
+    # --- DATOS DEL CLIENTE ---
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(190, 7, "DATOS DEL CLIENTE", ln=True)
 
-    # --- TABLA ---
-    pdf.set_fill_color(240, 240, 240)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(190, 6, f"Nombre: {cliente_nombre}", ln=True)
+    pdf.cell(190, 6, f"Cedula / Identificacion: {cliente_cedula}", ln=True)
 
-    detalles = [
-        ("Cliente", nombre),
-        ("Monto Recibido", f"RD$ {monto:,.2f}"),
-        ("Metodo de Pago", metodo),
-        ("Balance Restante", f"RD$ {balance:,.2f}")
-    ]
+    pdf.ln(5)
 
-    for concepto, valor in detalles:
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(60, 10, f" {concepto}", border=1, fill=True)
+    # --- INFO FACTURA ---
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(100, 6, f"No. Factura: {factura_id}")
+    pdf.cell(90, 6, f"Fecha: {fecha}", ln=True, align="R")
 
-        pdf.set_font("Helvetica", "", 12)
-        pdf.cell(130, 10, f" {valor}", border=1, ln=True)
+    pdf.ln(5)
+    pdf.line(10, pdf.get_y(), 200, pdf.get_y())
+    pdf.ln(5)
 
-    # --- QR REAL FUNCIONAL ---
+    # --- DESCRIPCIÓN ---
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(190, 7, "DETALLE DEL PRODUCTO / SERVICIO", ln=True)
+
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(190, 6, f"Descripcion: {descripcion}")
+
+    pdf.ln(5)
+
+    # --- TABLA FINANCIERA ---
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(190, 7, "RESUMEN FINANCIERO", ln=True)
+
+    pdf.set_font("Helvetica", "", 10)
+
+    pdf.cell(95, 8, "Precio Total", border=1)
+    pdf.cell(95, 8, f"RD$ {precio_total:,.2f}", border=1, ln=True)
+
+    pdf.cell(95, 8, "Inicial Pagado", border=1)
+    pdf.cell(95, 8, f"RD$ {inicial:,.2f}", border=1, ln=True)
+
+    pdf.cell(95, 8, "Balance Pendiente", border=1)
+    pdf.cell(95, 8, f"RD$ {balance:,.2f}", border=1, ln=True)
+
+    pdf.cell(95, 8, "Metodo de Pago", border=1)
+    pdf.cell(95, 8, metodo_pago, border=1, ln=True)
+
+    pdf.ln(6)
+
+    # --- DECLARACIÓN LEGAL ---
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(190, 7, "DECLARACION", ln=True)
+
+    pdf.set_font("Helvetica", "", 9)
+
+    texto = (
+        f"El cliente {cliente_nombre} declara haber recibido el producto o servicio descrito, "
+        f"comprometiendose a pagar el monto restante de RD$ {balance:,.2f} bajo las condiciones "
+        f"acordadas con el proveedor {negocio_nombre}. Este documento constituye evidencia de la "
+        f"transaccion comercial realizada y podra ser utilizado con fines administrativos o legales."
+    )
+
+    pdf.multi_cell(190, 5, texto)
+
+    pdf.ln(5)
+
+    # --- CLÁUSULAS PERSONALIZABLES ---
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(190, 7, "TERMINOS Y CONDICIONES", ln=True)
+
+    pdf.set_font("Helvetica", "", 9)
+
+    if clausulas.strip() == "":
+        clausulas = "No se han definido terminos adicionales."
+
+    pdf.multi_cell(190, 5, clausulas)
+
+    pdf.ln(12)
+
+    # --- FIRMAS ---
+    y = pdf.get_y()
+
+    pdf.line(20, y, 90, y)
+    pdf.line(120, y, 190, y)
+
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.text(30, y + 5, "FIRMA CLIENTE")
+    pdf.text(130, y + 5, "FIRMA EMISOR")
+
+    # --- QR ---
     try:
-        qr = qrcode.make(f"{recibo_id} | {nombre} | {monto}")
-        qr_io = BytesIO()
-        qr.save(qr_io, format="PNG")
-        qr_io.seek(0)
+        qr_data = f"{factura_id}|{cliente_nombre}|{precio_total}|{balance}"
+        qr = qrcode.make(qr_data)
 
-        pdf.set_y(-60)
-        pdf.image(qr_io, x=160, y=pdf.get_y(), w=30)  # 🔥 SOLO FUNCIONA EN FPDF2
-    except Exception as e:
-        st.write("ERROR QR:", e)
+        qr.save("qr_temp.png")
+
+        pdf.set_y(-50)
+        pdf.image("qr_temp.png", x=150, y=pdf.get_y(), w=45)
+
+        os.remove("qr_temp.png")
+    except:
+        pass
 
     return bytes(pdf.output())
     
