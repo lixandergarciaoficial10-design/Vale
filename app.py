@@ -202,86 +202,112 @@ from fpdf import FPDF
 from datetime import datetime
 
 def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
-    # Usamos fpdf2 que es más moderna
+    from fpdf import FPDF
+    from datetime import datetime
+    from io import BytesIO
+    import base64
+    import qrcode
+    import os
+
     pdf = FPDF()
     pdf.add_page()
     
-    # 1. Recuperar datos (con valores por defecto por si acaso)
+    # --- 1. DATOS DEL NEGOCIO ---
     logo_b64 = st.session_state.get("mi_logo", "")
     nombre_negocio = st.session_state.get("nombre_negocio", "CobroYa Pro")
     direccion = st.session_state.get("direccion_negocio", "Villa Altagracia, RD")
     telefono = st.session_state.get("telefono_negocio", "829-000-0000")
 
-    # --- 2. ENCABEZADO AZUL ---
-    pdf.set_fill_color(0, 51, 102) 
+    # --- 2. ENCABEZADO ---
+    pdf.set_fill_color(0, 51, 102)
     pdf.rect(0, 0, 210, 40, 'F')
 
-    # --- 3. LOGO (DESDE MEMORIA) ---
+    # --- 3. LOGO ---
     tiene_logo = False
-    if logo_b64 and len(str(logo_b64)) > 100:
-        try:
-            if "," in str(logo_b64):
-                logo_b64 = str(logo_b64).split(",")[1]
-            
+    try:
+        if logo_b64 and len(str(logo_b64)) > 100:
+            if "base64," in str(logo_b64):
+                logo_b64 = logo_b64.split("base64,")[1]
+
             img_data = base64.b64decode(logo_b64)
-            img_file = BytesIO(img_data)
-            
-            # Ponemos el logo. Si falla, el try-except lo captura y sigue adelante
-            pdf.image(img_file, x=10, y=8, w=25) 
+
+            with open("logo_temp.png", "wb") as f:
+                f.write(img_data)
+
+            pdf.image("logo_temp.png", x=10, y=8, w=25)
             tiene_logo = True
-        except Exception:
-            pass # Si el logo falla, no matamos el proceso
+    except Exception as e:
+        print("Error cargando logo:", e)
 
     # --- 4. TEXTO ENCABEZADO ---
     pdf.set_text_color(255, 255, 255)
     pos_x = 45 if tiene_logo else 15
+
     pdf.set_xy(pos_x, 12)
-    pdf.set_font("Helvetica", "B", 20)
+    pdf.set_font("Helvetica", "B", 18)
     pdf.cell(150, 10, str(nombre_negocio).upper(), ln=True)
+
     pdf.set_x(pos_x)
     pdf.set_font("Helvetica", "", 10)
     pdf.cell(150, 5, f"{direccion} | {telefono}", ln=True)
 
-    # --- 5. CUERPO (RECIBO) ---
+    # --- 5. CUERPO ---
     pdf.ln(25)
     pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Helvetica", "B", 14)
+
     recibo_id = f"REC-{datetime.now().strftime('%y%m%d%H%M')}"
+
+    pdf.set_font("Helvetica", "B", 14)
     pdf.cell(100, 10, f"COMPROBANTE: {recibo_id}")
+
     pdf.set_font("Helvetica", "", 12)
     pdf.cell(90, 10, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='R')
-    
+
     pdf.line(10, 55, 200, 55)
     pdf.ln(10)
 
-    # TABLA DE DATOS
+    # --- TABLA ---
     pdf.set_fill_color(240, 240, 240)
+
     detalles = [
         ("Cliente", nombre),
         ("Monto Recibido", f"RD$ {monto:,.2f}"),
         ("Metodo de Pago", metodo),
         ("Balance Restante", f"RD$ {balance:,.2f}")
     ]
+
     for concepto, valor in detalles:
         pdf.set_font("Helvetica", "B", 12)
         pdf.cell(60, 10, f" {concepto}", border=1, fill=True)
+
         pdf.set_font("Helvetica", "", 12)
         pdf.cell(130, 10, f" {valor}", border=1, ln=True)
 
-    # --- 6. QR (GENERACIÓN DIRECTA) ---
+    # --- 6. QR ---
     try:
         qr = qrcode.QRCode(box_size=10, border=1)
         qr.add_data(f"Recibo: {recibo_id}\nCliente: {nombre}\nMonto: {monto}")
         qr.make(fit=True)
+
         qr_img = qr.make_image(fill_color="black", back_color="white")
-        
-        qr_buffer = BytesIO()
-        qr_img.save(qr_buffer, format="PNG")
-        qr_buffer.seek(0)
-        
-        pdf.image(qr_buffer, x=165, y=105, w=30)
-    except Exception:
-        pass # Si el QR falla, igual el recibo es válido
+
+        qr_img.save("qr_temp.png")
+
+        # Posición segura abajo
+        pdf.set_y(-60)
+        pdf.image("qr_temp.png", x=160, y=pdf.get_y(), w=30)
+
+    except Exception as e:
+        print("Error generando QR:", e)
+
+    # --- 7. LIMPIEZA DE ARCHIVOS TEMPORALES ---
+    try:
+        if os.path.exists("logo_temp.png"):
+            os.remove("logo_temp.png")
+        if os.path.exists("qr_temp.png"):
+            os.remove("qr_temp.png")
+    except:
+        pass
 
     return bytes(pdf.output())
     
