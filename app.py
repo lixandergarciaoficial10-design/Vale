@@ -195,23 +195,30 @@ def obtener_contexto_privado_ia(u_id_actual):
     except Exception as e:
         return f"Error de seguridad al recuperar datos: {e}"
 
+from io import BytesIO
+import qrcode
+import base64
+from fpdf import FPDF
+from datetime import datetime
+
 def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
+    # Usamos fpdf2 que es más moderna
     pdf = FPDF()
     pdf.add_page()
     
-    # 1. Recuperar datos de la sesión
-    logo_b64 = st.session_state.get("mi_logo")
+    # 1. Recuperar datos (con valores por defecto por si acaso)
+    logo_b64 = st.session_state.get("mi_logo", "")
     nombre_negocio = st.session_state.get("nombre_negocio", "CobroYa Pro")
     direccion = st.session_state.get("direccion_negocio", "Villa Altagracia, RD")
-    telefono = st.session_state.get("telefono_negocio", "Soporte: 829-XXX-XXXX")
+    telefono = st.session_state.get("telefono_negocio", "829-000-0000")
 
     # --- 2. ENCABEZADO AZUL ---
     pdf.set_fill_color(0, 51, 102) 
     pdf.rect(0, 0, 210, 40, 'F')
 
-    # --- 3. LOGO (SOLUCIÓN MEMORIA RAM) ---
+    # --- 3. LOGO (DESDE MEMORIA) ---
     tiene_logo = False
-    if logo_b64 and len(str(logo_b64)) > 50: # Validamos que no esté vacío
+    if logo_b64 and len(str(logo_b64)) > 100:
         try:
             if "," in str(logo_b64):
                 logo_b64 = str(logo_b64).split(",")[1]
@@ -219,23 +226,23 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
             img_data = base64.b64decode(logo_b64)
             img_file = BytesIO(img_data)
             
-            # Insertar directamente desde memoria
+            # Ponemos el logo. Si falla, el try-except lo captura y sigue adelante
             pdf.image(img_file, x=10, y=8, w=25) 
             tiene_logo = True
-        except Exception as e:
-            st.error(f"Error con Logo: {e}")
+        except Exception:
+            pass # Si el logo falla, no matamos el proceso
 
     # --- 4. TEXTO ENCABEZADO ---
     pdf.set_text_color(255, 255, 255)
     pos_x = 45 if tiene_logo else 15
     pdf.set_xy(pos_x, 12)
     pdf.set_font("Helvetica", "B", 20)
-    pdf.cell(150, 10, nombre_negocio.upper(), ln=True)
+    pdf.cell(150, 10, str(nombre_negocio).upper(), ln=True)
     pdf.set_x(pos_x)
     pdf.set_font("Helvetica", "", 10)
     pdf.cell(150, 5, f"{direccion} | {telefono}", ln=True)
 
-    # --- 5. CUERPO ---
+    # --- 5. CUERPO (RECIBO) ---
     pdf.ln(25)
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Helvetica", "B", 14)
@@ -261,23 +268,20 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
         pdf.set_font("Helvetica", "", 12)
         pdf.cell(130, 10, f" {valor}", border=1, ln=True)
 
-    # --- 6. QR (SOLUCIÓN LOCAL - NO API) ---
+    # --- 6. QR (GENERACIÓN DIRECTA) ---
     try:
-        # Generamos el QR nosotros mismos sin depender de internet (API externa)
-        qr = qrcode.QRCode(box_size=10, border=2)
-        qr.add_data(f"Recibo: {recibo_id} | Cliente: {nombre} | Total: {monto}")
+        qr = qrcode.QRCode(box_size=10, border=1)
+        qr.add_data(f"Recibo: {recibo_id}\nCliente: {nombre}\nMonto: {monto}")
         qr.make(fit=True)
         qr_img = qr.make_image(fill_color="black", back_color="white")
         
-        # Guardar QR en memoria
         qr_buffer = BytesIO()
         qr_img.save(qr_buffer, format="PNG")
         qr_buffer.seek(0)
         
-        # Insertar en el PDF
-        pdf.image(qr_buffer, x=160, y=110, w=35)
-    except Exception as e:
-        st.error(f"Error con QR: {e}")
+        pdf.image(qr_buffer, x=165, y=105, w=30)
+    except Exception:
+        pass # Si el QR falla, igual el recibo es válido
 
     return bytes(pdf.output())
     
