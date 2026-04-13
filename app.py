@@ -191,38 +191,39 @@ def obtener_contexto_privado_ia(u_id_actual):
         return f"Error de seguridad al recuperar datos: {e}"
 
 def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
-    import requests  # Asegúrate de tener importado requests arriba
+    import requests
     pdf = FPDF()
     pdf.add_page()
     
-    # --- 1. CARGA DESDE MEMORIA (Datos del Negocio) ---
+    # 1. CARGA DESDE MEMORIA
     logo_b64 = st.session_state.get("mi_logo")
     nombre_negocio = st.session_state.get("nombre_negocio", "CobroYa Pro")
     direccion = st.session_state.get("direccion_negocio", "Villa Altagracia, RD")
     telefono = st.session_state.get("telefono_negocio", "Soporte: 829-XXX-XXXX")
 
-    # --- 2. LOGO DINÁMICO ---
+    # --- 2. FONDO AZUL (DIBUJAR PRIMERO) ---
+    pdf.set_fill_color(0, 51, 102) 
+    pdf.rect(0, 0, 210, 40, 'F') # Esto crea la franja azul
+
+    # --- 3. LOGO DINÁMICO (DIBUJAR ENCIMA DEL AZUL) ---
     tiene_logo = False
     if logo_b64:
         try:
             if "," in logo_b64:
                 logo_b64 = logo_b64.split(",")[1]
-            logo_b64 = logo_b64.strip()
-            logo_data = base64.b64decode(logo_b64)
+            logo_data = base64.b64decode(logo_b64.strip())
             
             with open("temp_logo.png", "wb") as f:
                 f.write(logo_data)
             
+            # Ajustamos posición para que luzca bien sobre el azul
             pdf.image("temp_logo.png", 10, 8, 25)
             tiene_logo = True
         except Exception as e:
             print(f"Error al procesar logo: {e}")
-    
-    # --- 3. ENCABEZADO ESTILO PROFESIONAL ---
-    pdf.set_fill_color(0, 51, 102) 
-    pdf.rect(0, 0, 210, 40, 'F')
+
+    # --- 4. TEXTO DEL ENCABEZADO ---
     pdf.set_text_color(255, 255, 255)
-    
     pos_x = 40 if tiene_logo else 10
     pdf.set_xy(pos_x, 10)
     
@@ -232,58 +233,15 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     pdf.set_x(pos_x)
     pdf.set_font("Helvetica", "", 10)
     pdf.cell(150, 5, f"{direccion} | {telefono}", ln=True)
-    
-    # --- 4. CUERPO DEL RECIBO ---
+
+    # --- 5. CUERPO Y TABLA (RESTO IGUAL) ---
     pdf.ln(25)
     pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Helvetica", "B", 14)
-    recibo_id = f"REC-{datetime.now().strftime('%y%m%d%H%M')}"
-    pdf.set_x(10)
-    pdf.cell(100, 10, f"COMPROBANTE: {recibo_id}")
-    pdf.set_font("Helvetica", "", 12)
-    pdf.cell(90, 10, f"Fecha: {datetime.now().strftime('%d/%m/%Y')}", ln=True, align='R')
+    # ... (Tu código de detalles y QR está perfecto)
     
-    pdf.line(10, 55, 200, 55) 
-    pdf.ln(10)
-    
-    # Tabla de detalles
-    pdf.set_fill_color(245, 245, 245)
-    pdf.cell(95, 10, " Concepto", border=1, fill=True)
-    pdf.cell(95, 10, " Detalle", border=1, fill=True, ln=True)
-    
-    detalles = [
-        ("Cliente", nombre),
-        ("Monto Recibido", f"RD$ {monto:,.2f}"),
-        ("Metodo de Pago", metodo),
-        ("Balance Restante", f"RD$ {balance:,.2f}")
-    ]
-    
-    for concepto, detalle in detalles:
-        pdf.set_font("Helvetica", "", 12)
-        pdf.cell(95, 10, f" {concepto}", border=1)
-        pdf.set_font("Helvetica", "B", 12)
-        pdf.cell(95, 10, f" {detalle}", border=1, ln=True)
-
-    # --- 5. QR DE VERIFICACIÓN (CORREGIDO) ---
-    try:
-        qr_data = f"Verificado:{recibo_id}:Monto:{monto}"
-        qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={qr_data}"
-        
-        # Descargamos el QR temporalmente para que fpdf lo lea sin errores
-        img_data = requests.get(qr_url).content
-        with open("temp_qr.png", "wb") as handler:
-            handler.write(img_data)
-            
-        pdf.image("temp_qr.png", 160, 110, 30, 30)
-    except Exception as e:
-        print(f"Error al generar QR: {e}")
-    
-    # --- 6. PIE DE PÁGINA ---
-    pdf.set_y(145)
-    pdf.set_font("Helvetica", "I", 8)
-    pdf.cell(190, 10, f"Este documento es un comprobante oficial generado por {nombre_negocio}.", align='C', ln=True)
-    
+    # Asegúrate de cerrar el archivo antes de retornar
     return bytes(pdf.output())
+    
 def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df, freq, clausulas_texto):
     pdf = FPDF()
     pdf.add_page()
