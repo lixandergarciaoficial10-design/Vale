@@ -190,45 +190,49 @@ def obtener_contexto_privado_ia(u_id_actual):
     except Exception as e:
         return f"Error de seguridad al recuperar datos: {e}"
 
+from io import BytesIO # Asegúrate de tener esta importación arriba
+
 def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     import requests
     from fpdf import FPDF
+    import base64
     
     pdf = FPDF()
     pdf.add_page()
     
-    # --- 1. DATOS DE MEMORIA ---
+    # 1. Recuperar datos
     logo_b64 = st.session_state.get("mi_logo")
     nombre_negocio = st.session_state.get("nombre_negocio", "CobroYa Pro")
     direccion = st.session_state.get("direccion_negocio", "Villa Altagracia, RD")
     telefono = st.session_state.get("telefono_negocio", "Soporte: 829-XXX-XXXX")
 
-    # --- 2. FONDO (CAPA INFERIOR) ---
+    # --- 2. FONDO AZUL (SIEMPRE PRIMERO) ---
     pdf.set_fill_color(0, 51, 102) 
-    pdf.rect(0, 0, 210, 40, 'F') # Dibujamos el bloque azul de fondo
+    pdf.rect(0, 0, 210, 40, 'F')
 
-    # --- 3. LOGO (CAPA SUPERIOR) ---
+    # --- 3. NUEVO MÉTODO DE LOGO (EN MEMORIA) ---
     tiene_logo = False
     if logo_b64:
         try:
-            # Limpiamos el string por si tiene encabezados de data:image
+            # Limpiar el base64
             if "," in str(logo_b64):
                 logo_b64 = str(logo_b64).split(",")[1]
             
-            logo_data = base64.b64decode(str(logo_b64).strip())
+            # Convertir a bytes y luego a un "archivo virtual"
+            img_bytes = base64.b64decode(logo_b64)
+            img_file = BytesIO(img_bytes)
             
-            with open("temp_logo.png", "wb") as f:
-                f.write(logo_data)
-            
-            # Colocamos el logo ENCIMA del cuadro azul
-            pdf.image("temp_logo.png", 10, 8, 25)
+            # FPDF permite pasar un objeto BytesIO en lugar de una ruta de archivo
+            # IMPORTANTE: Debes especificar el formato (PNG o JPG)
+            pdf.image(img_file, x=10, y=8, w=25, type='PNG') 
             tiene_logo = True
         except Exception as e:
-            print(f"Error procesando logo: {e}")
+            # Si falla el logo, al menos que el PDF se genere sin él
+            print(f"Error con BytesIO: {e}")
 
-    # --- 4. TEXTO SOBRE EL AZUL ---
+    # --- 4. TEXTO DEL ENCABEZADO ---
     pdf.set_text_color(255, 255, 255)
-    pos_x = 40 if tiene_logo else 10
+    pos_x = 45 if tiene_logo else 15 # Ajustamos el margen si hay logo
     pdf.set_xy(pos_x, 10)
     
     pdf.set_font("Helvetica", "B", 22)
@@ -238,12 +242,11 @@ def generar_pdf_recibo_pro(nombre, monto, balance, u_id, metodo="Efectivo"):
     pdf.set_font("Helvetica", "", 10)
     pdf.cell(150, 5, f"{direccion} | {telefono}", ln=True)
 
-    # --- 5. CUERPO DEL DOCUMENTO ---
+    # --- 5. CUERPO (IGUAL QUE ANTES) ---
     pdf.ln(25)
     pdf.set_text_color(0, 0, 0)
-    # Aquí sigue tu lógica de cuotas y montos (RD$ 3,600.00 total)
-    # ...
-    
+    # ... resto de tu código de cuotas y QR ...
+
     return bytes(pdf.output())
     
 def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df, freq, clausulas_texto):
