@@ -382,107 +382,88 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
 
 # --- 4. NAVEGACIÓN ---
 # --- 0. LÓGICA DE AUTO-CARGA (Busca datos en Supabase si no están en sesión) ---
-# --- 0. LÓGICA DE AUTO-CARGA (Coloca esto al inicio de tu script) ---
-# Esta parte asegura que los datos se busquen en Supabase automáticamente
+# --- 1. LIMPIEZA Y CARGA CRÍTICA (Pon esto arriba de todo, tras el login) ---
 if "user" in st.session_state and st.session_state.user:
-    if "datos_cargados" not in st.session_state:
+    # Si detectamos los valores "falsos" o no hay datos, forzamos la consulta
+    if "datos_validados" not in st.session_state:
         try:
+            # Consultamos Supabase con el ID del usuario logueado
             res = conn.table("configuracion").select("*").eq("usuario_id", st.session_state.user.id).execute()
+            
             if res.data:
                 conf = res.data[0]
-                # Guardamos los datos reales en el estado de la sesión
-                st.session_state["nombre_negocio"] = conf.get("nombre_comercial")
-                st.session_state["rnc"] = conf.get("rnc_cedula")
-                st.session_state["telefono_negocio"] = conf.get("telefono")
-                st.session_state["direccion_negocio"] = conf.get("direccion")
-                st.session_state["mi_logo"] = conf.get("logo_base64")
+                # Inyectamos los datos reales directos al session_state
+                st.session_state["nombre_negocio"] = conf.get("nombre_comercial", "SIN NOMBRE")
+                st.session_state["rnc"] = conf.get("rnc_cedula", "---")
+                st.session_state["telefono_negocio"] = conf.get("telefono", "---")
+                st.session_state["direccion_negocio"] = conf.get("direccion", "---")
+                st.session_state["mi_logo"] = conf.get("logo_base64", None)
                 
-                # Marcamos como cargado y forzamos reinicio para aplicar cambios
-                st.session_state["datos_cargados"] = True
-                st.rerun()
+                # Esta bandera evita que entre en un bucle infinito
+                st.session_state["datos_validados"] = True
+                st.rerun() # FORZAMOS el refresco para que el Sidebar lea lo nuevo
         except Exception as e:
-            pass
+            st.error(f"Error cargando datos reales: {e}")
 
-# --- 1. SIDEBAR CORREGIDO Y AJUSTADO ---
+# --- 2. SIDEBAR ULTRA-PROFESIONAL (UNIFICADO) ---
 with st.sidebar:
-    # Recuperamos los datos de la sesión (Sin valores "quemados" en el código)
-    # Si la clave no existe, el valor por defecto es "---" o vacío
-    logo_data = st.session_state.get("mi_logo")
-    nombre_biz = st.session_state.get("nombre_negocio", "Configurar Negocio").upper()
-    rnc_biz = st.session_state.get("rnc", "---")
-    tel_biz = st.session_state.get("telefono_negocio", "---")
-    dir_biz = st.session_state.get("direccion_negocio", "---")
+    # Extraemos lo que cargamos arriba (si no hay nada, ponemos guiones, NUNCA Villa Altagracia)
+    biz_name = st.session_state.get("nombre_negocio", "CONFIGURAR PERFIL").upper()
+    biz_rnc  = st.session_state.get("rnc", "---")
+    biz_dir  = st.session_state.get("direccion_negocio", "---")
+    biz_tel  = st.session_state.get("telefono_negocio", "---")
+    logo_b64 = st.session_state.get("mi_logo")
 
-    # --- IDENTIDAD CORPORATIVA (TOP) ---
-    if logo_data:
-        try:
-            if "," in str(logo_data): logo_data = logo_data.split(",")[1]
-            st.markdown(f"""
-                <div style='display: flex; justify-content: center; padding-top: 10px;'>
-                    <img src='data:image/png;base64,{logo_data}' 
-                         style='width: 65px; height: 65px; object-fit: cover; border-radius: 8px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.05));'>
-                </div>
-            """, unsafe_allow_html=True)
-        except:
-            st.markdown("<h1 style='text-align: center;'>🏢</h1>", unsafe_allow_html=True)
+    # Identidad Visual
+    if logo_b64:
+        if "," in str(logo_b64): logo_b64 = logo_b64.split(",")[1]
+        st.markdown(f"""
+            <div style='display: flex; justify-content: center; padding-top: 10px;'>
+                <img src='data:image/png;base64,{logo_b64}' 
+                     style='width: 65px; height: 65px; object-fit: cover; border-radius: 8px;'>
+            </div>
+        """, unsafe_allow_html=True)
     
     st.markdown(f"""
         <div style='text-align: center; margin-top: 8px; font-family: "Inter", sans-serif;'>
-            <h3 style='margin: 0; color: #1e293b; font-size: 0.95rem; font-weight: 700; letter-spacing: -0.5px;'>{nombre_biz}</h3>
+            <h3 style='margin: 0; color: #1e293b; font-size: 0.95rem; font-weight: 700;'>{biz_name}</h3>
             <div style='margin-top: 4px; line-height: 1.2;'>
-                <p style='margin: 0; font-size: 0.7rem; color: #64748b; font-weight: 400;'>RNC: {rnc_biz}</p>
-                <p style='margin: 0; font-size: 0.7rem; color: #64748b; font-weight: 400;'>📍 {dir_biz}</p>
-                <p style='margin: 0; font-size: 0.7rem; color: #64748b; font-weight: 400;'>📞 {tel_biz}</p>
+                <p style='margin: 0; font-size: 0.7rem; color: #64748b;'>RNC: {biz_rnc}</p>
+                <p style='margin: 0; font-size: 0.7rem; color: #64748b;'>📍 {biz_dir}</p>
+                <p style='margin: 0; font-size: 0.7rem; color: #64748b;'>📞 {biz_tel}</p>
             </div>
         </div>
     """, unsafe_allow_html=True)
-    
+
     st.markdown("<div style='margin: 15px 0;'></div>", unsafe_allow_html=True)
-    
-    # --- 2. OPERADOR (INFO REAL DE SESIÓN) ---
-    user_email = st.session_state.user.email if hasattr(st.session_state, 'user') and st.session_state.user else "Usuario Activo"
+
+    # Operador (Email real de Supabase)
+    curr_user = st.session_state.user.email if st.session_state.get("user") else "Usuario"
     st.markdown(f"""
         <div style='padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 2px solid #0284c7;'>
-            <p style='font-size: 0.6rem; color: #94a3b8; margin: 0; text-transform: uppercase; font-weight: 600; letter-spacing: 0.3px;'>Sesión iniciada como</p>
-            <p style='font-size: 0.75rem; font-weight: 500; color: #334155; margin: 0; word-break: break-all;'>{user_email}</p>
+            <p style='font-size: 0.6rem; color: #94a3b8; margin: 0; text-transform: uppercase; font-weight: 600;'>Operador en turno</p>
+            <p style='font-size: 0.75rem; font-weight: 500; color: #334155; margin: 0;'>{curr_user}</p>
         </div>
     """, unsafe_allow_html=True)
-    
-    st.markdown("<hr style='margin: 15px 0; border: 0; border-top: 1px solid #e2e8f0;'>", unsafe_allow_html=True)
 
-    # --- 3. MENÚ DE NAVEGACIÓN ---
-    menu = st.radio(
-        "MENÚ DE NAVEGACIÓN", 
-        ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"],
-        label_visibility="collapsed"
-    )
+    st.divider()
 
-    # --- 4. CIERRE DE SESIÓN ---
-    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-    if st.button("🚪 Salir del Sistema", use_container_width=True):
-        if hasattr(conn, 'client'): conn.client.auth.sign_out()
+    # Menú de Navegación
+    menu = st.radio("MENÚ", ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"], label_visibility="collapsed")
+
+    if st.button("🚪 Salir", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
-    # --- 5. EL FOOTER PROFESIONAL ---
+    # Footer (Branding CobroYa)
     st.markdown("""
         <style>
             [data-testid="stSidebarContent"] { display: flex; flex-direction: column; }
-            .sidebar-footer { 
-                margin-top: auto; 
-                text-align: center; 
-                padding: 20px 0; 
-                border-top: 1px solid #f1f5f9;
-                font-family: "Inter", sans-serif;
-            }
+            .sidebar-footer { margin-top: auto; text-align: center; padding: 20px 0; border-top: 1px solid #f1f5f9; }
         </style>
         <div class='sidebar-footer'>
-            <p style='font-size: 0.65rem; color: #94a3b8; margin: 0; font-weight: 500; letter-spacing: 0.5px;'>
-                POWERED BY <span style='color: #64748b;'>LIXANDER GARCIA</span>
-            </p>
-            <p style='font-size: 0.85rem; font-weight: 800; color: #0284c7; margin-top: 2px; letter-spacing: -0.5px;'>
-                CobroYa<span style='font-weight: 400; font-size: 0.7rem;'>®</span>
-            </p>
+            <p style='font-size: 0.65rem; color: #94a3b8; margin: 0;'>POWERED BY LIXANDER GARCIA</p>
+            <p style='font-size: 0.85rem; font-weight: 800; color: #0284c7; margin: 0; opacity: 0.3;'>CobroYa</p>
         </div>
     """, unsafe_allow_html=True)
     
