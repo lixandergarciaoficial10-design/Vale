@@ -382,35 +382,49 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
 
 # --- 4. NAVEGACIÓN ---
 # --- 0. LÓGICA DE AUTO-CARGA (Busca datos en Supabase si no están en sesión) ---
-if st.session_state.get("user") and "nombre_negocio" not in st.session_state:
-    try:
-        res = conn.table("configuracion").select("*").eq("usuario_id", st.session_state.user.id).execute()
-        if res.data:
-            conf = res.data[0]
-            st.session_state["nombre_negocio"] = conf.get("nombre_comercial", "Mi Negocio")
-            st.session_state["rnc"] = conf.get("rnc_cedula", "")
-            st.session_state["telefono_negocio"] = conf.get("telefono", "")
-            st.session_state["direccion_negocio"] = conf.get("direccion", "")
-            st.session_state["mi_logo"] = conf.get("logo_base64", "")
-    except Exception as e:
-        pass
-# --- 4. NAVEGACIÓN ---
+# --- 0. LÓGICA DE AUTO-CARGA (Coloca esto al inicio de tu script) ---
+# Esta parte asegura que los datos se busquen en Supabase automáticamente
+if "user" in st.session_state and st.session_state.user:
+    if "datos_cargados" not in st.session_state:
+        try:
+            res = conn.table("configuracion").select("*").eq("usuario_id", st.session_state.user.id).execute()
+            if res.data:
+                conf = res.data[0]
+                # Guardamos los datos reales en el estado de la sesión
+                st.session_state["nombre_negocio"] = conf.get("nombre_comercial")
+                st.session_state["rnc"] = conf.get("rnc_cedula")
+                st.session_state["telefono_negocio"] = conf.get("telefono")
+                st.session_state["direccion_negocio"] = conf.get("direccion")
+                st.session_state["mi_logo"] = conf.get("logo_base64")
+                
+                # Marcamos como cargado y forzamos reinicio para aplicar cambios
+                st.session_state["datos_cargados"] = True
+                st.rerun()
+        except Exception as e:
+            pass
+
+# --- 1. SIDEBAR CORREGIDO Y AJUSTADO ---
 with st.sidebar:
-    # --- 1. IDENTIDAD CORPORATIVA (TOP) ---
+    # Recuperamos los datos de la sesión (Sin valores "quemados" en el código)
+    # Si la clave no existe, el valor por defecto es "---" o vacío
     logo_data = st.session_state.get("mi_logo")
     nombre_biz = st.session_state.get("nombre_negocio", "Configurar Negocio").upper()
     rnc_biz = st.session_state.get("rnc", "---")
     tel_biz = st.session_state.get("telefono_negocio", "---")
     dir_biz = st.session_state.get("direccion_negocio", "---")
 
+    # --- IDENTIDAD CORPORATIVA (TOP) ---
     if logo_data:
-        if "," in str(logo_data): logo_data = logo_data.split(",")[1]
-        st.markdown(f"""
-            <div style='display: flex; justify-content: center; padding-top: 10px;'>
-                <img src='data:image/png;base64,{logo_data}' 
-                     style='width: 65px; height: 65px; object-fit: cover; border-radius: 8px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.05));'>
-            </div>
-        """, unsafe_allow_html=True)
+        try:
+            if "," in str(logo_data): logo_data = logo_data.split(",")[1]
+            st.markdown(f"""
+                <div style='display: flex; justify-content: center; padding-top: 10px;'>
+                    <img src='data:image/png;base64,{logo_data}' 
+                         style='width: 65px; height: 65px; object-fit: cover; border-radius: 8px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.05));'>
+                </div>
+            """, unsafe_allow_html=True)
+        except:
+            st.markdown("<h1 style='text-align: center;'>🏢</h1>", unsafe_allow_html=True)
     
     st.markdown(f"""
         <div style='text-align: center; margin-top: 8px; font-family: "Inter", sans-serif;'>
@@ -423,9 +437,9 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("<div style='margin: 10px 0;'></div>", unsafe_allow_html=True) 
+    st.markdown("<div style='margin: 15px 0;'></div>", unsafe_allow_html=True)
     
-    # --- 2. OPERADOR (EMAIL REAL DE SESIÓN) ---
+    # --- 2. OPERADOR (INFO REAL DE SESIÓN) ---
     user_email = st.session_state.user.email if hasattr(st.session_state, 'user') and st.session_state.user else "Usuario Activo"
     st.markdown(f"""
         <div style='padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 2px solid #0284c7;'>
@@ -446,8 +460,7 @@ with st.sidebar:
     # --- 4. CIERRE DE SESIÓN ---
     st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
     if st.button("🚪 Salir del Sistema", use_container_width=True):
-        if hasattr(conn, 'client'): 
-            conn.client.auth.sign_out()
+        if hasattr(conn, 'client'): conn.client.auth.sign_out()
         st.session_state.clear()
         st.rerun()
 
