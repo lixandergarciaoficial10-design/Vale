@@ -381,13 +381,27 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
     return bytes(pdf.output())
 
 # --- 4. NAVEGACIÓN ---
+# --- 0. LÓGICA DE AUTO-CARGA (Busca datos en Supabase si no están en sesión) ---
+if st.session_state.get("user") and "nombre_negocio" not in st.session_state:
+    try:
+        res = conn.table("configuracion").select("*").eq("usuario_id", st.session_state.user.id).execute()
+        if res.data:
+            conf = res.data[0]
+            st.session_state["nombre_negocio"] = conf.get("nombre_comercial", "Mi Negocio")
+            st.session_state["rnc"] = conf.get("rnc_cedula", "")
+            st.session_state["telefono_negocio"] = conf.get("telefono", "")
+            st.session_state["direccion_negocio"] = conf.get("direccion", "")
+            st.session_state["mi_logo"] = conf.get("logo_base64", "")
+    except Exception as e:
+        pass
+# --- 4. NAVEGACIÓN ---
 with st.sidebar:
     # --- 1. IDENTIDAD CORPORATIVA (TOP) ---
     logo_data = st.session_state.get("mi_logo")
-    nombre_biz = st.session_state.get("nombre_negocio", "Mi Negocio").upper()
-    rnc_biz = st.session_state.get("rnc", "")
-    tel_biz = st.session_state.get("telefono_negocio", "")
-    dir_biz = st.session_state.get("direccion_negocio", "")
+    nombre_biz = st.session_state.get("nombre_negocio", "Configurar Negocio").upper()
+    rnc_biz = st.session_state.get("rnc", "---")
+    tel_biz = st.session_state.get("telefono_negocio", "---")
+    dir_biz = st.session_state.get("direccion_negocio", "---")
 
     if logo_data:
         if "," in str(logo_data): logo_data = logo_data.split(",")[1]
@@ -398,7 +412,6 @@ with st.sidebar:
             </div>
         """, unsafe_allow_html=True)
     
-    # Unificamos tipografía: Inter o Helvetica (las estándar de Streamlit)
     st.markdown(f"""
         <div style='text-align: center; margin-top: 8px; font-family: "Inter", sans-serif;'>
             <h3 style='margin: 0; color: #1e293b; font-size: 0.95rem; font-weight: 700; letter-spacing: -0.5px;'>{nombre_biz}</h3>
@@ -410,9 +423,9 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
     
-    st.markdown("<div style='margin: 15px 0;'></div>", unsafe_allow_html=True) # Espacio controlado
+    st.markdown("<div style='margin: 10px 0;'></div>", unsafe_allow_html=True) 
     
-    # --- 2. OPERADOR (COMPACTO Y MODERNO) ---
+    # --- 2. OPERADOR (EMAIL REAL DE SESIÓN) ---
     user_email = st.session_state.user.email if hasattr(st.session_state, 'user') and st.session_state.user else "Usuario Activo"
     st.markdown(f"""
         <div style='padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 2px solid #0284c7;'>
@@ -427,18 +440,18 @@ with st.sidebar:
     menu = st.radio(
         "MENÚ DE NAVEGACIÓN", 
         ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"],
-        label_visibility="collapsed" # Ocultamos el label para mayor limpieza
+        label_visibility="collapsed"
     )
 
     # --- 4. CIERRE DE SESIÓN ---
     st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
     if st.button("🚪 Salir del Sistema", use_container_width=True):
-        if hasattr(conn, 'client'): conn.client.auth.sign_out()
+        if hasattr(conn, 'client'): 
+            conn.client.auth.sign_out()
         st.session_state.clear()
         st.rerun()
 
-    # --- 5. EL FOOTER PROFESIONAL (ESTILO APPLE/STRIPE) ---
-    # Aquí es donde ocurre la magia: igualamos el estilo de arriba
+    # --- 5. EL FOOTER PROFESIONAL ---
     st.markdown("""
         <style>
             [data-testid="stSidebarContent"] { display: flex; flex-direction: column; }
