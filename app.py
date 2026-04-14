@@ -381,40 +381,38 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
     return bytes(pdf.output())
 
 # --- 4. NAVEGACIÓN ---
-# --- 0. LÓGICA DE AUTO-CARGA (Busca datos en Supabase si no están en sesión) ---
-# --- 1. LIMPIEZA Y CARGA CRÍTICA (Pon esto arriba de todo, tras el login) ---
+# --- 1. CARGA DE DATOS DESDE SUPABASE (Nombres Reales) ---
 if "user" in st.session_state and st.session_state.user:
-    # Si detectamos los valores "falsos" o no hay datos, forzamos la consulta
     if "datos_validados" not in st.session_state:
         try:
-            # Consultamos Supabase con el ID del usuario logueado
-            res = conn.table("configuracion").select("*").eq("usuario_id", st.session_state.user.id).execute()
+            # Según tu imagen, la columna es 'user_id'
+            res = conn.table("configuracion").select("*").eq("user_id", st.session_state.user.id).execute()
             
             if res.data:
                 conf = res.data[0]
-                # Inyectamos los datos reales directos al session_state
-                st.session_state["nombre_negocio"] = conf.get("nombre_comercial", "SIN NOMBRE")
-                st.session_state["rnc"] = conf.get("rnc_cedula", "---")
+                # Ajustamos los nombres exactos de tu Table Editor
+                st.session_state["nombre_negocio"] = conf.get("nombre_negocio", "Mi Negocio")
+                st.session_state["rnc"] = conf.get("rnc", "---")
                 st.session_state["telefono_negocio"] = conf.get("telefono", "---")
                 st.session_state["direccion_negocio"] = conf.get("direccion", "---")
-                st.session_state["mi_logo"] = conf.get("logo_base64", None)
+                st.session_state["mi_logo"] = conf.get("logo_base64") # Asegúrate que esta columna exista o ignórala
                 
-                # Esta bandera evita que entre en un bucle infinito
                 st.session_state["datos_validados"] = True
-                st.rerun() # FORZAMOS el refresco para que el Sidebar lea lo nuevo
+                st.rerun()
         except Exception as e:
-            st.error(f"Error cargando datos reales: {e}")
-
+            st.error(f"Error técnico: {e}")
+            
 # --- 2. SIDEBAR ULTRA-PROFESIONAL (UNIFICADO) ---
 with st.sidebar:
-    # Extraemos lo que cargamos arriba (si no hay nada, ponemos guiones, NUNCA Villa Altagracia)
-    biz_name = st.session_state.get("nombre_negocio", "CONFIGURAR PERFIL").upper()
+    # Recuperamos los datos que acabamos de cargar de Supabase
+    # Si no hay nada, ponemos "---" por seguridad
+    biz_name = st.session_state.get("nombre_negocio", "SIN NOMBRE").upper()
     biz_rnc  = st.session_state.get("rnc", "---")
     biz_dir  = st.session_state.get("direccion_negocio", "---")
     biz_tel  = st.session_state.get("telefono_negocio", "---")
     logo_b64 = st.session_state.get("mi_logo")
 
-    # Identidad Visual
+    # --- IDENTIDAD VISUAL ---
     if logo_b64:
         if "," in str(logo_b64): logo_b64 = logo_b64.split(",")[1]
         st.markdown(f"""
@@ -437,25 +435,25 @@ with st.sidebar:
 
     st.markdown("<div style='margin: 15px 0;'></div>", unsafe_allow_html=True)
 
-    # Operador (Email real de Supabase)
-    curr_user = st.session_state.user.email if st.session_state.get("user") else "Usuario"
+    # Sesión del Operador
+    u_email = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
     st.markdown(f"""
         <div style='padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 2px solid #0284c7;'>
-            <p style='font-size: 0.6rem; color: #94a3b8; margin: 0; text-transform: uppercase; font-weight: 600;'>Operador en turno</p>
-            <p style='font-size: 0.75rem; font-weight: 500; color: #334155; margin: 0;'>{curr_user}</p>
+            <p style='font-size: 0.6rem; color: #94a3b8; margin: 0; text-transform: uppercase; font-weight: 600;'>Sesión iniciada como</p>
+            <p style='font-size: 0.75rem; font-weight: 500; color: #334155; margin: 0;'>{u_email}</p>
         </div>
     """, unsafe_allow_html=True)
 
     st.divider()
 
-    # Menú de Navegación
-    menu = st.radio("MENÚ", ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"], label_visibility="collapsed")
+    # Menú
+    menu = st.radio("NAVEGACIÓN", ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"], label_visibility="collapsed")
 
-    if st.button("🚪 Salir", use_container_width=True):
+    if st.button("🚪 Salir del Sistema", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
-    # Footer (Branding CobroYa)
+    # Footer Branding
     st.markdown("""
         <style>
             [data-testid="stSidebarContent"] { display: flex; flex-direction: column; }
@@ -463,7 +461,7 @@ with st.sidebar:
         </style>
         <div class='sidebar-footer'>
             <p style='font-size: 0.65rem; color: #94a3b8; margin: 0;'>POWERED BY LIXANDER GARCIA</p>
-            <p style='font-size: 0.85rem; font-weight: 800; color: #0284c7; margin: 0; opacity: 0.3;'>CobroYa</p>
+            <p style='font-size: 0.85rem; font-weight: 800; color: #0284c7; margin: 0;'>CobroYa</p>
         </div>
     """, unsafe_allow_html=True)
     
