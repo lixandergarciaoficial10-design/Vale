@@ -665,18 +665,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                 del st.session_state.pdf_ready
                 st.rerun()
 # --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
-
-elif menu == "👥 Todos mis Clientes":
-        import datetime as dt
-        import time
-        hoy_dt = dt.date.today()
-        
-        st.markdown("""
-            <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
-            <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales y control de campo.</p>
-        """, unsafe_allow_html=True)
-
-        # --- SECCIÓN A: REGISTRO PREMIUM ---
+# --- SECCIÓN A: REGISTRO PREMIUM ---
 elif menu == "👥 Todos mis Clientes":
         import datetime as dt
         import time
