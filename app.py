@@ -667,71 +667,119 @@ elif menu == "Nueva Cuenta por Cobrar":
 # --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
 
 elif menu == "👥 Todos mis Clientes":
+    # IMPORTACIÓN LOCAL PARA EVITAR EL ATTRIBUTEERROR
+    import datetime as dt
+    hoy = dt.date.today()
+    
     st.markdown("<h2 style='color: #1e293b;'>👥 Centro de Control de Clientes</h2>", unsafe_allow_html=True)
     
-    # 1. CARGA DE DATOS REALES (Ajustado a tus imágenes)
-    res_cl = conn.table("clientes").select("*").eq("user_id", u_id).execute()
-    res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
-    
-    if not res_cl.data:
-        st.info("Aún no tienes clientes registrados.")
-    else:
-        # Buscador y Filtro
-        col_b, col_f = st.columns([2, 1])
-        with col_b:
-            busqueda = st.text_input("🔍 Buscar por nombre, cédula o teléfono...", placeholder="Ej: Lixander...")
-        with col_f:
-            filtro_est = st.selectbox("Filtrar por estado", ["Todos", "🔴 Atrasado", "🟠 Pago Incompleto", "🟢 Al día"])
+    # 1. CARGA DE DATOS REALES (Ajustado a tus capturas de pantalla)
+    try:
+        res_cl = conn.table("clientes").select("*").eq("user_id", u_id).execute()
+        res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
+        
+        if not res_cl.data:
+            st.info("Aún no tienes clientes registrados.")
+        else:
+            # --- BUSCADOR Y FILTROS ---
+            col_b, col_f = st.columns([2, 1])
+            with col_b:
+                busqueda = st.text_input("🔍 Buscar por nombre, cédula o teléfono...", placeholder="Ej: Lixander...")
+            with col_f:
+                filtro_est = st.selectbox("Filtrar por estado", ["Todos", "🔴 Atrasado", "🟠 Pago Incompleto", "🟢 Al día"])
 
-        # Procesamiento
-        clientes_finales = []
-        hoy = datetime.datetime.now().date()
+            # --- PROCESAMIENTO ---
+            clientes_finales = []
 
-        for cl in res_cl.data:
-            # Buscamos las cuentas de este cliente
-            cuentas_cl = [c for c in res_cu.data if c['cliente_id'] == cl['id']]
-            
-            # Lógica de Estado basada en tus columnas 'balance_pendiente' y 'proximo_pago'
-            total_deuda = sum(float(c['balance_pendiente']) for c in cuentas_cl)
-            
-            # Determinar color y estado
-            if total_deuda > 0:
-                # Si alguna cuenta tiene fecha vencida
-                atrasado = any(datetime.datetime.strptime(str(c['proximo_pago']), '%Y-%m-%d').date() < hoy for c in cuentas_cl if c['proximo_pago'])
-                if atrasado:
-                    estado_txt, color = "🔴 Atrasado", "#ef4444"
-                else:
-                    estado_txt, color = "🟠 Pago Incompleto", "#f97316"
-            else:
-                estado_txt, color = "🟢 Al día", "#22c55e"
-
-            # Filtro de búsqueda
-            if busqueda.lower() in cl['nombre'].lower() or (cl['cedula'] and busqueda in cl['cedula']):
-                if filtro_est == "Todos" or filtro_est == estado_txt:
-                    clientes_finales.append({**cl, "estado": estado_txt, "color": color, "deuda": total_deuda, "cuentas": cuentas_cl})
-
-        # Renderizado de Cards
-        cols = st.columns(3)
-        for i, cl in enumerate(clientes_finales):
-            with cols[i % 3]:
-                st.markdown(f"""
-                    <div style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; background-color: white; margin-bottom: 10px;">
-                        <p style="margin: 0; font-size: 0.7rem; color: {cl['color']}; font-weight: 800;">{cl['estado']}</p>
-                        <h4 style="margin: 5px 0;">{cl['nombre']}</h4>
-                        <p style="margin: 0; font-size: 0.8rem; color: #64748b;">Deuda: <b>RD$ {cl['deuda']:,.2f}</b></p>
-                    </div>
-                """, unsafe_allow_html=True)
+            for cl in res_cl.data:
+                # Buscamos las cuentas de este cliente
+                cuentas_cl = [c for c in res_cu.data if c['cliente_id'] == cl['id']]
                 
-                with st.expander("Detalles y Notas"):
-                    # Notas (Usando tu nueva columna 'notas')
-                    nueva_nota = st.text_area("Notas del cliente", value=cl.get('notas') or "", key=f"n_{cl['id']}")
-                    if st.button("Guardar Nota", key=f"b_{cl['id']}"):
-                        conn.table("clientes").update({"notas": nueva_nota}).eq("id", cl['id']).execute()
-                        st.success("Nota guardada")
+                # Sumamos balance pendiente (convertido a float por seguridad)
+                total_deuda = sum(float(c.get('balance_pendiente') or 0) for c in cuentas_cl)
+                
+                # DETERMINAR ESTADO Y COLOR
+                if total_deuda > 0:
+                    atrasado = False
+                    for c in cuentas_cl:
+                        prox_pago = c.get('proximo_pago')
+                        if prox_pago:
+                            # Conversión segura de string a fecha
+                            fecha_v = dt.datetime.strptime(str(prox_pago), '%Y-%m-%d').date()
+                            if fecha_v < hoy:
+                                atrasado = True
+                                break
                     
-                    st.write("**Cuentas Activas:**")
-                    for cu in cl['cuentas']:
-                        st.caption(f"Propio pago: {cu['proximo_pago']} | Pendiente: RD$ {cu['balance_pendiente']}")
+                    if atrasado:
+                        estado_txt, color = "🔴 Atrasado", "#ef4444"
+                    else:
+                        estado_txt, color = "🟠 Pago Incompleto", "#f97316"
+                else:
+                    estado_txt, color = "🟢 Al día", "#22c55e"
+
+                # APLICAR FILTROS (Búsqueda y Estado)
+                match_busqueda = busqueda.lower() in cl['nombre'].lower() or \
+                                 (cl.get('cedula') and busqueda in cl['cedula']) or \
+                                 (cl.get('telefono') and busqueda in cl['telefono'])
+                
+                match_estado = (filtro_est == "Todos" or filtro_est == estado_txt)
+
+                if match_busqueda and match_estado:
+                    clientes_finales.append({
+                        **cl, 
+                        "estado": estado_txt, 
+                        "color": color, 
+                        "deuda": total_deuda, 
+                        "cuentas": cuentas_cl
+                    })
+
+            # --- RENDERIZADO DE TARJETAS (CARDS) ---
+            if not clientes_finales:
+                st.warning("No se encontraron clientes con esos filtros.")
+            else:
+                cols = st.columns(3)
+                for i, cl in enumerate(clientes_finales):
+                    with cols[i % 3]:
+                        st.markdown(f"""
+                            <div style="
+                                border: 1px solid #e2e8f0; 
+                                border-radius: 12px; 
+                                padding: 15px; 
+                                background-color: white; 
+                                margin-bottom: 15px;
+                                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                            ">
+                                <p style="margin: 0; font-size: 0.7rem; color: {cl['color']}; font-weight: 800; text-transform: uppercase;">
+                                    {cl['estado']}
+                                </p>
+                                <h4 style="margin: 5px 0; color: #1e293b; font-size: 1rem;">{cl['nombre']}</h4>
+                                <p style="margin: 0; font-size: 0.8rem; color: #64748b;">
+                                    Deuda: <b style="color: #0f172a;">RD$ {cl['deuda']:,.2f}</b>
+                                </p>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        with st.expander("Ver Detalles / Notas"):
+                            # Sección de Notas (Tabla 'clientes')
+                            nota_key = f"n_{cl['id']}"
+                            nueva_nota = st.text_area("Notas del cliente", 
+                                                    value=cl.get('notas') or "", 
+                                                    key=nota_key,
+                                                    help="Notas internas sobre el comportamiento de pago.")
+                            
+                            if st.button("💾 Guardar Nota", key=f"b_{cl['id']}"):
+                                conn.table("clientes").update({"notas": nueva_nota}).eq("id", cl['id']).execute()
+                                st.toast(f"Nota de {cl['nombre']} actualizada")
+                            
+                            st.divider()
+                            st.markdown("**Cuentas Activas:**")
+                            for cu in cl['cuentas']:
+                                st.caption(f"📅 Próximo pago: {cu['proximo_pago']}")
+                                st.caption(f"💰 Pendiente: RD$ {float(cu['balance_pendiente']):,.2f}")
+                                st.markdown("---")
+
+    except Exception as e:
+        st.error(f"Error cargando la sección de clientes: {e}")
         
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
