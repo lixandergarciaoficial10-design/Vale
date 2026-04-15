@@ -760,24 +760,46 @@ elif menu == "👥 Todos mis Clientes":
                 n_nota = st.text_area("Notas iniciales de crédito")
 
                 if st.form_submit_button("🚀 GUARDAR NUEVO EXPEDIENTE", use_container_width=True):
-                    if not n_nombre or not n_telefono or not st.session_state.temp_lat:
-                        st.error("⚠️ Datos incompletos: Nombre, Teléfono y GPS son obligatorios.")
+                    # --- VALIDACIÓN: Cédula, Nombre y Teléfono son obligatorios ---
+                    if not n_nombre or not n_telefono or not n_cedula:
+                        st.error("⚠️ Datos incompletos: Nombre, WhatsApp y Cédula son obligatorios.")
                     else:
                         try:
-                            # Verificar duplicados
-                            check = conn.table("clientes").select("id").eq("user_id", u_id).eq("telefono", n_telefono).execute()
+                            # --- VERIFICAR DUPLICADOS (Cédula O Teléfono) ---
+                            check = conn.table("clientes").select("id, nombre, cedula, telefono")\
+                                .eq("user_id", u_id)\
+                                .or_(f"telefono.eq.{n_telefono},cedula.eq.{n_cedula}")\
+                                .execute()
+
                             if check.data:
-                                st.error("❌ Este teléfono ya está registrado.")
+                                dup = check.data[0]
+                                if dup['cedula'] == n_cedula:
+                                    st.error(f"❌ Ya existe un cliente con la cédula {n_cedula} ({dup['nombre']}).")
+                                else:
+                                    st.error(f"❌ El teléfono {n_telefono} ya pertenece a {dup['nombre']}.")
                             else:
+                                # --- GUARDAR (GPS Opcional: si no hay, guarda None) ---
                                 reg_cliente = {
-                                    "user_id": u_id, "nombre": n_nombre, "cedula": n_cedula, "telefono": n_telefono,
-                                    "direccion": n_direccion, "latitud": str(st.session_state.temp_lat), 
-                                    "longitud": str(st.session_state.temp_lon), "notas": n_nota, "fecha_registro": str(hoy_dt)
+                                    "user_id": u_id, 
+                                    "nombre": n_nombre, 
+                                    "cedula": n_cedula, 
+                                    "telefono": n_telefono,
+                                    "direccion": n_direccion, 
+                                    "latitud": str(st.session_state.temp_lat) if st.session_state.temp_lat else None, 
+                                    "longitud": str(st.session_state.temp_lon) if st.session_state.temp_lon else None, 
+                                    "notas": n_nota, 
+                                    "fecha_registro": str(hoy_dt)
                                 }
                                 conn.table("clientes").insert(reg_cliente).execute()
-                                st.session_state.temp_lat = ""; st.session_state.temp_lon = ""
-                                st.success(f"✅ {n_nombre} guardado."); time.sleep(1); st.rerun()
-                        except Exception as e: st.error(f"Error: {e}")
+                                
+                                # Limpiar y refrescar
+                                st.session_state.temp_lat = ""
+                                st.session_state.temp_lon = ""
+                                st.success(f"✅ {n_nombre} guardado correctamente.")
+                                time.sleep(1)
+                                st.rerun()
+                        except Exception as e: 
+                            st.error(f"Error: {e}")
 
         st.write("")
         
