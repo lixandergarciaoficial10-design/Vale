@@ -676,7 +676,7 @@ elif menu == "👥 Todos mis Clientes":
 
         # Procesamiento
         clientes_finales = []
-        hoy = datetime.date.today()
+        hoy = datetime.datetime.now().date()
 
         for cl in res_cl.data:
             # Buscamos las cuentas de este cliente
