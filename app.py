@@ -707,43 +707,47 @@ elif menu == "👥 Todos mis Clientes":
                 col_gps_btn, col_gps_status = st.columns([1, 1])
                 with col_gps_btn:
                     from streamlit_geolocation import streamlit_geolocation
-                    # Sensor real del teléfono
+                    # 1. El sensor nativo se activa.
                     loc_nativa = streamlit_geolocation() 
                     
-                    # BOTÓN AZUL: Solo guarda si el sensor real tiene señal
-                    if st.button("🔵 FIJAR UBICACIÓN EXACTA", use_container_width=True, type="primary"):
+                    # 2. AUTOSINCRO: Si el sensor detecta coordenadas, las guarda automáticamente
+                    if loc_nativa and loc_nativa.get('latitude'):
+                        st.session_state.temp_lat = loc_nativa['latitude']
+                        st.session_state.temp_lon = loc_nativa['longitude']
+                    
+                    # 3. BOTÓN AZUL: Ahora sirve para RE-CAPTURAR (por si te mueves de la acera a la casa)
+                    if st.button("🔵 ACTUALIZAR POSICIÓN", use_container_width=True, type="primary"):
                         if loc_nativa and loc_nativa.get('latitude'):
                             st.session_state.temp_lat = loc_nativa['latitude']
                             st.session_state.temp_lon = loc_nativa['longitude']
-                            st.toast("🎯 Punto capturado con éxito")
+                            st.toast("🎯 Posición actualizada")
                         else:
-                            st.error("⚠️ El sensor aún no tiene señal real. Toca el icono de la izquierda y espera 2 segundos.")
+                            st.error("⚠️ Toca el icono de la izquierda para activar el GPS.")
 
                 with col_gps_status:
                     if st.session_state.temp_lat:
                         st.markdown(f"""<div style="background:#f0fdf4;padding:8px;border-radius:12px;border:1px solid #bbf7d0;text-align:center;">
-                            <p style="margin:0;color:#166534;font-size:0.75rem;"><b>📍 Ubicación Lista</b></p>
-                            <p style="margin:0;color:#15803d;font-size:0.65rem;">Punto fijado</p></div>""", unsafe_allow_html=True)
-                        if st.button("🧹 Reset GPS", use_container_width=True):
+                            <p style="margin:0;color:#166534;font-size:0.75rem;"><b>📍 GPS Activo</b></p>
+                            <p style="margin:0;color:#15803d;font-size:0.65rem;">Listo para guardar</p></div>""", unsafe_allow_html=True)
+                        if st.button("🧹 Limpiar GPS", use_container_width=True):
                             st.session_state.temp_lat = ""; st.session_state.temp_lon = ""; st.rerun()
                     else:
-                        st.warning("Esperando señal real...")
+                        st.warning("Toca el icono 📍")
 
-            # --- MAPA CON PUNTO ROJO ESPECÍFICO (PLOTLY) ---
+            # --- MAPA AUTOMÁTICO CON PUNTO MILIMÉTRICO (PLOTLY) ---
             if st.session_state.temp_lat:
-                # Usamos Plotly para un marcador pequeño que no se coma el barrio
                 fig = go.Figure(go.Scattermapbox(
                     lat=[float(st.session_state.temp_lat)],
                     lon=[float(st.session_state.temp_lon)],
                     mode='markers',
-                    marker=go.scattermapbox.Marker(size=14, color='red'), # Punto pequeño y sólido
+                    marker=go.scattermapbox.Marker(size=16, color='red'), # Punto sólido y pequeño
                     text=["Ubicación Exacta"]
                 ))
                 fig.update_layout(
                     mapbox=dict(
                         style="open-street-map",
                         center=dict(lat=float(st.session_state.temp_lat), lon=float(st.session_state.temp_lon)),
-                        zoom=18 # Zoom alto para ver la calle
+                        zoom=19 # Zoom aún más cercano para máxima precisión
                     ),
                     margin={"r":0,"t":0,"l":0,"b":0}, height=300
                 )
