@@ -677,7 +677,7 @@ elif menu == "👥 Todos mis Clientes":
         """, unsafe_allow_html=True)
 
         # --- SECCIÓN A: REGISTRO PREMIUM ---
-        elif menu == "👥 Todos mis Clientes":
+elif menu == "👥 Todos mis Clientes":
         import datetime as dt
         import time
         hoy_dt = dt.date.today()
@@ -704,7 +704,7 @@ elif menu == "👥 Todos mis Clientes":
                     st.caption("Fija el punto exacto")
                     loc_nativa = streamlit_geolocation()
                     
-                    if st.button("🌐 Usar Red (Respaldo)", use_container_width=True):
+                    if st.button("🌐 Red Móvil (Respaldo)", use_container_width=True):
                         with st.spinner("Buscando..."):
                             try:
                                 res = requests.get("https://ipapi.co/json/", timeout=5)
@@ -739,7 +739,7 @@ elif menu == "👥 Todos mis Clientes":
                     'lat': [float(st.session_state.temp_lat)], 
                     'lon': [float(st.session_state.temp_lon)]
                 })
-                st.map(map_data, zoom=18, height=180) # Altura reducida para fluidez visual
+                st.map(map_data, zoom=18, height=180) 
 
             # PASO 2: FORMULARIO
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; margin-top: 15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
@@ -771,7 +771,7 @@ elif menu == "👥 Todos mis Clientes":
                                 conn.table("clientes").insert(reg_cliente).execute()
                                 st.session_state.temp_lat = ""; st.session_state.temp_lon = ""
                                 st.success(f"✅ {n_nombre} guardado."); time.sleep(1); st.rerun()
-                        except Exception as e: st.error(f"Error: {e}")
+                        except Exception as e: st.error(f"Error: {e}")        
 
         st.write("")
         
