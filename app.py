@@ -684,58 +684,102 @@ elif menu == "👥 Todos mis Clientes":
                     n_direccion = st.text_input("Dirección (Punto de referencia)")
                 
                 st.markdown("---")
+                st.info("📌 **Nota:** Para registrar la ubicación exacta, asegúrate de tener el GPS encendido y permitir el acceso en el navegador cuando aparezca el mensaje.")
                 st.write("📍 **Ubicación GPS del Cliente**")
-                
-                # Técnica Blindada: Usamos un contenedor vacío para actualizar el estado visual
-                gps_placeholder = st.empty()
-                n_lat, n_lon = "", ""
 
-                try:
-                    from streamlit_js_eval import streamlit_js_eval
-                    # Forzamos la obtención de la posición con un ID único
-                    loc = streamlit_js_eval(data_of='getCurrentPosition', key='gps_capture_v2')
+                # 1. ESTADO DE SESIÓN (Persistencia)
+                if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
+                if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
+
+                col_gps, col_clean = st.columns([1, 1])
+                
+                with col_gps:
+                    # USAR LLAVE DINÁMICA para forzar al navegador a pedir la posición cada vez
+                    gps_key = f"gps_capture_{int(time.time())}"
                     
-                    if loc:
-                        n_lat = str(loc['coords']['latitude'])
-                        n_lon = str(loc['coords']['longitude'])
-                        gps_placeholder.success(f"✅ Ubicación capturada con éxito")
-                        
-                        # Mostramos un mapa pequeño para que el prestamista confirme la casa
-                        map_data = pd.DataFrame({'lat': [float(n_lat)], 'lon': [float(n_lon)]})
-                        st.map(map_data, zoom=15) 
-                    else:
-                        gps_placeholder.info("⌛ Esperando señal GPS... Asegúrate de que el navegador tenga permiso de ubicación.")
-                except Exception as e:
-                    st.error("Error al activar GPS. Verifica que 'streamlit-js-eval' esté en requirements.txt")
+                    if st.button("🎯 Capturar Punto Exacto", use_container_width=True):
+                        with st.spinner("Solicitando acceso al GPS..."):
+                            try:
+                                from streamlit_js_eval import streamlit_js_eval
+                                # Llamada a la API del navegador
+                                loc = streamlit_js_eval(data_of='getCurrentPosition', key=gps_key)
+                                
+                                # VALIDACIÓN PRO: Verificamos que sea un diccionario y tenga 'coords'
+                                if loc and isinstance(loc, dict) and 'coords' in loc:
+                                    st.session_state.temp_lat = str(loc['coords']['latitude'])
+                                    st.session_state.temp_lon = str(loc['coords']['longitude'])
+                                    st.toast("📍 Ubicación lista para cobro en campo")
+                                    st.success("✅ Coordenadas obtenidas.")
+                                elif loc and isinstance(loc, dict) and 'code' in loc:
+                                    # Captura errores específicos del navegador (1: Denied, 2: Unavail, 3: Timeout)
+                                    st.error("⚠️ El navegador bloqueó el acceso o el GPS está apagado.")
+                                else:
+                                    st.warning("⌛ Esperando respuesta del dispositivo... (Si no cambia, recarga la página)")
+                            except Exception as e:
+                                st.error(f"❌ Error técnico al activar GPS: {e}")
 
-                n_nota = st.text_area("Nota inicial sobre el cliente (Ej: Casa verde, frente al colmado)")
-                
-                # El botón de guardado ahora incluye las coordenadas capturadas
-                if st.form_submit_button("🚀 Guardar Cliente y Ubicación", use_container_width=True):
-                    if not n_nombre:
-                        st.error("⚠️ El nombre es obligatorio.")
-                    elif not n_lat:
-                        st.warning("⚠️ No se han capturado las coordenadas GPS. Intenta esperar unos segundos o refrescar.")
+                with col_clean:
+                    if st.button("🧹 Limpiar GPS", use_container_width=True):
+                        st.session_state.temp_lat = ""
+                        st.session_state.temp_lon = ""
+                        st.rerun()
+
+                # 2 & 3. PROTECCIÓN Y VISUALIZACIÓN
+                if st.session_state.temp_lat and st.session_state.temp_lon:
+                    try:
+                        # Previsualización en mapa de Google
+                        map_data = pd.DataFrame({
+                            'lat': [float(st.session_state.temp_lat)], 
+                            'lon': [float(st.session_state.temp_lon)]
+                        })
+                        st.map(map_data, zoom=16)
+                    except Exception as e:
+                        st.caption(f"Coordenadas guardadas: {st.session_state.temp_lat}, {st.session_state.temp_lon}")
+                else:
+                    st.warning("⚠️ Sin ubicación: El cobrador no verá el mapa para este cliente.")
+
+                n_nota = st.text_area("Nota inicial (Punto de referencia)", placeholder="Ej: Casa detrás de la farmacia...")
+
+                # --- BOTÓN DE GUARDADO FINAL ---
+                if st.form_submit_button("🚀 Guardar Cliente", use_container_width=True):
+                    if not n_nombre or not n_telefono:
+                        st.error("⚠️ El nombre y el teléfono son obligatorios.")
                     else:
                         try:
-                            nuevo_cl = {
-                                "user_id": u_id,
-                                "nombre": n_nombre,
-                                "cedula": n_cedula,
-                                "telefono": n_telefono,
-                                "direccion": n_direccion,
-                                "latitud": n_lat,
-                                "longitud": n_lon,
-                                "notas": n_nota,
-                                "fecha_registro": str(hoy_dt)
-                            }
-                            conn.table("clientes").insert(nuevo_cl).execute()
-                            st.success(f"✅ ¡{n_nombre} guardado con ubicación GPS!")
-                            st.balloons()
-                            time.sleep(1.5)
-                            st.rerun()
+                            # 4. VALIDAR DUPLICADOS REAL (Mismo prestamista, mismo teléfono)
+                            existente = conn.table("clientes")\
+                                .select("id")\
+                                .eq("user_id", u_id)\
+                                .eq("telefono", n_telefono)\
+                                .execute()
+
+                            if existente.data:
+                                st.error(f"❌ Ya tienes un cliente registrado con el teléfono {n_telefono}.")
+                            else:
+                                # INSERTAR EN SUPABASE
+                                nuevo_cl = {
+                                    "user_id": u_id,
+                                    "nombre": n_nombre,
+                                    "cedula": n_cedula,
+                                    "telefono": n_telefono,
+                                    "direccion": n_direccion,
+                                    "latitud": st.session_state.temp_lat,
+                                    "longitud": st.session_state.temp_lon,
+                                    "notas": n_nota,
+                                    "fecha_registro": str(dt.date.today())
+                                }
+                                conn.table("clientes").insert(nuevo_cl).execute()
+                                
+                                # Limpieza de estado para evitar que se pegue al siguiente
+                                st.session_state.temp_lat = ""
+                                st.session_state.temp_lon = ""
+                                
+                                st.success(f"✅ Cliente {n_nombre} guardado exitosamente.")
+                                st.balloons()
+                                time.sleep(1)
+                                st.rerun()
                         except Exception as e:
-                            st.error(f"❌ Error al guardar en Supabase: {e}")
+                            st.error(f"❌ Error al guardar: {e}")
 
         # --- SECCIÓN B: BUSCADOR Y FILTROS ---
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).execute()
