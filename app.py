@@ -677,61 +677,72 @@ elif menu == "👥 Todos mis Clientes":
         """, unsafe_allow_html=True)
 
         # --- SECCIÓN A: REGISTRO PREMIUM ---
+        elif menu == "👥 Todos mis Clientes":
+        import datetime as dt
+        import time
+        hoy_dt = dt.date.today()
+        
+        st.markdown("""
+            <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
+            <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales y control de campo.</p>
+        """, unsafe_allow_html=True)
+
+        # --- SECCIÓN A: REGISTRO PREMIUM ---
         with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
-            # SISTEMA DE LOCALIZACIÓN BLINDADA
-            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Geolocalización de Campo</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
             if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
             if 'metodo_gps' not in st.session_state: st.session_state.metodo_gps = ""
 
+            # Contenedor Compacto de GPS
             with st.container(border=True):
-                col_btn, col_info = st.columns([1, 1.5])
+                col_gps, col_info = st.columns([1, 1.2])
                 
-                with col_btn:
+                with col_gps:
                     from streamlit_geolocation import streamlit_geolocation
-                    st.write("🛰️ **Satélite**")
+                    st.caption("Fija el punto exacto")
                     loc_nativa = streamlit_geolocation()
                     
-                    if st.button("🌐 Usar Red (Si falla GPS)", use_container_width=True):
-                        with st.spinner("Localizando..."):
+                    if st.button("🌐 Usar Red (Respaldo)", use_container_width=True):
+                        with st.spinner("Buscando..."):
                             try:
                                 res = requests.get("https://ipapi.co/json/", timeout=5)
                                 data = res.json()
                                 st.session_state.temp_lat = str(data.get("latitude"))
                                 st.session_state.temp_lon = str(data.get("longitude"))
-                                st.session_state.metodo_gps = "Red Móvil (IP)"
-                                st.toast("📍 Ubicación aproximada por red")
-                            except:
-                                st.error("No se pudo obtener ubicación de red.")
+                                st.session_state.metodo_gps = "Red Móvil"
+                                st.toast("📍 Ubicación aproximada")
+                            except: st.error("Fallo de red")
 
                 with col_info:
                     if loc_nativa and loc_nativa.get('latitude'):
                         st.session_state.temp_lat = str(loc_nativa['latitude'])
                         st.session_state.temp_lon = str(loc_nativa['longitude'])
-                        st.session_state.metodo_gps = "Satélite (Alta Precisión)"
+                        st.session_state.metodo_gps = "Satélite (GPS)"
                     
                     if st.session_state.temp_lat:
                         st.markdown(f"""
-                            <div style="background: #f0fdf4; padding: 10px; border-radius: 10px; border: 1px solid #bbf7d0;">
-                                <p style="margin:0; color: #166534; font-size: 0.8rem;"><b>Ubicación Lista</b></p>
-                                <p style="margin:0; color: #15803d; font-size: 0.7rem;">Método: {st.session_state.metodo_gps}</p>
+                            <div style="background: #f0fdf4; padding: 8px; border-radius: 12px; border: 1px solid #bbf7d0; text-align: center;">
+                                <p style="margin:0; color: #166534; font-size: 0.75rem;"><b>📍 Punto Marcado</b></p>
+                                <p style="margin:0; color: #15803d; font-size: 0.65rem;">Modo: {st.session_state.metodo_gps}</p>
                             </div>
                         """, unsafe_allow_html=True)
                         if st.button("🧹 Reset", use_container_width=True):
                             st.session_state.temp_lat = ""; st.session_state.temp_lon = ""; st.rerun()
                     else:
-                        st.warning("Esperando coordenadas...")
+                        st.warning("Esperando señal...")
 
+            # MAPA MINIATURA (Zoom 18 para callejones y altura reducida)
             if st.session_state.temp_lat:
                 map_data = pd.DataFrame({
                     'lat': [float(st.session_state.temp_lat)], 
                     'lon': [float(st.session_state.temp_lon)]
                 })
-                st.map(map_data, zoom=15)
+                st.map(map_data, zoom=18, height=180) # Altura reducida para fluidez visual
 
-            # Formulario
-            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; margin-top: 20px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
+            # PASO 2: FORMULARIO
+            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; margin-top: 15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
             with st.form("form_final_cliente", clear_on_submit=True):
                 col1, col2 = st.columns(2)
                 with col1:
@@ -745,12 +756,12 @@ elif menu == "👥 Todos mis Clientes":
 
                 if st.form_submit_button("🚀 GUARDAR NUEVO EXPEDIENTE", use_container_width=True):
                     if not n_nombre or not n_telefono or not st.session_state.temp_lat:
-                        st.error("⚠️ Datos incompletos: Nombre, Teléfono y GPS son obligatorios.")
+                        st.error("⚠️ Falta el Nombre, Teléfono o la Ubicación GPS.")
                     else:
                         try:
                             check = conn.table("clientes").select("id").eq("user_id", u_id).eq("telefono", n_telefono).execute()
                             if check.data:
-                                st.error("❌ Este teléfono ya pertenece a otro cliente.")
+                                st.error("❌ Este teléfono ya está registrado.")
                             else:
                                 reg_cliente = {
                                     "user_id": u_id, "nombre": n_nombre, "cedula": n_cedula, "telefono": n_telefono,
@@ -759,10 +770,14 @@ elif menu == "👥 Todos mis Clientes":
                                 }
                                 conn.table("clientes").insert(reg_cliente).execute()
                                 st.session_state.temp_lat = ""; st.session_state.temp_lon = ""
-                                st.success(f"✅ {n_nombre} ha sido registrado."); time.sleep(1); st.rerun()
-                        except Exception as e: st.error(f"Error de base de datos: {e}")
+                                st.success(f"✅ {n_nombre} guardado."); time.sleep(1); st.rerun()
+                        except Exception as e: st.error(f"Error: {e}")
 
-        st.write("") 
+        st.write("")
+        
+        # --- SECCIÓN B: TARJETAS DE CLIENTES CON NAVEGACIÓN DIRECTA ---
+        # Al generar tus tarjetas abajo, usa este link para el botón de Maps:
+        # url_nav = f"https://www.google.com/maps/dir/?api=1&destination={cl['latitud']},{cl['longitud']}&travelmode=driving" 
 
         # --- SECCIÓN B: CARTERA DE CLIENTES ---
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
