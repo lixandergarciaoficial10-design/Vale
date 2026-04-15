@@ -677,7 +677,8 @@ elif menu == "👥 Todos mis Clientes":
         """, unsafe_allow_html=True)
 
         # --- SECCIÓN A: REGISTRO PREMIUM ---
-        # --- SISTEMA DE LOCALIZACIÓN BLINDADA (TRIPLE RESPALDO) ---
+        with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
+            # SISTEMA DE LOCALIZACIÓN BLINDADA
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Geolocalización de Campo</p>", unsafe_allow_html=True)
             
             if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
@@ -688,14 +689,12 @@ elif menu == "👥 Todos mis Clientes":
                 col_btn, col_info = st.columns([1, 1.5])
                 
                 with col_btn:
-                    # OPCIÓN 1 & 2: Componente Nativo con Botón de Forzado
                     from streamlit_geolocation import streamlit_geolocation
                     st.write("🛰️ **Satélite**")
                     loc_nativa = streamlit_geolocation()
                     
-                    # Botón de Fallback (IP)
                     if st.button("🌐 Usar Red (Si falla GPS)", use_container_width=True):
-                        with st.spinner("Localizando por red móvil..."):
+                        with st.spinner("Localizando..."):
                             try:
                                 res = requests.get("https://ipapi.co/json/", timeout=5)
                                 data = res.json()
@@ -707,7 +706,6 @@ elif menu == "👥 Todos mis Clientes":
                                 st.error("No se pudo obtener ubicación de red.")
 
                 with col_info:
-                    # Lógica de Procesamiento
                     if loc_nativa and loc_nativa.get('latitude'):
                         st.session_state.temp_lat = str(loc_nativa['latitude'])
                         st.session_state.temp_lon = str(loc_nativa['longitude'])
@@ -725,13 +723,12 @@ elif menu == "👥 Todos mis Clientes":
                     else:
                         st.warning("Esperando coordenadas...")
 
-            # Mapa de confirmación minimalista
             if st.session_state.temp_lat:
                 map_data = pd.DataFrame({
                     'lat': [float(st.session_state.temp_lat)], 
                     'lon': [float(st.session_state.temp_lon)]
                 })
-                st.map(map_data, zoom=15, size=20)
+                st.map(map_data, zoom=15)
 
             # Formulario
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; margin-top: 20px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
@@ -751,7 +748,6 @@ elif menu == "👥 Todos mis Clientes":
                         st.error("⚠️ Datos incompletos: Nombre, Teléfono y GPS son obligatorios.")
                     else:
                         try:
-                            # Validar Duplicado
                             check = conn.table("clientes").select("id").eq("user_id", u_id).eq("telefono", n_telefono).execute()
                             if check.data:
                                 st.error("❌ Este teléfono ya pertenece a otro cliente.")
