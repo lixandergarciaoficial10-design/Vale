@@ -706,25 +706,29 @@ elif menu == "👥 Todos mis Clientes":
             with st.container(border=True):
                 col_gps_btn, col_gps_status = st.columns([1, 1])
                 with col_gps_btn:
-                    # TU OPCIÓN 2: Sensor nativo (icono izquierda)
                     from streamlit_geolocation import streamlit_geolocation
-                    loc_nativa = streamlit_geolocation(key="registro_gps")
+                    # Eliminamos el key para evitar el TypeError
+                    loc_nativa = streamlit_geolocation() 
                     
-                    # BOTÓN AZUL IMPULSIVO CONECTADO AL SENSOR REAL
+                    # BOTÓN AZUL: Ahora sincroniza con el sensor de arriba
                     if st.button("🔵 FIJAR UBICACIÓN EXACTA", use_container_width=True, type="primary"):
                         if loc_nativa and loc_nativa.get('latitude'):
                             st.session_state.temp_lat = loc_nativa['latitude']
                             st.session_state.temp_lon = loc_nativa['longitude']
                             st.toast("🎯 Punto capturado con precisión")
                         else:
-                            # TU OPCIÓN 3: Fallback por IP si el sensor falla
+                            # Fallback por IP si el sensor no responde
                             try:
                                 res = requests.get("https://ipapi.co/json/", timeout=5)
                                 data = res.json()
-                                st.session_state.temp_lat = data.get("latitude")
-                                st.session_state.temp_lon = data.get("longitude")
-                                st.toast("🌐 Ubicación aproximada por red")
-                            except: st.error("No se pudo obtener ubicación.")
+                                if data.get("latitude"):
+                                    st.session_state.temp_lat = data.get("latitude")
+                                    st.session_state.temp_lon = data.get("longitude")
+                                    st.toast("🌐 Ubicación aproximada por red")
+                                else:
+                                    st.error("Por favor, permite el acceso al GPS de tu navegador.")
+                            except:
+                                st.error("No se pudo obtener ubicación.")
 
                 with col_gps_status:
                     if st.session_state.temp_lat:
@@ -732,13 +736,19 @@ elif menu == "👥 Todos mis Clientes":
                             <p style="margin:0;color:#166534;font-size:0.75rem;"><b>📍 Ubicación Lista</b></p>
                             <p style="margin:0;color:#15803d;font-size:0.65rem;">Precisión activada</p></div>""", unsafe_allow_html=True)
                         if st.button("🧹 Reset GPS", use_container_width=True):
-                            st.session_state.temp_lat = ""; st.session_state.temp_lon = ""; st.rerun()
-                    else: st.warning("Esperando señal...")
+                            st.session_state.temp_lat = ""
+                            st.session_state.temp_lon = ""
+                            st.rerun()
+                    else:
+                        st.warning("Sensor inactivo")
 
-            # MAPA MINIATURA CON ZOOM 20 (Punto rojo pequeño y exacto)
+            # MAPA CON ZOOM 20 (Punto exacto y pequeño)
             if st.session_state.temp_lat:
-                map_data = pd.DataFrame({'lat': [float(st.session_state.temp_lat)], 'lon': [float(st.session_state.temp_lon)]})
-                st.map(map_data, zoom=20, height=200) 
+                map_df = pd.DataFrame({
+                    'lat': [float(st.session_state.temp_lat)], 
+                    'lon': [float(st.session_state.temp_lon)]
+                })
+                st.map(map_df, zoom=20, height=250) 
 
             st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
             with st.form("form_final_cliente", clear_on_submit=True):
