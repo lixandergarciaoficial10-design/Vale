@@ -671,158 +671,152 @@ elif menu == "👥 Todos mis Clientes":
         import time
         hoy_dt = dt.date.today()
         
-        st.markdown("<h2 style='color: #1e293b;'>👥 Centro de Control de Clientes</h2>", unsafe_allow_html=True)
+        st.markdown("""
+            <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
+            <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales y control de campo.</p>
+        """, unsafe_allow_html=True)
 
-        # --- SECCIÓN A: REGISTRO DE NUEVO CLIENTE (ONBOARDING GPS) ---
-        with st.expander("➕ Registrar Nuevo Cliente", expanded=False):
-            st.info("📌 **Paso 1:** Captura la ubicación frente a la casa del cliente. Luego llena sus datos.")
-            
-            # 1. GESTIÓN DE GPS (FUERA DEL FORM PARA EVITAR ERRORES)
-            # --- NUEVA LÓGICA DE GPS INTELIGENTE ---
+        # --- SECCIÓN A: REGISTRO PREMIUM ---
+        with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
+            # GPS Card
+            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Geolocalización</p>", unsafe_allow_html=True)
             if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
             if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
 
-            col_gps, col_clean = st.columns([2, 1])
-            
-            with col_gps:
-                from streamlit_geolocation import streamlit_geolocation
-                # Este componente crea un botón nativo que el navegador respeta
-                location = streamlit_geolocation()
-            
-            with col_clean:
-                if st.button("🧹 Limpiar GPS", use_container_width=True):
-                    st.session_state.temp_lat = ""
-                    st.session_state.temp_lon = ""
-                    st.rerun()
-
-            # Procesar la ubicación obtenida por el componente
-            if location and location.get('latitude'):
-                st.session_state.temp_lat = str(location['latitude'])
-                st.session_state.temp_lon = str(location['longitude'])
+            with st.container(border=True):
+                c_gps, c_map = st.columns([1, 2])
+                with c_gps:
+                    from streamlit_geolocation import streamlit_geolocation
+                    st.caption("Fija la ubicación exacta para que el cobrador llegue sin perderse.")
+                    location = streamlit_geolocation()
+                    if st.button("🧹 Limpiar Coordenadas", use_container_width=True):
+                        st.session_state.temp_lat = ""; st.session_state.temp_lon = ""; st.rerun()
                 
-                # Mostrar mapa de confirmación
-                try:
-                    map_data = pd.DataFrame({
-                        'lat': [float(st.session_state.temp_lat)], 
-                        'lon': [float(st.session_state.temp_lon)]
-                    })
-                    st.map(map_data, zoom=16)
-                    st.success(f"✅ Ubicación fijada: {st.session_state.temp_lat}, {st.session_state.temp_lon}")
-                except Exception as e:
-                    st.write(f"📍 Coordenadas listas: {st.session_state.temp_lat}")
-            else:
-                st.warning("⚠️ Haz clic en el botón de arriba para capturar la ubicación actual.")
+                with c_map:
+                    if location and location.get('latitude'):
+                        st.session_state.temp_lat = str(location['latitude'])
+                        st.session_state.temp_lon = str(location['longitude'])
+                        map_data = pd.DataFrame({'lat': [float(st.session_state.temp_lat)], 'lon': [float(st.session_state.temp_lon)]})
+                        st.map(map_data, zoom=15)
+                    else:
+                        st.info("Esperando señal GPS...")
 
-            st.divider()
-
-            # 2. FORMULARIO DE DATOS (Solo para el guardado final)
+            # Formulario
+            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; margin-top: 20px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
             with st.form("form_final_cliente", clear_on_submit=True):
-                st.write("📝 **Paso 2: Información Personal**")
-                c1, c2 = st.columns(2)
-                with c1:
-                    n_nombre = st.text_input("Nombre Completo *")
-                    n_telefono = st.text_input("Teléfono / WhatsApp *")
-                with c2:
-                    n_cedula = st.text_input("Cédula (Opcional)")
-                    n_direccion = st.text_input("Punto de referencia (Calle/Casa)")
+                col1, col2 = st.columns(2)
+                with col1:
+                    n_nombre = st.text_input("Nombre y Apellido *")
+                    n_telefono = st.text_input("WhatsApp / Celular *")
+                with col2:
+                    n_cedula = st.text_input("Cédula / ID")
+                    n_direccion = st.text_input("Referencia (Ej: Casa verde frente al parque)")
                 
-                n_nota = st.text_area("Notas adicionales", placeholder="Ej: Paga los lunes, perro bravo en la entrada...")
+                n_nota = st.text_area("Notas iniciales de crédito")
 
-                # Botón de guardado oficial
-                if st.form_submit_button("🚀 Guardar Cliente Definitivamente", use_container_width=True):
-                    if not n_nombre or not n_telefono:
-                        st.error("⚠️ El nombre y el teléfono son obligatorios.")
-                    elif not st.session_state.temp_lat:
-                        st.error("⚠️ Error: Debes capturar la ubicación GPS arriba antes de guardar.")
+                if st.form_submit_button("🚀 GUARDAR NUEVO EXPEDIENTE", use_container_width=True):
+                    if not n_nombre or not n_telefono or not st.session_state.temp_lat:
+                        st.error("⚠️ Datos incompletos: Nombre, Teléfono y GPS son obligatorios.")
                     else:
                         try:
-                            # Validar duplicados por teléfono
+                            # Validar Duplicado
                             check = conn.table("clientes").select("id").eq("user_id", u_id).eq("telefono", n_telefono).execute()
                             if check.data:
-                                st.error(f"❌ Ya existe un cliente con el teléfono {n_telefono}.")
+                                st.error("❌ Este teléfono ya pertenece a otro cliente.")
                             else:
                                 reg_cliente = {
-                                    "user_id": u_id,
-                                    "nombre": n_nombre,
-                                    "cedula": n_cedula,
-                                    "telefono": n_telefono,
-                                    "direccion": n_direccion,
-                                    "latitud": st.session_state.temp_lat,
-                                    "longitud": st.session_state.temp_lon,
-                                    "notas": n_nota,
-                                    "fecha_registro": str(hoy_dt)
+                                    "user_id": u_id, "nombre": n_nombre, "cedula": n_cedula, "telefono": n_telefono,
+                                    "direccion": n_direccion, "latitud": st.session_state.temp_lat, 
+                                    "longitud": st.session_state.temp_lon, "notas": n_nota, "fecha_registro": str(hoy_dt)
                                 }
                                 conn.table("clientes").insert(reg_cliente).execute()
-                                
-                                # Limpiar sesión para evitar pegado en el próximo cliente
-                                st.session_state.temp_lat = ""
-                                st.session_state.temp_lon = ""
-                                
-                                st.success(f"✅ ¡{n_nombre} registrado con éxito!")
-                                st.balloons()
-                                time.sleep(1.5)
-                                st.rerun()
-                        except Exception as e:
-                            st.error(f"❌ Error al conectar con base de datos: {e}")
+                                st.session_state.temp_lat = ""; st.session_state.temp_lon = ""
+                                st.success(f"✅ {n_nombre} ha sido registrado."); time.sleep(1); st.rerun()
+                        except Exception as e: st.error(f"Error de base de datos: {e}")
 
-        st.divider()
+        st.write("") 
 
-        # --- SECCIÓN B: BUSCADOR Y LISTADO ---
-        res_cl = conn.table("clientes").select("*").eq("user_id", u_id).execute()
+        # --- SECCIÓN B: CARTERA DE CLIENTES ---
+        res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
 
         if not res_cl.data:
-            st.info("Aún no tienes clientes registrados.")
+            st.info("Tu cartera está vacía. Empieza registrando un cliente arriba.")
         else:
-            c_busq, c_filt = st.columns([2, 1])
+            # Buscador Estilizado
+            c_busq, c_filt = st.columns([3, 1])
             with c_busq:
-                busq = st.text_input("🔍 Buscar cliente...", placeholder="Nombre, cédula o teléfono...")
+                busq = st.text_input("🔍", placeholder="Busca por nombre, ID o celular...")
             with c_filt:
-                f_est = st.selectbox("Estado de pago", ["Todos", "🔴 Atrasado", "🟠 Pago Incompleto", "🟢 Al día"])
+                f_est = st.selectbox("Filtrar", ["Todos", "🔴 Atrasado", "🟠 Pendiente", "🟢 Al día"])
 
-            # Filtrado lógico
+            # Procesamiento de Lógica (Recuperado y mejorado)
             clientes_finales = []
             for cl in res_cl.data:
                 cuentas_cl = [c for c in res_cu.data if c['cliente_id'] == cl['id']]
                 t_deuda = sum(float(c.get('balance_pendiente') or 0) for c in cuentas_cl)
                 
+                # Estado inteligente
                 est_txt, color = "🟢 Al día", "#22c55e"
                 if t_deuda > 0:
-                    atrasado = any(
-                        dt.datetime.strptime(str(c['proximo_pago']), '%Y-%m-%d').date() < hoy_dt 
-                        for c in cuentas_cl if c.get('proximo_pago')
-                    )
-                    est_txt, color = ("🔴 Atrasado", "#ef4444") if atrasado else ("🟠 Pago Incompleto", "#f97316")
+                    atrasado = any(dt.datetime.strptime(str(c['proximo_pago']), '%Y-%m-%d').date() < hoy_dt for c in cuentas_cl if c.get('proximo_pago'))
+                    est_txt, color = ("🔴 Atrasado", "#ef4444") if atrasado else ("🟠 Pendiente", "#f97316")
 
-                if busq.lower() in cl['nombre'].lower() or (cl.get('cedula') and busq in cl['cedula']) or (cl.get('telefono') and busq in cl['telefono']):
+                # Filtro
+                if busq.lower() in cl['nombre'].lower() or busq in (cl.get('telefono') or "") or busq in (cl.get('cedula') or ""):
                     if f_est == "Todos" or f_est == est_txt:
                         clientes_finales.append({**cl, "estado": est_txt, "color": color, "deuda": t_deuda, "cuentas": cuentas_cl})
 
-            # Grid de Clientes
-            cols = st.columns(3)
-            for i, cl in enumerate(clientes_finales):
-                with cols[i % 3]:
+            # --- GRID DE TARJETAS PREMIUM ---
+            grid = st.columns(3)
+            for idx, cl in enumerate(clientes_finales):
+                with grid[idx % 3]:
+                    # Diseño de Tarjeta
                     st.markdown(f"""
-                        <div style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; background-color: white; margin-bottom: 10px;">
-                            <p style="margin: 0; font-size: 0.7rem; color: {cl['color']}; font-weight: 800;">{cl['estado']}</p>
-                            <h4 style="margin: 5px 0;">{cl['nombre']}</h4>
-                            <p style="margin: 0; font-size: 0.85rem; color: #64748b;">Deuda: <b>RD$ {cl['deuda']:,.2f}</b></p>
+                        <div style="background: white; border-radius: 20px; padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 10px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="background: {cl['color']}15; color: {cl['color']}; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase;">{cl['estado']}</span>
+                                <span style="color: #94a3b8; font-size: 10px;">ID: {cl.get('cedula') or '---'}</span>
+                            </div>
+                            <h3 style="margin: 15px 0 5px 0; color: #1e293b; font-size: 1.2rem; font-weight: 700;">{cl['nombre']}</h3>
+                            <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 0;">Deuda Total:</p>
+                            <h2 style="margin: 0; color: #1e293b; font-weight: 800; font-size: 1.4rem;">RD$ {cl['deuda']:,.2f}</h2>
                         </div>
                     """, unsafe_allow_html=True)
                     
-                    with st.expander("Detalles / GPS"):
-                        if cl.get('latitud') and cl.get('longitud'):
-                            maps_url = f"https://www.google.com/maps?q={cl['latitud']},{cl['longitud']}"
-                            st.markdown(f'<a href="{maps_url}" target="_blank"><button style="width:100%; border-radius:8px; background-color:#0284c7; color:white; border:none; padding:8px; cursor:pointer;">📍 Abrir en Google Maps</button></a>', unsafe_allow_html=True)
-                        
-                        n_act = st.text_area("Notas", value=cl.get('notas') or "", key=f"note_{cl['id']}")
-                        if st.button("Actualizar Nota", key=f"btn_n_{cl['id']}"):
-                            conn.table("clientes").update({"notas": n_act}).eq("id", cl['id']).execute()
-                            st.toast("Nota guardada")
+                    # Botonera de Acción Rápida
+                    c_wa, c_call = st.columns(2)
+                    with c_wa:
+                        st.markdown(f'<a href="https://wa.me/{cl["telefono"]}" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#22c55e; color:white; border:none; padding:8px; border-radius:10px; font-weight:600; cursor:pointer;">WhatsApp</button></a>', unsafe_allow_html=True)
+                    with c_call:
+                        st.markdown(f'<a href="tel:{cl["telefono"]}" style="text-decoration:none;"><button style="width:100%; background:#f8f9fa; color:#1e293b; border:1px solid #e2e8f0; padding:8px; border-radius:10px; font-weight:600; cursor:pointer;">Llamar</button></a>', unsafe_allow_html=True)
 
-                        st.write("**Préstamos:**")
-                        for cu in cl['cuentas']:
-                            st.caption(f"📅 Vence: {cu['proximo_pago']} | 💰 Pend: RD$ {float(cu['balance_pendiente']):,.2f}")
+                    # Popover de Detalles (Lógica recuperada)
+                    with st.popover("📁 Ver Expediente Completo", use_container_width=True):
+                        st.subheader("Ubicación y Referencia")
+                        if cl.get('latitud'):
+                            m_url = f"https://www.google.com/maps?q={cl['latitud']},{cl['longitud']}"
+                            st.markdown(f'<a href="{m_url}" target="_blank"><button style="width:100%; background:#0284c7; color:white; border:none; padding:10px; border-radius:10px;">📍 Abrir GPS en Maps</button></a>', unsafe_allow_html=True)
+                        st.info(f"📍 {cl.get('direccion') or 'Sin dirección específica.'}")
+                        
+                        st.divider()
+                        st.subheader("Préstamos Activos")
+                        if not cl['cuentas']:
+                            st.write("Este cliente no tiene préstamos registrados.")
+                        else:
+                            for cu in cl['cuentas']:
+                                with st.container(border=True):
+                                    st.write(f"**Monto Pendiente: RD$ {float(cu['balance_pendiente']):,.2f}**")
+                                    st.caption(f"📅 Próximo pago: {cu['proximo_pago']}")
+                        
+                        st.divider()
+                        st.subheader("Notas Privadas")
+                        new_n = st.text_area("Editar notas", value=cl.get('notas') or "", key=f"n_{cl['id']}")
+                        if st.button("Guardar Cambios", key=f"bn_{cl['id']}"):
+                            conn.table("clientes").update({"notas": new_n}).eq("id", cl['id']).execute()
+                            st.toast("Expediente actualizado")
+                    
+                    st.write("---")
         
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
