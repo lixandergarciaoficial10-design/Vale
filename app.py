@@ -194,6 +194,50 @@ def obtener_contexto_privado_ia(u_id_actual):
         return contexto
     except Exception as e:
         return f"Error de seguridad al recuperar datos: {e}"
+
+def obtener_estado_cliente_real(cuentas_del_cliente):
+    """
+    Analiza las cuentas en la tabla 'cuentas' de Supabase para determinar el estado.
+    """
+    if not cuentas_del_cliente:
+        return "🟢 Al día", "#22c55e"
+    
+    hoy = datetime.date.today()
+    proximos_dias = hoy + datetime.timedelta(days=3)
+    
+    atrasado = False
+    pago_incompleto = False
+    por_vencer = False
+    
+    for cuenta in cuentas_del_cliente:
+        # Convertimos el balance a float por seguridad
+        pendiente = float(cuenta.get('balance_pendiente', 0))
+        # Convertimos la fecha de proximo_pago de texto a fecha real
+        fecha_v = cuenta.get('proximo_pago')
+        if fecha_v:
+            fecha_v = datetime.datetime.strptime(str(fecha_v), '%Y-%m-%d').date()
+
+        if pendiente > 0:
+            if fecha_v and fecha_v < hoy:
+                atrasado = True
+            elif fecha_v and hoy <= fecha_v <= proximos_dias:
+                por_vencer = True
+            else:
+                pago_incompleto = True # Tiene balance pero no ha vencido
+                
+    if atrasado: return "🔴 Atrasado", "#ef4444"
+    if por_vencer: return "🟡 Por Vencer", "#eab308"
+    if pago_incompleto: return "🟠 Pago Incompleto", "#f97316"
+    
+    return "🟢 Al día", "#22c55e"
+
+def calcular_resumen_real(cuentas_del_cliente):
+    """
+    Suma el balance pendiente de todas las cuentas del cliente.
+    """
+    total_deuda = sum(float(c.get('balance_pendiente', 0)) for c in cuentas_del_cliente)
+    return total_deuda
+    
 def generar_pdf_recibo_pro(nombre_cliente, monto, balance, u_id, metodo="Efectivo"):
     from fpdf import FPDF
     from datetime import datetime
@@ -614,28 +658,71 @@ elif menu == "Nueva Cuenta por Cobrar":
 # --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
 
 elif menu == "👥 Todos mis Clientes":
-    st.header("👥 Todos mis Clientes")
+    st.markdown("<h2 style='color: #1e293b;'>👥 Centro de Control de Clientes</h2>", unsafe_allow_html=True)
     
-    # 1. Realizamos la consulta JUSTO dentro de su sección correspondiente
-    res = conn.table("clientes").select("nombre, cedula, telefono").eq("user_id", u_id).execute()
-
-    if res.data:
-        df = pd.DataFrame(res.data)
-        
-        # 2. Buscador integrado
-        busqueda = st.text_input("🔍 Buscar cliente por nombre o cédula")
-        
-        if busqueda:
-            # Filtro de seguridad para evitar errores con datos nulos
-            df = df[
-                df['nombre'].astype(str).str.contains(busqueda, case=False) | 
-                df['cedula'].astype(str).str.contains(busqueda, case=False)
-            ]
-        
-        # 3. Mostrar la tabla de tecnología de punta
-        st.dataframe(df, use_container_width=True)
-    else:
+    # 1. CARGA DE DATOS REALES (Ajustado a tus imágenes)
+    res_cl = conn.table("clientes").select("*").eq("user_id", u_id).execute()
+    res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
+    
+    if not res_cl.data:
         st.info("Aún no tienes clientes registrados.")
+    else:
+        # Buscador y Filtro
+        col_b, col_f = st.columns([2, 1])
+        with col_b:
+            busqueda = st.text_input("🔍 Buscar por nombre, cédula o teléfono...", placeholder="Ej: Lixander...")
+        with col_f:
+            filtro_est = st.selectbox("Filtrar por estado", ["Todos", "🔴 Atrasado", "🟠 Pago Incompleto", "🟢 Al día"])
+
+        # Procesamiento
+        clientes_finales = []
+        hoy = datetime.date.today()
+
+        for cl in res_cl.data:
+            # Buscamos las cuentas de este cliente
+            cuentas_cl = [c for c in res_cu.data if c['cliente_id'] == cl['id']]
+            
+            # Lógica de Estado basada en tus columnas 'balance_pendiente' y 'proximo_pago'
+            total_deuda = sum(float(c['balance_pendiente']) for c in cuentas_cl)
+            
+            # Determinar color y estado
+            if total_deuda > 0:
+                # Si alguna cuenta tiene fecha vencida
+                atrasado = any(datetime.datetime.strptime(str(c['proximo_pago']), '%Y-%m-%d').date() < hoy for c in cuentas_cl if c['proximo_pago'])
+                if atrasado:
+                    estado_txt, color = "🔴 Atrasado", "#ef4444"
+                else:
+                    estado_txt, color = "🟠 Pago Incompleto", "#f97316"
+            else:
+                estado_txt, color = "🟢 Al día", "#22c55e"
+
+            # Filtro de búsqueda
+            if busqueda.lower() in cl['nombre'].lower() or (cl['cedula'] and busqueda in cl['cedula']):
+                if filtro_est == "Todos" or filtro_est == estado_txt:
+                    clientes_finales.append({**cl, "estado": estado_txt, "color": color, "deuda": total_deuda, "cuentas": cuentas_cl})
+
+        # Renderizado de Cards
+        cols = st.columns(3)
+        for i, cl in enumerate(clientes_finales):
+            with cols[i % 3]:
+                st.markdown(f"""
+                    <div style="border: 1px solid #e2e8f0; border-radius: 12px; padding: 15px; background-color: white; margin-bottom: 10px;">
+                        <p style="margin: 0; font-size: 0.7rem; color: {cl['color']}; font-weight: 800;">{cl['estado']}</p>
+                        <h4 style="margin: 5px 0;">{cl['nombre']}</h4>
+                        <p style="margin: 0; font-size: 0.8rem; color: #64748b;">Deuda: <b>RD$ {cl['deuda']:,.2f}</b></p>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                with st.expander("Detalles y Notas"):
+                    # Notas (Usando tu nueva columna 'notas')
+                    nueva_nota = st.text_area("Notas del cliente", value=cl.get('notas') or "", key=f"n_{cl['id']}")
+                    if st.button("Guardar Nota", key=f"b_{cl['id']}"):
+                        conn.table("clientes").update({"notas": nueva_nota}).eq("id", cl['id']).execute()
+                        st.success("Nota guardada")
+                    
+                    st.write("**Cuentas Activas:**")
+                    for cu in cl['cuentas']:
+                        st.caption(f"Propio pago: {cu['proximo_pago']} | Pendiente: RD$ {cu['balance_pendiente']}")
         
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
