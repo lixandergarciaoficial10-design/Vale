@@ -687,7 +687,7 @@ elif menu == "👥 Todos mis Clientes":
             <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales y control de campo.</p>
         """, unsafe_allow_html=True)
 
-        # --- SECCIÓN A: REGISTRO DE CLIENTE NUEVO (DISEÑO COMPACTO) ---
+        # --- SECCIÓN A: REGISTRO DE CLIENTE NUEVO ---
         with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
@@ -724,7 +724,7 @@ elif menu == "👥 Todos mis Clientes":
                             st.session_state.temp_lat = ""; st.session_state.temp_lon = ""; st.rerun()
                     else: st.warning("Esperando señal...")
 
-            # MAPA MINIATURA (REDUCIDO 75% Y ZOOM CALLEJÓN)
+            # MAPA MINIATURA (REDUCIDO Y ZOOM 18)
             if st.session_state.temp_lat:
                 map_data = pd.DataFrame({'lat': [float(st.session_state.temp_lat)], 'lon': [float(st.session_state.temp_lon)]})
                 st.map(map_data, zoom=18, height=180) 
@@ -748,7 +748,7 @@ elif menu == "👥 Todos mis Clientes":
                         try:
                             check = conn.table("clientes").select("id").eq("user_id", u_id).eq("telefono", n_telefono).execute()
                             if check.data:
-                                st.error("❌ Este teléfono ya pertenece a otro cliente.")
+                                st.error("❌ Este teléfono ya está registrado.")
                             else:
                                 reg_cliente = {
                                     "user_id": u_id, "nombre": n_nombre, "cedula": n_cedula, "telefono": n_telefono,
@@ -757,10 +757,92 @@ elif menu == "👥 Todos mis Clientes":
                                 }
                                 conn.table("clientes").insert(reg_cliente).execute()
                                 st.session_state.temp_lat = ""; st.session_state.temp_lon = ""
-                                st.success(f"✅ {n_nombre} registrado."); time.sleep(1); st.rerun()
+                                st.success(f"✅ {n_nombre} guardado."); time.sleep(1); st.rerun()
                         except Exception as e: st.error(f"Error: {e}")
 
         st.write("")
+        
+        # --- SECCIÓN B: CARTERA DE CLIENTES (EXTRACCIÓN) ---
+        res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
+        res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
+
+        if not res_cl.data:
+            st.info("Tu cartera está vacía.")
+        else:
+            c_busq, c_filt = st.columns([3, 1])
+            with c_busq:
+                busq = st.text_input("🔍 Buscar por Nombre, ID o WhatsApp", value="", key="buscador_principal")
+            with c_filt:
+                f_est = st.selectbox("Filtrar Estado", ["Todos", "🔴 Atrasado", "🟠 Pendiente", "🟢 Al día"])
+
+            clientes_finales = []
+            for cl in res_cl.data:
+                # 1. Obtener cuentas del cliente
+                cuentas_cl = [c for c in res_cu.data if c['cliente_id'] == cl['id']]
+                
+                # 2. Calcular deuda y estado
+                t_deuda = sum(float(c.get('balance_pendiente') or 0) for c in cuentas_cl)
+                est_txt, color = "🟢 Al día", "#22c55e"
+                
+                if t_deuda > 0:
+                    atrasado = any(dt.datetime.strptime(str(c['proximo_pago']), '%Y-%m-%d').date() < hoy_dt for c in cuentas_cl if c.get('proximo_pago'))
+                    est_txt, color = ("🔴 Atrasado", "#ef4444") if atrasado else ("🟠 Pendiente", "#f97316")
+
+                # 3. LÓGICA DE FILTRADO (AQUÍ ESTABA EL FALLO)
+                match_busq = True
+                if busq:
+                    match_busq = busq.lower() in cl['nombre'].lower() or \
+                                 busq in str(cl.get('telefono','')) or \
+                                 busq in str(cl.get('cedula',''))
+                
+                match_filtro = (f_est == "Todos" or f_est == est_txt)
+
+                if match_busq and match_filtro:
+                    clientes_finales.append({**cl, "estado": est_txt, "color": color, "deuda": t_deuda, "cuentas": cuentas_cl})
+
+            # --- DIBUJAR LAS TARJETAS ---
+            if not clientes_finales:
+                st.warning("No se encontraron clientes con esos filtros.")
+            else:
+                grid = st.columns(3)
+                for idx, cl in enumerate(clientes_finales):
+                    with grid[idx % 3]:
+                        st.markdown(f"""
+                            <div style="background: white; border-radius: 20px; padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 10px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="background: {cl['color']}15; color: {cl['color']}; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase;">{cl['estado']}</span>
+                                    <span style="color: #94a3b8; font-size: 10px;">ID: {cl.get('cedula') or '---'}</span>
+                                </div>
+                                <h3 style="margin: 15px 0 5px 0; color: #1e293b; font-size: 1.2rem; font-weight: 700;">{cl['nombre']}</h3>
+                                <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 0;">Deuda Total:</p>
+                                <h2 style="margin: 0; color: #1e293b; font-weight: 800; font-size: 1.4rem;">RD$ {cl['deuda']:,.2f}</h2>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        cw1, cw2 = st.columns(2)
+                        cw1.markdown(f'<a href="https://wa.me/{cl["telefono"]}" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#22c55e; color:white; border:none; padding:8px; border-radius:10px; font-weight:600; cursor:pointer;">WhatsApp</button></a>', unsafe_allow_html=True)
+                        cw2.markdown(f'<a href="tel:{cl["telefono"]}" style="text-decoration:none;"><button style="width:100%; background:#f8f9fa; color:#1e293b; border:1px solid #e2e8f0; padding:8px; border-radius:10px; font-weight:600; cursor:pointer;">Llamar</button></a>', unsafe_allow_html=True)
+
+                        with st.popover("📁 Ver Expediente Completo", use_container_width=True):
+                            if cl.get('latitud'):
+                                # URL DE NAVEGACIÓN DIRECTA
+                                nav_url = f"https://www.google.com/maps/dir/?api=1&destination={cl['latitud']},{cl['longitud']}&travelmode=driving"
+                                st.markdown(f'<a href="{nav_url}" target="_blank"><button style="width:100%; background:#0284c7; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; font-size:1rem;">🚗 INICIAR VIAJE AHORA</button></a>', unsafe_allow_html=True)
+                            
+                            st.info(f"📍 Referencia: {cl.get('direccion') or 'Sin dirección específica.'}")
+                            st.divider()
+                            st.subheader("Préstamos Activos")
+                            for cu in cl['cuentas']:
+                                with st.container(border=True):
+                                    st.write(f"**Monto Pendiente: RD$ {float(cu['balance_pendiente']):,.2f}**")
+                                    st.caption(f"📅 Próximo pago: {cu['proximo_pago']}")
+                            
+                            st.divider()
+                            new_n = st.text_area("Editar notas", value=cl.get('notas') or "", key=f"n_{cl['id']}")
+                            if st.button("Guardar Cambios", key=f"bn_{cl['id']}"):
+                                conn.table("clientes").update({"notas": new_n}).eq("id", cl['id']).execute()
+                                st.toast("Expediente actualizado")
+                        st.write("---")
         
         # --- SECCIÓN B: CARTERA DE CLIENTES ---
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
