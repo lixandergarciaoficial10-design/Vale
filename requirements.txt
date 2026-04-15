@@ -8,4 +8,4 @@ requests
 Pillow
 groq
 qrcode[pil]
-streamlit-js-eval
+streamlit-geolocation
