@@ -683,27 +683,41 @@ elif menu == "👥 Todos mis Clientes":
                     n_cedula = st.text_input("Cédula (Opcional)")
                     n_direccion = st.text_input("Dirección (Punto de referencia)")
                 
-                st.write("📍 **Ubicación GPS**")
-                # Usamos la herramienta que ya tienes importada o disponible
-                from streamlit_js_eval import streamlit_js_eval
-                loc = streamlit_js_eval(data_of='getCurrentPosition', key='gps_new_client')
+                st.markdown("---")
+                st.write("📍 **Ubicación GPS del Cliente**")
                 
+                # Técnica Blindada: Usamos un contenedor vacío para actualizar el estado visual
+                gps_placeholder = st.empty()
                 n_lat, n_lon = "", ""
-                if loc:
-                    n_lat = str(loc['coords']['latitude'])
-                    n_lon = str(loc['coords']['longitude'])
-                    st.success(f"✅ Coordenadas capturadas: {n_lat}, {n_lon}")
-                else:
-                    st.info("Obteniendo ubicación del navegador... (Asegúrate de dar permiso)")
 
-                n_nota = st.text_area("Nota inicial sobre el cliente")
+                try:
+                    from streamlit_js_eval import streamlit_js_eval
+                    # Forzamos la obtención de la posición con un ID único
+                    loc = streamlit_js_eval(data_of='getCurrentPosition', key='gps_capture_v2')
+                    
+                    if loc:
+                        n_lat = str(loc['coords']['latitude'])
+                        n_lon = str(loc['coords']['longitude'])
+                        gps_placeholder.success(f"✅ Ubicación capturada con éxito")
+                        
+                        # Mostramos un mapa pequeño para que el prestamista confirme la casa
+                        map_data = pd.DataFrame({'lat': [float(n_lat)], 'lon': [float(n_lon)]})
+                        st.map(map_data, zoom=15) 
+                    else:
+                        gps_placeholder.info("⌛ Esperando señal GPS... Asegúrate de que el navegador tenga permiso de ubicación.")
+                except Exception as e:
+                    st.error("Error al activar GPS. Verifica que 'streamlit-js-eval' esté en requirements.txt")
+
+                n_nota = st.text_area("Nota inicial sobre el cliente (Ej: Casa verde, frente al colmado)")
                 
-                if st.form_submit_button("🚀 Guardar Cliente", use_container_width=True):
+                # El botón de guardado ahora incluye las coordenadas capturadas
+                if st.form_submit_button("🚀 Guardar Cliente y Ubicación", use_container_width=True):
                     if not n_nombre:
-                        st.error("El nombre es obligatorio.")
+                        st.error("⚠️ El nombre es obligatorio.")
+                    elif not n_lat:
+                        st.warning("⚠️ No se han capturado las coordenadas GPS. Intenta esperar unos segundos o refrescar.")
                     else:
                         try:
-                            # Insertamos usando tus nombres de columna reales
                             nuevo_cl = {
                                 "user_id": u_id,
                                 "nombre": n_nombre,
@@ -716,12 +730,12 @@ elif menu == "👥 Todos mis Clientes":
                                 "fecha_registro": str(hoy_dt)
                             }
                             conn.table("clientes").insert(nuevo_cl).execute()
-                            st.success("✅ Cliente registrado exitosamente.")
+                            st.success(f"✅ ¡{n_nombre} guardado con ubicación GPS!")
+                            st.balloons()
+                            time.sleep(1.5)
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Error al guardar: {e}")
-
-        st.divider()
+                            st.error(f"❌ Error al guardar en Supabase: {e}")
 
         # --- SECCIÓN B: BUSCADOR Y FILTROS ---
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).execute()
