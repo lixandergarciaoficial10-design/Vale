@@ -678,80 +678,88 @@ elif menu == "👥 Todos mis Clientes":
 
         # --- SECCIÓN A: REGISTRO DE CLIENTE NUEVO ---
         with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
-            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
-            
+            # DISEÑO DE BOTÓN IMPULSIVO PARA GPS
+            st.markdown("""
+                <style>
+                    @keyframes pulse-blue {
+                        0% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.7); }
+                        70% { box-shadow: 0 0 0 15px rgba(2, 132, 199, 0); }
+                        100% { box-shadow: 0 0 0 0 rgba(2, 132, 199, 0); }
+                    }
+                    .gps-ready {
+                        background: #f0fdf4; border: 2px solid #22c55e; border-radius: 15px; padding: 15px; text-align: center;
+                    }
+                </style>
+            """, unsafe_allow_html=True)
+
             if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
             if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
-            if 'metodo_gps' not in st.session_state: st.session_state.metodo_gps = ""
 
+            # CONTENEDOR DE GPS "IMPULSIVO"
             with st.container(border=True):
-                col_gps, col_info = st.columns([1, 1.2])
-                with col_gps:
+                if not st.session_state.temp_lat:
+                    st.markdown("<p style='text-align:center; color:#1e293b; font-weight:700; margin-bottom:5px;'>PASO 1: CAPTURAR UBICACIÓN ACTUAL</p>", unsafe_allow_html=True)
+                    # El componente de geolocalización es invisible, pero el botón de abajo lo activa
                     from streamlit_geolocation import streamlit_geolocation
-                    st.caption("Fija el punto en la puerta")
                     loc_nativa = streamlit_geolocation()
-                    if st.button("🌐 Usar Red (Respaldo)", use_container_width=True):
+                    
+                    if loc_nativa and loc_nativa.get('latitude'):
+                        st.session_state.temp_lat = str(loc_nativa['latitude'])
+                        st.session_state.temp_lon = str(loc_nativa['longitude'])
+                        st.rerun()
+
+                    # Botón visualmente dominante (Respaldo/Activador manual)
+                    if st.button("📍 CLIC AQUÍ PARA FIJAR UBICACIÓN (GPS)", use_container_width=True, type="primary"):
                         try:
                             res = requests.get("https://ipapi.co/json/", timeout=5)
                             data = res.json()
                             st.session_state.temp_lat = str(data.get("latitude"))
                             st.session_state.temp_lon = str(data.get("longitude"))
-                            st.session_state.metodo_gps = "Red Móvil"
-                        except: st.error("Fallo de red")
+                            st.rerun()
+                        except: st.error("Por favor, permite el acceso al GPS de tu navegador.")
+                else:
+                    st.markdown(f"""
+                        <div class="gps-ready">
+                            <h3 style="margin:0; color:#15803d;">✅ UBICACIÓN FIJADA</h3>
+                            <p style="margin:0; color:#166534; font-size:0.9rem;">Punto de precisión capturado correctamente.</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("🧹 Cambiar ubicación / Reset", use_container_width=True):
+                        st.session_state.temp_lat = ""; st.session_state.temp_lon = ""; st.rerun()
 
-                with col_info:
-                    if loc_nativa and loc_nativa.get('latitude'):
-                        st.session_state.temp_lat = str(loc_nativa['latitude'])
-                        st.session_state.temp_lon = str(loc_nativa['longitude'])
-                        st.session_state.metodo_gps = "Satélite (GPS)"
-                    
-                    if st.session_state.temp_lat:
-                        st.markdown(f"""<div style="background:#f0fdf4;padding:8px;border-radius:12px;border:1px solid #bbf7d0;text-align:center;">
-                            <p style="margin:0;color:#166534;font-size:0.75rem;"><b>📍 Ubicación Lista</b></p>
-                            <p style="margin:0;color:#15803d;font-size:0.65rem;">Modo: {st.session_state.metodo_gps}</p></div>""", unsafe_allow_html=True)
-                        if st.button("🧹 Reset", use_container_width=True):
-                            st.session_state.temp_lat = ""; st.session_state.temp_lon = ""; st.rerun()
-                    else: st.warning("Esperando señal...")
-
-            # MAPA MINIATURA (REDUCIDO Y ZOOM 18)
+            # MAPA MINIATURA SI HAY COORDENADAS
             if st.session_state.temp_lat:
                 map_data = pd.DataFrame({'lat': [float(st.session_state.temp_lat)], 'lon': [float(st.session_state.temp_lon)]})
                 st.map(map_data, zoom=18, height=180) 
 
-            st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
-            with st.form("form_final_cliente", clear_on_submit=True):
-                col1, col2 = st.columns(2)
-                with col1:
-                    n_nombre = st.text_input("Nombre y Apellido *")
-                    n_telefono = st.text_input("WhatsApp / Celular *")
-                with col2:
-                    n_cedula = st.text_input("Cédula / ID")
-                    n_direccion = st.text_input("Referencia (Ej: Casa verde frente al parque)")
-                
-                n_nota = st.text_area("Notas iniciales de crédito")
+                st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
+                with st.form("form_final_cliente", clear_on_submit=True):
+                    col1, col2 = st.columns(2)
+                    n_nombre = col1.text_input("Nombre y Apellido *")
+                    n_telefono = col1.text_input("WhatsApp / Celular *")
+                    n_cedula = col2.text_input("Cédula / ID")
+                    n_direccion = col2.text_input("Referencia (Ej: Casa verde frente al parque)")
+                    n_nota = st.text_area("Notas iniciales de crédito")
 
-                if st.form_submit_button("🚀 GUARDAR NUEVO EXPEDIENTE", use_container_width=True):
-                    if not n_nombre or not n_telefono or not st.session_state.temp_lat:
-                        st.error("⚠️ Datos incompletos: Nombre, Teléfono y GPS son obligatorios.")
-                    else:
-                        try:
-                            check = conn.table("clientes").select("id").eq("user_id", u_id).eq("telefono", n_telefono).execute()
-                            if check.data:
-                                st.error("❌ Este teléfono ya está registrado.")
-                            else:
-                                reg_cliente = {
-                                    "user_id": u_id, "nombre": n_nombre, "cedula": n_cedula, "telefono": n_telefono,
-                                    "direccion": n_direccion, "latitud": st.session_state.temp_lat, 
-                                    "longitud": st.session_state.temp_lon, "notas": n_nota, "fecha_registro": str(hoy_dt)
-                                }
-                                conn.table("clientes").insert(reg_cliente).execute()
-                                st.session_state.temp_lat = ""; st.session_state.temp_lon = ""
-                                st.success(f"✅ {n_nombre} guardado."); time.sleep(1); st.rerun()
-                        except Exception as e: st.error(f"Error: {e}")
+                    if st.form_submit_button("🚀 GUARDAR NUEVO EXPEDIENTE", use_container_width=True):
+                        if not n_nombre or not n_telefono:
+                            st.error("⚠️ Nombre y Teléfono son obligatorios.")
+                        else:
+                            try:
+                                check = conn.table("clientes").select("id").eq("user_id", u_id).eq("telefono", n_telefono).execute()
+                                if check.data:
+                                    st.error("❌ Este teléfono ya está registrado.")
+                                else:
+                                    conn.table("clientes").insert({
+                                        "user_id": u_id, "nombre": n_nombre, "cedula": n_cedula, "telefono": n_telefono,
+                                        "direccion": n_direccion, "latitud": st.session_state.temp_lat, 
+                                        "longitud": st.session_state.temp_lon, "notas": n_nota, "fecha_registro": str(hoy_dt)
+                                    }).execute()
+                                    st.session_state.temp_lat = ""; st.session_state.temp_lon = ""
+                                    st.success(f"✅ {n_nombre} guardado."); time.sleep(1); st.rerun()
+                            except Exception as e: st.error(f"Error: {e}")
 
-        st.write("")
-        
-        # --- SECCIÓN B: CARTERA DE CLIENTES (EXTRACCIÓN) ---
+        # --- SECCIÓN B: CARTERA DE CLIENTES ---
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
 
@@ -759,39 +767,26 @@ elif menu == "👥 Todos mis Clientes":
             st.info("Tu cartera está vacía.")
         else:
             c_busq, c_filt = st.columns([3, 1])
-            with c_busq:
-                busq = st.text_input("🔍 Buscar por Nombre, ID o WhatsApp", value="", key="buscador_principal")
-            with c_filt:
-                f_est = st.selectbox("Filtrar Estado", ["Todos", "🔴 Atrasado", "🟠 Pendiente", "🟢 Al día"])
+            busq = c_busq.text_input("🔍", placeholder="Busca por nombre o celular...", key="search_main")
+            f_est = c_filt.selectbox("Filtrar", ["Todos", "🔴 Atrasado", "🟠 Pendiente", "🟢 Al día"])
 
             clientes_finales = []
             for cl in res_cl.data:
-                # 1. Obtener cuentas del cliente
                 cuentas_cl = [c for c in res_cu.data if c['cliente_id'] == cl['id']]
-                
-                # 2. Calcular deuda y estado
                 t_deuda = sum(float(c.get('balance_pendiente') or 0) for c in cuentas_cl)
-                est_txt, color = "🟢 Al día", "#22c55e"
                 
+                est_txt, color = "🟢 Al día", "#22c55e"
                 if t_deuda > 0:
                     atrasado = any(dt.datetime.strptime(str(c['proximo_pago']), '%Y-%m-%d').date() < hoy_dt for c in cuentas_cl if c.get('proximo_pago'))
                     est_txt, color = ("🔴 Atrasado", "#ef4444") if atrasado else ("🟠 Pendiente", "#f97316")
 
-                # 3. LÓGICA DE FILTRADO (AQUÍ ESTABA EL FALLO)
-                match_busq = True
-                if busq:
-                    match_busq = busq.lower() in cl['nombre'].lower() or \
-                                 busq in str(cl.get('telefono','')) or \
-                                 busq in str(cl.get('cedula',''))
-                
-                match_filtro = (f_est == "Todos" or f_est == est_txt)
+                if not busq or (busq.lower() in cl['nombre'].lower() or busq in str(cl.get('telefono',''))):
+                    if f_est == "Todos" or f_est == est_txt:
+                        clientes_finales.append({**cl, "estado": est_txt, "color": color, "deuda": t_deuda, "cuentas": cuentas_cl})
 
-                if match_busq and match_filtro:
-                    clientes_finales.append({**cl, "estado": est_txt, "color": color, "deuda": t_deuda, "cuentas": cuentas_cl})
-
-            # --- DIBUJAR LAS TARJETAS ---
+            # GRID DE TARJETAS
             if not clientes_finales:
-                st.warning("No se encontraron clientes con esos filtros.")
+                st.warning("No hay resultados.")
             else:
                 grid = st.columns(3)
                 for idx, cl in enumerate(clientes_finales):
@@ -808,107 +803,17 @@ elif menu == "👥 Todos mis Clientes":
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        cw1, cw2 = st.columns(2)
-                        cw1.markdown(f'<a href="https://wa.me/{cl["telefono"]}" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#22c55e; color:white; border:none; padding:8px; border-radius:10px; font-weight:600; cursor:pointer;">WhatsApp</button></a>', unsafe_allow_html=True)
-                        cw2.markdown(f'<a href="tel:{cl["telefono"]}" style="text-decoration:none;"><button style="width:100%; background:#f8f9fa; color:#1e293b; border:1px solid #e2e8f0; padding:8px; border-radius:10px; font-weight:600; cursor:pointer;">Llamar</button></a>', unsafe_allow_html=True)
+                        c_wa, c_call = st.columns(2)
+                        c_wa.markdown(f'<a href="https://wa.me/{cl["telefono"]}" target="_blank"><button style="width:100%; background:#22c55e; color:white; border:none; padding:8px; border-radius:10px; font-weight:600; cursor:pointer;">WhatsApp</button></a>', unsafe_allow_html=True)
+                        c_call.markdown(f'<a href="tel:{cl["telefono"]}"><button style="width:100%; background:#f8f9fa; color:#1e293b; border:1px solid #e2e8f0; padding:8px; border-radius:10px; font-weight:600; cursor:pointer;">Llamar</button></a>', unsafe_allow_html=True)
 
-                        with st.popover("📁 Ver Expediente Completo", use_container_width=True):
+                        with st.popover("📁 Expediente", use_container_width=True):
                             if cl.get('latitud'):
-                                # URL DE NAVEGACIÓN DIRECTA
                                 nav_url = f"https://www.google.com/maps/dir/?api=1&destination={cl['latitud']},{cl['longitud']}&travelmode=driving"
-                                st.markdown(f'<a href="{nav_url}" target="_blank"><button style="width:100%; background:#0284c7; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; font-size:1rem;">🚗 INICIAR VIAJE AHORA</button></a>', unsafe_allow_html=True)
-                            
-                            st.info(f"📍 Referencia: {cl.get('direccion') or 'Sin dirección específica.'}")
-                            st.divider()
-                            st.subheader("Préstamos Activos")
+                                st.markdown(f'<a href="{nav_url}" target="_blank"><button style="width:100%; background:#0284c7; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold;">🚗 IR DONDE EL CLIENTE</button></a>', unsafe_allow_html=True)
+                            st.info(f"📍 Ref: {cl.get('direccion') or 'N/A'}")
                             for cu in cl['cuentas']:
-                                with st.container(border=True):
-                                    st.write(f"**Monto Pendiente: RD$ {float(cu['balance_pendiente']):,.2f}**")
-                                    st.caption(f"📅 Próximo pago: {cu['proximo_pago']}")
-                            
-                            st.divider()
-                            new_n = st.text_area("Editar notas", value=cl.get('notas') or "", key=f"n_{cl['id']}")
-                            if st.button("Guardar Cambios", key=f"bn_{cl['id']}"):
-                                conn.table("clientes").update({"notas": new_n}).eq("id", cl['id']).execute()
-                                st.toast("Expediente actualizado")
-                        st.write("---")
-        
-        # --- SECCIÓN B: CARTERA DE CLIENTES ---
-        res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
-        res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
-
-        if not res_cl.data:
-            st.info("Tu cartera está vacía. Empieza registrando un cliente arriba.")
-        else:
-            c_busq, c_filt = st.columns([3, 1])
-            with c_busq:
-                busq = st.text_input("🔍", placeholder="Busca por nombre, ID o celular...")
-            with c_filt:
-                f_est = st.selectbox("Filtrar", ["Todos", "🔴 Atrasado", "🟠 Pendiente", "🟢 Al día"])
-
-            clientes_finales = []
-            for cl in res_cl.data:
-                cuentas_cl = [c for c in res_cu.data if c['cliente_id'] == cl['id']]
-                t_deuda = sum(float(c.get('balance_pendiente') or 0) for c in cuentas_cl)
-                
-                est_txt, color = "🟢 Al día", "#22c55e"
-                if t_deuda > 0:
-                    atrasado = any(dt.datetime.strptime(str(c['proximo_pago']), '%Y-%m-%d').date() < hoy_dt for c in cuentas_cl if c.get('proximo_pago'))
-                    est_txt, color = ("🔴 Atrasado", "#ef4444") if atrasado else ("🟠 Pendiente", "#f97316")
-
-                if busq.lower() in cl['nombre'].lower() or busq in str(cl.get('telefono','')) or busq in str(cl.get('cedula','')):
-                    if f_est == "Todos" or f_est == est_txt:
-                        clientes_finales.append({**cl, "estado": est_txt, "color": color, "deuda": t_deuda, "cuentas": cuentas_cl})
-
-            # GRID DE TARJETAS
-            grid = st.columns(3)
-            for idx, cl in enumerate(clientes_finales):
-                with grid[idx % 3]:
-                    st.markdown(f"""
-                        <div style="background: white; border-radius: 20px; padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span style="background: {cl['color']}15; color: {cl['color']}; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase;">{cl['estado']}</span>
-                                <span style="color: #94a3b8; font-size: 10px;">ID: {cl.get('cedula') or '---'}</span>
-                            </div>
-                            <h3 style="margin: 15px 0 5px 0; color: #1e293b; font-size: 1.2rem; font-weight: 700;">{cl['nombre']}</h3>
-                            <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 0;">Deuda Total:</p>
-                            <h2 style="margin: 0; color: #1e293b; font-weight: 800; font-size: 1.4rem;">RD$ {cl['deuda']:,.2f}</h2>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    c_wa, c_call = st.columns(2)
-                    with c_wa:
-                        st.markdown(f'<a href="https://wa.me/{cl["telefono"]}" target="_blank" style="text-decoration:none;"><button style="width:100%; background:#22c55e; color:white; border:none; padding:8px; border-radius:10px; font-weight:600; cursor:pointer;">WhatsApp</button></a>', unsafe_allow_html=True)
-                    with c_call:
-                        st.markdown(f'<a href="tel:{cl["telefono"]}" style="text-decoration:none;"><button style="width:100%; background:#f8f9fa; color:#1e293b; border:1px solid #e2e8f0; padding:8px; border-radius:10px; font-weight:600; cursor:pointer;">Llamar</button></a>', unsafe_allow_html=True)
-
-                    with st.popover("📁 Ver Expediente Completo", use_container_width=True):
-                        st.subheader("Ubicación y Navegación")
-                        if cl.get('latitud'):
-                            # LINK DE NAVEGACIÓN DIRECTA
-                            nav_url = f"https://www.google.com/maps/dir/?api=1&destination={cl['latitud']},{cl['longitud']}&travelmode=driving"
-                            st.markdown(f'<a href="{nav_url}" target="_blank"><button style="width:100%; background:#0284c7; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold;">🚗 INICIAR VIAJE (MAPS)</button></a>', unsafe_allow_html=True)
-                        
-                        st.info(f"📍 Referencia: {cl.get('direccion') or 'Sin dirección específica.'}")
-                        
-                        st.divider()
-                        st.subheader("Préstamos Activos")
-                        if not cl['cuentas']:
-                            st.write("Sin préstamos registrados.")
-                        else:
-                            for cu in cl['cuentas']:
-                                with st.container(border=True):
-                                    st.write(f"**Pendiente: RD$ {float(cu['balance_pendiente']):,.2f}**")
-                                    st.caption(f"📅 Próximo pago: {cu['proximo_pago']}")
-                        
-                        st.divider()
-                        st.subheader("Notas Privadas")
-                        new_n = st.text_area("Editar notas", value=cl.get('notas') or "", key=f"n_{cl['id']}")
-                        if st.button("Guardar Notas", key=f"bn_{cl['id']}"):
-                            conn.table("clientes").update({"notas": new_n}).eq("id", cl['id']).execute()
-                            st.toast("Expediente actualizado")
-                    
-                    st.write("---")
+                                st.caption(f"Deuda: RD$ {float(cu['balance_pendiente']):,.2f} - Vence: {cu['proximo_pago']}")
         
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
