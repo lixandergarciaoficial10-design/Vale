@@ -677,29 +677,61 @@ elif menu == "👥 Todos mis Clientes":
         """, unsafe_allow_html=True)
 
         # --- SECCIÓN A: REGISTRO PREMIUM ---
-        with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
-            # GPS Card
-            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Geolocalización</p>", unsafe_allow_html=True)
+        # --- SISTEMA DE LOCALIZACIÓN BLINDADA (TRIPLE RESPALDO) ---
+            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Geolocalización de Campo</p>", unsafe_allow_html=True)
+            
             if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
             if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
+            if 'metodo_gps' not in st.session_state: st.session_state.metodo_gps = ""
 
             with st.container(border=True):
-                c_gps, c_map = st.columns([1, 2])
-                with c_gps:
-                    from streamlit_geolocation import streamlit_geolocation
-                    st.caption("Fija la ubicación exacta para que el cobrador llegue sin perderse.")
-                    location = streamlit_geolocation()
-                    if st.button("🧹 Limpiar Coordenadas", use_container_width=True):
-                        st.session_state.temp_lat = ""; st.session_state.temp_lon = ""; st.rerun()
+                col_btn, col_info = st.columns([1, 1.5])
                 
-                with c_map:
-                    if location and location.get('latitude'):
-                        st.session_state.temp_lat = str(location['latitude'])
-                        st.session_state.temp_lon = str(location['longitude'])
-                        map_data = pd.DataFrame({'lat': [float(st.session_state.temp_lat)], 'lon': [float(st.session_state.temp_lon)]})
-                        st.map(map_data, zoom=15)
+                with col_btn:
+                    # OPCIÓN 1 & 2: Componente Nativo con Botón de Forzado
+                    from streamlit_geolocation import streamlit_geolocation
+                    st.write("🛰️ **Satélite**")
+                    loc_nativa = streamlit_geolocation()
+                    
+                    # Botón de Fallback (IP)
+                    if st.button("🌐 Usar Red (Si falla GPS)", use_container_width=True):
+                        with st.spinner("Localizando por red móvil..."):
+                            try:
+                                res = requests.get("https://ipapi.co/json/", timeout=5)
+                                data = res.json()
+                                st.session_state.temp_lat = str(data.get("latitude"))
+                                st.session_state.temp_lon = str(data.get("longitude"))
+                                st.session_state.metodo_gps = "Red Móvil (IP)"
+                                st.toast("📍 Ubicación aproximada por red")
+                            except:
+                                st.error("No se pudo obtener ubicación de red.")
+
+                with col_info:
+                    # Lógica de Procesamiento
+                    if loc_nativa and loc_nativa.get('latitude'):
+                        st.session_state.temp_lat = str(loc_nativa['latitude'])
+                        st.session_state.temp_lon = str(loc_nativa['longitude'])
+                        st.session_state.metodo_gps = "Satélite (Alta Precisión)"
+                    
+                    if st.session_state.temp_lat:
+                        st.markdown(f"""
+                            <div style="background: #f0fdf4; padding: 10px; border-radius: 10px; border: 1px solid #bbf7d0;">
+                                <p style="margin:0; color: #166534; font-size: 0.8rem;"><b>Ubicación Lista</b></p>
+                                <p style="margin:0; color: #15803d; font-size: 0.7rem;">Método: {st.session_state.metodo_gps}</p>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        if st.button("🧹 Reset", use_container_width=True):
+                            st.session_state.temp_lat = ""; st.session_state.temp_lon = ""; st.rerun()
                     else:
-                        st.info("Esperando señal GPS...")
+                        st.warning("Esperando coordenadas...")
+
+            # Mapa de confirmación minimalista
+            if st.session_state.temp_lat:
+                map_data = pd.DataFrame({
+                    'lat': [float(st.session_state.temp_lat)], 
+                    'lon': [float(st.session_state.temp_lon)]
+                })
+                st.map(map_data, zoom=15, size=20)
 
             # Formulario
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase; margin-top: 20px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
