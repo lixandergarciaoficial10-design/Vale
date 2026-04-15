@@ -196,26 +196,26 @@ def obtener_contexto_privado_ia(u_id_actual):
         return f"Error de seguridad al recuperar datos: {e}"
 
 def obtener_estado_cliente_real(cuentas_del_cliente):
-    """
-    Analiza las cuentas en la tabla 'cuentas' de Supabase para determinar el estado.
-    """
     if not cuentas_del_cliente:
         return "🟢 Al día", "#22c55e"
     
-    hoy = datetime.date.today()
-    proximos_dias = hoy + datetime.timedelta(days=3)
+    # IMPORTANTE: Usamos datetime.date.today() asegurando la referencia correcta
+    import datetime as dt 
+    hoy = dt.date.today()
+    proximos_dias = hoy + dt.timedelta(days=3)
     
     atrasado = False
     pago_incompleto = False
     por_vencer = False
     
     for cuenta in cuentas_del_cliente:
-        # Convertimos el balance a float por seguridad
         pendiente = float(cuenta.get('balance_pendiente', 0))
-        # Convertimos la fecha de proximo_pago de texto a fecha real
         fecha_v = cuenta.get('proximo_pago')
+        
         if fecha_v:
-            fecha_v = datetime.datetime.strptime(str(fecha_v), '%Y-%m-%d').date()
+            # Convertimos el string de Supabase a objeto date de Python
+            if isinstance(fecha_v, str):
+                fecha_v = dt.datetime.strptime(fecha_v, '%Y-%m-%d').date()
 
         if pendiente > 0:
             if fecha_v and fecha_v < hoy:
@@ -223,7 +223,7 @@ def obtener_estado_cliente_real(cuentas_del_cliente):
             elif fecha_v and hoy <= fecha_v <= proximos_dias:
                 por_vencer = True
             else:
-                pago_incompleto = True # Tiene balance pero no ha vencido
+                pago_incompleto = True 
                 
     if atrasado: return "🔴 Atrasado", "#ef4444"
     if por_vencer: return "🟡 Por Vencer", "#eab308"
