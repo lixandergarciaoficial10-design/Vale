@@ -678,46 +678,40 @@ elif menu == "👥 Todos mis Clientes":
             st.info("📌 **Paso 1:** Captura la ubicación frente a la casa del cliente. Luego llena sus datos.")
             
             # 1. GESTIÓN DE GPS (FUERA DEL FORM PARA EVITAR ERRORES)
+            # --- NUEVA LÓGICA DE GPS INTELIGENTE ---
             if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
             if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
 
-            col_gps, col_clean = st.columns(2)
+            col_gps, col_clean = st.columns([2, 1])
+            
             with col_gps:
-                # Llave dinámica para forzar refresco del sensor
-                gps_key = f"gps_capture_{int(time.time())}"
-                if st.button("🎯 Capturar Punto Exacto", use_container_width=True):
-                    with st.spinner("Localizando..."):
-                        try:
-                            from streamlit_js_eval import streamlit_js_eval
-                            loc = streamlit_js_eval(data_of='getCurrentPosition', key=gps_key)
-                            if loc and isinstance(loc, dict) and 'coords' in loc:
-                                st.session_state.temp_lat = str(loc['coords']['latitude'])
-                                st.session_state.temp_lon = str(loc['coords']['longitude'])
-                                st.toast("📍 Ubicación fijada correctamente")
-                            else:
-                                st.error("⚠️ No se pudo obtener la ubicación. Verifica permisos.")
-                        except Exception as e:
-                            st.error(f"❌ Error de sensor: {e}")
-
+                from streamlit_geolocation import streamlit_geolocation
+                # Este componente crea un botón nativo que el navegador respeta
+                location = streamlit_geolocation()
+            
             with col_clean:
-                if st.button("🧹 Limpiar Datos GPS", use_container_width=True):
+                if st.button("🧹 Limpiar GPS", use_container_width=True):
                     st.session_state.temp_lat = ""
                     st.session_state.temp_lon = ""
                     st.rerun()
 
-            # Previsualización del Mapa Protegida
-            if st.session_state.temp_lat and st.session_state.temp_lon:
+            # Procesar la ubicación obtenida por el componente
+            if location and location.get('latitude'):
+                st.session_state.temp_lat = str(location['latitude'])
+                st.session_state.temp_lon = str(location['longitude'])
+                
+                # Mostrar mapa de confirmación
                 try:
                     map_data = pd.DataFrame({
                         'lat': [float(st.session_state.temp_lat)], 
                         'lon': [float(st.session_state.temp_lon)]
                     })
                     st.map(map_data, zoom=16)
-                    st.success("✅ Ubicación confirmada en mapa.")
-                except:
-                    st.caption(f"Coordenadas: {st.session_state.temp_lat}, {st.session_state.temp_lon}")
+                    st.success(f"✅ Ubicación fijada: {st.session_state.temp_lat}, {st.session_state.temp_lon}")
+                except Exception as e:
+                    st.write(f"📍 Coordenadas listas: {st.session_state.temp_lat}")
             else:
-                st.warning("⚠️ Sin ubicación capturada. El GPS es vital para las rutas de cobro.")
+                st.warning("⚠️ Haz clic en el botón de arriba para capturar la ubicación actual.")
 
             st.divider()
 
