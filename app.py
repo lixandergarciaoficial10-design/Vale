@@ -195,12 +195,13 @@ def obtener_contexto_privado_ia(u_id_actual):
     except Exception as e:
         return f"Error de seguridad al recuperar datos: {e}"
 
+# --- FUNCIONES DE LÓGICA (Ajustadas para evitar el AttributeError) ---
 def obtener_estado_cliente_real(cuentas_del_cliente):
+    import datetime as dt # Importación interna para forzar que funcione
+    
     if not cuentas_del_cliente:
         return "🟢 Al día", "#22c55e"
     
-    # IMPORTANTE: Usamos datetime.date.today() asegurando la referencia correcta
-    import datetime as dt 
     hoy = dt.date.today()
     proximos_dias = hoy + dt.timedelta(days=3)
     
@@ -209,27 +210,35 @@ def obtener_estado_cliente_real(cuentas_del_cliente):
     por_vencer = False
     
     for cuenta in cuentas_del_cliente:
-        pendiente = float(cuenta.get('balance_pendiente', 0))
-        fecha_v = cuenta.get('proximo_pago')
+        # Aseguramos que el balance sea numérico
+        pendiente = float(cuenta.get('balance_pendiente') or 0)
+        fecha_v_str = cuenta.get('proximo_pago')
         
-        if fecha_v:
-            # Convertimos el string de Supabase a objeto date de Python
-            if isinstance(fecha_v, str):
-                fecha_v = dt.datetime.strptime(fecha_v, '%Y-%m-%d').date()
-
         if pendiente > 0:
-            if fecha_v and fecha_v < hoy:
-                atrasado = True
-            elif fecha_v and hoy <= fecha_v <= proximos_dias:
-                por_vencer = True
+            if fecha_v_str:
+                # Convertimos el texto de la base de datos a fecha real
+                try:
+                    fecha_v = dt.datetime.strptime(str(fecha_v_str), '%Y-%m-%d').date()
+                    if fecha_v < hoy:
+                        atrasado = True
+                    elif hoy <= fecha_v <= proximos_dias:
+                        por_vencer = True
+                    else:
+                        pago_incompleto = True
+                except:
+                    pago_incompleto = True # Si la fecha está mal, asumimos pendiente
             else:
-                pago_incompleto = True 
+                pago_incompleto = True
                 
     if atrasado: return "🔴 Atrasado", "#ef4444"
     if por_vencer: return "🟡 Por Vencer", "#eab308"
     if pago_incompleto: return "🟠 Pago Incompleto", "#f97316"
     
     return "🟢 Al día", "#22c55e"
+
+def calcular_resumen_real(cuentas_del_cliente):
+    # Suma simple del balance pendiente
+    return sum(float(c.get('balance_pendiente') or 0) for c in cuentas_del_cliente)
 
 def calcular_resumen_real(cuentas_del_cliente):
     """
