@@ -703,78 +703,102 @@ elif menu == "👥 Todos mis Clientes":
 
             # --- PASO 1: LOCALIZACIÓN ---
             # --- PASO 1: LOCALIZACIÓN ---
+            # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                # 1. MOTOR DE CAPTURA (HACK DE INYECCIÓN DIRECTA)
+                # MOTOR DE CAPTURA AGRESIVO: Inyecta datos directamente en el DOM de Streamlit
                 gps_html = """
                 <div style="text-align:center;">
-                    <button onclick="getGPS()" style="
+                    <button id="gps_btn" onclick="getGPS()" style="
                         width: 100%; background-color: #007AFF; color: white;
-                        border: none; padding: 15px; border-radius: 12px;
-                        font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                    ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
+                        border: none; padding: 20px; border-radius: 15px;
+                        font-weight: bold; font-size: 1rem; cursor: pointer; 
+                        box-shadow: 0 4px 15px rgba(0,122,255,0.3);
+                    ">📍 CAPTURAR UBICACIÓN AHORA</button>
                 </div>
 
                 <script>
                 function getGPS() {
-                    const options = { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 };
+                    const btn = document.getElementById('gps_btn');
+                    btn.innerText = "🛰️ BUSCANDO SATÉLITES...";
+                    btn.style.backgroundColor = "#ff9500";
+                    
+                    const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
+                    
                     navigator.geolocation.getCurrentPosition(
                         (pos) => {
-                            const res = pos.coords.latitude + "," + pos.coords.longitude;
+                            const lat = pos.coords.latitude;
+                            const lon = pos.coords.longitude;
+                            const res = lat + "," + lon;
+                            
+                            // Buscamos el input de Streamlit por su placeholder único
                             const inputs = window.parent.document.querySelectorAll('input');
+                            let found = false;
                             for (let input of inputs) {
                                 if (input.placeholder === "Sincronizando satélites...") {
                                     input.value = res;
+                                    // Forzamos a Streamlit a reconocer el cambio con 3 eventos
                                     input.dispatchEvent(new Event('input', { bubbles: true }));
                                     input.dispatchEvent(new Event('change', { bubbles: true }));
+                                    input.dispatchEvent(new Event('blur', { bubbles: true }));
+                                    found = true;
                                     break;
                                 }
                             }
+                            
+                            if(found) {
+                                btn.innerText = "✅ UBICACIÓN CAPTURADA";
+                                btn.style.backgroundColor = "#34c759";
+                            } else {
+                                btn.innerText = "⚠️ REINTENTAR (Error de enlace)";
+                                btn.style.backgroundColor = "#ff3b30";
+                            }
                         },
-                        (err) => { alert("Error: " + err.message); },
+                        (err) => { 
+                            alert("ERROR GPS: " + err.message); 
+                            btn.innerText = "❌ ERROR - REINTENTAR";
+                            btn.style.backgroundColor = "#ff3b30";
+                        },
                         options
                     );
                 }
                 </script>
                 """
-                st.components.v1.html(gps_html, height=70)
+                st.components.v1.html(gps_html, height=100)
 
-                # Puente de entrada para captar el dato del JS
+                # Puente receptor (Placeholder exacto para el script JS)
                 gps_res = st.text_input("Señal recibida:", key="gps_res", placeholder="Sincronizando satélites...")
 
                 if gps_res and "," in gps_res:
                     try:
-                        lat_str, lon_str = gps_res.split(",")
-                        st.session_state.temp_lat = lat_str.strip()
-                        st.session_state.temp_lon = lon_str.strip()
+                        lat_s, lon_s = gps_res.split(",")
+                        st.session_state.temp_lat = lat_s.strip()
+                        st.session_state.temp_lon = lon_s.strip()
                     except:
                         pass
 
-            # --- ESTRATEGIA: MAPA DE GOOGLE MAPS GRATUITO (VERSIÓN BLINDADA) ---
+            # --- MAPA GOOGLE MAPS (VERSIÓN BLINDADA HTTPS) ---
             if st.session_state.get('temp_lat'):
                 lat = st.session_state.temp_lat
                 lon = st.session_state.temp_lon
                 
-                # 1. Usamos HTTPS y la URL de Embed de Google Maps actualizada
-                # Esta URL es la que usa Google para compartir lugares, es infalible.
+                # URL de Google Maps Embed oficial (Gratis y sin API Key)
                 map_url = f"https://maps.google.com/maps?q={lat},{lon}&z=18&output=embed"
                 
                 st.markdown(f"""
-                    <div style="border-radius:15px; overflow:hidden; border:2px solid #0284c7; margin-top:10px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
+                    <div style="border-radius:20px; overflow:hidden; border:3px solid #007AFF; margin-top:15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
                         <iframe 
                             width="100%" 
                             height="400" 
                             frameborder="0" 
-                            style="border:0;"
-                            src="{map_url}" 
-                            allowfullscreen>
+                            src="{map_url}">
                         </iframe>
                     </div>
                     <div style="text-align:center; margin-top:10px;">
-                        <a href="https://www.google.com/maps?q={lat},{lon}" target="_blank" 
-                           style="color: #0284c7; text-decoration: none; font-weight: bold; font-size: 0.9rem;">
-                           📍 Abrir directamente en Google Maps
+                        <a href="https://www.google.com/maps/search/?api=1&query={lat},{lon}" target="_blank" 
+                           style="background-color:#34c759; color:white; padding:12px 20px; border-radius:12px; text-decoration:none; font-weight:bold; display:inline-block; font-size:0.9rem;">
+                           🌐 VER EN APP GOOGLE MAPS (RESPALDO)
                         </a>
                     </div>
                 """, unsafe_allow_html=True)
@@ -782,12 +806,13 @@ elif menu == "👥 Todos mis Clientes":
                 if st.button("🗑️ REPETIR CAPTURA GPS", use_container_width=True):
                     st.session_state.temp_lat = ""
                     st.session_state.temp_lon = ""
-                    st.session_state.gps_res = "" # Limpiamos el receptor también
+                    st.session_state.gps_res = ""
                     st.rerun()
-            # --- PASO 2: FORMULARIO (Key Única para evitar el error) ---
+
+            # --- PASO 2: FORMULARIO ---
             st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
             
-            with st.form("form_registro_cliente_final_v1", clear_on_submit=True):
+            with st.form("form_registro_cliente_final_v2026", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 n_nombre = c1.text_input("Nombre y Apellido *")
                 n_telefono = c1.text_input("WhatsApp / Celular *")
@@ -795,16 +820,15 @@ elif menu == "👥 Todos mis Clientes":
                 n_direccion = c2.text_input("Referencia de Vivienda")
                 n_nota = st.text_area("Notas adicionales")
 
-                submit_all = st.form_submit_button("🚀 GUARDAR EXPEDIENTE", use_container_width=True)
+                submit_all = st.form_submit_button("🚀 GUARDAR EXPEDIENTE COMPLETO", use_container_width=True)
 
                 if submit_all:
                     if not n_nombre or not n_telefono or not n_cedula:
-                        st.error("⚠️ Llena los campos obligatorios.")
+                        st.error("⚠️ Nombre, WhatsApp y Cédula son obligatorios.")
                     elif not st.session_state.get('temp_lat'):
-                        st.warning("⚠️ Captura la ubicación en el Paso 1 primero.")
+                        st.warning("⚠️ Debes capturar la ubicación en el Paso 1.")
                     else:
                         try:
-                            # Registro en Supabase
                             reg_data = {
                                 "user_id": u_id,
                                 "nombre": n_nombre,
@@ -818,14 +842,16 @@ elif menu == "👥 Todos mis Clientes":
                             }
                             conn.table("clientes").insert(reg_data).execute()
                             
-                            # Limpieza tras éxito
+                            # Reset de seguridad
                             st.session_state.temp_lat = ""
                             st.session_state.temp_lon = ""
-                            st.success(f"✅ Cliente {n_nombre} guardado.")
-                            time.sleep(1)
+                            st.session_state.gps_res = ""
+                            
+                            st.success(f"✅ ¡Expediente de {n_nombre} guardado con éxito!")
+                            time.sleep(1.5)
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Error: {e}")
+                            st.error(f"Error al guardar: {e}")
 
             # --- PASO 2: FORMULARIO ---
             st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
