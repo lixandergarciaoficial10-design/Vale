@@ -671,7 +671,7 @@ elif menu == "👥 Todos mis Clientes":
         import time
         hoy_dt = dt.date.today()
         
-        # --- 1. JS PARA FORZAR GPS DE ALTA PRECISIÓN (TU OPCIÓN 1) ---
+        # --- 1. JS PARA FORZAR GPS DE ALTA PRECISIÓN ---
         from streamlit.components.v1 import html
         html("""
         <script>
@@ -707,22 +707,21 @@ elif menu == "👥 Todos mis Clientes":
                 col_gps_btn, col_gps_status = st.columns([1, 1])
                 with col_gps_btn:
                     from streamlit_geolocation import streamlit_geolocation
-                    # 1. El sensor nativo se activa.
+                    # Sensor nativo
                     loc_nativa = streamlit_geolocation() 
                     
-                    # 2. AUTOSINCRO: Si el sensor detecta coordenadas, las guarda automáticamente
+                    # AUTOSINCRO: Si detecta coordenadas, las guarda en el estado automáticamente
                     if loc_nativa and loc_nativa.get('latitude'):
                         st.session_state.temp_lat = loc_nativa['latitude']
                         st.session_state.temp_lon = loc_nativa['longitude']
                     
-                    # 3. BOTÓN AZUL: Ahora sirve para RE-CAPTURAR (por si te mueves de la acera a la casa)
                     if st.button("🔵 ACTUALIZAR POSICIÓN", use_container_width=True, type="primary"):
                         if loc_nativa and loc_nativa.get('latitude'):
                             st.session_state.temp_lat = loc_nativa['latitude']
                             st.session_state.temp_lon = loc_nativa['longitude']
-                            st.toast("🎯 Posición actualizada")
+                            st.toast("🎯 Posición fijada")
                         else:
-                            st.error("⚠️ Toca el icono de la izquierda para activar el GPS.")
+                            st.error("⚠️ Toca el icono 📍 de la izquierda.")
 
                 with col_gps_status:
                     if st.session_state.temp_lat:
@@ -734,20 +733,20 @@ elif menu == "👥 Todos mis Clientes":
                     else:
                         st.warning("Toca el icono 📍")
 
-            # --- MAPA AUTOMÁTICO CON PUNTO MILIMÉTRICO (PLOTLY) ---
+            # --- MAPA GRATUITO (SIN API KEY) ---
             if st.session_state.temp_lat:
                 fig = go.Figure(go.Scattermapbox(
                     lat=[float(st.session_state.temp_lat)],
                     lon=[float(st.session_state.temp_lon)],
                     mode='markers',
-                    marker=go.scattermapbox.Marker(size=16, color='red'), # Punto sólido y pequeño
+                    marker=go.scattermapbox.Marker(size=18, color='red'),
                     text=["Ubicación Exacta"]
                 ))
                 fig.update_layout(
                     mapbox=dict(
-                        style="open-street-map",
+                        style="open-street-map", # Estilo gratuito y funcional
                         center=dict(lat=float(st.session_state.temp_lat), lon=float(st.session_state.temp_lon)),
-                        zoom=19 # Zoom aún más cercano para máxima precisión
+                        zoom=18
                     ),
                     margin={"r":0,"t":0,"l":0,"b":0}, height=300
                 )
@@ -763,12 +762,10 @@ elif menu == "👥 Todos mis Clientes":
                 n_nota = st.text_area("Notas iniciales de crédito")
 
                 if st.form_submit_button("🚀 GUARDAR NUEVO EXPEDIENTE", use_container_width=True):
-                    # --- VALIDACIÓN: Cédula, Nombre y Teléfono son obligatorios ---
                     if not n_nombre or not n_telefono or not n_cedula:
                         st.error("⚠️ Datos incompletos: Nombre, WhatsApp y Cédula son obligatorios.")
                     else:
                         try:
-                            # --- VERIFICAR DUPLICADOS (Cédula O Teléfono) ---
                             check = conn.table("clientes").select("id, nombre, cedula, telefono")\
                                 .eq("user_id", u_id)\
                                 .or_(f"telefono.eq.{n_telefono},cedula.eq.{n_cedula}")\
@@ -781,7 +778,6 @@ elif menu == "👥 Todos mis Clientes":
                                 else:
                                     st.error(f"❌ El teléfono {n_telefono} ya pertenece a {dup['nombre']}.")
                             else:
-                                # --- GUARDAR (GPS Opcional: si no hay, guarda None) ---
                                 reg_cliente = {
                                     "user_id": u_id, 
                                     "nombre": n_nombre, 
@@ -795,7 +791,6 @@ elif menu == "👥 Todos mis Clientes":
                                 }
                                 conn.table("clientes").insert(reg_cliente).execute()
                                 
-                                # Limpiar y refrescar
                                 st.session_state.temp_lat = ""
                                 st.session_state.temp_lon = ""
                                 st.success(f"✅ {n_nombre} guardado correctamente.")
@@ -835,7 +830,6 @@ elif menu == "👥 Todos mis Clientes":
                 if match_busq and match_filtro:
                     clientes_finales.append({**cl, "estado": est_txt, "color": color, "deuda": t_deuda, "cuentas": cuentas_cl})
 
-            # --- DIBUJAR TARJETAS ---
             grid = st.columns(3)
             for idx, cl in enumerate(clientes_finales):
                 with grid[idx % 3]:
@@ -856,9 +850,16 @@ elif menu == "👥 Todos mis Clientes":
                     cw2.markdown(f'<a href="tel:{cl["telefono"]}" style="text-decoration:none;"><button style="width:100%; background:#f8f9fa; color:#1e293b; border:1px solid #e2e8f0; padding:8px; border-radius:10px; font-weight:600; cursor:pointer;">Llamar</button></a>', unsafe_allow_html=True)
 
                     with st.popover("📁 Ver Expediente Completo", use_container_width=True):
-                        if cl.get('latitud'):
+                        # --- BOTÓN DE RUTA EN GOOGLE MAPS ---
+                        if cl.get('latitud') and cl.get('longitud'):
                             nav_url = f"https://www.google.com/maps/dir/?api=1&destination={cl['latitud']},{cl['longitud']}&travelmode=driving"
-                            st.markdown(f'<a href="{nav_url}" target="_blank"><button style="width:100%; background:#0284c7; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; font-size:1rem;">🚗 INICIAR RUTA EN MAPS</button></a>', unsafe_allow_html=True)
+                            st.markdown(f"""
+                                <a href="{nav_url}" target="_blank" style="text-decoration:none;">
+                                    <button style="width:100%; background:#4285F4; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; font-size:1rem; margin-bottom:10px;">
+                                        🚗 INICIAR RUTA EN GOOGLE MAPS
+                                    </button>
+                                </a>
+                            """, unsafe_allow_html=True)
                         
                         st.info(f"📍 Referencia: {cl.get('direccion') or 'Sin dirección específica.'}")
                         st.write(f"🆔 Cédula: {cl.get('cedula') or '---'}")
