@@ -668,88 +668,157 @@ elif menu == "Nueva Cuenta por Cobrar":
 # --- SECCIÓN A: REGISTRO PREMIUM ---
 # --- SECCIÓN A: REGISTRO PREMIUM ---
 elif menu == "👥 Todos mis Clientes":
-        import datetime as dt
-        import time
-        import pandas as pd
-        from streamlit_js_eval import streamlit_js_eval # LIBRERÍA CLAVE
-        
-        hoy_dt_sistema = dt.date.today()
-        
-        # Inicialización
-        for key in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
-            if key not in st.session_state: st.session_state[key] = ""
+    import datetime as dt
+    import time
+    import pandas as pd
+    import folium
+    from streamlit_folium import st_folium
+    from streamlit_js_eval import streamlit_js_eval
 
-        st.markdown("<h1 style='color: #1e293b;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
+    hoy_dt_sistema = dt.date.today()
 
-        with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
-            
-            st.info("Presiona el botón para detectar la ubicación satelital automáticamente.")
-            
-            # --- EL BOTÓN QUE SÍ FUNCIONA (Librería externa) ---
+    # --- 🧠 INICIALIZACIÓN ANTI-WIPE (CLAVE) ---
+    for key in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
+        if key not in st.session_state:
+            st.session_state[key] = ""
+
+    st.markdown("<h1 style='color: #1e293b;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
+
+    # =========================================================
+    # 🧾 REGISTRO DE CLIENTE
+    # =========================================================
+    with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
+
+        st.info("Presiona el botón para detectar la ubicación automáticamente.")
+
+        # --- 📍 BOTÓN GPS NATIVO ---
+        if st.button("📍 Capturar Ubicación"):
             loc = streamlit_js_eval(
-                js_expressions="navigator.geolocation.getCurrentPosition(pos => { window.parent.postMessage({type: 'streamlit:setComponentValue', value: pos.coords.latitude + ',' + pos.coords.longitude}, '*') })",
+                js_expressions="""
+                new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => resolve(pos.coords.latitude + "," + pos.coords.longitude),
+                        (err) => reject(err.message)
+                    );
+                })
+                """,
                 key="get_location"
             )
-
             if loc:
                 st.session_state.reg_gps = loc
                 st.success(f"📍 Ubicación detectada: {loc}")
 
-            c1, c2 = st.columns(2)
-            with c1:
-                # Mostramos las coordenadas capturadas
-                st.session_state.reg_gps = st.text_input("📍 Coordenadas", value=st.session_state.reg_gps, key="gps_field")
-                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre)
-            with c2:
-                st.session_state.reg_tel = st.text_input("WhatsApp *", value=st.session_state.reg_tel)
-                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced)
+        # --- FORMULARIO ---
+        c1, c2 = st.columns(2)
 
-            st.session_state.reg_dir = st.text_area("Referencia de Vivienda", value=st.session_state.reg_dir)
+        with c1:
+            st.text_input("📍 Coordenadas", key="reg_gps")
+            st.text_input("Nombre Completo *", key="reg_nombre")
 
-            # --- MAPA EN TIEMPO REAL SI HAY COORDENADAS ---
-            if st.session_state.reg_gps and "," in st.session_state.reg_gps:
+        with c2:
+            st.text_input("WhatsApp *", key="reg_tel")
+            st.text_input("Cédula / ID", key="reg_ced")
+
+        st.text_area("Referencia de Vivienda", key="reg_dir")
+
+        # =========================================================
+        # 🗺️ MAPA FOLIUM (REAL Y GRATIS)
+        # =========================================================
+        if st.session_state.reg_gps and "," in st.session_state.reg_gps:
+            try:
+                lat, lon = map(float, st.session_state.reg_gps.split(","))
+
+                st.markdown("### 🗺️ Vista previa de ubicación")
+
+                mapa = folium.Map(
+                    location=[lat, lon],
+                    zoom_start=17,
+                    tiles="OpenStreetMap"
+                )
+
+                folium.Marker(
+                    [lat, lon],
+                    tooltip="Ubicación del cliente",
+                    popup=st.session_state.reg_nombre or "Cliente"
+                ).add_to(mapa)
+
+                st_folium(mapa, width=700, height=400)
+
+                # 🔗 BOTÓN GOOGLE MAPS (RUTA)
+                maps_url = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}"
+                st.markdown(
+                    f'<a href="{maps_url}" target="_blank">'
+                    f'<button style="width:100%; background:#22c55e; color:white; border:none; padding:12px; border-radius:10px; cursor:pointer;">🚗 IR CON GOOGLE MAPS</button>'
+                    f'</a>',
+                    unsafe_allow_html=True
+                )
+
+            except:
+                st.warning("⚠️ Formato de coordenadas inválido.")
+
+        # =========================================================
+        # 💾 GUARDAR
+        # =========================================================
+        if st.button("🚀 GUARDAR EN CARTERA", use_container_width=True):
+
+            if not st.session_state.reg_nombre or not st.session_state.reg_gps:
+                st.error("❌ Faltan datos obligatorios.")
+            else:
                 try:
-                    lat, lon = map(float, st.session_state.reg_gps.split(","))
-                    df_mapa = pd.DataFrame({'lat': [lat], 'lon': [lon]})
-                    st.write("### Vista Previa del Mapa")
-                    st.map(df_mapa, zoom=16)
-                except:
-                    st.warning("Formato de coordenadas inválido.")
-
-            if st.button("🚀 GUARDAR EN CARTERA", use_container_width=True):
-                if not st.session_state.reg_nombre or not st.session_state.reg_gps:
-                    st.error("❌ Faltan datos.")
-                else:
                     lat_v, lon_v = st.session_state.reg_gps.split(",")
-                    conn.table("clientes").insert({
-                        "nombre": st.session_state.reg_nombre, "telefono": st.session_state.reg_tel,
-                        "cedula": st.session_state.reg_ced, "direccion": st.session_state.reg_dir,
-                        "latitud": float(lat_v), "longitud": float(lon_v), "user_id": u_id
-                    }).execute()
-                    st.success("✅ ¡Cliente guardado!")
-                    # Limpiar y refrescar
-                    for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
-                    time.sleep(1); st.rerun()
 
-        # --- LISTADO DE CLIENTES CON BOTÓN DE RUTA ---
-        st.divider()
-        res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
-        
-        if res_cl.data:
-            cols = st.columns(3)
-            for idx, cl in enumerate(res_cl.data):
-                with cols[idx % 3]:
-                    with st.container(border=True):
-                        st.subheader(cl['nombre'])
-                        st.write(f"📞 {cl['telefono']}")
-                        
-                        # Botón para ir directo a Google Maps
-                        maps_url = f"https://www.google.com/maps?q={cl['latitud']},{cl['longitud']}"
-                        st.markdown(f'<a href="{maps_url}" target="_blank"><button style="width:100%; background:#4285F4; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer;">🚗 IR AL CLIENTE</button></a>', unsafe_allow_html=True)
-                        
-                        if st.button("Eliminar", key=f"del_{cl['id']}", type="secondary"):
-                            conn.table("clientes").delete().eq("id", cl['id']).execute()
-                            st.rerun()
+                    conn.table("clientes").insert({
+                        "nombre": st.session_state.reg_nombre,
+                        "telefono": st.session_state.reg_tel,
+                        "cedula": st.session_state.reg_ced,
+                        "direccion": st.session_state.reg_dir,
+                        "latitud": float(lat_v),
+                        "longitud": float(lon_v),
+                        "user_id": u_id
+                    }).execute()
+
+                    st.success("✅ Cliente guardado correctamente.")
+
+                    # 🔄 LIMPIAR SOLO AQUÍ
+                    for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
+                        st.session_state[k] = ""
+
+                    time.sleep(1)
+                    st.rerun()
+
+                except Exception as e:
+                    st.error(f"❌ Error: {e}")
+
+    # =========================================================
+    # 📋 LISTADO DE CLIENTES
+    # =========================================================
+    st.divider()
+
+    res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
+
+    if res_cl.data:
+        cols = st.columns(3)
+
+        for idx, cl in enumerate(res_cl.data):
+            with cols[idx % 3]:
+                with st.container(border=True):
+
+                    st.subheader(cl['nombre'])
+                    st.write(f"📞 {cl['telefono']}")
+
+                    # 🔗 GOOGLE MAPS DIRECTO
+                    maps_url = f"https://www.google.com/maps/dir/?api=1&destination={cl['latitud']},{cl['longitud']}"
+
+                    st.markdown(
+                        f'<a href="{maps_url}" target="_blank">'
+                        f'<button style="width:100%; background:#4285F4; color:white; border:none; padding:10px; border-radius:8px;">🚗 IR AL CLIENTE</button>'
+                        f'</a>',
+                        unsafe_allow_html=True
+                    )
+
+                    if st.button("Eliminar", key=f"del_{cl['id']}"):
+                        conn.table("clientes").delete().eq("id", cl['id']).execute()
+                        st.rerun()
         
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
