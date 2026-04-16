@@ -666,104 +666,116 @@ elif menu == "Nueva Cuenta por Cobrar":
                 st.rerun()
 # --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
 # --- SECCIÓN A: REGISTRO PREMIUM ---
+# --- SECCIÓN A: REGISTRO PREMIUM ---
 elif menu == "👥 Todos mis Clientes":
-        import datetime as dt
-        import time
-        hoy_dt = dt.date.today()
-        
-        st.markdown("""
-            <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
-            <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales y control de campo.</p>
-        """, unsafe_allow_html=True)
+    import datetime as dt
+    import time
+    hoy_dt = dt.date.today()
+    
+    st.markdown("""
+        <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
+        <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales y control de campo.</p>
+    """, unsafe_allow_html=True)
 
-        # --- SECCIÓN A: REGISTRO DE CLIENTE NUEVO ---
-        with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
-            from streamlit.components.v1 import html
+    # --- SECCIÓN A: REGISTRO DE CLIENTE NUEVO ---
+    with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
+        from streamlit.components.v1 import html
 
-            # 1. El input "puente"
-            gps_res = st.text_input(
-                "Sincronización GPS:", 
-                placeholder="Esperando satélites...", 
-                key="gps_val"
-            )
+        # 1. El input "puente" con una KEY para que Streamlit lo rastree
+        # Usamos st.session_state.gps_val para alimentar el mapa
+        gps_res = st.text_input(
+            "Coordenadas Capturadas:", 
+            placeholder="Esperando satélites...", 
+            key="gps_val",
+            help="Estas coordenadas se guardarán en el expediente del cliente."
+        )
 
-            # 2. Botón con tu diseño azul
-            gps_html = """
-            <div style="text-align:center;">
-                <button id="gps_btn" onclick="getGPS()" style="
-                    width: 100%; background-color: #007AFF; color: white;
-                    border: none; padding: 20px; border-radius: 15px;
-                    font-weight: bold; font-size: 1rem; cursor: pointer; 
-                    box-shadow: 0 4px 15px rgba(0,122,255,0.3);
-                ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
-            </div>
-            <script>
-            function getGPS() {
-                const btn = document.getElementById('gps_btn');
-                btn.innerText = "🛰️ BUSCANDO...";
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        const coords = pos.coords.latitude + "," + pos.coords.longitude;
-                        const inputs = window.parent.document.querySelectorAll('input');
-                        for (let input of inputs) {
-                            if (input.placeholder === "Esperando satélites...") {
-                                input.value = coords;
-                                input.dispatchEvent(new Event('input', { bubbles: true }));
-                                break;
-                            }
+        # 2. Tu botón con el diseño original (CORREGIDO para forzar el refresco de Streamlit)
+        gps_html = """
+        <div style="text-align:center;">
+            <button id="gps_btn" onclick="getGPS()" style="
+                width: 100%; background-color: #007AFF; color: white;
+                border: none; padding: 20px; border-radius: 15px;
+                font-weight: bold; font-size: 1rem; cursor: pointer; 
+                box-shadow: 0 4px 15px rgba(0,122,255,0.3);
+            ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
+        </div>
+        <script>
+        function getGPS() {
+            const btn = document.getElementById('gps_btn');
+            btn.innerText = "🛰️ BUSCANDO...";
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const coords = pos.coords.latitude + "," + pos.coords.longitude;
+                    const inputs = window.parent.document.querySelectorAll('input');
+                    for (let input of inputs) {
+                        // Buscamos el input por su etiqueta de ayuda o valor previo
+                        if (input.placeholder === "Esperando satélites...") {
+                            input.value = coords;
+                            // ESTO ES LO QUE HACE QUE STREAMLIT SE ENTERE DEL CAMBIO:
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            input.dispatchEvent(new Event('change', { bubbles: true }));
+                            break;
                         }
-                        btn.innerText = "✅ UBICACIÓN FIJADA";
-                        btn.style.backgroundColor = "#34c759";
-                    },
-                    (err) => { alert("Error: " + err.message); },
-                    { enableHighAccuracy: true }
-                );
-            }
-            </script>
-            """
-            html(gps_html, height=100)
+                    }
+                    btn.innerText = "✅ UBICACIÓN FIJADA";
+                    btn.style.backgroundColor = "#34c759";
+                },
+                (err) => { alert("Error: " + err.message); },
+                { enableHighAccuracy: true }
+            );
+        }
+        </script>
+        """
+        html(gps_html, height=100)
 
-            # 3. Lógica del mapa (Separada para que no rompa el flujo)
-            if gps_res and "," in gps_res:
-                try:
-                    lat_s, lon_s = gps_res.split(",")
-                    lat, lon = float(lat_s), float(lon_s)
-                    st.session_state.temp_lat = str(lat)
-                    st.session_state.temp_lon = str(lon)
-                    
-                    st.success("📍 Ubicación lista")
-                    df_map = pd.DataFrame({'lat': [lat], 'lon': [lon]})
-                    st.map(df_map, zoom=16)
-                except:
-                    st.error("Error en formato de coordenadas.")
+        # 3. LÓGICA DEL MAPA AUTOMÁTICO
+        # En cuanto gps_res tenga contenido (inyectado por el JS), esto se ejecuta solo
+        if gps_res and "," in gps_res:
+            try:
+                lat_s, lon_s = gps_res.split(",")
+                lat, lon = float(lat_s), float(lon_s)
+                
+                # Guardamos para el insert de la base de datos
+                st.session_state.lat_fija = lat
+                st.session_state.lon_fija = lon
 
-            if st.button("🗑️ Limpiar datos de ubicación"):
-                # ESTA ES LA FORMA CORRECTA DE LIMPIAR:
-                if "gps_val" in st.session_state:
-                    del st.session_state["gps_val"]
-                st.rerun()
+                st.markdown("### 🗺️ Vista de Confirmación")
+                df_map = pd.DataFrame({'lat': [lat], 'lon': [lon]})
+                st.map(df_map, zoom=16)
+                st.success(f"Ubicación detectada en: {lat}, {lon}")
+            except:
+                st.warning("Formato de coordenadas detectado, procesando...")
 
-            # --- PASO 2: FORMULARIO (Fuera de los IFs para que siempre aparezca) ---
-            st.markdown("---")
-            st.markdown("<p style='color:#0284c7;font-weight:700;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
+        # --- PASO 2: FORMULARIO DE GUARDADO ---
+        st.markdown("---")
+        with st.form("form_registro_final", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            f_nombre = col1.text_input("Nombre Completo *")
+            f_tel = col1.text_input("WhatsApp *")
+            f_ced = col2.text_input("Cédula *")
+            f_dir = col2.text_input("Referencia Vivienda")
             
-            with st.form("form_registro_final", clear_on_submit=True):
-                c1, c2 = st.columns(2)
-                f_nombre = c1.text_input("Nombre Completo *")
-                f_tel = c1.text_input("WhatsApp *")
-                f_ced = c2.text_input("Cédula *")
-                f_dir = c2.text_input("Referencia Vivienda")
-                
-                enviar = st.form_submit_button("🚀 GUARDAR EXPEDIENTE", use_container_width=True)
-                
-                if enviar:
-                    if not f_nombre or not f_tel or "temp_lat" not in st.session_state:
-                        st.error("Faltan datos obligatorios o ubicación.")
-                    else:
-                        # Tu lógica de Supabase aquí...
-                        st.success("¡Cliente guardado con éxito!")
-                        time.sleep(1)
-                        st.rerun()
+            # El botón de guardar ahora sí tendrá las coordenadas
+            if st.form_submit_button("🚀 GUARDAR EXPEDIENTE", use_container_width=True):
+                if not f_nombre or not f_tel or not gps_res:
+                    st.error("❌ Error: Debes poner el nombre y CAPTURAR la ubicación.")
+                else:
+                    # AQUÍ TU LÓGICA DE SUPABASE
+                    nueva_data = {
+                        "user_id": u_id,
+                        "nombre": f_nombre,
+                        "telefono": f_tel,
+                        "cedula": f_ced,
+                        "direccion": f_dir,
+                        "latitud": st.session_state.lat_fija,
+                        "longitud": st.session_state.lon_fija,
+                        "fecha_registro": str(dt.datetime.now())
+                    }
+                    conn.table("clientes").insert(nueva_data).execute()
+                    st.success("¡Cliente guardado con su ubicación!")
+                    time.sleep(1)
+                    st.rerun()
 
         # --- SECCIÓN B: CARTERA DE CLIENTES (TABLA ABAJO) ---
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
