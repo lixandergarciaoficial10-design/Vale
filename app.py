@@ -675,85 +675,93 @@ elif menu == "👥 Todos mis Clientes":
         from streamlit_folium import st_folium
         from streamlit_js_eval import streamlit_js_eval
 
-        # --- 1. MEMORIA BLINDADA (Anti-Wipe) ---
+        # --- 1. MEMORIA DE SESIÓN (Anti-Wipe) ---
         for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
-            if k not in st.session_state:
-                st.session_state[k] = ""
+            if k not in st.session_state: st.session_state[k] = ""
 
-        st.markdown("<h1 style='color: #1e293b; font-weight: 800;'>Gestión de Cartera Pro</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='color: #1e293b;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
 
-        # --- 2. EL RADAR (Captura fuera del formulario) ---
+        # --- 2. EL RADAR (Con manejo de errores real) ---
         with st.container(border=True):
-            st.subheader("🎯 Posicionamiento Global")
-            col_btn, col_txt = st.columns([1, 2])
+            st.subheader("📍 Captura de Ubicación")
             
-            with col_btn:
-                # Botón que activa la comunicación directa con el navegador
-                if st.button("OBTENER GPS AHORA", use_container_width=True, type="primary"):
-                    # Esta promesa de JS devuelve el dato directamente a Python
-                    pos = streamlit_js_eval(
-                        js_expressions="new Promise((res) => navigator.geolocation.getCurrentPosition((p) => res(p.coords.latitude + ',' + p.coords.longitude)))",
-                        key="GPS_TRACKER_ACTUAL"
-                    )
-                    if pos:
+            # Debug visual para que sepas qué está pasando
+            st.write(f"🛰️ **Estado actual del GPS:** `{st.session_state.reg_gps if st.session_state.reg_gps else 'Vacío'}`")
+
+            if st.button("🎯 OBTENER COORDENADAS SATELITALES", use_container_width=True, type="primary"):
+                pos = streamlit_js_eval(
+                    js_expressions="""
+                    new Promise((resolve) => {
+                        navigator.geolocation.getCurrentPosition(
+                            (p) => resolve(p.coords.latitude + "," + p.coords.longitude),
+                            (e) => resolve("ERROR: " + e.message)
+                        )
+                    })
+                    """,
+                    key="GPS_ENGINE_STRICT"
+                )
+                
+                if pos:
+                    if "ERROR" in str(pos):
+                        st.error(f"❌ Fallo del Navegador: {pos}")
+                        st.info("Asegúrate de estar usando HTTPS y de haber dado permisos de ubicación.")
+                    else:
                         st.session_state.reg_gps = pos
+                        st.success("✅ Coordenadas capturadas con éxito.")
+                        time.sleep(0.5)
                         st.rerun()
 
-            with col_txt:
-                # Cuadro de texto que recibe el impacto de la coordenada
-                st.text_input("Coordenadas detectadas", value=st.session_state.reg_gps, key="gps_display", placeholder="Esperando satélite...")
-
-        # --- 3. FORMULARIO DE CLIENTE ---
-        with st.expander("📝 Datos del Cliente", expanded=True):
+        # --- 3. FORMULARIO DE DATOS (Cédula incluida) ---
+        with st.expander("📝 Información del Cliente", expanded=True):
+            # PLAN B: Si el GPS falla, permitimos escribir las coordenadas a mano
+            st.session_state.reg_gps = st.text_input("Coordenadas (Lat, Lon)", value=st.session_state.reg_gps, placeholder="Ej: 18.5943, -70.1708")
+            
             c1, c2 = st.columns(2)
             with c1:
-                st.text_input("Nombre del Cliente *", value=st.session_state.reg_nombre, key="n_in", 
-                             on_change=lambda: st.session_state.update({"reg_nombre": st.session_state.n_in}))
+                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre)
+                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced) # RECUPERADA
             with c2:
-                st.text_input("WhatsApp / Teléfono *", value=st.session_state.reg_tel, key="t_in", 
-                             on_change=lambda: st.session_state.update({"reg_tel": st.session_state.t_in}))
-            
-            st.session_state.reg_dir = st.text_area("Dirección / Referencia", value=st.session_state.reg_dir)
+                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel)
+                st.session_state.reg_dir = st.text_area("Referencia de Vivienda", value=st.session_state.reg_dir, height=68)
 
-            # --- 4. MAPA DE OPENSTREETMAP (Visualización Estratégica) ---
+            # --- 4. RENDERIZADO DEL MAPA (Dinámico por coordenadas) ---
             if st.session_state.reg_gps and "," in st.session_state.reg_gps:
                 try:
-                    lat, lon = map(float, st.session_state.reg_gps.split(","))
-                    st.write("### 🌍 Confirmación de Ubicación")
+                    lat_str, lon_str = st.session_state.reg_gps.split(",")
+                    lat_f, lon_f = float(lat_str.strip()), float(lon_str.strip())
                     
-                    # Creamos el mapa centrado en la coordenada
-                    m = folium.Map(location=[lat, lon], zoom_start=18, tiles="OpenStreetMap")
-                    folium.Marker(
-                        [lat, lon], 
-                        popup="Ubicación capturada", 
-                        icon=folium.Icon(color='red', icon='info-sign')
-                    ).add_to(m)
+                    st.write("### 🌍 Confirmación Visual (OpenStreetMap)")
                     
-                    # Renderizamos el mapa
-                    st_folium(m, height=350, width=None, key="mapa_clientes_final")
+                    # Generamos el mapa
+                    m = folium.Map(location=[lat_f, lon_f], zoom_start=18)
+                    folium.Marker([lat_f, lon_f], popup=f"Cliente: {st.session_state.reg_nombre}").add_to(m)
+                    
+                    # El KEY cambia con la posición para forzar el refresco del mapa
+                    st_folium(m, height=350, width=700, key=f"mapa_{lat_f}_{lon_f}")
                     
                 except Exception as e:
-                    st.error(f"Error al procesar el mapa: {e}")
+                    st.warning("⚠️ Esperando coordenadas válidas para mostrar el mapa.")
 
-            # --- 5. ACCIÓN DE GUARDADO ---
-            if st.button("💾 REGISTRAR EN BASE DE DATOS", use_container_width=True):
+            # --- 5. GUARDADO EN SUPABASE ---
+            if st.button("🚀 GUARDAR EN CARTERA", use_container_width=True):
                 if not st.session_state.reg_nombre or not st.session_state.reg_gps:
-                    st.warning("⚠️ Debes tener al menos el nombre y la ubicación.")
+                    st.error("❌ El nombre y la ubicación son obligatorios.")
                 else:
                     try:
                         lat_v, lon_v = st.session_state.reg_gps.split(",")
                         conn.table("clientes").insert({
                             "nombre": st.session_state.reg_nombre,
                             "telefono": st.session_state.reg_tel,
+                            "cedula": st.session_state.reg_ced,
                             "direccion": st.session_state.reg_dir,
                             "latitud": float(lat_v),
                             "longitud": float(lon_v),
                             "user_id": u_id
                         }).execute()
                         
-                        st.success("✅ ¡Cliente guardado correctamente!")
-                        # Limpiamos para el próximo registro
-                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_dir"]:
+                        st.success("✅ Guardado correctamente.")
+                        # Limpiar memoria
+                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
                             st.session_state[k] = ""
                         time.sleep(1)
                         st.rerun()
