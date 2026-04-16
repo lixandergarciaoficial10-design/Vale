@@ -674,7 +674,10 @@ elif menu == "👥 Todos mis Clientes":
         import numpy as np
         from streamlit.components.v1 import html
         
-        # 1. INICIALIZACIÓN DE ESTADOS (Evita que se borren al escribir)
+        # 1. FIJAR VARIABLE DE FECHA (Soluciona el NameError: hoy_dt)
+        hoy_dt_sistema = dt.date.today()
+        
+        # 2. INICIALIZACIÓN DE ESTADOS (Persistencia blindada)
         if "reg_gps" not in st.session_state: st.session_state.reg_gps = ""
         if "reg_nombre" not in st.session_state: st.session_state.reg_nombre = ""
         if "reg_tel" not in st.session_state: st.session_state.reg_tel = ""
@@ -688,79 +691,102 @@ elif menu == "👥 Todos mis Clientes":
 
         # --- SECCIÓN A: REGISTRO NUEVO ---
         with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
-            # ANIMACIÓN DE RED (Corregida)
+            
+            # ANIMACIÓN: WORLD DOTS TECNOLÓGICO (Camuflado/Transparente)
             html("""
-                <div style="background: #0f172a; border-radius: 15px; height: 100px; overflow: hidden; border: 1px solid #1e293b;">
-                    <canvas id="netCanvas"></canvas>
+                <div style="background: transparent; height: 120px; position: relative; overflow: hidden; border-radius: 20px;">
+                    <canvas id="worldCanvas"></canvas>
                 </div>
                 <script>
-                    const canvas = document.getElementById('netCanvas');
+                    const canvas = document.getElementById('worldCanvas');
                     const ctx = canvas.getContext('2d');
-                    let dots = [];
+                    let points = [];
                     function init() {
-                        canvas.width = window.innerWidth; canvas.height = 100;
-                        dots = [];
-                        for(let i=0; i<40; i++) dots.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, vx:(Math.random()-0.5)*0.6, vy:(Math.random()-0.5)*0.6});
+                        canvas.width = window.innerWidth; canvas.height = 120;
+                        points = [];
+                        for(let i=0; i<100; i++) {
+                            points.push({
+                                x: Math.random() * canvas.width,
+                                y: Math.random() * canvas.height,
+                                r: Math.random() * 2 + 0.5,
+                                op: Math.random(),
+                                sp: Math.random() * 0.01 + 0.005
+                            });
+                        }
                     }
-                    function draw() {
+                    function animate() {
                         ctx.clearRect(0,0,canvas.width, canvas.height);
-                        ctx.fillStyle = "rgba(0,122,255,0.8)"; ctx.strokeStyle = "rgba(0,122,255,0.2)";
-                        dots.forEach((d, i) => {
-                            d.x += d.vx; d.y += d.vy;
-                            if(d.x<0 || d.x>canvas.width) d.vx*=-1; if(d.y<0 || d.y>canvas.height) d.vy*=-1;
-                            ctx.beginPath(); ctx.arc(d.x, d.y, 2, 0, Math.PI*2); ctx.fill();
-                            for(let j=i+1; j<dots.length; j++) {
-                                let dist = Math.hypot(d.x-dots[j].x, d.y-dots[j].y);
-                                if(dist<80) { ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(dots[j].x, dots[j].y); ctx.stroke(); }
-                            }
+                        points.forEach(p => {
+                            p.op += p.sp;
+                            if(p.op > 0.8 || p.op < 0.1) p.sp *= -1;
+                            ctx.beginPath();
+                            ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+                            ctx.fillStyle = `rgba(0, 122, 255, ${p.op})`;
+                            ctx.fill();
                         });
-                        requestAnimationFrame(draw);
+                        requestAnimationFrame(animate);
                     }
-                    init(); draw();
+                    init(); animate();
+                    window.addEventListener('resize', init);
                 </script>
-            """, height=110)
+            """, height=130)
 
-            # BOTÓN GPS (Inyecta directo al input del padre)
-            html("""
-                <button onclick="getGPS()" style="width: 100%; background: #007AFF; color: white; border: none; padding: 18px; border-radius: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(0,122,255,0.3);">
-                    📍 INICIAR ESCANEO GPS EN TIEMPO REAL
-                </button>
+            # BOTÓN FAVORITO: NEÓN FLOW (Inyecta directo al input)
+            st.markdown("""
+                <style>
+                @keyframes flow {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
+                }
+                .btn-favorito {
+                    background: linear-gradient(-45deg, #007AFF, #00C6FF, #34C759, #007AFF);
+                    background-size: 400% 400%;
+                    animation: flow 5s ease infinite;
+                    color: white; border: none; padding: 20px; width: 100%;
+                    border-radius: 15px; font-weight: 800; font-size: 1.1rem;
+                    cursor: pointer; box-shadow: 0 8px 20px rgba(0,122,255,0.3);
+                    transition: 0.3s; margin-bottom: 15px;
+                }
+                .btn-favorito:hover { transform: translateY(-2px); filter: brightness(1.1); }
+                </style>
+                <button class="btn-favorito" onclick="getGPS()">📍 CAPTURAR LOCALIZACIÓN SATELITAL</button>
                 <script>
                 function getGPS() {
                     navigator.geolocation.getCurrentPosition((pos) => {
                         const coords = pos.coords.latitude.toFixed(8) + "," + pos.coords.longitude.toFixed(8);
                         const inputs = window.parent.document.querySelectorAll('input');
                         for (let input of inputs) {
-                            if (input.placeholder === "Esperando señal satelital...") {
+                            if (input.placeholder === "Coordenadas del satélite...") {
                                 input.value = coords;
                                 input.dispatchEvent(new Event('input', { bubbles: true }));
-                                input.dispatchEvent(new Event('change', { bubbles: true }));
                                 break;
                             }
                         }
                     }, (err) => { alert("Error GPS: " + err.message); }, {enableHighAccuracy: true});
                 }
                 </script>
-            """, height=80)
+            """, unsafe_allow_html=True)
 
             c1, c2 = st.columns(2)
             with c1:
-                st.session_state.reg_gps = st.text_input("Coordenadas", value=st.session_state.reg_gps, placeholder="Esperando señal satelital...", key="input_gps")
-                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="input_nom")
-                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="input_tel")
+                # Placeholder es el ID que usa el script de arriba
+                st.session_state.reg_gps = st.text_input("📍 Coordenadas", value=st.session_state.reg_gps, placeholder="Coordenadas del satélite...", key="gps_persist")
+                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="nom_persist")
+                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="tel_persist")
             with c2:
-                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced, key="input_ced")
-                st.session_state.reg_dir = st.text_area("Referencia de Vivienda", value=st.session_state.reg_dir, height=110, key="input_dir")
+                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced, key="ced_persist")
+                st.session_state.reg_dir = st.text_area("Referencia de Vivienda", value=st.session_state.reg_dir, height=110, key="dir_persist")
 
             if st.session_state.reg_gps and "," in st.session_state.reg_gps:
                 try:
                     lat, lon = map(float, st.session_state.reg_gps.split(","))
-                    st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}), zoom=16)
+                    st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}), zoom=17)
                 except: pass
 
             if st.button("🚀 GUARDAR EN CARTERA DIGITAL", use_container_width=True):
                 if not st.session_state.reg_nombre or not st.session_state.reg_gps:
-                    st.error("❌ Nombre y Coordenadas son obligatorios.")
+                    st.error("❌ Faltan datos obligatorios.")
                 else:
                     lat_v, lon_v = st.session_state.reg_gps.split(",")
                     conn.table("clientes").insert({
@@ -772,7 +798,7 @@ elif menu == "👥 Todos mis Clientes":
                     for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
                     time.sleep(1); st.rerun()
 
-        # --- SECCIÓN B: CARTERA DE CLIENTES (YA APARECE AQUÍ) ---
+        # --- SECCIÓN B: CARTERA DE CLIENTES (REPARADA) ---
         st.divider()
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
@@ -782,11 +808,10 @@ elif menu == "👥 Todos mis Clientes":
         else:
             c_busq, c_filt = st.columns([3, 1])
             with c_busq:
-                busq = st.text_input("🔍 Buscar cliente...", key="main_search")
+                busq = st.text_input("🔍 Buscar cliente...", key="main_search_final")
             with c_filt:
-                f_est = st.selectbox("Filtrar Estado", ["Todos", "🔴 Atrasado", "🟠 Pendiente", "🟢 Al día"])
+                f_est = st.selectbox("Estado", ["Todos", "🔴 Atrasado", "🟠 Pendiente", "🟢 Al día"], key="filter_status")
 
-            # Lógica de filtrado
             clientes_finales = []
             for cl in res_cl.data:
                 cuentas_cl = [c for c in res_cu.data if c['cliente_id'] == cl['id']]
@@ -794,7 +819,8 @@ elif menu == "👥 Todos mis Clientes":
                 
                 est_txt, color = "🟢 Al día", "#22c55e"
                 if t_deuda > 0:
-                    atrasado = any(dt.datetime.strptime(str(c['proximo_pago']), '%Y-%m-%d').date() < hoy_dt for c in cuentas_cl if c.get('proximo_pago'))
+                    # Usamos hoy_dt_sistema (la variable fija) para evitar el NameError
+                    atrasado = any(dt.datetime.strptime(str(c['proximo_pago']), '%Y-%m-%d').date() < hoy_dt_sistema for c in cuentas_cl if c.get('proximo_pago'))
                     est_txt, color = ("🔴 Atrasado", "#ef4444") if atrasado else ("🟠 Pendiente", "#f97316")
 
                 if (not busq or busq.lower() in cl['nombre'].lower()) and (f_est == "Todos" or f_est == est_txt):
@@ -821,7 +847,7 @@ elif menu == "👥 Todos mis Clientes":
 
                     with st.popover("📁 Ver Expediente", use_container_width=True):
                         if cl.get('latitud'):
-                            # BOTÓN GOOGLE MAPS CORREGIDO
+                            # GOOGLE MAPS DIRECTO
                             nav_url = f"https://www.google.com/maps/dir/?api=1&destination={cl['latitud']},{cl['longitud']}&travelmode=driving"
                             st.markdown(f"""
                                 <a href="{nav_url}" target="_blank" style="text-decoration:none;">
@@ -832,7 +858,6 @@ elif menu == "👥 Todos mis Clientes":
                             """, unsafe_allow_html=True)
                         
                         st.info(f"📍 Referencia: {cl.get('direccion') or 'Sin dirección.'}")
-                        # ... Resto de la info (préstamos, notas, eliminar) ...
                         st.write(f"Cédula: {cl.get('cedula')}")
                         if st.button("🗑️ Eliminar Cliente", key=f"del_{cl['id']}", type="secondary"):
                             conn.table("clientes").delete().eq("id", cl['id']).execute()
