@@ -705,7 +705,7 @@ elif menu == "👥 Todos mis Clientes":
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                # MANTENEMOS TU BOTÓN FAVORITO (CON TU DISEÑO ORIGINAL)
+                # TU BOTÓN FAVORITO (SIN CAMBIOS VISUALES)
                 gps_html = """
                 <div style="text-align:center;">
                     <button id="gps_btn" onclick="getGPS()" style="
@@ -754,27 +754,24 @@ elif menu == "👥 Todos mis Clientes":
                 """
                 st.components.v1.html(gps_html, height=100)
 
-                # Receptor de coordenadas (El mapa ahora escucha DIRECTAMENTE a gps_res)
+                # Receptor de coordenadas
                 gps_res = st.text_input("Coordenadas:", key="gps_res", placeholder="Sincronizando satélites...", label_visibility="collapsed")
 
-            # --- MAPA AUTOMÁTICO (FLUJO DIRECTO SIN LATENCIA) ---
+            # --- MAPA AUTOMÁTICO (FLUJO DIRECTO) ---
             if gps_res and "," in gps_res:
                 try:
-                    # Leemos directamente del input gps_res para renderizado inmediato
                     lat_s, lon_s = gps_res.split(",")
                     lat_f = float(lat_s.strip())
                     lon_f = float(lon_s.strip())
                     
-                    # Sincronizamos el estado para el guardado final en base de datos
+                    # Guardamos para el formulario final
                     st.session_state.temp_lat = str(lat_f)
                     st.session_state.temp_lon = str(lon_f)
                     
-                    # Preparamos el DataFrame para el mapa nativo
                     df_punto = pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]})
                     
                     st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
                     
-                    # Despliegue automático del mapa
                     with st.expander("🗺️ VER MAPA DE UBICACIÓN", expanded=True):
                         st.map(df_punto, zoom=16, use_container_width=True)
                         
@@ -789,10 +786,14 @@ elif menu == "👥 Todos mis Clientes":
                 except:
                     pass
 
+            # --- BOTÓN DE LIMPIAR CORREGIDO (SIN ERROR) ---
             if st.button("🗑️ LIMPIAR UBICACIÓN", use_container_width=True):
+                # La clave es borrar temp_lat y temp_lon. 
+                # gps_res se limpiará solo al refrescar porque el input está vacío por defecto.
                 st.session_state.temp_lat = ""
                 st.session_state.temp_lon = ""
-                st.session_state.gps_res = ""
+                if "gps_res" in st.session_state:
+                    del st.session_state["gps_res"] # Borramos la entrada para resetear el widget
                 st.rerun()
                 
             # --- PASO 2: FORMULARIO ---
