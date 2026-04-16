@@ -680,81 +680,76 @@ elif menu == "👥 Todos mis Clientes":
         with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
             from streamlit.components.v1 import html
 
-            # Estado para coordenadas
-            if "gps_coords" not in st.session_state:
-                st.session_state.gps_coords = None
+            # 1. El input "puente" (invisible o deshabilitado si prefieres)
+            # Este es el que recibe el texto del JS
+            gps_res = st.text_input(
+                "Sincronización GPS:", 
+                placeholder="Esperando satélites...", 
+                key="gps_val",
+                help="Las coordenadas aparecerán aquí automáticamente"
+            )
 
-            st.markdown("### 📍 Capturar ubicación")
-
-            # --- BOTÓN + JS ---
-            gps_component = """
+            # 2. Tu botoncito con el diseño PRO
+            gps_html = """
+            <div style="text-align:center;">
+                <button id="gps_btn" onclick="getGPS()" style="
+                    width: 100%; background-color: #007AFF; color: white;
+                    border: none; padding: 20px; border-radius: 15px;
+                    font-weight: bold; font-size: 1rem; cursor: pointer; 
+                    box-shadow: 0 4px 15px rgba(0,122,255,0.3);
+                    transition: 0.3s ease;
+                ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
+            </div>
             <script>
-            function sendLocation() {
+            function getGPS() {
+                const btn = document.getElementById('gps_btn');
+                btn.innerText = "🛰️ BUSCANDO...";
+                btn.style.backgroundColor = "#ff9500";
+                
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         const coords = pos.coords.latitude + "," + pos.coords.longitude;
-                        window.parent.postMessage({
-                            type: "streamlit:set_component_value",
-                            value: coords
-                        }, "*");
+                        // Buscamos el input de Streamlit por su placeholder
+                        const inputs = window.parent.document.querySelectorAll('input');
+                        for (let input of inputs) {
+                            if (input.placeholder === "Esperando satélites...") {
+                                input.value = coords;
+                                input.dispatchEvent(new Event('input', { bubbles: true }));
+                                break;
+                            }
+                        }
+                        btn.innerText = "✅ UBICACIÓN FIJADA";
+                        btn.style.backgroundColor = "#34c759";
                     },
-                    (err) => {
-                        alert("Error GPS: " + err.message);
-                    },
+                    (err) => { alert("Error: " + err.message); },
                     { enableHighAccuracy: true }
                 );
             }
             </script>
-
-            <button onclick="sendLocation()" style="
-                width: 100%;
-                background-color: #007AFF;
-                color: white;
-                border: none;
-                padding: 15px;
-                border-radius: 12px;
-                font-weight: bold;
-                cursor: pointer;
-            ">
-            📍 CAPTURAR UBICACIÓN
-            </button>
             """
+            html(gps_html, height=100)
 
-            # Capturamos el valor que devuelve el componente
-            coords = html(gps_component, height=80)
-
-            # --- GUARDAR COORDENADAS ---
-            if coords:
-                st.session_state.gps_coords = coords
-
-            # --- MOSTRAR MAPA SI EXISTE ---
-            if st.session_state.gps_coords:
+            # 3. Lógica de procesamiento (Aquí ya no da error de split)
+            if gps_res and "," in gps_res:
                 try:
-                    lat_s, lon_s = st.session_state.gps_coords.split(",")
-                    lat = float(lat_s)
-                    lon = float(lon_s)
+                    lat_s, lon_s = gps_res.split(",")
+                    lat, lon = float(lat_s), float(lon_s)
+                    
+                    st.success(f"Coordenadas listas: {lat}, {lon}")
+                    
+                    # Guardamos en session_state para el formulario de abajo
+                    st.session_state.temp_lat = str(lat)
+                    st.session_state.temp_lon = str(lon)
 
-                    st.success(f"✅ Ubicación capturada: {lat}, {lon}")
-
-                    # MAPA NATIVO (Requiere que tengas importado pandas como pd)
-                    df_map = pd.DataFrame({"lat": [lat], "lon": [lon]})
+                    # Mostramos mapa nativo
+                    df_map = pd.DataFrame({'lat': [lat], 'lon': [lon]})
                     st.map(df_map, zoom=16)
 
-                    # LINK EXTERNO
-                    nav_url = f"https://www.google.com/maps?q={lat},{lon}"
-                    st.markdown(f"""
-                        <a href="{nav_url}" target="_blank" style="text-decoration:none;">
-                            <button style="width:100%; background:#4285F4; color:white; border:none; padding:10px; border-radius:10px; font-weight:bold;">
-                                🌍 ABRIR EN GOOGLE MAPS
-                            </button>
-                        </a>
-                    """, unsafe_allow_html=True)
-
                 except Exception as e:
-                    st.error(f"Error procesando coordenadas: {e}")
+                    st.error("Formato de coordenadas no válido.")
 
-            if st.button("🗑️ Limpiar ubicación"):
-                st.session_state.gps_coords = None
+            if st.button("🗑️ Limpiar datos de ubicación"):
+                st.session_state.gps_val = ""
                 st.rerun()
 
         # --- SECCIÓN B: CARTERA DE CLIENTES ---
