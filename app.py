@@ -675,17 +675,19 @@ elif menu == "👥 Todos mis Clientes":
         from streamlit_folium import st_folium
         from streamlit_js_eval import streamlit_js_eval
 
-        # --- 1. MEMORIA DE SESIÓN (Nombres únicos para evitar conflictos) ---
+        # CORRECCIÓN DE ERROR: Definir hoy_dt para evitar el NameError
+        hoy_dt = dt.date.today()
+
+        # 1. MEMORIA DE SESIÓN ÚNICA
         for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
             if k not in st.session_state: st.session_state[k] = ""
 
-        st.markdown("<h1 style='color: #1e293b; font-size: 1.8rem;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='color: #1e293b; font-size: 1.6rem;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
 
-        # --- 2. CAPTURA DE ALTA PRECISIÓN ---
+        # 2. CAPTURA DE ALTA PRECISIÓN (Solo un bloque)
         with st.container(border=True):
             st.markdown("#### 🎯 Pin de Ubicación Exacta")
             
-            # Key única para el motor de GPS
             pos = streamlit_js_eval(
                 js_expressions="""
                 new Promise((resolve) => {
@@ -696,47 +698,47 @@ elif menu == "👥 Todos mis Clientes":
                     )
                 })
                 """,
-                key="GPS_ULTRA_ENGINE_V3" 
+                key="GPS_ULTRA_FINAL_FIX" 
             )
             
             if pos and pos != "ERROR" and pos != st.session_state.reg_gps:
                 st.session_state.reg_gps = pos
                 st.rerun()
 
-            st.caption(f"📍 Coordenadas actuales: `{st.session_state.reg_gps if st.session_state.reg_gps else 'Buscando satélites...'}`")
+            st.info(f"📍 Coordenadas: {st.session_state.reg_gps if st.session_state.reg_gps else 'Buscando satélites...'}")
 
-        # --- 3. FORMULARIO Y MAPA (CON KEYS ÚNICAS) ---
-        with st.expander("📝 Registro de Cliente", expanded=True):
+        # 3. UN SOLO FORMULARIO ORGANIZADO
+        with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
             
-            col_form, col_mapa = st.columns([1.2, 1])
+            col_izq, col_der = st.columns([1, 1])
             
-            with col_form:
-                # Agregamos 'key' única a cada input para evitar el error DuplicateElementId
-                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="input_nombre_unico")
-                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced, key="input_cedula_unica")
-                st.session_state.reg_tel = st.text_input("WhatsApp / Teléfono *", value=st.session_state.reg_tel, key="input_tel_unico")
-                st.session_state.reg_dir = st.text_area("Referencia (Color de casa, etc.)", value=st.session_state.reg_dir, height=70, key="input_dir_unica")
+            with col_izq:
+                # Keys únicas para evitar el error DuplicateElementId
+                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="f_nombre")
+                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced, key="f_cedula")
+                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="f_tel")
+                st.session_state.reg_dir = st.text_area("Referencia de Vivienda", value=st.session_state.reg_dir, height=70, key="f_dir")
 
-            with col_mapa:
+            with col_der:
                 if st.session_state.reg_gps and "," in st.session_state.reg_gps:
                     try:
                         lat, lon = map(float, st.session_state.reg_gps.split(","))
-                        st.markdown("<p style='text-align:center; margin-bottom:0;'>🗺️ Vista Previa</p>", unsafe_allow_html=True)
+                        st.markdown("<p style='text-align:center; font-weight:bold;'>📍 Confirmación de Casa</p>", unsafe_allow_html=True)
                         
+                        # Mapa compacto y con zoom máximo para precisión
                         m = folium.Map(location=[lat, lon], zoom_start=19)
-                        folium.Marker([lat, lon], icon=folium.Icon(color='red', icon='screenshot')).add_to(m)
+                        folium.Marker([lat, lon], icon=folium.Icon(color='red', icon='home')).add_to(m)
                         
-                        # Key dinámica para el mapa
-                        st_folium(m, height=250, use_container_width=True, key=f"map_display_{lat}_{lon}")
+                        st_folium(m, height=280, use_container_width=True, key=f"map_fixed_{lat}_{lon}")
                     except:
-                        st.info("Procesando señal...")
+                        st.write("Cargando mapa...")
                 else:
-                    st.info("Esperando GPS...")
+                    st.warning("Captura el GPS arriba para ver el mapa.")
 
-            # --- 4. BOTÓN DE GUARDADO ---
-            if st.button("💾 GUARDAR CLIENTE", use_container_width=True, type="primary", key="btn_guardar_final"):
+            # UN SOLO BOTÓN DE GUARDADO
+            if st.button("🚀 GUARDAR CLIENTE EN CARTERA", use_container_width=True, type="primary", key="f_guardar"):
                 if not st.session_state.reg_nombre or not st.session_state.reg_gps:
-                    st.error("Nombre y Ubicación son obligatorios.")
+                    st.error("❌ Nombre y Ubicación obligatorios.")
                 else:
                     try:
                         lat_v, lon_v = st.session_state.reg_gps.split(",")
@@ -747,17 +749,19 @@ elif menu == "👥 Todos mis Clientes":
                             "direccion": st.session_state.reg_dir,
                             "latitud": float(lat_v),
                             "longitud": float(lon_v),
-                            "user_id": u_id
+                            "user_id": u_id,
+                            "fecha_registro": str(hoy_dt) # Usamos la variable hoy_dt definida arriba
                         }).execute()
                         
-                        st.success("✅ ¡Guardado!")
-                        # Limpiar memoria
-                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
-                            st.session_state[k] = ""
+                        st.success("✅ Cliente guardado con éxito.")
+                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
                         time.sleep(1)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(f"Error al guardar: {e}")
+
+        st.divider()
+        # --- Aquí continúa tu código de visualización de clientes ya registrados ---
                         
         # --- 3. FORMULARIO DE DATOS (Cédula incluida) ---
         with st.expander("📝 Información del Cliente", expanded=True):
