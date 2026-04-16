@@ -675,65 +675,82 @@ elif menu == "👥 Todos mis Clientes":
         from streamlit_folium import st_folium
         from streamlit_js_eval import streamlit_js_eval
 
-        # 1. INICIALIZACIÓN
         hoy_dt = dt.date.today()
+
+        # 1. MEMORIA DE SESIÓN
         for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
             if k not in st.session_state: st.session_state[k] = ""
 
-        st.markdown("<h2 style='color: #1e293b;'>📍 Localizador y Registro</h2>", unsafe_allow_html=True)
+        st.markdown("<h1 style='color: #1e293b; font-size: 1.6rem;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
 
-        # 2. BLOQUE DE RASTREO Y MAPA (EL ÚNICO MAPA)
-        with st.container(border=True):
-            col_gps, col_map = st.columns([1, 1.5])
+        # 2. REGISTRO DESPLEGABLE (Para que no estorbe)
+        with st.expander("✨ Registrar Nuevo Cliente (Abrir/Cerrar)", expanded=False):
             
-            with col_gps:
-                st.write("### 🛰️ Rastreo GPS")
-                if st.button("🎯 CAPTURAR UBICACIÓN AHORA", use_container_width=True, type="primary", key="btn_rastreo_principal"):
+            st.markdown("### 🛰️ Localización Satelital")
+            
+            # BLOQUE DE RASTREO CON DIAGNÓSTICO
+            with st.container(border=True):
+                col_gps, col_map = st.columns([1, 1.5])
+                
+                with col_gps:
+                    # Botón con JS mejorado para capturar errores de permiso
                     pos = streamlit_js_eval(
                         js_expressions="""
                         new Promise((resolve) => {
+                            if (!navigator.geolocation) { resolve("NO_SOPORTADO"); }
                             navigator.geolocation.getCurrentPosition(
                                 (p) => resolve(p.coords.latitude + "," + p.coords.longitude),
-                                (e) => resolve("ERROR"),
+                                (e) => resolve("ERROR_" + e.code),
                                 { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                             )
                         })
                         """,
-                        key="GPS_ENGINE_FINAL"
+                        key="GPS_ENGINE_ULTIMATE"
                     )
-                    if pos and pos != "ERROR":
-                        st.session_state.reg_gps = pos
-                        st.rerun()
-                
-                st.code(st.session_state.reg_gps if st.session_state.reg_gps else "Esperando señal...")
 
-            with col_map:
-                if st.session_state.reg_gps and "," in st.session_state.reg_gps:
-                    try:
-                        lat, lon = map(float, st.session_state.reg_gps.split(","))
-                        m = folium.Map(location=[lat, lon], zoom_start=19)
-                        folium.Marker([lat, lon], icon=folium.Icon(color='red', icon='home')).add_to(m)
-                        st_folium(m, height=250, use_container_width=True, key=f"mapa_unico_{lat}_{lon}")
-                    except:
-                        st.write("Cargando mapa...")
-                else:
-                    st.info("Presiona el botón para activar el mapa satelital.")
+                    if st.button("🎯 CAPTURAR UBICACIÓN AHORA", use_container_width=True, type="primary"):
+                        if pos == "NO_SOPORTADO":
+                            st.error("❌ Tu navegador no soporta GPS.")
+                        elif pos and pos.startswith("ERROR"):
+                            st.error(f"🚫 Permiso denegado o GPS apagado (Código: {pos})")
+                        elif pos:
+                            st.session_state.reg_gps = pos
+                            st.success("✅ Coordenadas obtenidas")
+                            st.rerun()
+                        else:
+                            st.warning("⏳ Esperando respuesta del satélite... Intenta de nuevo.")
 
-        # 3. FORMULARIO DE DATOS (SIN MAPA REPETIDO)
-        st.markdown("### 📝 Datos del Cliente")
-        with st.container(border=True):
+                    # Entrada manual por si el GPS falla
+                    st.session_state.reg_gps = st.text_input("📍 Coordenadas (Lat, Lon)", 
+                                                            value=st.session_state.reg_gps,
+                                                            placeholder="Ej: 18.59, -70.17")
+
+                with col_map:
+                    if st.session_state.reg_gps and "," in st.session_state.reg_gps:
+                        try:
+                            lat, lon = map(float, st.session_state.reg_gps.split(","))
+                            m = folium.Map(location=[lat, lon], zoom_start=19)
+                            folium.Marker([lat, lon], icon=folium.Icon(color='red', icon='home')).add_to(m)
+                            st_folium(m, height=250, use_container_width=True, key=f"map_top_{lat}_{lon}")
+                        except:
+                            st.error("Formato de coordenadas inválido.")
+                    else:
+                        st.info("Activa el GPS para visualizar el mapa exacto.")
+
+            st.markdown("### 📝 Datos del Cliente")
+            # FORMULARIO
             c1, c2 = st.columns(2)
             with c1:
-                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="input_nom")
-                st.session_state.reg_ced = st.text_input("Cédula / Identificación", value=st.session_state.reg_ced, key="input_ced")
+                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="n1")
+                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced, key="c1")
             with c2:
-                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="input_tel")
-                st.session_state.reg_dir = st.text_area("Referencia de Vivienda", value=st.session_state.reg_dir, height=68, key="input_dir")
+                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="t1")
+                st.session_state.reg_dir = st.text_area("Referencia de Vivienda", value=st.session_state.reg_dir, height=68, key="d1")
 
-            # BOTÓN ÚNICO DE GUARDADO
-            if st.button("🚀 GUARDAR TODO EN CARTERA", use_container_width=True, type="primary", key="btn_guardar_final"):
+            # BOTÓN FINAL DE GUARDADO
+            if st.button("🚀 GUARDAR EN CARTERA", use_container_width=True, type="primary", key="save_final"):
                 if not st.session_state.reg_nombre or not st.session_state.reg_gps:
-                    st.error("❌ Falta el Nombre o la Ubicación.")
+                    st.error("❌ Nombre y Ubicación son obligatorios.")
                 else:
                     try:
                         lat_v, lon_v = st.session_state.reg_gps.split(",")
@@ -747,17 +764,11 @@ elif menu == "👥 Todos mis Clientes":
                             "user_id": u_id,
                             "fecha_registro": str(hoy_dt)
                         }).execute()
-                        
-                        st.success("✅ ¡Cliente registrado correctamente!")
-                        # Limpiar memoria para el siguiente cliente
-                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
-                            st.session_state[k] = ""
-                        time.sleep(1)
-                        st.rerun()
+                        st.success("✅ ¡Guardado!")
+                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
+                        time.sleep(1); st.rerun()
                     except Exception as e:
-                        st.error(f"Error en base de datos: {e}")
-
-        st.divider()
+                        st.error(f"Error: {e}")
 
         # --- LISTADO DE CLIENTES ---
         st.divider()
