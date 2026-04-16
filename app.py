@@ -701,75 +701,65 @@ elif menu == "👥 Todos mis Clientes":
             if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
             if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
 
-            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
             
-            # --- SOLUCIÓN DEFINITIVA: PUENTE JAVASCRIPT ---
-            from streamlit.components.v1 import html
-            
-            # 1. Este bloque captura la ubicación y la pone en los campos de texto automáticamente
-            gps_script = """
-            <script>
-            function getGPS() {
-                const options = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 };
-                navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                        // Buscamos los inputs de Streamlit por su etiqueta aria o tipo
-                        const inputs = window.parent.document.querySelectorAll('input[type="text"]');
-                        // El JS le "inyecta" los valores a los inputs de latitud y longitud
-                        window.parent.postMessage({
-                            type: 'streamlit:set_component_value',
-                            value: pos.coords.latitude + ", " + pos.coords.longitude
-                        }, '*');
-                    },
-                    (err) => { console.error("Error GPS:", err); },
-                    options
-                );
-            }
-            getGPS();
-            </script>
-            """
+            with st.form("form_final_cliente", clear_on_submit=True):
+                c1, c2 = st.columns(2)
+                n_nombre = c1.text_input("Nombre y Apellido *", placeholder="Ej: Juan Pérez")
+                n_telefono = c1.text_input("WhatsApp / Celular *", placeholder="809-000-0000")
+                
+                n_cedula = c2.text_input("Cédula / ID *", placeholder="001-0000000-0")
+                n_direccion = c2.text_input("Referencia de Vivienda", placeholder="Ej: Frente al colmado azul")
+                
+                n_nota = st.text_area("Notas iniciales (Perfil del cliente, trabajo, etc.)")
 
-            with st.container(border=True):
-                # Botón que dispara el script
-                if st.button("📍 ACTIVAR RADAR GPS", use_container_width=True, type="primary"):
-                    html(gps_script, height=0)
-                    st.toast("🛰️ Buscando satélites...")
+                # Botón de Guardado
+                submit_cliente = st.form_submit_button("🚀 GUARDAR EXPEDIENTE COMPLETO", use_container_width=True)
 
-                # Campo de entrada que recibe el dato del JS
-                gps_data = st.text_input("Coordenadas capturadas (Lat, Lon):", key="gps_receiver", placeholder="Esperando señal...")
+                if submit_cliente:
+                    # VALIDACIÓN DE CAMPOS CRÍTICOS
+                    if not n_nombre or not n_telefono or not n_cedula:
+                        st.error("⚠️ Nombre, WhatsApp y Cédula son obligatorios.")
+                    elif not st.session_state.get('temp_lat'):
+                        st.warning("⚠️ ¡Falta la ubicación! Sube al Paso 1 y presiona 'ACTIVAR RADAR GPS'.")
+                    else:
+                        try:
+                            # 1. Verificar si ya existe el cliente (Cédula o Teléfono)
+                            check = conn.table("clientes").select("id, nombre")\
+                                .eq("user_id", u_id)\
+                                .or_(f"telefono.eq.{n_telefono},cedula.eq.{n_cedula}")\
+                                .execute()
 
-                if gps_data and "," in gps_data:
-                    lat_val, lon_val = gps_data.split(",")
-                    st.session_state.temp_lat = lat_val.strip()
-                    st.session_state.temp_lon = lon_val.strip()
-                    st.success("✅ Ubicación fijada correctamente")
-
-                if st.session_state.get('temp_lat'):
-                    if st.button("🗑️ LIMPIAR POSICIÓN", use_container_width=True):
-                        st.session_state.temp_lat = ""
-                        st.session_state.temp_lon = ""
-                        st.rerun()
-
-            # --- MAPA DE CONFIRMACIÓN (Plotly) ---
-            if st.session_state.get('temp_lat'):
-                try:
-                    fig = go.Figure(go.Scattermapbox(
-                        lat=[float(st.session_state.temp_lat)],
-                        lon=[float(st.session_state.temp_lon)],
-                        mode='markers',
-                        marker=go.scattermapbox.Marker(size=20, color='red'),
-                    ))
-                    fig.update_layout(
-                        mapbox=dict(
-                            style="open-street-map",
-                            center=dict(lat=float(st.session_state.temp_lat), lon=float(st.session_state.temp_lon)),
-                            zoom=17
-                        ),
-                        margin={"r":0,"t":0,"l":0,"b":0}, height=250
-                    )
-                    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-                except:
-                    st.error("Formato de coordenadas inválido")
+                            if check.data:
+                                st.error(f"❌ Error: Ya existe un cliente con ese teléfono o cédula ({check.data[0]['nombre']}).")
+                            else:
+                                # 2. Registrar en la Base de Datos
+                                reg_cliente = {
+                                    "user_id": u_id, 
+                                    "nombre": n_nombre, 
+                                    "cedula": n_cedula, 
+                                    "telefono": n_telefono,
+                                    "direccion": n_direccion, 
+                                    "latitud": str(st.session_state.temp_lat), 
+                                    "longitud": str(st.session_state.temp_lon), 
+                                    "notas": n_nota, 
+                                    "fecha_registro": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                }
+                                
+                                conn.table("clientes").insert(reg_cliente).execute()
+                                
+                                # 3. Limpiar todo y Notificar
+                                st.session_state.temp_lat = ""
+                                st.session_state.temp_lon = ""
+                                if "gps_receiver" in st.session_state:
+                                    st.session_state.gps_receiver = ""
+                                    
+                                st.success(f"✅ ¡Expediente de {n_nombre} creado con éxito!")
+                                time.sleep(1.5)
+                                st.rerun()
+                                
+                        except Exception as e: 
+                            st.error(f"Hubo un problema al guardar: {e}")
 
             # --- PASO 2: FORMULARIO ---
             st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
