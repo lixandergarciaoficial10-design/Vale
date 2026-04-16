@@ -701,17 +701,11 @@ elif menu == "👥 Todos mis Clientes":
             if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
             if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
 
-            # --- PASO 1: LOCALIZACIÓN ---
-            # --- PASO 1: LOCALIZACIÓN ---
-            # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
-            # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
-            # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
-            # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
             # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                # MANTENEMOS TU BOTÓN FAVORITO (SIN CAMBIOS VISUALES)
+                # MANTENEMOS TU BOTÓN FAVORITO (CON TU DISEÑO ORIGINAL)
                 gps_html = """
                 <div style="text-align:center;">
                     <button id="gps_btn" onclick="getGPS()" style="
@@ -735,7 +729,6 @@ elif menu == "👥 Todos mis Clientes":
                             const lon = pos.coords.longitude;
                             const res = lat + "," + lon;
                             
-                            // Inyectamos en el input de Streamlit
                             const inputs = window.parent.document.querySelectorAll('input');
                             for (let input of inputs) {
                                 if (input.placeholder === "Sincronizando satélites...") {
@@ -748,9 +741,6 @@ elif menu == "👥 Todos mis Clientes":
                             }
                             btn.innerText = "✅ UBICACIÓN FIJADA";
                             btn.style.backgroundColor = "#34c759";
-                            
-                            // Forzamos al sistema a notar el cambio
-                            setTimeout(() => { window.parent.document.body.click(); }, 500);
                         },
                         (err) => { 
                             alert("Error GPS: " + err.message); 
@@ -764,30 +754,27 @@ elif menu == "👥 Todos mis Clientes":
                 """
                 st.components.v1.html(gps_html, height=100)
 
-                # Receptor de coordenadas (Mantenlo con este placeholder)
+                # Receptor de coordenadas (El mapa ahora escucha DIRECTAMENTE a gps_res)
                 gps_res = st.text_input("Coordenadas:", key="gps_res", placeholder="Sincronizando satélites...", label_visibility="collapsed")
 
-                if gps_res and "," in gps_res:
-                    try:
-                        lat_s, lon_s = gps_res.split(",")
-                        st.session_state.temp_lat = lat_s.strip()
-                        st.session_state.temp_lon = lon_s.strip()
-                    except:
-                        pass
-
-            # --- MAPA AUTOMÁTICO CORREGIDO ---
-            if st.session_state.get('temp_lat') and st.session_state.get('temp_lon'):
+            # --- MAPA AUTOMÁTICO (FLUJO DIRECTO SIN LATENCIA) ---
+            if gps_res and "," in gps_res:
                 try:
-                    # Convertimos a número para el mapa
-                    lat_f = float(st.session_state.temp_lat)
-                    lon_f = float(st.session_state.temp_lon)
+                    # Leemos directamente del input gps_res para renderizado inmediato
+                    lat_s, lon_s = gps_res.split(",")
+                    lat_f = float(lat_s.strip())
+                    lon_f = float(lon_s.strip())
                     
-                    # El truco para que st.map funcione es este DataFrame exacto
+                    # Sincronizamos el estado para el guardado final en base de datos
+                    st.session_state.temp_lat = str(lat_f)
+                    st.session_state.temp_lon = str(lon_f)
+                    
+                    # Preparamos el DataFrame para el mapa nativo
                     df_punto = pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]})
                     
-                    st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
+                    st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
                     
-                    # Usamos st.map que es nativo y no falla nunca
+                    # Despliegue automático del mapa
                     with st.expander("🗺️ VER MAPA DE UBICACIÓN", expanded=True):
                         st.map(df_punto, zoom=16, use_container_width=True)
                         
@@ -800,14 +787,14 @@ elif menu == "👥 Todos mis Clientes":
                             </div>
                         """, unsafe_allow_html=True)
                 except:
-                    st.error("Esperando coordenadas válidas...")
+                    pass
 
-                if st.button("🗑️ LIMPIAR UBICACIÓN", use_container_width=True):
-                    st.session_state.temp_lat = ""
-                    st.session_state.temp_lon = ""
-                    st.session_state.gps_res = ""
-                    st.rerun()
-
+            if st.button("🗑️ LIMPIAR UBICACIÓN", use_container_width=True):
+                st.session_state.temp_lat = ""
+                st.session_state.temp_lon = ""
+                st.session_state.gps_res = ""
+                st.rerun()
+                
             # --- PASO 2: FORMULARIO ---
             st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
             
