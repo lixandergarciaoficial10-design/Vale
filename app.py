@@ -706,10 +706,11 @@ elif menu == "👥 Todos mis Clientes":
             # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
             # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
             # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
+            # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                # MOTOR DE CAPTURA CON AUTO-REFRESCO (REINICIO FORZADO)
+                # MANTENEMOS TU BOTÓN FAVORITO (CON EL HACK DE REFRESCO)
                 gps_html = """
                 <div style="text-align:center;">
                     <button id="gps_btn" onclick="getGPS()" style="
@@ -717,6 +718,7 @@ elif menu == "👥 Todos mis Clientes":
                         border: none; padding: 20px; border-radius: 15px;
                         font-weight: bold; font-size: 1rem; cursor: pointer; 
                         box-shadow: 0 4px 15px rgba(0,122,255,0.3);
+                        transition: 0.3s ease;
                     ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
                 </div>
 
@@ -728,7 +730,11 @@ elif menu == "👥 Todos mis Clientes":
                     
                     navigator.geolocation.getCurrentPosition(
                         (pos) => {
-                            const res = pos.coords.latitude + "," + pos.coords.longitude;
+                            const lat = pos.coords.latitude;
+                            const lon = pos.coords.longitude;
+                            const res = lat + "," + lon;
+                            
+                            // Inyectamos en el input de Streamlit
                             const inputs = window.parent.document.querySelectorAll('input');
                             for (let input of inputs) {
                                 if (input.placeholder === "Sincronizando satélites...") {
@@ -739,13 +745,13 @@ elif menu == "👥 Todos mis Clientes":
                                     break;
                                 }
                             }
-                            btn.innerText = "✅ ¡LISTO! PROCESANDO...";
+                            btn.innerText = "✅ UBICACIÓN FIJADA";
                             btn.style.backgroundColor = "#34c759";
                             
-                            // HACK FINAL: Forzamos un click en cualquier parte para que Streamlit reaccione
-                            window.parent.document.body.click();
+                            // TRUCO MAESTRO: Forzamos un pequeño scroll o click para que el mapa cargue
+                            window.parent.postMessage({type: 'streamlit:set_component_value', value: res}, '*');
                         },
-                        (err) => { alert("Error: " + err.message); },
+                        (err) => { alert("Error GPS: " + err.message); },
                         { enableHighAccuracy: true, timeout: 10000 }
                     );
                 }
@@ -753,40 +759,39 @@ elif menu == "👥 Todos mis Clientes":
                 """
                 st.components.v1.html(gps_html, height=100)
 
-                # Mostramos el valor capturado (Si no se ve el mapa, edita este cuadro a mano)
-                gps_res = st.text_input("Coordenadas detectadas:", key="gps_res", placeholder="Sincronizando satélites...")
+                # Receptor invisible/estético
+                gps_res = st.text_input("Coordenadas:", key="gps_res", placeholder="Sincronizando satélites...", label_visibility="collapsed")
 
                 if gps_res and "," in gps_res:
-                    try:
-                        lat_s, lon_s = gps_res.split(",")
-                        st.session_state.temp_lat = lat_s.strip()
-                        st.session_state.temp_lon = lon_s.strip()
-                    except:
-                        pass
+                    lat_s, lon_s = gps_res.split(",")
+                    st.session_state.temp_lat = lat_s.strip()
+                    st.session_state.temp_lon = lon_s.strip()
 
-            # --- MAPA FÍSICO (NATIVO DE STREAMLIT) ---
+            # --- EL MAPA AUTOMÁTICO (ESTÉTICO) ---
             if st.session_state.get('temp_lat'):
-                st.markdown("### 🗺️ Mapa de Ubicación")
+                lat_f = float(st.session_state.temp_lat)
+                lon_f = float(st.session_state.temp_lon)
                 
-                # Creamos el dataframe para el mapa
-                lat_val = float(st.session_state.temp_lat)
-                lon_val = float(st.session_state.temp_lon)
-                map_data = pd.DataFrame({'lat': [lat_val], 'lon': [lon_val]})
+                # Creamos el dataframe para el punto en el mapa
+                map_df = pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]})
                 
-                # ESTO DIBUJA EL MAPA FÍSICO SÍ O SÍ
-                st.map(map_data, zoom=16)
+                st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
                 
-                # Botón verde de Google Maps por si el mapa de arriba no carga por internet lento
-                st.markdown(f"""
-                    <a href="https://www.google.com/maps?q={lat_val},{lon_val}" target="_blank" 
-                       style="display: block; width: 100%; text-align: center; background-color: #34c759; 
-                       color: white; padding: 15px; border-radius: 12px; text-decoration: none; 
-                       font-weight: bold; margin-top: 10px; font-size: 1rem;">
-                       ✅ VER EN GOOGLE MAPS (SATELITAL)
-                    </a>
-                """, unsafe_allow_html=True)
-                
-                if st.button("🗑️ REPETIR CAPTURA", use_container_width=True):
+                # Mapa Nativo: No se bloquea, es rápido y se ve muy limpio
+                with st.expander("📍 VER MAPA DE UBICACIÓN", expanded=True):
+                    st.map(map_df, zoom=16, use_container_width=True)
+                    
+                    # Link de respaldo discreto pero útil
+                    st.markdown(f"""
+                        <div style="text-align:center;">
+                            <a href="https://www.google.com/maps?q={lat_f},{lon_f}" target="_blank" 
+                               style="font-size: 0.8rem; color: #0284c7; text-decoration: none;">
+                               🌐 Abrir en Google Maps Satelital
+                            </a>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                if st.button("🗑️ LIMPIAR Y REINTENTAR", use_container_width=True):
                     st.session_state.temp_lat = ""
                     st.session_state.temp_lon = ""
                     st.session_state.gps_res = ""
