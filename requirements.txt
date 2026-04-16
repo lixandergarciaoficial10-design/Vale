@@ -10,3 +10,5 @@ groq
 qrcode[pil]
 streamlit-geolocation
 streamlit-js-eval
+folium
+streamlit-folium
