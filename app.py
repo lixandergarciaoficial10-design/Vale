@@ -729,21 +729,34 @@ elif menu == "👥 Todos mis Clientes":
                 gps_res = st.text_input("Coordenadas:", key="gps_res", placeholder="Sincronizando satélites...", label_visibility="collapsed")
 
             # --- RENDERIZADO DEL MAPA (FUERA DEL CONTENEDOR PARA QUE SE VEA BIEN) ---
+            # --- EL MAPA EMBEBIDO (GOOGLE MAPS SATELITAL) ---
             if gps_res and "," in gps_res:
                 try:
-                    lat, lon = gps_res.split(",")
-                    st.session_state.temp_lat = lat.strip()
-                    st.session_state.temp_lon = lon.strip()
-                    
+                    lat_s, lon_s = gps_res.split(",")
+                    lat = lat_s.strip()
+                    lon = lon_s.strip()
+
+                    # Guardamos para el envío a Supabase
+                    st.session_state.temp_lat = lat
+                    st.session_state.temp_lon = lon
+
                     st.markdown("### 📍 Vista Satelital Confirmada")
-                    mapa_embed = f"""
-                    <iframe width="100%" height="350" style="border:0; border-radius:20px;" 
-                    src="https://maps.google.com/maps?q={st.session_state.temp_lat},{st.session_state.temp_lon}&t=k&z=18&ie=UTF8&iwloc=&output=embed">
+                    
+                    # URL CORREGIDA: https:// y dominio maps.google.com directo
+                    mapa_url = f"https://maps.google.com/maps?q={lat},{lon}&t=k&z=18&ie=UTF8&iwloc=&output=embed"
+                    
+                    mapa_html = f"""
+                    <iframe
+                        width="100%"
+                        height="350"
+                        style="border:0; border-radius:20px; box-shadow: 0 8px 20px rgba(0,0,0,0.15);"
+                        src="{mapa_url}">
                     </iframe>
                     """
-                    st.components.v1.html(mapa_embed, height=370)
-                except:
-                    st.error("Coordenadas no válidas")
+                    st.components.v1.html(mapa_html, height=370)
+
+                except Exception as e:
+                    st.error(f"Error al cargar el mapa: {e}")
 
             if st.button("🗑️ LIMPIAR UBICACIÓN", use_container_width=True):
                 st.session_state.temp_lat = ""
