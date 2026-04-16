@@ -689,72 +689,63 @@ elif menu == "👥 Todos mis Clientes":
     # =========================================================
     with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
 
-        st.info("Presiona el botón para detectar la ubicación automáticamente.")
+    import folium
+    from streamlit_folium import st_folium
+    from streamlit_js_eval import streamlit_js_eval
 
-        # --- 📍 BOTÓN GPS NATIVO ---
-        if st.button("📍 Capturar Ubicación"):
-            loc = streamlit_js_eval(
-                js_expressions="""
-                new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(
-                        (pos) => resolve(pos.coords.latitude + "," + pos.coords.longitude),
-                        (err) => reject(err.message)
-                    );
-                })
-                """,
-                key="get_location"
-            )
-            if loc:
-                st.session_state.reg_gps = loc
-                st.success(f"📍 Ubicación detectada: {loc}")
+    # 🔒 Inicialización anti-borrado
+    if "reg_gps" not in st.session_state:
+        st.session_state.reg_gps = ""
 
-        # --- FORMULARIO ---
-        c1, c2 = st.columns(2)
+    st.info("Presiona el botón para capturar tu ubicación.")
 
-        with c1:
-            st.text_input("📍 Coordenadas", key="reg_gps")
-            st.text_input("Nombre Completo *", key="reg_nombre")
+    # =========================
+    # 📍 BOTÓN GPS REAL
+    # =========================
+    if st.button("📍 Capturar Ubicación"):
+        loc = streamlit_js_eval(
+            js_expressions="""
+            new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => resolve(pos.coords.latitude + "," + pos.coords.longitude),
+                    (err) => resolve("ERROR")
+                );
+            })
+            """,
+            key="GPS"
+        )
 
-        with c2:
-            st.text_input("WhatsApp *", key="reg_tel")
-            st.text_input("Cédula / ID", key="reg_ced")
+        if loc and loc != "ERROR":
+            st.session_state.reg_gps = loc
+            st.success("Ubicación capturada correctamente")
+        else:
+            st.error("No se pudo obtener la ubicación. Acepta los permisos del navegador.")
 
-        st.text_area("Referencia de Vivienda", key="reg_dir")
+    # =========================
+    # 📥 INPUT (NO SE BORRA)
+    # =========================
+    st.text_input("📍 Coordenadas", key="reg_gps")
 
-        # =========================================================
-        # 🗺️ MAPA FOLIUM (REAL Y GRATIS)
-        # =========================================================
-        if st.session_state.reg_gps and "," in st.session_state.reg_gps:
-            try:
-                lat, lon = map(float, st.session_state.reg_gps.split(","))
+    # =========================
+    # 🗺️ MAPA (SOLO SI HAY DATOS)
+    # =========================
+    if st.session_state.reg_gps and "," in st.session_state.reg_gps:
+        try:
+            lat, lon = map(float, st.session_state.reg_gps.split(","))
 
-                st.markdown("### 🗺️ Vista previa de ubicación")
+            st.write("### 🗺️ Ubicación detectada")
 
-                mapa = folium.Map(
-                    location=[lat, lon],
-                    zoom_start=17,
-                    tiles="OpenStreetMap"
-                )
+            mapa = folium.Map(location=[lat, lon], zoom_start=17)
 
-                folium.Marker(
-                    [lat, lon],
-                    tooltip="Ubicación del cliente",
-                    popup=st.session_state.reg_nombre or "Cliente"
-                ).add_to(mapa)
+            folium.Marker(
+                [lat, lon],
+                tooltip="Aquí estás"
+            ).add_to(mapa)
 
-                st_folium(mapa, width=700, height=400)
+            st_folium(mapa, height=400)
 
-                # 🔗 BOTÓN GOOGLE MAPS (RUTA)
-                maps_url = f"https://www.google.com/maps/dir/?api=1&destination={lat},{lon}"
-                st.markdown(
-                    f'<a href="{maps_url}" target="_blank">'
-                    f'<button style="width:100%; background:#22c55e; color:white; border:none; padding:12px; border-radius:10px; cursor:pointer;">🚗 IR CON GOOGLE MAPS</button>'
-                    f'</a>',
-                    unsafe_allow_html=True
-                )
-
-            except:
-                st.warning("⚠️ Formato de coordenadas inválido.")
+        except:
+            st.warning("Coordenadas inválidas")
 
         # =========================================================
         # 💾 GUARDAR
