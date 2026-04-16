@@ -701,40 +701,44 @@ elif menu == "👥 Todos mis Clientes":
             if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
             if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
 
-            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización del Cliente</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
                 from streamlit_geolocation import streamlit_geolocation
                 
-                # Este es el componente que saca el icono/botón de la librería
-                st.write("👇 Toca aquí primero para activar el sensor:")
-                loc_nativa = streamlit_geolocation() 
+                # 1. Componente invisible que escucha el GPS
+                loc_data = streamlit_geolocation() 
                 
-                # Botón de respaldo para que sea INTUITIVO
-                if st.button("🔵 FIJAR UBICACIÓN AQUÍ", use_container_width=True, type="primary"):
-                    if loc_nativa and loc_nativa.get('latitude'):
-                        st.session_state.temp_lat = loc_nativa['latitude']
-                        st.session_state.temp_lon = loc_nativa['longitude']
-                        st.toast("🎯 ¡Ubicación capturada con éxito!")
-                    else:
-                        st.error("⚠️ Primero toca el botón de arriba 'Get Location' para dar permiso al GPS.")
+                c_btn1, c_btn2 = st.columns([2, 1])
+                
+                with c_btn1:
+                    # 2. Único botón de acción: Al tocarlo, captura lo que el sensor encontró
+                    if st.button("📍 CAPTURAR UBICACIÓN ACTUAL", use_container_width=True, type="primary"):
+                        if loc_data and loc_data.get('latitude'):
+                            st.session_state.temp_lat = loc_data['latitude']
+                            st.session_state.temp_lon = loc_data['longitude']
+                            st.toast("🎯 Ubicación fijada")
+                        else:
+                            st.error("⚠️ El GPS no responde. Dale a 'Allow' o 'Permitir' en la parte superior del navegador.")
 
-                # Botón para limpiar
-                if st.session_state.temp_lat:
-                    if st.button("🗑️ LIMPIAR Y REPETIR", use_container_width=True):
-                        st.session_state.temp_lat = ""
-                        st.session_state.temp_lon = ""
-                        st.rerun()
+                with c_btn2:
+                    # 3. Botón para limpiar
+                    if st.session_state.temp_lat:
+                        if st.button("🗑️ LIMPIAR", use_container_width=True):
+                            st.session_state.temp_lat = ""
+                            st.session_state.temp_lon = ""
+                            st.rerun()
 
-            # --- MAPA DE CONFIRMACIÓN ---
+            # --- MAPA ÚNICO DE CONFIRMACIÓN ---
             if st.session_state.temp_lat:
-                st.success(f"📍 Coordenadas: {st.session_state.temp_lat}, {st.session_state.temp_lon}")
+                st.markdown(f"""<div style="background:#f0fdf4;padding:8px;border-radius:10px;border:1px solid #bbf7d0;text-align:center;margin-bottom:10px;">
+                    <span style="color:#166534;font-size:0.8rem;">✅ Ubicación lista para guardar</span></div>""", unsafe_allow_html=True)
+                
                 fig = go.Figure(go.Scattermapbox(
                     lat=[float(st.session_state.temp_lat)],
                     lon=[float(st.session_state.temp_lon)],
                     mode='markers',
                     marker=go.scattermapbox.Marker(size=20, color='red'),
-                    text=["Casa del Cliente"]
                 ))
                 fig.update_layout(
                     mapbox=dict(
@@ -746,26 +750,7 @@ elif menu == "👥 Todos mis Clientes":
                 )
                 st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
-
-            # --- MAPA GRATUITO (SIN API KEY) ---
-            if st.session_state.temp_lat:
-                fig = go.Figure(go.Scattermapbox(
-                    lat=[float(st.session_state.temp_lat)],
-                    lon=[float(st.session_state.temp_lon)],
-                    mode='markers',
-                    marker=go.scattermapbox.Marker(size=18, color='red'),
-                    text=["Ubicación Exacta"]
-                ))
-                fig.update_layout(
-                    mapbox=dict(
-                        style="open-street-map", # Estilo gratuito y funcional
-                        center=dict(lat=float(st.session_state.temp_lat), lon=float(st.session_state.temp_lon)),
-                        zoom=18
-                    ),
-                    margin={"r":0,"t":0,"l":0,"b":0}, height=300
-                )
-                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False}) 
-
+            # --- PASO 2: FORMULARIO ---
             st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
             with st.form("form_final_cliente", clear_on_submit=True):
                 c1, c2 = st.columns(2)
@@ -780,6 +765,7 @@ elif menu == "👥 Todos mis Clientes":
                         st.error("⚠️ Datos incompletos: Nombre, WhatsApp y Cédula son obligatorios.")
                     else:
                         try:
+                            # Verificación de duplicados
                             check = conn.table("clientes").select("id, nombre, cedula, telefono")\
                                 .eq("user_id", u_id)\
                                 .or_(f"telefono.eq.{n_telefono},cedula.eq.{n_cedula}")\
@@ -812,8 +798,6 @@ elif menu == "👥 Todos mis Clientes":
                                 st.rerun()
                         except Exception as e: 
                             st.error(f"Error: {e}")
-
-        st.write("")
         
         # --- SECCIÓN B: CARTERA DE CLIENTES ---
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
