@@ -671,26 +671,6 @@ elif menu == "👥 Todos mis Clientes":
         import time
         hoy_dt = dt.date.today()
         
-        # --- 1. JS PARA FORZAR GPS DE ALTA PRECISIÓN ---
-        from streamlit.components.v1 import html
-        html("""
-        <script>
-        const options = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 };
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                const coords = {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                    accuracy: position.coords.accuracy
-                };
-                window.parent.postMessage({type: "streamlit:set_component_value", value: coords}, "*");
-            },
-            function(error) { console.warn("Esperando permiso GPS..."); },
-            options
-        );
-        </script>
-        """, height=0)
-
         st.markdown("""
             <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
             <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales y control de campo.</p>
@@ -698,14 +678,14 @@ elif menu == "👥 Todos mis Clientes":
 
         # --- SECCIÓN A: REGISTRO DE CLIENTE NUEVO ---
         with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
+            # Inicialización de estados
             if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
             if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
 
-            # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
+            # --- PASO 1: LOCALIZACIÓN ---
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                # TU BOTÓN FAVORITO (INTACTO, COMO TE GUSTA)
                 gps_html = """
                 <div style="text-align:center;">
                     <button id="gps_btn" onclick="getGPS()" style="
@@ -716,19 +696,16 @@ elif menu == "👥 Todos mis Clientes":
                         transition: 0.3s ease;
                     ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
                 </div>
-
                 <script>
                 function getGPS() {
                     const btn = document.getElementById('gps_btn');
                     btn.innerText = "🛰️ BUSCANDO SATÉLITES...";
                     btn.style.backgroundColor = "#ff9500";
-                    
                     navigator.geolocation.getCurrentPosition(
                         (pos) => {
                             const lat = pos.coords.latitude;
                             const lon = pos.coords.longitude;
                             const res = lat + "," + lon;
-                            
                             const inputs = window.parent.document.querySelectorAll('input');
                             for (let input of inputs) {
                                 if (input.placeholder === "Sincronizando satélites...") {
@@ -742,62 +719,41 @@ elif menu == "👥 Todos mis Clientes":
                             btn.innerText = "✅ UBICACIÓN FIJADA";
                             btn.style.backgroundColor = "#34c759";
                         },
-                        (err) => { 
-                            alert("Error GPS: " + err.message); 
-                            btn.innerText = "❌ ERROR GPS";
-                            btn.style.backgroundColor = "#ff3b30";
-                        },
+                        (err) => { alert("Error GPS: " + err.message); },
                         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                     );
                 }
                 </script>
                 """
                 st.components.v1.html(gps_html, height=100)
-
-                # RECEPTOR DE COORDENADAS
                 gps_res = st.text_input("Coordenadas:", key="gps_res", placeholder="Sincronizando satélites...", label_visibility="collapsed")
 
-            # --- EL MAPA EMBEBIDO (GOOGLE MAPS SATELITAL) ---
+            # --- RENDERIZADO DEL MAPA (FUERA DEL CONTENEDOR PARA QUE SE VEA BIEN) ---
             if gps_res and "," in gps_res:
                 try:
-                    lat_s, lon_s = gps_res.split(",")
-                    lat = lat_s.strip()
-                    lon = lon_s.strip()
-
-                    # Guardamos para el envío a Supabase
-                    st.session_state.temp_lat = lat
-                    st.session_state.temp_lon = lon
-
-                    st.markdown("### 📍 Vista Satelital Confirmada")
+                    lat, lon = gps_res.split(",")
+                    st.session_state.temp_lat = lat.strip()
+                    st.session_state.temp_lon = lon.strip()
                     
-                    # Usamos iframe directo para evitar bloqueos de Streamlit
-                    # t=k es modo satélite, z=18 es zoom cercano
-                    mapa_html = f"""
-                    <iframe
-                        width="100%"
-                        height="350"
-                        style="border:0; border-radius:20px; box-shadow: 0 8px 20px rgba(0,0,0,0.15);"
-                        loading="lazy"
-                        src="https://maps.google.com/maps?q={lat},{lon}&t=k&z=18&ie=UTF8&iwloc=&output=embed">
+                    st.markdown("### 📍 Vista Satelital Confirmada")
+                    mapa_embed = f"""
+                    <iframe width="100%" height="350" style="border:0; border-radius:20px;" 
+                    src="https://maps.google.com/maps?q={st.session_state.temp_lat},{st.session_state.temp_lon}&t=k&z=18&ie=UTF8&iwloc=&output=embed">
                     </iframe>
                     """
-                    st.components.v1.html(mapa_html, height=370)
+                    st.components.v1.html(mapa_embed, height=370)
+                except:
+                    st.error("Coordenadas no válidas")
 
-                except Exception as e:
-                    st.error("Error al cargar el mapa")
-
-            # --- BOTÓN DE LIMPIAR CORREGIDO (SIN CRASH) ---
             if st.button("🗑️ LIMPIAR UBICACIÓN", use_container_width=True):
                 st.session_state.temp_lat = ""
                 st.session_state.temp_lon = ""
-                if "gps_res" in st.session_state:
-                    del st.session_state["gps_res"] # Esto resetea el input sin dar error
+                if "gps_res" in st.session_state: del st.session_state["gps_res"]
                 st.rerun()
-                
-            # --- PASO 2: FORMULARIO ---
+
+            # --- PASO 2: FORMULARIO ÚNICO ---
             st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
-            
-            with st.form("form_registro_cliente_final_v2026", clear_on_submit=True):
+            with st.form("form_registro_cliente_final", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 n_nombre = c1.text_input("Nombre y Apellido *")
                 n_telefono = c1.text_input("WhatsApp / Celular *")
@@ -805,13 +761,11 @@ elif menu == "👥 Todos mis Clientes":
                 n_direccion = c2.text_input("Referencia de Vivienda")
                 n_nota = st.text_area("Notas adicionales")
 
-                submit_all = st.form_submit_button("🚀 GUARDAR EXPEDIENTE COMPLETO", use_container_width=True)
-
-                if submit_all:
+                if st.form_submit_button("🚀 GUARDAR EXPEDIENTE COMPLETO", use_container_width=True):
                     if not n_nombre or not n_telefono or not n_cedula:
                         st.error("⚠️ Nombre, WhatsApp y Cédula son obligatorios.")
-                    elif not st.session_state.get('temp_lat'):
-                        st.warning("⚠️ Debes capturar la ubicación en el Paso 1.")
+                    elif not st.session_state.temp_lat:
+                        st.warning("⚠️ Debes capturar la ubicación primero.")
                     else:
                         try:
                             reg_data = {
@@ -826,66 +780,16 @@ elif menu == "👥 Todos mis Clientes":
                                 "fecha_registro": str(datetime.now())
                             }
                             conn.table("clientes").insert(reg_data).execute()
-                            
-                            # Reset de seguridad
+                            st.success(f"✅ ¡Expediente de {n_nombre} guardado!")
                             st.session_state.temp_lat = ""
                             st.session_state.temp_lon = ""
-                            st.session_state.gps_res = ""
-                            
-                            st.success(f"✅ ¡Expediente de {n_nombre} guardado con éxito!")
                             time.sleep(1.5)
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Error al guardar: {e}")
-
-            # --- PASO 2: FORMULARIO ---
-            st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
-            with st.form("form_final_cliente", clear_on_submit=True):
-                c1, c2 = st.columns(2)
-                n_nombre = c1.text_input("Nombre y Apellido *")
-                n_telefono = c1.text_input("WhatsApp / Celular *")
-                n_cedula = c2.text_input("Cédula / ID")
-                n_direccion = c2.text_input("Referencia (Ej: Casa verde frente al parque)")
-                n_nota = st.text_area("Notas iniciales de crédito")
-
-                if st.form_submit_button("🚀 GUARDAR NUEVO EXPEDIENTE", use_container_width=True):
-                    if not n_nombre or not n_telefono or not n_cedula:
-                        st.error("⚠️ Datos incompletos: Nombre, WhatsApp y Cédula son obligatorios.")
-                    else:
-                        try:
-                            # Verificación de duplicados
-                            check = conn.table("clientes").select("id, nombre, cedula, telefono")\
-                                .eq("user_id", u_id)\
-                                .or_(f"telefono.eq.{n_telefono},cedula.eq.{n_cedula}")\
-                                .execute()
-
-                            if check.data:
-                                dup = check.data[0]
-                                if dup['cedula'] == n_cedula:
-                                    st.error(f"❌ Ya existe un cliente con la cédula {n_cedula} ({dup['nombre']}).")
-                                else:
-                                    st.error(f"❌ El teléfono {n_telefono} ya pertenece a {dup['nombre']}.")
-                            else:
-                                reg_cliente = {
-                                    "user_id": u_id, 
-                                    "nombre": n_nombre, 
-                                    "cedula": n_cedula, 
-                                    "telefono": n_telefono,
-                                    "direccion": n_direccion, 
-                                    "latitud": str(st.session_state.temp_lat) if st.session_state.temp_lat else None, 
-                                    "longitud": str(st.session_state.temp_lon) if st.session_state.temp_lon else None, 
-                                    "notas": n_nota, 
-                                    "fecha_registro": str(hoy_dt)
-                                }
-                                conn.table("clientes").insert(reg_cliente).execute()
-                                
-                                st.session_state.temp_lat = ""
-                                st.session_state.temp_lon = ""
-                                st.success(f"✅ {n_nombre} guardado correctamente.")
-                                time.sleep(1)
-                                st.rerun()
-                        except Exception as e: 
                             st.error(f"Error: {e}")
+
+        # --- SECCIÓN B: CARTERA DE CLIENTES (RESTO DEL CÓDIGO) ---
+        # ... (aquí sigue tu código de búsqueda y grid de clientes que ya tenías)
         
         # --- SECCIÓN B: CARTERA DE CLIENTES ---
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
