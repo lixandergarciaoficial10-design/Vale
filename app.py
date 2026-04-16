@@ -702,13 +702,14 @@ elif menu == "👥 Todos mis Clientes":
             if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
 
             # --- PASO 1: LOCALIZACIÓN ---
+            # --- PASO 1: LOCALIZACIÓN ---
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                from streamlit.components.v1 import html
-                
-                # Script de captura inmediata
-                gps_script = """
+                # El script ahora se inyecta vía iframe para cumplir con la nueva normativa
+                gps_script_html = """
+                <html>
+                <body>
                 <script>
                 function getGPS() {
                     const options = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 };
@@ -725,17 +726,20 @@ elif menu == "👥 Todos mis Clientes":
                 }
                 getGPS();
                 </script>
+                </body>
+                </html>
                 """
 
                 col_gps_main, col_gps_clear = st.columns([2, 1])
                 
                 with col_gps_main:
                     if st.button("📍 CAPTURAR UBICACIÓN ACTUAL", use_container_width=True, type="primary"):
-                        html(gps_script, height=0)
+                        # Usamos st.components.v1.iframe para cargar el script de forma segura
+                        st.components.v1.iframe(f"data:text/html;base64,{base64.b64encode(gps_script_html.encode()).decode()}", height=0)
                         st.toast("🛰️ Buscando satélites...")
 
-                    # Receptor del valor
-                    gps_input = st.text_input("Coordenadas (Lat, Lon):", key="gps_unique_receiver", placeholder="Esperando señal...")
+                    # Receptor del valor (Key Única)
+                    gps_input = st.text_input("Coordenadas (Lat, Lon):", key="gps_unique_receiver_v2026", placeholder="Esperando señal...")
                     
                     if gps_input and "," in gps_input:
                         lat_val, lon_val = gps_input.split(",")
@@ -745,10 +749,10 @@ elif menu == "👥 Todos mis Clientes":
                 with col_gps_clear:
                     if st.session_state.get('temp_lat'):
                         st.write("✅ Fijado")
-                        if st.button("🗑️ LIMPIAR", use_container_width=True):
+                        if st.button("🗑️ LIMPIAR", use_container_width=True, key="btn_limpiar_gps"):
                             st.session_state.temp_lat = ""
                             st.session_state.temp_lon = ""
-                            st.session_state.gps_unique_receiver = ""
+                            st.session_state.gps_unique_receiver_v2026 = ""
                             st.rerun()
 
             # --- MAPA DE CONFIRMACIÓN ---
