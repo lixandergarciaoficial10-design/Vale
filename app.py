@@ -691,110 +691,160 @@ elif menu == "👥 Todos mis Clientes":
     """, unsafe_allow_html=True)
 
     with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
-        from streamlit.components.v1 import html
+    from streamlit.components.v1 import html
+    import pydeck as pdk
+    import numpy as np
 
-        # --- ANIMACIÓN DE RED NEURONAL (Fondo Oscuro Enterprise) ---
-        st.markdown("""
-            <div style="background: #0f172a; border-radius: 20px; height: 150px; position: relative; overflow: hidden; margin-bottom: 20px; border: 1px solid #1e293b;">
-                <canvas id="netCanvas" style="position: absolute; width: 100%; height: 100%;"></canvas>
-            </div>
-            <script>
-                const canvas = document.getElementById('netCanvas');
-                const ctx = canvas.getContext('2d');
-                let dots = [];
-                function init() {
-                    canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
-                    dots = [];
-                    for(let i=0; i<30; i++) dots.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, vx:(Math.random()-0.5)*0.5, vy:(Math.random()-0.5)*0.5});
-                }
-                function draw() {
-                    ctx.clearRect(0,0,canvas.width, canvas.height);
-                    ctx.fillStyle = "rgba(0,122,255,0.7)"; ctx.strokeStyle = "rgba(0,122,255,0.15)";
-                    dots.forEach((d, i) => {
-                        d.x += d.vx; d.y += d.vy;
-                        if(d.x<0 || d.x>canvas.width) d.vx*=-1; if(d.y<0 || d.y>canvas.height) d.vy*=-1;
-                        ctx.beginPath(); ctx.arc(d.x, d.y, 2, 0, Math.PI*2); ctx.fill();
-                        for(let j=i+1; j<dots.length; j++) {
-                            let dist = Math.hypot(d.x-dots[j].x, d.y-dots[j].y);
-                            if(dist<90) { ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(dots[j].x, dots[j].y); ctx.stroke(); }
-                        }
-                    });
-                    requestAnimationFrame(draw);
-                }
-                init(); draw();
-            </script>
-        """, unsafe_allow_html=True)
+    # --- ASEGURAR PERSISTENCIA REAL ---
+    st.session_state.reg_gps = st.session_state.get("reg_gps", "")
 
-        # BOTÓN GPS QUE INYECTA DATOS AL INPUT CON KEY
-        gps_html = """
-        <button onclick="getGPS()" style="width: 100%; background: #007AFF; color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; margin-bottom: 10px;">
-            📍 CAPTURAR UBICACIÓN ACTUAL
-        </button>
+    # --- ANIMACIÓN DE RED (SE QUEDA IGUAL) ---
+    st.markdown("""
+        <div style="background: #0f172a; border-radius: 20px; height: 150px; position: relative; overflow: hidden; margin-bottom: 20px; border: 1px solid #1e293b;">
+            <canvas id="netCanvas" style="position: absolute; width: 100%; height: 100%;"></canvas>
+        </div>
         <script>
-            function getGPS() {
-                navigator.geolocation.getCurrentPosition((pos) => {
-                    const coords = pos.coords.latitude.toFixed(8) + "," + pos.coords.longitude.toFixed(8);
-                    // Buscamos el input por su ID de Streamlit (basado en la key)
-                    const inputs = window.parent.document.querySelectorAll('input');
-                    for (let input of inputs) {
-                        if (input.placeholder === "Esperando coordenadas...") {
-                            input.value = coords;
-                            input.dispatchEvent(new Event('input', { bubbles: true }));
-                            break;
+            const canvas = document.getElementById('netCanvas');
+            const ctx = canvas.getContext('2d');
+            let dots = [];
+            function init() {
+                canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+                dots = [];
+                for(let i=0; i<30; i++) dots.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, vx:(Math.random()-0.5)*0.5, vy:(Math.random()-0.5)*0.5});
+            }
+            function draw() {
+                ctx.clearRect(0,0,canvas.width, canvas.height);
+                ctx.fillStyle = "rgba(0,122,255,0.7)";
+                ctx.strokeStyle = "rgba(0,122,255,0.15)";
+                dots.forEach((d, i) => {
+                    d.x += d.vx; d.y += d.vy;
+                    if(d.x<0 || d.x>canvas.width) d.vx*=-1;
+                    if(d.y<0 || d.y>canvas.height) d.vy*=-1;
+                    ctx.beginPath(); ctx.arc(d.x, d.y, 2, 0, Math.PI*2); ctx.fill();
+                    for(let j=i+1; j<dots.length; j++) {
+                        let dist = Math.hypot(d.x-dots[j].x, d.y-dots[j].y);
+                        if(dist<90) {
+                            ctx.lineWidth = 0.5;
+                            ctx.beginPath();
+                            ctx.moveTo(d.x, d.y);
+                            ctx.lineTo(dots[j].x, dots[j].y);
+                            ctx.stroke();
                         }
                     }
                 });
+                requestAnimationFrame(draw);
             }
+            init(); draw();
         </script>
-        """
-        html(gps_html, height=60)
+    """, unsafe_allow_html=True)
 
-        # --- FORMULARIO CON KEYS VINCULADAS ---
-        c1, c2 = st.columns(2)
-        with c1:
-            # El uso de 'key' aquí es lo que garantiza la PERSISTENCIA
-            st.text_input("📍 Coordenadas", key="reg_gps", placeholder="Esperando coordenadas...")
-            st.text_input("Nombre Completo *", key="reg_nombre")
-            st.text_input("WhatsApp / Celular *", key="reg_tel")
-        
-        with c2:
-            st.text_input("Cédula / ID", key="reg_ced")
-            st.text_area("Referencia de Vivienda", key="reg_dir", height=110)
+    # --- BOTÓN GPS ---
+    gps_html = """
+    <button onclick="getGPS()" style="width: 100%; background: #007AFF; color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; margin-bottom: 10px;">
+        📍 CAPTURAR UBICACIÓN ACTUAL
+    </button>
+    <script>
+        function getGPS() {
+            navigator.geolocation.getCurrentPosition((pos) => {
+                const coords = pos.coords.latitude.toFixed(8) + "," + pos.coords.longitude.toFixed(8);
+                const inputs = window.parent.document.querySelectorAll('input');
+                for (let input of inputs) {
+                    if (input.placeholder === "Esperando coordenadas...") {
+                        input.value = coords;
+                        input.dispatchEvent(new Event('input', { bubbles: true }));
+                        break;
+                    }
+                }
+            });
+        }
+    </script>
+    """
+    html(gps_html, height=60)
 
-        # MAPA DINÁMICO
-        if st.session_state.reg_gps and "," in st.session_state.reg_gps:
+    # --- FORMULARIO ---
+    c1, c2 = st.columns(2)
+    with c1:
+        st.text_input("📍 Coordenadas", key="reg_gps", placeholder="Esperando coordenadas...")
+        st.text_input("Nombre Completo *", key="reg_nombre")
+        st.text_input("WhatsApp / Celular *", key="reg_tel")
+
+    with c2:
+        st.text_input("Cédula / ID", key="reg_ced")
+        st.text_area("Referencia de Vivienda", key="reg_dir", height=110)
+
+    # --- MAPA PROFESIONAL (REEMPLAZO DE st.map) ---
+    if st.session_state.reg_gps and "," in st.session_state.reg_gps:
+        try:
+            lat, lon = map(float, st.session_state.reg_gps.split(","))
+
+            # Punto principal
+            data = pd.DataFrame({
+                'lat': [lat],
+                'lon': [lon],
+                'size': [300],
+            })
+
+            # Puntos extras (efecto profesional tipo tu imagen)
+            extra_points = pd.DataFrame({
+                'lat': lat + np.random.randn(20) * 0.001,
+                'lon': lon + np.random.randn(20) * 0.001,
+                'size': np.random.randint(50, 200, 20)
+            })
+
+            data = pd.concat([data, extra_points])
+
+            layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=data,
+                get_position='[lon, lat]',
+                get_radius='size',
+                get_fill_color='[0, 122, 255, 160]',
+                pickable=True,
+            )
+
+            view_state = pdk.ViewState(
+                latitude=lat,
+                longitude=lon,
+                zoom=17,
+                pitch=50,
+            )
+
+            st.pydeck_chart(pdk.Deck(
+                layers=[layer],
+                initial_view_state=view_state,
+                map_style='mapbox://styles/mapbox/dark-v10'
+            ))
+
+        except:
+            pass
+
+    # --- BOTÓN GUARDAR (SIN TOCAR) ---
+    if st.button("🚀 GUARDAR EN CARTERA DIGITAL", use_container_width=True):
+        if not st.session_state.reg_nombre or not st.session_state.reg_tel or not st.session_state.reg_gps:
+            st.error("❌ Faltan datos críticos.")
+        else:
             try:
-                lat, lon = map(float, st.session_state.reg_gps.split(","))
-                st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}), zoom=17)
-            except: pass
+                lat_val, lon_val = st.session_state.reg_gps.split(",")
+                conn.table("clientes").insert({
+                    "nombre": st.session_state.reg_nombre,
+                    "telefono": st.session_state.reg_tel,
+                    "cedula": st.session_state.reg_ced,
+                    "direccion": st.session_state.reg_dir,
+                    "latitud": float(lat_val),
+                    "longitud": float(lon_val),
+                    "user_id": u_id
+                }).execute()
 
-        if st.button("🚀 GUARDAR EN CARTERA DIGITAL", use_container_width=True):
-            if not st.session_state.reg_nombre or not st.session_state.reg_tel or not st.session_state.reg_gps:
-                st.error("❌ Faltan datos críticos.")
-            else:
-                try:
-                    # Lógica de guardado en Supabase
-                    lat_val, lon_val = st.session_state.reg_gps.split(",")
-                    conn.table("clientes").insert({
-                        "nombre": st.session_state.reg_nombre,
-                        "telefono": st.session_state.reg_tel,
-                        "cedula": st.session_state.reg_ced,
-                        "direccion": st.session_state.reg_dir,
-                        "latitud": float(lat_val),
-                        "longitud": float(lon_val),
-                        "user_id": u_id
-                    }).execute()
-                    
-                    st.success("✅ Cliente guardado correctamente.")
-                    
-                    # SOLO LIMPIAMOS SI EL GUARDADO FUE EXITOSO
-                    for key in campos.keys():
-                        st.session_state[key] = ""
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    # SI HAY ERROR (Ej: Cédula duplicada), los datos NO se borran
-                    st.error(f"❌ Error de base de datos: {e}")
+                st.success("✅ Cliente guardado correctamente.")
+
+                for key in campos.keys():
+                    st.session_state[key] = ""
+
+                time.sleep(1)
+                st.rerun()
+
+            except Exception as e:
+                st.error(f"❌ Error de base de datos: {e}")
 
     # --- SECCIÓN B: CARTERA DE CLIENTES ---
     # (Tu código actual de la tabla de clientes sigue aquí...)
