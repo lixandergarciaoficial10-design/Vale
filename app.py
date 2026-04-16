@@ -668,125 +668,125 @@ elif menu == "Nueva Cuenta por Cobrar":
 # --- SECCIÓN A: REGISTRO PREMIUM ---
 # --- SECCIÓN A: REGISTRO PREMIUM ---
 elif menu == "👥 Todos mis Clientes":
-    import datetime as dt
-    import time
-    hoy_dt = dt.date.today()
-    
-    st.markdown("""
-        <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
-        <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales y control de campo.</p>
-    """, unsafe_allow_html=True)
+        import datetime as dt
+        import time
+        hoy_dt = dt.date.today()
+        
+        st.markdown("""
+            <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
+            <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales y control de campo.</p>
+        """, unsafe_allow_html=True)
 
-    # --- SECCIÓN A: REGISTRO DE CLIENTE NUEVO ---
-    with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
-        from streamlit.components.v1 import html
+        # --- SECCIÓN A: REGISTRO DE CLIENTE NUEVO ---
+        with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
+            from streamlit.components.v1 import html
 
-        # 1. El input "puente" con una KEY para que Streamlit lo rastree
-        # Usamos st.session_state.gps_val para alimentar el mapa
-        gps_res = st.text_input(
-            "Coordenadas Capturadas:", 
-            placeholder="Esperando satélites...", 
-            key="gps_val",
-            help="Estas coordenadas se guardarán en el expediente del cliente."
-        )
+            # 1. El input "puente" (Esencial para capturar el dato del JS)
+            gps_res = st.text_input(
+                "Coordenadas Sincronizadas:", 
+                placeholder="Esperando satélites...", 
+                key="gps_val",
+                help="Presiona el botón azul para capturar la ubicación automáticamente."
+            )
 
-        # 2. Tu botón con el diseño original (CORREGIDO para forzar el refresco de Streamlit)
-        gps_html = """
-        <div style="text-align:center;">
-            <button id="gps_btn" onclick="getGPS()" style="
-                width: 100%; background-color: #007AFF; color: white;
-                border: none; padding: 20px; border-radius: 15px;
-                font-weight: bold; font-size: 1rem; cursor: pointer; 
-                box-shadow: 0 4px 15px rgba(0,122,255,0.3);
-            ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
-        </div>
-        <script>
-        function getGPS() {
-            const btn = document.getElementById('gps_btn');
-            btn.innerText = "🛰️ BUSCANDO...";
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const coords = pos.coords.latitude + "," + pos.coords.longitude;
-                    const inputs = window.parent.document.querySelectorAll('input');
-                    for (let input of inputs) {
-                        // Buscamos el input por su etiqueta de ayuda o valor previo
-                        if (input.placeholder === "Esperando satélites...") {
-                            input.value = coords;
-                            // ESTO ES LO QUE HACE QUE STREAMLIT SE ENTERE DEL CAMBIO:
-                            input.dispatchEvent(new Event('input', { bubbles: true }));
-                            input.dispatchEvent(new Event('change', { bubbles: true }));
-                            break;
+            # 2. Tu botón con el diseño original
+            gps_html = """
+            <div style="text-align:center;">
+                <button id="gps_btn" onclick="getGPS()" style="
+                    width: 100%; background-color: #007AFF; color: white;
+                    border: none; padding: 20px; border-radius: 15px;
+                    font-weight: bold; font-size: 1rem; cursor: pointer; 
+                    box-shadow: 0 4px 15px rgba(0,122,255,0.3);
+                ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
+            </div>
+            <script>
+            function getGPS() {
+                const btn = document.getElementById('gps_btn');
+                btn.innerText = "🛰️ BUSCANDO...";
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const coords = pos.coords.latitude + "," + pos.coords.longitude;
+                        const inputs = window.parent.document.querySelectorAll('input');
+                        for (let input of inputs) {
+                            if (input.placeholder === "Esperando satélites...") {
+                                input.value = coords;
+                                input.dispatchEvent(new Event('input', { bubbles: true }));
+                                break;
+                            }
                         }
-                    }
-                    btn.innerText = "✅ UBICACIÓN FIJADA";
-                    btn.style.backgroundColor = "#34c759";
-                },
-                (err) => { alert("Error: " + err.message); },
-                { enableHighAccuracy: true }
-            );
-        }
-        </script>
-        """
-        html(gps_html, height=100)
+                        btn.innerText = "✅ UBICACIÓN FIJADA";
+                        btn.style.backgroundColor = "#34c759";
+                    },
+                    (err) => { alert("Error GPS: " + err.message); },
+                    { enableHighAccuracy: true }
+                );
+            }
+            </script>
+            """
+            html(gps_html, height=100)
 
-        # 3. LÓGICA DEL MAPA AUTOMÁTICO
-        # En cuanto gps_res tenga contenido (inyectado por el JS), esto se ejecuta solo
-        if gps_res and "," in gps_res:
-            try:
-                lat_s, lon_s = gps_res.split(",")
-                lat, lon = float(lat_s), float(lon_s)
-                
-                # Guardamos para el insert de la base de datos
-                st.session_state.lat_fija = lat
-                st.session_state.lon_fija = lon
+            # 3. Lógica del Mapa (Se muestra automáticamente al detectar coordenadas)
+            if gps_res and "," in gps_res:
+                try:
+                    lat_s, lon_s = gps_res.split(",")
+                    lat_f, lon_f = float(lat_s), float(lon_s)
+                    
+                    st.markdown("### 🗺️ Confirmación de Ubicación")
+                    # Creamos un DataFrame para el mapa de Streamlit
+                    df_pos = pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]})
+                    st.map(df_pos, zoom=16)
+                    st.success(f"📍 Coordenadas listas para guardar: {lat_f}, {lon_f}")
+                except Exception as e:
+                    st.error("Error procesando coordenadas del mapa.")
 
-                st.markdown("### 🗺️ Vista de Confirmación")
-                df_map = pd.DataFrame({'lat': [lat], 'lon': [lon]})
-                st.map(df_map, zoom=16)
-                st.success(f"Ubicación detectada en: {lat}, {lon}")
-            except:
-                st.warning("Formato de coordenadas detectado, procesando...")
-
-        # --- PASO 2: FORMULARIO DE GUARDADO ---
-        st.markdown("---")
-        with st.form("form_registro_final", clear_on_submit=True):
-            col1, col2 = st.columns(2)
-            f_nombre = col1.text_input("Nombre Completo *")
-            f_tel = col1.text_input("WhatsApp *")
-            f_ced = col2.text_input("Cédula *")
-            f_dir = col2.text_input("Referencia Vivienda")
+            # 4. Formulario de Guardado (Separado para evitar que se borre el GPS)
+            st.divider()
+            st.markdown("<p style='color:#1e293b; font-weight:700;'>Información del Cliente</p>", unsafe_allow_html=True)
             
-            # El botón de guardar ahora sí tendrá las coordenadas
-            if st.form_submit_button("🚀 GUARDAR EXPEDIENTE", use_container_width=True):
-                if not f_nombre or not f_tel or not gps_res:
-                    st.error("❌ Error: Debes poner el nombre y CAPTURAR la ubicación.")
-                else:
-                    # AQUÍ TU LÓGICA DE SUPABASE
-                    nueva_data = {
-                        "user_id": u_id,
-                        "nombre": f_nombre,
-                        "telefono": f_tel,
-                        "cedula": f_ced,
-                        "direccion": f_dir,
-                        "latitud": st.session_state.lat_fija,
-                        "longitud": st.session_state.lon_fija,
-                        "fecha_registro": str(dt.datetime.now())
-                    }
-                    conn.table("clientes").insert(nueva_data).execute()
-                    st.success("¡Cliente guardado con su ubicación!")
-                    time.sleep(1)
-                    st.rerun()
+            with st.form("form_final_registro"):
+                col1, col2 = st.columns(2)
+                f_nombre = col1.text_input("Nombre y Apellido *")
+                f_tel = col1.text_input("WhatsApp / Celular *")
+                f_ced = col2.text_input("Cédula / ID")
+                f_dir = col2.text_input("Referencia de Vivienda")
+                
+                if st.form_submit_button("🚀 GUARDAR EXPEDIENTE COMPLETO", use_container_width=True):
+                    if not f_nombre or not f_tel or not gps_res:
+                        st.error("❌ Faltan datos: Nombre, Teléfono y Ubicación son obligatorios.")
+                    else:
+                        try:
+                            # Extraemos lat/lon finales
+                            l_val, o_val = gps_res.split(",")
+                            nuevo_cliente = {
+                                "user_id": u_id,
+                                "nombre": f_nombre,
+                                "telefono": f_tel,
+                                "cedula": f_ced,
+                                "direccion": f_dir,
+                                "latitud": l_val.strip(),
+                                "longitud": o_val.strip(),
+                                "fecha_registro": str(dt.datetime.now())
+                            }
+                            conn.table("clientes").insert(nuevo_cliente).execute()
+                            st.success(f"✅ ¡{f_nombre} ha sido registrado!")
+                            time.sleep(1)
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error al guardar: {e}")
 
-        # --- SECCIÓN B: CARTERA DE CLIENTES (TABLA ABAJO) ---
+        # --- SECCIÓN B: CARTERA DE CLIENTES ---
+        st.divider()
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
 
         if not res_cl.data:
             st.info("Tu cartera está vacía.")
         else:
+            # (Aquí va tu código original de búsqueda y tarjetas que ya tenías)
+            # Asegúrate de mantener la identación para que la lista aparezca debajo del expander
             c_busq, c_filt = st.columns([3, 1])
             with c_busq:
-                busq = st.text_input("🔍 Buscar por Nombre, ID o WhatsApp", value="", key="buscador_principal")
+                busq = st.text_input("🔍 Buscar cliente...", key="buscador_principal")
             with c_filt:
                 f_est = st.selectbox("Filtrar Estado", ["Todos", "🔴 Atrasado", "🟠 Pendiente", "🟢 Al día"])
 
