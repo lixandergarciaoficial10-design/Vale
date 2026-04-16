@@ -701,39 +701,56 @@ elif menu == "👥 Todos mis Clientes":
             if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
             if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
 
-            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización del Cliente</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
-            with st.container(border=True):
-                from streamlit_geolocation import streamlit_geolocation
-                
-                # 1. Componente invisible que escucha el GPS
-                loc_data = streamlit_geolocation() 
-                
-                c_btn1, c_btn2 = st.columns([2, 1])
-                
-                with c_btn1:
-                    # 2. Único botón de acción: Al tocarlo, captura lo que el sensor encontró
-                    if st.button("📍 CAPTURAR UBICACIÓN ACTUAL", use_container_width=True, type="primary"):
-                        if loc_data and loc_data.get('latitude'):
-                            st.session_state.temp_lat = loc_data['latitude']
-                            st.session_state.temp_lon = loc_data['longitude']
-                            st.toast("🎯 Ubicación fijada")
-                        else:
-                            st.error("⚠️ El GPS no responde. Dale a 'Allow' o 'Permitir' en la parte superior del navegador.")
+            # --- JS NATIVO PARA DESPERTAR EL GPS ---
+            from streamlit.components.v1 import html
+            html("""
+            <script>
+            function getLocation() {
+                const options = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 };
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const vals = {lat: pos.coords.latitude, lon: pos.coords.longitude};
+                        window.parent.postMessage({type: 'streamlit:set_component_value', value: vals}, '*');
+                    },
+                    (err) => { console.error(err); },
+                    options
+                );
+            }
+            // Ejecutar al cargar
+            getLocation();
+            </script>
+            """, height=0)
 
-                with c_btn2:
-                    # 3. Botón para limpiar
+            with st.container(border=True):
+                # Usamos un componente de entrada oculto para recibir los datos del JS
+                import streamlit.components.v1 as components
+                
+                # BOTÓN ÚNICO E INTUITIVO
+                if st.button("📍 OBTENER UBICACIÓN AHORA", use_container_width=True, type="primary"):
+                    st.rerun() # Forzamos recarga para leer el mensaje del JS
+
+                col_status, col_clear = st.columns([2, 1])
+                
+                # Aquí recibimos los datos que el JS mandó
+                if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
+                
+                with col_status:
                     if st.session_state.temp_lat:
-                        if st.button("🗑️ LIMPIAR", use_container_width=True):
+                        st.success("✅ UBICACIÓN LISTA")
+                    else:
+                        st.warning("Esperando señal satelital...")
+
+                with col_clear:
+                    if st.session_state.temp_lat:
+                        if st.button("🧹 LIMPIAR", use_container_width=True):
                             st.session_state.temp_lat = ""
                             st.session_state.temp_lon = ""
                             st.rerun()
 
-            # --- MAPA ÚNICO DE CONFIRMACIÓN ---
+            # --- MAPA DE CONFIRMACIÓN ---
             if st.session_state.temp_lat:
-                st.markdown(f"""<div style="background:#f0fdf4;padding:8px;border-radius:10px;border:1px solid #bbf7d0;text-align:center;margin-bottom:10px;">
-                    <span style="color:#166534;font-size:0.8rem;">✅ Ubicación lista para guardar</span></div>""", unsafe_allow_html=True)
-                
                 fig = go.Figure(go.Scattermapbox(
                     lat=[float(st.session_state.temp_lat)],
                     lon=[float(st.session_state.temp_lon)],
