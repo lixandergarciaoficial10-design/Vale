@@ -743,32 +743,54 @@ elif menu == "👥 Todos mis Clientes":
             c1, c2 = st.columns(2)
             with c1:
                 st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="f_n")
-                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced, key="f_c")
+                st.session_state.reg_ced = st.text_input("Cédula / ID *", value=st.session_state.reg_ced, key="f_c")
             with c2:
                 st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="f_t")
                 st.session_state.reg_dir = st.text_area("Referencia (Color de casa, etc.)", value=st.session_state.reg_dir, height=68, key="f_d")
 
+            # --- LÓGICA DE GUARDADO FLEXIBLE ---
             if st.button("🚀 GUARDAR EN CARTERA", use_container_width=True, type="primary"):
-                if not st.session_state.reg_nombre or not st.session_state.reg_gps:
-                    st.error("❌ Nombre y ubicación obligatorios.")
+                # 1. BLOQUEO TOTAL: Nombre y Cédula son sagrados
+                if not st.session_state.reg_nombre or not st.session_state.reg_ced:
+                    st.error("❌ El **Nombre** y la **Cédula** son campos obligatorios para el registro.")
+                
                 else:
+                    # 2. AVISO DE GPS (No bloquea, solo advierte)
+                    if not st.session_state.reg_gps:
+                        st.warning("⚠️ **Aviso:** No se ha capturado la ubicación GPS. El cliente se guardará sin coordenadas geográficas.")
+                        # Esperamos un segundo para que el usuario lea el aviso antes de procesar si decides darle click de nuevo 
+                        # O simplemente procedemos con valores por defecto:
+                        lat_final, lon_final = 0.0, 0.0
+                    else:
+                        try:
+                            lat_v, lon_v = st.session_state.reg_gps.split(",")
+                            lat_final, lon_final = float(lat_v), float(lon_v)
+                        except:
+                            lat_final, lon_final = 0.0, 0.0
+
+                    # 3. EJECUCIÓN DEL GUARDADO
                     try:
-                        lat_v, lon_v = st.session_state.reg_gps.split(",")
                         conn.table("clientes").insert({
                             "nombre": st.session_state.reg_nombre,
                             "telefono": st.session_state.reg_tel,
                             "cedula": st.session_state.reg_ced,
                             "direccion": st.session_state.reg_dir,
-                            "latitud": float(lat_v),
-                            "longitud": float(lon_v),
+                            "latitud": lat_final,
+                            "longitud": lon_final,
                             "user_id": u_id,
                             "fecha_registro": str(hoy_dt)
                         }).execute()
-                        st.success("✅ ¡Registrado!")
-                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
-                        time.sleep(1); st.rerun()
+                        
+                        st.success(f"✅ ¡Cliente {st.session_state.reg_nombre} registrado con éxito!")
+                        
+                        # Limpiar campos después de guardar
+                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: 
+                            st.session_state[k] = ""
+                        
+                        time.sleep(1)
+                        st.rerun()
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(f"Error de base de datos: {e}")
 
         st.divider()
     
