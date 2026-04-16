@@ -674,112 +674,132 @@ elif menu == "👥 Todos mis Clientes":
         
         st.markdown("""
             <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
-            <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales con geolocalización exacta.</p>
+            <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales con geolocalización de grado militar.</p>
         """, unsafe_allow_html=True)
 
         # --- SECCIÓN A: REGISTRO DE CLIENTE NUEVO ---
         with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
             from streamlit.components.v1 import html
 
-            # 1. Campo de Coordenadas (Editable manualmente si es necesario)
-            gps_res = st.text_input(
-                "Coordenadas del Cliente (Lat, Lon):", 
-                placeholder="Esperando señal de satélite...", 
-                key="gps_val",
-                help="Presiona el botón para capturar la posición exacta o escríbelas manualmente."
-            )
+            # Estilo para la animación del Radar y el contenedor de GPS
+            st.markdown("""
+                <style>
+                .radar-container {
+                    background: #0f172a; border-radius: 15px; padding: 20px;
+                    text-align: center; color: #38bdf8; border: 1px solid #334155;
+                    position: relative; overflow: hidden; margin-bottom: 20px;
+                }
+                .radar {
+                    width: 80px; height: 80px; border-radius: 50%;
+                    border: 2px solid #38bdf8; position: relative; margin: 0 auto 10px;
+                    animation: pulse 2s infinite;
+                }
+                .radar::after {
+                    content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                    border-radius: 50%; box-shadow: 0 0 20px #38bdf8;
+                    animation: scan 2s linear infinite;
+                }
+                @keyframes pulse { 0% { transform: scale(0.9); opacity: 0.7; } 50% { transform: scale(1); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.7; } }
+                @keyframes scan { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(2); opacity: 0; } }
+                </style>
+            """, unsafe_allow_html=True)
 
-            # 2. Botón de Captura de Alta Precisión
+            # 1. Animación y Botón de Captura
+            st.markdown("""
+                <div class="radar-container">
+                    <div class="radar"></div>
+                    <p style="font-family: monospace; font-size: 0.8rem; margin:0;">SYSTEM: STANDBY_FOR_SATELLITE_LINK</p>
+                </div>
+            """, unsafe_allow_html=True)
+
+            # Botón con JavaScript mejorado para inyectar datos persistentes
             gps_html = """
             <div style="text-align:center;">
                 <button id="gps_btn" onclick="getExactGPS()" style="
-                    width: 100%; background-color: #007AFF; color: white;
-                    border: none; padding: 22px; border-radius: 18px;
-                    font-weight: 800; font-size: 1.1rem; cursor: pointer; 
-                    box-shadow: 0 10px 20px rgba(0,122,255,0.3);
-                ">📍 CAPTURAR UBICACIÓN DE ALTA PRECISIÓN</button>
+                    width: 100%; background: linear-gradient(135deg, #007AFF 0%, #0040ff 100%);
+                    color: white; border: none; padding: 18px; border-radius: 12px;
+                    font-weight: 800; font-size: 1rem; cursor: pointer; 
+                    box-shadow: 0 8px 15px rgba(0,122,255,0.3); transition: 0.3s;
+                ">📡 INICIAR ESCANEO DE COORDENADAS</button>
             </div>
             <script>
             function getExactGPS() {
                 const btn = document.getElementById('gps_btn');
-                btn.innerText = "🛰️ RASTREANDO POSICIÓN EXACTA...";
-                
-                const options = {
-                    enableHighAccuracy: true, // FUERZA USO DE GPS REAL
-                    timeout: 10000,
-                    maximumAge: 0
-                };
-
+                btn.innerText = "🛰️ ENLAZANDO SATÉLITES...";
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
-                        const coords = pos.coords.latitude + "," + pos.coords.longitude;
+                        const coords = pos.coords.latitude.toFixed(7) + "," + pos.coords.longitude.toFixed(7);
                         const inputs = window.parent.document.querySelectorAll('input');
                         for (let input of inputs) {
-                            if (input.placeholder === "Esperando señal de satélite...") {
+                            if (input.placeholder === "Esperando señal GPS...") {
                                 input.value = coords;
                                 input.dispatchEvent(new Event('input', { bubbles: true }));
+                                input.dispatchEvent(new Event('change', { bubbles: true }));
                                 break;
                             }
                         }
-                        btn.innerText = "✅ UBICACIÓN FIJADA CON ÉXITO";
-                        btn.style.backgroundColor = "#34c759";
+                        btn.innerText = "✅ UBICACIÓN FIJADA";
+                        btn.style.background = "#22c55e";
                     },
-                    (err) => { 
-                        alert("Error GPS: " + err.message + ". Verifica los permisos de ubicación."); 
-                        btn.innerText = "❌ ERROR DE SEÑAL";
-                        btn.style.backgroundColor = "#ff3b30";
-                    },
-                    options
+                    (err) => { alert("GPS Error: " + err.message); },
+                    { enableHighAccuracy: true, timeout: 10000 }
                 );
             }
             </script>
             """
-            html(gps_html, height=120)
+            html(gps_html, height=100)
 
-            # 3. Mapa de Verificación Automática
-            if gps_res and "," in gps_res:
+            # 2. CAMPOS DE DATOS (FUERA DE FORM PARA QUE NO SE BORREN)
+            c1, c2 = st.columns(2)
+            
+            # Usamos session_state para que los datos persistan SIEMPRE
+            val_gps = c1.text_input("Coordenadas (Lat, Lon)", key="reg_gps", placeholder="Esperando señal GPS...")
+            val_nom = c1.text_input("Nombre del Cliente", key="reg_nom")
+            val_tel = c2.text_input("WhatsApp / Celular", key="reg_tel")
+            val_ced = c2.text_input("Cédula / ID", key="reg_ced")
+            val_ref = st.text_input("Referencia de la Vivienda", key="reg_ref")
+
+            # 3. Vista de Mapa de Verificación
+            if val_gps and "," in val_gps:
                 try:
-                    lat_f, lon_f = map(float, gps_res.split(","))
-                    st.markdown("##### 🗺️ Vista Previa del Punto de Cobro")
-                    df_pos = pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]})
-                    st.map(df_pos, zoom=17) # Zoom alto para ver la casa exacta
-                except:
-                    st.warning("Formato manual: latitud, longitud (Ej: 18.4, -69.9)")
+                    lat_f, lon_f = map(float, val_gps.split(","))
+                    st.map(pd.DataFrame({'lat':[lat_f], 'lon':[lon_f]}), zoom=16)
+                except: pass
 
-            # 4. Formulario de Datos (Independiente para no perder el GPS al escribir)
-            st.divider()
-            with st.form("form_final_registro"):
-                col1, col2 = st.columns(2)
-                f_nombre = col1.text_input("Nombre y Apellido *")
-                f_tel = col1.text_input("WhatsApp / Celular *")
-                f_ced = col2.text_input("Cédula / ID")
-                f_dir = col2.text_input("Referencia de Vivienda")
-                
-                if st.form_submit_button("🚀 GUARDAR EXPEDIENTE COMPLETO", use_container_width=True):
-                    if not f_nombre or not f_tel or not gps_res:
-                        st.error("❌ Faltan datos: Nombre, Teléfono y Ubicación son obligatorios.")
-                    else:
-                        try:
-                            l_val, o_val = gps_res.split(",")
-                            nuevo_cliente = {
-                                "user_id": u_id,
-                                "nombre": f_nombre,
-                                "telefono": f_tel,
-                                "cedula": f_ced,
-                                "direccion": f_dir,
-                                "latitud": l_val.strip(),
-                                "longitud": o_val.strip(),
-                                "fecha_registro": str(dt.datetime.now())
-                            }
-                            conn.table("clientes").insert(nuevo_cliente).execute()
-                            st.success(f"✅ ¡{f_nombre} guardado con ubicación exacta!")
-                            time.sleep(1)
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error al guardar: {e}")
+            # 4. Lógica de Guardado Manual (Botón fuera de form)
+            if st.button("🚀 REGISTRAR CLIENTE DEFINITIVAMENTE", use_container_width=True):
+                if not val_nom or not val_tel or not val_gps:
+                    st.error("❌ Los campos Nombre, Teléfono y Ubicación son obligatorios.")
+                else:
+                    # SIMULACIÓN DE VALIDACIÓN (Aquí verificas si existe en Supabase)
+                    # Ejemplo: check_duplicado = conn.table("clientes").select("id").eq("cedula", val_ced).execute()
+                    
+                    try:
+                        # Aquí va tu código de inserción real...
+                        lat_db, lon_db = val_gps.split(",")
+                        nuevo_cl = {
+                            "user_id": u_id, "nombre": val_nom, "telefono": val_tel,
+                            "cedula": val_ced, "direccion": val_ref,
+                            "latitud": lat_db.strip(), "longitud": lon_db.strip(),
+                            "fecha_registro": str(dt.datetime.now())
+                        }
+                        conn.table("clientes").insert(nuevo_cl).execute()
+                        
+                        st.success("✅ ¡Cliente registrado con éxito!")
+                        time.sleep(1)
+                        # Limpiamos los datos de la sesión después de guardar con éxito
+                        for key in ["reg_gps", "reg_nom", "reg_tel", "reg_ced", "reg_ref"]:
+                            st.session_state[key] = ""
+                        st.rerun()
+                        
+                    except Exception as e:
+                        # SI HAY ERROR, LOS DATOS SIGUEN EN EL SESSION_STATE, NO SE BORRAN
+                        st.error(f"❌ Error al guardar: Los datos están duplicados o hay un problema de conexión. ({e})")
+                        st.info("⚠️ Los datos introducidos se mantienen arriba para que puedas corregirlos.")
 
-        # --- SECCIÓN B: CARTERA Y NAVEGACIÓN ---
+        # --- SECCIÓN B: CARTERA DE CLIENTES ---
         st.divider()
+        # (Aquí sigue tu código de búsqueda y visualización...)
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
 
