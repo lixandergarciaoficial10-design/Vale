@@ -677,84 +677,86 @@ elif menu == "👥 Todos mis Clientes":
         """, unsafe_allow_html=True)
 
         # --- SECCIÓN A: REGISTRO DE CLIENTE NUEVO ---
-        from streamlit.components.v1 import html
+        with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
+            from streamlit.components.v1 import html
 
-# Estado
-if "gps_coords" not in st.session_state:
-    st.session_state.gps_coords = None
+            # Estado para coordenadas
+            if "gps_coords" not in st.session_state:
+                st.session_state.gps_coords = None
 
-st.markdown("### 📍 Capturar ubicación")
+            st.markdown("### 📍 Capturar ubicación")
 
-# --- BOTÓN + JS REAL ---
-gps_component = """
-<script>
-function sendLocation() {
-    navigator.geolocation.getCurrentPosition(
-        (pos) => {
-            const coords = pos.coords.latitude + "," + pos.coords.longitude;
-            window.parent.postMessage({
-                type: "streamlit:setComponentValue",
-                value: coords
-            }, "*");
-        },
-        (err) => {
-            alert("Error GPS: " + err.message);
-        },
-        { enableHighAccuracy: true }
-    );
-}
-</script>
+            # --- BOTÓN + JS ---
+            gps_component = """
+            <script>
+            function sendLocation() {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const coords = pos.coords.latitude + "," + pos.coords.longitude;
+                        window.parent.postMessage({
+                            type: "streamlit:set_component_value",
+                            value: coords
+                        }, "*");
+                    },
+                    (err) => {
+                        alert("Error GPS: " + err.message);
+                    },
+                    { enableHighAccuracy: true }
+                );
+            }
+            </script>
 
-<button onclick="sendLocation()" style="
-    width: 100%;
-    background-color: #007AFF;
-    color: white;
-    border: none;
-    padding: 15px;
-    border-radius: 12px;
-    font-weight: bold;
-">
-📍 CAPTURAR UBICACIÓN
-</button>
-"""
+            <button onclick="sendLocation()" style="
+                width: 100%;
+                background-color: #007AFF;
+                color: white;
+                border: none;
+                padding: 15px;
+                border-radius: 12px;
+                font-weight: bold;
+                cursor: pointer;
+            ">
+            📍 CAPTURAR UBICACIÓN
+            </button>
+            """
 
-coords = html(gps_component, height=80)
+            # Capturamos el valor que devuelve el componente
+            coords = html(gps_component, height=80)
 
-# --- GUARDAR COORDENADAS ---
-if coords:
-    st.session_state.gps_coords = coords
+            # --- GUARDAR COORDENADAS ---
+            if coords:
+                st.session_state.gps_coords = coords
 
-# --- MOSTRAR MAPA SI EXISTE ---
-if st.session_state.gps_coords:
-    try:
-        lat, lon = st.session_state.gps_coords.split(",")
-        lat = float(lat)
-        lon = float(lon)
+            # --- MOSTRAR MAPA SI EXISTE ---
+            if st.session_state.gps_coords:
+                try:
+                    lat_s, lon_s = st.session_state.gps_coords.split(",")
+                    lat = float(lat_s)
+                    lon = float(lon_s)
 
-        st.success("✅ Ubicación capturada correctamente")
+                    st.success(f"✅ Ubicación capturada: {lat}, {lon}")
 
-        # MAPA NATIVO (ESTABLE)
-        df = pd.DataFrame({"lat": [lat], "lon": [lon]})
-        st.map(df, zoom=16)
+                    # MAPA NATIVO (Requiere que tengas importado pandas como pd)
+                    df_map = pd.DataFrame({"lat": [lat], "lon": [lon]})
+                    st.map(df_map, zoom=16)
 
-        # LINK EXTERNO
-        st.markdown(f"""
-        <a href="https://www.google.com/maps?q={lat},{lon}" target="_blank">
-            🌍 Abrir en Google Maps
-        </a>
-        """, unsafe_allow_html=True)
+                    # LINK EXTERNO
+                    nav_url = f"https://www.google.com/maps?q={lat},{lon}"
+                    st.markdown(f"""
+                        <a href="{nav_url}" target="_blank" style="text-decoration:none;">
+                            <button style="width:100%; background:#4285F4; color:white; border:none; padding:10px; border-radius:10px; font-weight:bold;">
+                                🌍 ABRIR EN GOOGLE MAPS
+                            </button>
+                        </a>
+                    """, unsafe_allow_html=True)
 
-    except:
-        st.error("Error procesando coordenadas")
+                except Exception as e:
+                    st.error(f"Error procesando coordenadas: {e}")
 
-# --- LIMPIAR ---
-if st.button("🗑️ Limpiar ubicación"):
-    st.session_state.gps_coords = None
-    st.rerun()
+            if st.button("🗑️ Limpiar ubicación"):
+                st.session_state.gps_coords = None
+                st.rerun()
 
-        # --- SECCIÓN B: CARTERA DE CLIENTES (RESTO DEL CÓDIGO) ---
-        # ... (aquí sigue tu código de búsqueda y grid de clientes que ya tenías)
-        
         # --- SECCIÓN B: CARTERA DE CLIENTES ---
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
