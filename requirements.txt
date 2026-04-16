@@ -9,3 +9,4 @@ Pillow
 groq
 qrcode[pil]
 streamlit-geolocation
+streamlit-js-eval
