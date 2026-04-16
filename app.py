@@ -751,32 +751,38 @@ elif menu == "👥 Todos mis Clientes":
                     except:
                         pass
 
-            # --- ESTRATEGIA: MAPA DE GOOGLE MAPS GRATUITO ---
+            # --- ESTRATEGIA: MAPA DE GOOGLE MAPS GRATUITO (VERSIÓN BLINDADA) ---
             if st.session_state.get('temp_lat'):
                 lat = st.session_state.temp_lat
                 lon = st.session_state.temp_lon
                 
-                # Usamos el modo embed de Google Maps que es gratuito y no requiere API Key
+                # 1. Usamos HTTPS y la URL de Embed de Google Maps actualizada
+                # Esta URL es la que usa Google para compartir lugares, es infalible.
                 map_url = f"https://maps.google.com/maps?q={lat},{lon}&z=18&output=embed"
                 
                 st.markdown(f"""
-                    <div style="border-radius:15px; overflow:hidden; border:2px solid #0284c7; margin-top:10px;">
+                    <div style="border-radius:15px; overflow:hidden; border:2px solid #0284c7; margin-top:10px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
                         <iframe 
                             width="100%" 
-                            height="350" 
+                            height="400" 
                             frameborder="0" 
-                            src="{map_url}">
+                            style="border:0;"
+                            src="{map_url}" 
+                            allowfullscreen>
                         </iframe>
                     </div>
-                    <p style="text-align:center; font-size:0.75rem; color:#666; margin-top:5px;">
-                        <b>📍 Ubicación Confirmada</b> ({lat}, {lon})
-                    </p>
+                    <div style="text-align:center; margin-top:10px;">
+                        <a href="https://www.google.com/maps?q={lat},{lon}" target="_blank" 
+                           style="color: #0284c7; text-decoration: none; font-weight: bold; font-size: 0.9rem;">
+                           📍 Abrir directamente en Google Maps
+                        </a>
+                    </div>
                 """, unsafe_allow_html=True)
                 
-                if st.button("🗑️ BORRAR Y REPETIR CAPTURA", use_container_width=True):
+                if st.button("🗑️ REPETIR CAPTURA GPS", use_container_width=True):
                     st.session_state.temp_lat = ""
                     st.session_state.temp_lon = ""
-                    st.session_state.gps_res = ""
+                    st.session_state.gps_res = "" # Limpiamos el receptor también
                     st.rerun()
             # --- PASO 2: FORMULARIO (Key Única para evitar el error) ---
             st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
