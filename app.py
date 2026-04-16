@@ -705,10 +705,11 @@ elif menu == "👥 Todos mis Clientes":
             # --- PASO 1: LOCALIZACIÓN ---
             # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
             # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
+            # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                # MANTENEMOS TU BOTÓN QUE TE GUSTÓ (ESTILO APPLE)
+                # MOTOR DE CAPTURA CON AUTO-REFRESCO (REINICIO FORZADO)
                 gps_html = """
                 <div style="text-align:center;">
                     <button id="gps_btn" onclick="getGPS()" style="
@@ -716,7 +717,6 @@ elif menu == "👥 Todos mis Clientes":
                         border: none; padding: 20px; border-radius: 15px;
                         font-weight: bold; font-size: 1rem; cursor: pointer; 
                         box-shadow: 0 4px 15px rgba(0,122,255,0.3);
-                        transition: 0.3s;
                     ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
                 </div>
 
@@ -725,8 +725,6 @@ elif menu == "👥 Todos mis Clientes":
                     const btn = document.getElementById('gps_btn');
                     btn.innerText = "🛰️ BUSCANDO SATÉLITES...";
                     btn.style.backgroundColor = "#ff9500";
-                    
-                    const options = { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 };
                     
                     navigator.geolocation.getCurrentPosition(
                         (pos) => {
@@ -741,23 +739,22 @@ elif menu == "👥 Todos mis Clientes":
                                     break;
                                 }
                             }
-                            btn.innerText = "✅ UBICACIÓN CAPTURADA";
+                            btn.innerText = "✅ ¡LISTO! PROCESANDO...";
                             btn.style.backgroundColor = "#34c759";
+                            
+                            // HACK FINAL: Forzamos un click en cualquier parte para que Streamlit reaccione
+                            window.parent.document.body.click();
                         },
-                        (err) => { 
-                            alert("ERROR GPS: " + err.message); 
-                            btn.innerText = "❌ ERROR - REINTENTAR";
-                            btn.style.backgroundColor = "#ff3b30";
-                        },
-                        options
+                        (err) => { alert("Error: " + err.message); },
+                        { enableHighAccuracy: true, timeout: 10000 }
                     );
                 }
                 </script>
                 """
                 st.components.v1.html(gps_html, height=100)
 
-                # Puente receptor
-                gps_res = st.text_input("Señal recibida:", key="gps_res", placeholder="Sincronizando satélites...")
+                # Mostramos el valor capturado (Si no se ve el mapa, edita este cuadro a mano)
+                gps_res = st.text_input("Coordenadas detectadas:", key="gps_res", placeholder="Sincronizando satélites...")
 
                 if gps_res and "," in gps_res:
                     try:
@@ -767,32 +764,29 @@ elif menu == "👥 Todos mis Clientes":
                     except:
                         pass
 
-            # --- MAPA FÍSICO ROBUSTO (FOLIUM) ---
+            # --- MAPA FÍSICO (NATIVO DE STREAMLIT) ---
             if st.session_state.get('temp_lat'):
-                lat_f = float(st.session_state.temp_lat)
-                lon_f = float(st.session_state.temp_lon)
+                st.markdown("### 🗺️ Mapa de Ubicación")
                 
-                # Creamos el mapa con st.map (el comando nativo de Streamlit que nunca falla)
-                # Esto dibuja un mapa físico real basado en Mapbox/OpenStreetMap
-                df_mapa = pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]})
+                # Creamos el dataframe para el mapa
+                lat_val = float(st.session_state.temp_lat)
+                lon_val = float(st.session_state.temp_lon)
+                map_data = pd.DataFrame({'lat': [lat_val], 'lon': [lon_val]})
                 
-                st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-                st.success(f"📍 Coordenadas fijadas correctamente")
+                # ESTO DIBUJA EL MAPA FÍSICO SÍ O SÍ
+                st.map(map_data, zoom=16)
                 
-                # Mapa nativo de Streamlit: Muy robusto y optimizado para móviles
-                st.map(df_mapa, zoom=16, use_container_width=True)
-                
-                # Botón de auxilio por si quieren ver la foto satelital de Google
+                # Botón verde de Google Maps por si el mapa de arriba no carga por internet lento
                 st.markdown(f"""
-                    <a href="https://www.google.com/maps?q={lat_f},{lon_f}" target="_blank" 
+                    <a href="https://www.google.com/maps?q={lat_val},{lon_val}" target="_blank" 
                        style="display: block; width: 100%; text-align: center; background-color: #34c759; 
-                       color: white; padding: 12px; border-radius: 12px; text-decoration: none; 
-                       font-weight: bold; margin-top: 10px;">
-                       🌐 VER FOTO SATELITAL (GOOGLE MAPS)
+                       color: white; padding: 15px; border-radius: 12px; text-decoration: none; 
+                       font-weight: bold; margin-top: 10px; font-size: 1rem;">
+                       ✅ VER EN GOOGLE MAPS (SATELITAL)
                     </a>
                 """, unsafe_allow_html=True)
                 
-                if st.button("🗑️ REPETIR CAPTURA GPS", use_container_width=True):
+                if st.button("🗑️ REPETIR CAPTURA", use_container_width=True):
                     st.session_state.temp_lat = ""
                     st.session_state.temp_lon = ""
                     st.session_state.gps_res = ""
