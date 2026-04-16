@@ -704,44 +704,37 @@ elif menu == "👥 Todos mis Clientes":
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                # Componente de sensor (aparece como un pequeño icono de mira)
                 from streamlit_geolocation import streamlit_geolocation
+                
+                # Este es el componente que saca el icono/botón de la librería
+                st.write("👇 Toca aquí primero para activar el sensor:")
                 loc_nativa = streamlit_geolocation() 
                 
-                # Sincronización automática de coordenadas
-                if loc_nativa and loc_nativa.get('latitude'):
-                    st.session_state.temp_lat = loc_nativa['latitude']
-                    st.session_state.temp_lon = loc_nativa['longitude']
-
-                col_status, col_clear = st.columns([2, 1])
-
-                with col_status:
-                    if st.session_state.temp_lat:
-                        st.markdown(f"""
-                            <div style="background:#f0fdf4; padding:10px; border-radius:10px; border:1px solid #bbf7d0;">
-                                <p style="margin:0; color:#166534; font-size:0.85rem; font-weight:bold;">📍 UBICACIÓN CAPTURADA</p>
-                                <p style="margin:0; color:#15803d; font-size:0.7rem;">Lista para registrar en el expediente</p>
-                            </div>
-                        """, unsafe_allow_html=True)
+                # Botón de respaldo para que sea INTUITIVO
+                if st.button("🔵 FIJAR UBICACIÓN AQUÍ", use_container_width=True, type="primary"):
+                    if loc_nativa and loc_nativa.get('latitude'):
+                        st.session_state.temp_lat = loc_nativa['latitude']
+                        st.session_state.temp_lon = loc_nativa['longitude']
+                        st.toast("🎯 ¡Ubicación capturada con éxito!")
                     else:
-                        st.info("👋 Toca el icono de la mira arriba para obtener GPS")
+                        st.error("⚠️ Primero toca el botón de arriba 'Get Location' para dar permiso al GPS.")
 
-                with col_clear:
-                    # Botón para limpiar, solo visible si hay datos
-                    if st.session_state.temp_lat:
-                        if st.button("🧹 BORRAR", use_container_width=True):
-                            st.session_state.temp_lat = ""
-                            st.session_state.temp_lon = ""
-                            st.rerun()
+                # Botón para limpiar
+                if st.session_state.temp_lat:
+                    if st.button("🗑️ LIMPIAR Y REPETIR", use_container_width=True):
+                        st.session_state.temp_lat = ""
+                        st.session_state.temp_lon = ""
+                        st.rerun()
 
             # --- MAPA DE CONFIRMACIÓN ---
             if st.session_state.temp_lat:
+                st.success(f"📍 Coordenadas: {st.session_state.temp_lat}, {st.session_state.temp_lon}")
                 fig = go.Figure(go.Scattermapbox(
                     lat=[float(st.session_state.temp_lat)],
                     lon=[float(st.session_state.temp_lon)],
                     mode='markers',
-                    marker=go.scattermapbox.Marker(size=20, color='red'), # Punto bien visible
-                    text=["Punto exacto"]
+                    marker=go.scattermapbox.Marker(size=20, color='red'),
+                    text=["Casa del Cliente"]
                 ))
                 fig.update_layout(
                     mapbox=dict(
@@ -752,6 +745,7 @@ elif menu == "👥 Todos mis Clientes":
                     margin={"r":0,"t":0,"l":0,"b":0}, height=250
                 )
                 st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+
 
             # --- MAPA GRATUITO (SIN API KEY) ---
             if st.session_state.temp_lat:
