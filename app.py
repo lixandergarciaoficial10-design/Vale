@@ -748,25 +748,34 @@ elif menu == "👥 Todos mis Clientes":
                 st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="f_t")
                 st.session_state.reg_dir = st.text_area("Referencia (Color de casa, etc.)", value=st.session_state.reg_dir, height=68, key="f_d")
 
-            # --- LÓGICA DE GUARDADO FLEXIBLE ---
-            if st.button("🚀 GUARDAR EN CARTERA", use_container_width=True, type="primary"):
-                # 1. BLOQUEO TOTAL: Nombre y Cédula son sagrados
+            # --- BOTONES DE ACCIÓN (LIMPIAR Y GUARDAR) ---
+            col_b1, col_b2 = st.columns(2)
+            
+            with col_b1:
+                if st.button("🧹 LIMPIAR CAMPOS", use_container_width=True):
+                    for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
+                        st.session_state[k] = ""
+                    st.rerun()
+
+            with col_b2:
+                btn_guardar = st.button("🚀 GUARDAR EN CARTERA", use_container_width=True, type="primary")
+
+            if btn_guardar:
+                # 1. BLOQUEO TOTAL: Solo Nombre y Cédula
                 if not st.session_state.reg_nombre or not st.session_state.reg_ced:
-                    st.error("❌ El **Nombre** y la **Cédula** son campos obligatorios para el registro.")
+                    st.error("❌ El **Nombre** y la **Cédula** son obligatorios.")
                 
                 else:
-                    # 2. AVISO DE GPS (No bloquea, solo advierte)
+                    # 2. MANEJO DE GPS OPCIONAL
+                    lat_final, lon_final = 0.0, 0.0
                     if not st.session_state.reg_gps:
-                        st.warning("⚠️ **Aviso:** No se ha capturado la ubicación GPS. El cliente se guardará sin coordenadas geográficas.")
-                        # Esperamos un segundo para que el usuario lea el aviso antes de procesar si decides darle click de nuevo 
-                        # O simplemente procedemos con valores por defecto:
-                        lat_final, lon_final = 0.0, 0.0
+                        st.warning("⚠️ **Aviso:** Guardando cliente sin ubicación exacta.")
                     else:
                         try:
                             lat_v, lon_v = st.session_state.reg_gps.split(",")
                             lat_final, lon_final = float(lat_v), float(lon_v)
                         except:
-                            lat_final, lon_final = 0.0, 0.0
+                            pass
 
                     # 3. EJECUCIÓN DEL GUARDADO
                     try:
@@ -781,16 +790,13 @@ elif menu == "👥 Todos mis Clientes":
                             "fecha_registro": str(hoy_dt)
                         }).execute()
                         
-                        st.success(f"✅ ¡Cliente {st.session_state.reg_nombre} registrado con éxito!")
-                        
-                        # Limpiar campos después de guardar
+                        st.success(f"✅ ¡Cliente {st.session_state.reg_nombre} registrado!")
                         for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: 
                             st.session_state[k] = ""
-                        
                         time.sleep(1)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error de base de datos: {e}")
+                        st.error(f"Error: {e}")
 
         st.divider()
     
