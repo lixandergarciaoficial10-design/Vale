@@ -670,129 +670,86 @@ elif menu == "Nueva Cuenta por Cobrar":
 elif menu == "👥 Todos mis Clientes":
         import datetime as dt
         import time
-        import pydeck as pdk
-        import numpy as np
-        from streamlit.components.v1 import html
+        import pandas as pd
+        from streamlit_js_eval import streamlit_js_eval # LIBRERÍA CLAVE
         
         hoy_dt_sistema = dt.date.today()
         
-        if "reg_gps" not in st.session_state: st.session_state.reg_gps = ""
-        if "reg_nombre" not in st.session_state: st.session_state.reg_nombre = ""
-        if "reg_tel" not in st.session_state: st.session_state.reg_tel = ""
-        if "reg_ced" not in st.session_state: st.session_state.reg_ced = ""
-        if "reg_dir" not in st.session_state: st.session_state.reg_dir = ""
+        # Inicialización
+        for key in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
+            if key not in st.session_state: st.session_state[key] = ""
 
         st.markdown("<h1 style='color: #1e293b;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
 
         with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
             
-            # --- MAPA MUNDIAL ESTÁTICO (CSS) PARA EVITAR ERRORES DE JS ---
-            st.markdown("""
-                <div style="background: #0f172a; border-radius: 15px; padding: 20px; text-align: center; margin-bottom: 10px;">
-                    <div style="color: #38bdf8; font-size: 0.8rem; letter-spacing: 2px;">SISTEMA DE GEOPOSICIONAMIENTO</div>
-                    <div style="color: white; font-size: 0.7rem; opacity: 0.5;">Conexión satelital activa</div>
-                </div>
-            """, unsafe_allow_html=True)
+            st.info("Presiona el botón para detectar la ubicación satelital automáticamente.")
+            
+            # --- EL BOTÓN QUE SÍ FUNCIONA (Librería externa) ---
+            loc = streamlit_js_eval(
+                js_expressions="navigator.geolocation.getCurrentPosition(pos => { window.parent.postMessage({type: 'streamlit:setComponentValue', value: pos.coords.latitude + ',' + pos.coords.longitude}, '*') })",
+                key="get_location"
+            )
 
-            # --- BOTÓN DE CAPTURA ULTRA-COMPATIBLE ---
-            st.markdown("""
-                <style>
-                .btn-gps {
-                    background: linear-gradient(90deg, #007AFF, #00C6FF);
-                    color: white; border: none; padding: 18px; width: 100%;
-                    border-radius: 12px; font-weight: bold; cursor: pointer;
-                    box-shadow: 0 4px 15px rgba(0,122,255,0.3); margin-bottom: 20px;
-                }
-                </style>
-                <button class="btn-gps" onclick="capturarYa()">📍 OBTENER UBICACIÓN ACTUAL</button>
-                
-                <script>
-                function capturarYa() {
-                    if (!navigator.geolocation) {
-                        alert("Tu navegador no soporta GPS");
-                        return;
-                    }
-                    
-                    navigator.geolocation.getCurrentPosition(function(pos) {
-                        const lat = pos.coords.latitude.toFixed(8);
-                        const lon = pos.coords.longitude.toFixed(8);
-                        const resultado = lat + "," + lon;
-                        
-                        // Buscamos TODOS los inputs del documento padre
-                        const inputs = window.parent.document.querySelectorAll('input');
-                        let inputEncontrado = null;
-                        
-                        for (let i = 0; i < inputs.length; i++) {
-                            // Buscamos el input por el placeholder exacto que pusimos en Streamlit
-                            if (inputs[i].placeholder === "Esperando señal...") {
-                                inputEncontrado = inputs[i];
-                                break;
-                            }
-                        }
-                        
-                        if (inputEncontrado) {
-                            inputEncontrado.value = resultado;
-                            inputEncontrado.dispatchEvent(new Event('input', { bubbles: true }));
-                            inputEncontrado.dispatchEvent(new Event('change', { bubbles: true }));
-                            alert("✅ Ubicación capturada con éxito");
-                        } else {
-                            alert("Error: No se encontró el campo de texto. Asegúrate de que el placeholder coincida.");
-                        }
-                    }, function(err) {
-                        alert("Error de GPS: " + err.message);
-                    }, { enableHighAccuracy: true });
-                }
-                </script>
-            """, unsafe_allow_html=True)
+            if loc:
+                st.session_state.reg_gps = loc
+                st.success(f"📍 Ubicación detectada: {loc}")
 
             c1, c2 = st.columns(2)
             with c1:
-                # El placeholder "Esperando señal..." es la CLAVE para que el JS lo encuentre
-                st.session_state.reg_gps = st.text_input("📍 Coordenadas", 
-                                                        value=st.session_state.reg_gps, 
-                                                        placeholder="Esperando señal...", 
-                                                        key="input_gps_unico")
-                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="n_p")
+                # Mostramos las coordenadas capturadas
+                st.session_state.reg_gps = st.text_input("📍 Coordenadas", value=st.session_state.reg_gps, key="gps_field")
+                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre)
             with c2:
-                st.session_state.reg_tel = st.text_input("WhatsApp *", value=st.session_state.reg_tel, key="t_p")
-                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced, key="c_p")
+                st.session_state.reg_tel = st.text_input("WhatsApp *", value=st.session_state.reg_tel)
+                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced)
 
-            st.session_state.reg_dir = st.text_area("Referencia de Vivienda", value=st.session_state.reg_dir, key="d_p")
+            st.session_state.reg_dir = st.text_area("Referencia de Vivienda", value=st.session_state.reg_dir)
 
-            if st.button("🚀 GUARDAR CLIENTE", use_container_width=True):
+            # --- MAPA EN TIEMPO REAL SI HAY COORDENADAS ---
+            if st.session_state.reg_gps and "," in st.session_state.reg_gps:
+                try:
+                    lat, lon = map(float, st.session_state.reg_gps.split(","))
+                    df_mapa = pd.DataFrame({'lat': [lat], 'lon': [lon]})
+                    st.write("### Vista Previa del Mapa")
+                    st.map(df_mapa, zoom=16)
+                except:
+                    st.warning("Formato de coordenadas inválido.")
+
+            if st.button("🚀 GUARDAR EN CARTERA", use_container_width=True):
                 if not st.session_state.reg_nombre or not st.session_state.reg_gps:
-                    st.error("❌ Nombre y Coordenadas son obligatorios")
+                    st.error("❌ Faltan datos.")
                 else:
-                    try:
-                        lat_v, lon_v = st.session_state.reg_gps.split(",")
-                        conn.table("clientes").insert({
-                            "nombre": st.session_state.reg_nombre, "telefono": st.session_state.reg_tel,
-                            "cedula": st.session_state.reg_ced, "direccion": st.session_state.reg_dir,
-                            "latitud": float(lat_v), "longitud": float(lon_v), "user_id": u_id
-                        }).execute()
-                        st.success("✅ ¡Guardado!")
-                        # Limpiar campos
-                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
-                        time.sleep(1); st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+                    lat_v, lon_v = st.session_state.reg_gps.split(",")
+                    conn.table("clientes").insert({
+                        "nombre": st.session_state.reg_nombre, "telefono": st.session_state.reg_tel,
+                        "cedula": st.session_state.reg_ced, "direccion": st.session_state.reg_dir,
+                        "latitud": float(lat_v), "longitud": float(lon_v), "user_id": u_id
+                    }).execute()
+                    st.success("✅ ¡Cliente guardado!")
+                    # Limpiar y refrescar
+                    for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
+                    time.sleep(1); st.rerun()
 
-        # --- LISTADO DE CLIENTES (CORREGIDO) ---
+        # --- LISTADO DE CLIENTES CON BOTÓN DE RUTA ---
         st.divider()
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
+        
         if res_cl.data:
-            grid = st.columns(3)
-            for i, cl in enumerate(res_cl.data):
-                with grid[i % 3]:
-                    st.markdown(f"""
-                        <div style="background: white; border-radius: 15px; padding: 15px; border: 1px solid #eee;">
-                            <h4 style="margin:0;">{cl['nombre']}</h4>
-                            <p style="font-size: 0.8rem; color: #666;">{cl['telefono']}</p>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    if st.button("Eliminar", key=f"del_{cl['id']}"):
-                        conn.table("clientes").delete().eq("id", cl['id']).execute()
-                        st.rerun()
+            cols = st.columns(3)
+            for idx, cl in enumerate(res_cl.data):
+                with cols[idx % 3]:
+                    with st.container(border=True):
+                        st.subheader(cl['nombre'])
+                        st.write(f"📞 {cl['telefono']}")
+                        
+                        # Botón para ir directo a Google Maps
+                        maps_url = f"https://www.google.com/maps?q={cl['latitud']},{cl['longitud']}"
+                        st.markdown(f'<a href="{maps_url}" target="_blank"><button style="width:100%; background:#4285F4; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer;">🚗 IR AL CLIENTE</button></a>', unsafe_allow_html=True)
+                        
+                        if st.button("Eliminar", key=f"del_{cl['id']}", type="secondary"):
+                            conn.table("clientes").delete().eq("id", cl['id']).execute()
+                            st.rerun()
         
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
