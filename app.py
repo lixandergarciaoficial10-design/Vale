@@ -703,77 +703,73 @@ elif menu == "👥 Todos mis Clientes":
 
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
+            # --- SOLUCIÓN DEFINITIVA: PUENTE JAVASCRIPT ---
+            from streamlit.components.v1 import html
+            
+            # 1. Este bloque captura la ubicación y la pone en los campos de texto automáticamente
+            gps_script = """
+            <script>
+            function getGPS() {
+                const options = { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 };
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        // Buscamos los inputs de Streamlit por su etiqueta aria o tipo
+                        const inputs = window.parent.document.querySelectorAll('input[type="text"]');
+                        // El JS le "inyecta" los valores a los inputs de latitud y longitud
+                        window.parent.postMessage({
+                            type: 'streamlit:set_component_value',
+                            value: pos.coords.latitude + ", " + pos.coords.longitude
+                        }, '*');
+                    },
+                    (err) => { console.error("Error GPS:", err); },
+                    options
+                );
+            }
+            getGPS();
+            </script>
+            """
+
             with st.container(border=True):
-                # 1. JavaScript para capturar GPS real del navegador
-                from streamlit.components.v1 import html
-                
-                # Definimos el script que "despierta" el GPS
-                my_js = """
-                <script>
-                function askGPS() {
-                    navigator.geolocation.getCurrentPosition(
-                        (pos) => {
-                            const lat = pos.coords.latitude;
-                            const lon = pos.coords.longitude;
-                            // Enviamos los datos a Streamlit
-                            window.parent.postMessage({
-                                type: 'streamlit:set_component_value',
-                                value: lat + "," + lon
-                            }, '*');
-                        },
-                        (err) => { console.error(err); },
-                        { enableHighAccuracy: true }
-                    );
-                }
-                askGPS();
-                </script>
-                """
-                
-                # Botón de acción principal
-                if st.button("📍 OBTENER UBICACIÓN ACTUAL", use_container_width=True, type="primary"):
-                    html(my_js, height=0)
-                    st.info("Buscando satélites... espera 2 segundos y presiona 'Fijar'")
+                # Botón que dispara el script
+                if st.button("📍 ACTIVAR RADAR GPS", use_container_width=True, type="primary"):
+                    html(gps_script, height=0)
+                    st.toast("🛰️ Buscando satélites...")
 
-                # Recibir datos del JS (usamos un truco de query params o session state)
-                # Para simplificar, si el JS funcionó, verás las coordenadas abajo
-                
-                col_status, col_clear = st.columns([2, 1])
-                
-                with col_status:
-                    if st.session_state.temp_lat:
-                        st.markdown('<p style="color:green; font-weight:bold;">✅ GPS CONECTADO</p>', unsafe_allow_html=True)
-                    else:
-                        # Fallback: Permitir entrada manual si el satélite falla
-                        manual_gps = st.text_input("Esperando señal (o pega coordenadas aquí):", placeholder="lat, lon")
-                        if manual_gps and "," in manual_gps:
-                            lats, lons = manual_gps.split(",")
-                            st.session_state.temp_lat = lats.strip()
-                            st.session_state.temp_lon = lons.strip()
+                # Campo de entrada que recibe el dato del JS
+                gps_data = st.text_input("Coordenadas capturadas (Lat, Lon):", key="gps_receiver", placeholder="Esperando señal...")
 
-                with col_clear:
-                    if st.button("🗑️ LIMPIAR GPS", use_container_width=True):
+                if gps_data and "," in gps_data:
+                    lat_val, lon_val = gps_data.split(",")
+                    st.session_state.temp_lat = lat_val.strip()
+                    st.session_state.temp_lon = lon_val.strip()
+                    st.success("✅ Ubicación fijada correctamente")
+
+                if st.session_state.get('temp_lat'):
+                    if st.button("🗑️ LIMPIAR POSICIÓN", use_container_width=True):
                         st.session_state.temp_lat = ""
                         st.session_state.temp_lon = ""
                         st.rerun()
 
-            # --- MAPA DE CONFIRMACIÓN ---
-            if st.session_state.temp_lat and st.session_state.temp_lat != "":
-                st.write(f"Coordenadas: `{st.session_state.temp_lat}, {st.session_state.temp_lon}`")
-                fig = go.Figure(go.Scattermapbox(
-                    lat=[float(st.session_state.temp_lat)],
-                    lon=[float(st.session_state.temp_lon)],
-                    mode='markers',
-                    marker=go.scattermapbox.Marker(size=20, color='red'),
-                ))
-                fig.update_layout(
-                    mapbox=dict(
-                        style="open-street-map",
-                        center=dict(lat=float(st.session_state.temp_lat), lon=float(st.session_state.temp_lon)),
-                        zoom=18
-                    ),
-                    margin={"r":0,"t":0,"l":0,"b":0}, height=250
-                )
-                st.plotly_chart(fig, use_container_width=True)
+            # --- MAPA DE CONFIRMACIÓN (Plotly) ---
+            if st.session_state.get('temp_lat'):
+                try:
+                    fig = go.Figure(go.Scattermapbox(
+                        lat=[float(st.session_state.temp_lat)],
+                        lon=[float(st.session_state.temp_lon)],
+                        mode='markers',
+                        marker=go.scattermapbox.Marker(size=20, color='red'),
+                    ))
+                    fig.update_layout(
+                        mapbox=dict(
+                            style="open-street-map",
+                            center=dict(lat=float(st.session_state.temp_lat), lon=float(st.session_state.temp_lon)),
+                            zoom=17
+                        ),
+                        margin={"r":0,"t":0,"l":0,"b":0}, height=250
+                    )
+                    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+                except:
+                    st.error("Formato de coordenadas inválido")
 
             # --- PASO 2: FORMULARIO ---
             st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
