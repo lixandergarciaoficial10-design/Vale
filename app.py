@@ -674,12 +674,12 @@ elif menu == "👥 Todos mis Clientes":
     import numpy as np
     from streamlit.components.v1 import html
     
-    hoy_dt = dt.date.today()
-
-    # --- 1. INICIALIZACIÓN DE ESTADOS ---
-    for key in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
-        if key not in st.session_state:
-            st.session_state[key] = ""
+    # 1. INICIALIZACIÓN DE VARIABLES (Sin duplicar llaves)
+    if "reg_gps" not in st.session_state: st.session_state["reg_gps"] = ""
+    if "reg_nombre" not in st.session_state: st.session_state["reg_nombre"] = ""
+    if "reg_tel" not in st.session_state: st.session_state["reg_tel"] = ""
+    if "reg_ced" not in st.session_state: st.session_state["reg_ced"] = ""
+    if "reg_dir" not in st.session_state: st.session_state["reg_dir"] = ""
 
     st.markdown("""
         <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
@@ -687,9 +687,9 @@ elif menu == "👥 Todos mis Clientes":
     """, unsafe_allow_html=True)
 
     with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
-        # --- ANIMACIÓN DE RED NEURONAL ---
+        # --- ANIMACIÓN RED NEURONAL ---
         st.markdown("""
-            <div style="background: #0f172a; border-radius: 20px; height: 150px; position: relative; overflow: hidden; margin-bottom: 20px; border: 1px solid #1e293b;">
+            <div style="background: #0f172a; border-radius: 20px; height: 140px; position: relative; overflow: hidden; margin-bottom: 20px; border: 1px solid #1e293b;">
                 <canvas id="netCanvas" style="position: absolute; width: 100%; height: 100%;"></canvas>
             </div>
             <script>
@@ -703,12 +703,10 @@ elif menu == "👥 Todos mis Clientes":
                 }
                 function draw() {
                     ctx.clearRect(0,0,canvas.width, canvas.height);
-                    ctx.fillStyle = "rgba(0,122,255,0.7)";
-                    ctx.strokeStyle = "rgba(0,122,255,0.15)";
+                    ctx.fillStyle = "rgba(0,122,255,0.7)"; ctx.strokeStyle = "rgba(0,122,255,0.15)";
                     dots.forEach((d, i) => {
                         d.x += d.vx; d.y += d.vy;
-                        if(d.x<0 || d.x>canvas.width) d.vx*=-1;
-                        if(d.y<0 || d.y>canvas.height) d.vy*=-1;
+                        if(d.x<0 || d.x>canvas.width) d.vx*=-1; if(d.y<0 || d.y>canvas.height) d.vy*=-1;
                         ctx.beginPath(); ctx.arc(d.x, d.y, 2, 0, Math.PI*2); ctx.fill();
                         for(let j=i+1; j<dots.length; j++) {
                             let dist = Math.hypot(d.x-dots[j].x, d.y-dots[j].y);
@@ -721,106 +719,68 @@ elif menu == "👥 Todos mis Clientes":
             </script>
         """, unsafe_allow_html=True)
 
-        # --- 2. SOLUCIÓN COMPONENTE GPS (FIX DE PERSISTENCIA) ---
-        # Este bloque JS envía el valor directamente al componente 'coords'
-        gps_component_html = """
+        # --- COMPONENTE GPS ---
+        gps_html = """
         <script>
-        function sendToStreamlit(value) {
-            window.parent.postMessage({
-                type: "streamlit:setComponentValue",
-                value: value
-            }, "*");
-        }
+        function send(v) { window.parent.postMessage({type: "streamlit:setComponentValue", value: v}, "*"); }
         function getGPS() {
-            const btn = document.getElementById('gps_btn');
-            btn.innerText = "🛰️ CAPTURANDO...";
-            navigator.geolocation.getCurrentPosition((pos) => {
-                const coords = pos.coords.latitude.toFixed(8) + "," + pos.coords.longitude.toFixed(8);
-                sendToStreamlit(coords);
-                btn.innerText = "✅ UBICACIÓN FIJADA";
-                btn.style.background = "#34c759";
-            }, (err) => {
-                alert("Error: " + err.message);
-                btn.innerText = "❌ ERROR GPS";
+            navigator.geolocation.getCurrentPosition((p) => {
+                send(p.coords.latitude.toFixed(8) + "," + p.coords.longitude.toFixed(8));
             });
         }
         </script>
-        <button id="gps_btn" onclick="getGPS()" style="width: 100%; background: #007AFF; color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; transition: 0.3s;">
+        <button onclick="getGPS()" style="width: 100%; background: #007AFF; color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer;">
             📍 CAPTURAR UBICACIÓN ACTUAL
         </button>
         """
-        # Capturamos el retorno del HTML en una variable
-        coords_captured = html(gps_component_html, height=70)
+        captura = html(gps_html, height=70)
+        
+        # Sincronización inteligente: Si el GPS capturó algo, actualiza el estado
+        if captura:
+            st.session_state["reg_gps"] = captura
 
-        # Si el componente devuelve algo, actualizamos el estado inmediatamente
-        if coords_captured:
-            st.session_state.reg_gps = coords_captured
-
-        # --- 3. FORMULARIO ---
+        # --- FORMULARIO ---
         c1, c2 = st.columns(2)
         with c1:
-            # Ahora el input está vinculado al estado que actualiza el JS
-            st.text_input("📍 Coordenadas (Editable)", key="reg_gps", placeholder="Lat, Lon")
-            st.text_input("Nombre Completo *", key="reg_nombre")
-            st.text_input("WhatsApp / Celular *", key="reg_tel")
+            # Quitamos la 'key' del text_input y usamos 'value' para que no choque con el session_state
+            gps_input = st.text_input("📍 Coordenadas (Editable)", value=st.session_state["reg_gps"], placeholder="Lat, Lon")
+            st.session_state["reg_gps"] = gps_input # Actualizamos manual si el usuario escribe
+            
+            st.session_state["reg_nombre"] = st.text_input("Nombre Completo *", value=st.session_state["reg_nombre"])
+            st.session_state["reg_tel"] = st.text_input("WhatsApp / Celular *", value=st.session_state["reg_tel"])
 
         with c2:
-            st.text_input("Cédula / ID", key="reg_ced")
-            st.text_area("Referencia de Vivienda", key="reg_dir", height=110)
+            st.session_state["reg_ced"] = st.text_input("Cédula / ID", value=st.session_state["reg_ced"])
+            st.session_state["reg_dir"] = st.text_area("Referencia de Vivienda", value=st.session_state["reg_dir"], height=110)
 
-        # --- 4. MAPA CORREGIDO (map_style='dark') ---
-        if st.session_state.reg_gps and "," in st.session_state.reg_gps:
+        # --- MAPA PROFESIONAL (map_style='dark' para evitar el negro) ---
+        if st.session_state["reg_gps"] and "," in st.session_state["reg_gps"]:
             try:
-                lat, lon = map(float, st.session_state.reg_gps.split(","))
-
-                data = pd.DataFrame({'lat': [lat], 'lon': [lon], 'size': [250]})
-                extra_points = pd.DataFrame({
-                    'lat': lat + np.random.randn(15) * 0.0006,
-                    'lon': lon + np.random.randn(15) * 0.0006,
-                    'size': np.random.randint(40, 150, 15)
-                })
-                data = pd.concat([data, extra_points])
-
-                layer = pdk.Layer(
-                    "ScatterplotLayer",
-                    data=data,
-                    get_position='[lon, lat]',
-                    get_radius='size',
-                    get_fill_color='[0, 122, 255, 160]',
-                )
-
-                st.pydeck_chart(pdk.Deck(
-                    layers=[layer],
-                    initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=17, pitch=45),
-                    map_style='dark' # FIX: Ya no saldrá el mapa negro
-                ))
+                lat, lon = map(float, st.session_state["reg_gps"].split(","))
+                layer = pdk.Layer("ScatterplotLayer", data=pd.DataFrame({'lat':[lat],'lon':[lon]}), get_position='[lon, lat]', get_radius=150, get_fill_color=[0, 122, 255, 200])
+                st.pydeck_chart(pdk.Deck(layers=[layer], initial_view_state=pdk.ViewState(latitude=lat, longitude=lon, zoom=17, pitch=45), map_style='dark'))
             except: pass
 
     # --- BOTÓN GUARDAR ---
     if st.button("🚀 GUARDAR EN CARTERA DIGITAL", use_container_width=True):
-        if not st.session_state.reg_nombre or not st.session_state.reg_tel or not st.session_state.reg_gps:
-            st.error("❌ Los campos con (*) y las coordenadas son obligatorios.")
+        if not st.session_state["reg_nombre"] or not st.session_state["reg_gps"]:
+            st.error("❌ Faltan datos.")
         else:
             try:
-                lat_v, lon_v = st.session_state.reg_gps.split(",")
+                lat_v, lon_v = st.session_state["reg_gps"].split(",")
                 conn.table("clientes").insert({
-                    "nombre": st.session_state.reg_nombre,
-                    "telefono": st.session_state.reg_tel,
-                    "cedula": st.session_state.reg_ced,
-                    "direccion": st.session_state.reg_dir,
-                    "latitud": float(lat_v),
-                    "longitud": float(lon_v),
+                    "nombre": st.session_state["reg_nombre"],
+                    "telefono": st.session_state["reg_tel"],
+                    "cedula": st.session_state["reg_ced"],
+                    "direccion": st.session_state["reg_dir"],
+                    "latitud": float(lat_v), "longitud": float(lon_v),
                     "user_id": u_id
                 }).execute()
-
-                st.success("✅ Cliente registrado exitosamente.")
-                # Limpiar solo al tener éxito
-                for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
-                    st.session_state[k] = ""
-                time.sleep(1)
-                st.rerun()
+                st.success("✅ ¡Cliente guardado!")
+                for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
+                time.sleep(1); st.rerun()
             except Exception as e:
-                st.error(f"❌ Error al guardar (Posible cédula duplicada): {e}")
+                st.error(f"❌ Error: {e}")
 
     # --- SECCIÓN B: CARTERA DE CLIENTES ---
     # (Tu código actual de la tabla de clientes sigue aquí...)
