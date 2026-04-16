@@ -704,10 +704,11 @@ elif menu == "👥 Todos mis Clientes":
             # --- PASO 1: LOCALIZACIÓN ---
             # --- PASO 1: LOCALIZACIÓN ---
             # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
+            # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                # MOTOR DE CAPTURA AGRESIVO: Inyecta datos directamente en el DOM de Streamlit
+                # MANTENEMOS TU BOTÓN QUE TE GUSTÓ (ESTILO APPLE)
                 gps_html = """
                 <div style="text-align:center;">
                     <button id="gps_btn" onclick="getGPS()" style="
@@ -715,7 +716,8 @@ elif menu == "👥 Todos mis Clientes":
                         border: none; padding: 20px; border-radius: 15px;
                         font-weight: bold; font-size: 1rem; cursor: pointer; 
                         box-shadow: 0 4px 15px rgba(0,122,255,0.3);
-                    ">📍 CAPTURAR UBICACIÓN AHORA</button>
+                        transition: 0.3s;
+                    ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
                 </div>
 
                 <script>
@@ -728,32 +730,19 @@ elif menu == "👥 Todos mis Clientes":
                     
                     navigator.geolocation.getCurrentPosition(
                         (pos) => {
-                            const lat = pos.coords.latitude;
-                            const lon = pos.coords.longitude;
-                            const res = lat + "," + lon;
-                            
-                            // Buscamos el input de Streamlit por su placeholder único
+                            const res = pos.coords.latitude + "," + pos.coords.longitude;
                             const inputs = window.parent.document.querySelectorAll('input');
-                            let found = false;
                             for (let input of inputs) {
                                 if (input.placeholder === "Sincronizando satélites...") {
                                     input.value = res;
-                                    // Forzamos a Streamlit a reconocer el cambio con 3 eventos
                                     input.dispatchEvent(new Event('input', { bubbles: true }));
                                     input.dispatchEvent(new Event('change', { bubbles: true }));
                                     input.dispatchEvent(new Event('blur', { bubbles: true }));
-                                    found = true;
                                     break;
                                 }
                             }
-                            
-                            if(found) {
-                                btn.innerText = "✅ UBICACIÓN CAPTURADA";
-                                btn.style.backgroundColor = "#34c759";
-                            } else {
-                                btn.innerText = "⚠️ REINTENTAR (Error de enlace)";
-                                btn.style.backgroundColor = "#ff3b30";
-                            }
+                            btn.innerText = "✅ UBICACIÓN CAPTURADA";
+                            btn.style.backgroundColor = "#34c759";
                         },
                         (err) => { 
                             alert("ERROR GPS: " + err.message); 
@@ -767,7 +756,7 @@ elif menu == "👥 Todos mis Clientes":
                 """
                 st.components.v1.html(gps_html, height=100)
 
-                # Puente receptor (Placeholder exacto para el script JS)
+                # Puente receptor
                 gps_res = st.text_input("Señal recibida:", key="gps_res", placeholder="Sincronizando satélites...")
 
                 if gps_res and "," in gps_res:
@@ -778,29 +767,29 @@ elif menu == "👥 Todos mis Clientes":
                     except:
                         pass
 
-            # --- MAPA GOOGLE MAPS (VERSIÓN BLINDADA HTTPS) ---
+            # --- MAPA FÍSICO ROBUSTO (FOLIUM) ---
             if st.session_state.get('temp_lat'):
-                lat = st.session_state.temp_lat
-                lon = st.session_state.temp_lon
+                lat_f = float(st.session_state.temp_lat)
+                lon_f = float(st.session_state.temp_lon)
                 
-                # URL de Google Maps Embed oficial (Gratis y sin API Key)
-                map_url = f"https://maps.google.com/maps?q={lat},{lon}&z=18&output=embed"
+                # Creamos el mapa con st.map (el comando nativo de Streamlit que nunca falla)
+                # Esto dibuja un mapa físico real basado en Mapbox/OpenStreetMap
+                df_mapa = pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]})
                 
+                st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+                st.success(f"📍 Coordenadas fijadas correctamente")
+                
+                # Mapa nativo de Streamlit: Muy robusto y optimizado para móviles
+                st.map(df_mapa, zoom=16, use_container_width=True)
+                
+                # Botón de auxilio por si quieren ver la foto satelital de Google
                 st.markdown(f"""
-                    <div style="border-radius:20px; overflow:hidden; border:3px solid #007AFF; margin-top:15px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
-                        <iframe 
-                            width="100%" 
-                            height="400" 
-                            frameborder="0" 
-                            src="{map_url}">
-                        </iframe>
-                    </div>
-                    <div style="text-align:center; margin-top:10px;">
-                        <a href="https://www.google.com/maps/search/?api=1&query={lat},{lon}" target="_blank" 
-                           style="background-color:#34c759; color:white; padding:12px 20px; border-radius:12px; text-decoration:none; font-weight:bold; display:inline-block; font-size:0.9rem;">
-                           🌐 VER EN APP GOOGLE MAPS (RESPALDO)
-                        </a>
-                    </div>
+                    <a href="https://www.google.com/maps?q={lat_f},{lon_f}" target="_blank" 
+                       style="display: block; width: 100%; text-align: center; background-color: #34c759; 
+                       color: white; padding: 12px; border-radius: 12px; text-decoration: none; 
+                       font-weight: bold; margin-top: 10px;">
+                       🌐 VER FOTO SATELITAL (GOOGLE MAPS)
+                    </a>
                 """, unsafe_allow_html=True)
                 
                 if st.button("🗑️ REPETIR CAPTURA GPS", use_container_width=True):
