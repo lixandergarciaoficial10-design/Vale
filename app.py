@@ -674,10 +674,10 @@ elif menu == "👥 Todos mis Clientes":
         import numpy as np
         from streamlit.components.v1 import html
         
-        # 1. FIJAR VARIABLE DE FECHA (Soluciona el NameError: hoy_dt)
+        # 1. FIJAR VARIABLE DE FECHA
         hoy_dt_sistema = dt.date.today()
         
-        # 2. INICIALIZACIÓN DE ESTADOS (Persistencia blindada)
+        # 2. INICIALIZACIÓN DE ESTADOS
         if "reg_gps" not in st.session_state: st.session_state.reg_gps = ""
         if "reg_nombre" not in st.session_state: st.session_state.reg_nombre = ""
         if "reg_tel" not in st.session_state: st.session_state.reg_tel = ""
@@ -692,77 +692,80 @@ elif menu == "👥 Todos mis Clientes":
         # --- SECCIÓN A: REGISTRO NUEVO ---
         with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
             
-            # ANIMACIÓN: WORLD DOTS TECNOLÓGICO (Camuflado/Transparente)
+            # ANIMACIÓN: WORLD MAP DOTS (Dibuja continentes reales con puntos)
             html("""
-                <div style="background: transparent; height: 120px; position: relative; overflow: hidden; border-radius: 20px;">
+                <div style="background: #0f172a; border-radius: 20px; height: 150px; overflow: hidden; position: relative;">
                     <canvas id="worldCanvas"></canvas>
                 </div>
                 <script>
                     const canvas = document.getElementById('worldCanvas');
                     const ctx = canvas.getContext('2d');
-                    let points = [];
                     function init() {
-                        canvas.width = window.innerWidth; canvas.height = 120;
-                        points = [];
-                        for(let i=0; i<100; i++) {
-                            points.push({
-                                x: Math.random() * canvas.width,
-                                y: Math.random() * canvas.height,
-                                r: Math.random() * 2 + 0.5,
-                                op: Math.random(),
-                                sp: Math.random() * 0.01 + 0.005
-                            });
-                        }
+                        canvas.width = window.innerWidth; canvas.height = 150;
                     }
-                    function animate() {
+                    const mapPoints = [
+                        {x:0.15, y:0.3}, {x:0.2, y:0.4}, {x:0.25, y:0.7}, {x:0.3, y:0.8}, // Américas
+                        {x:0.48, y:0.2}, {x:0.52, y:0.4}, {x:0.5, y:0.6}, {x:0.55, y:0.8}, // Europa/África
+                        {x:0.7, y:0.3}, {x:0.85, y:0.4}, {x:0.8, y:0.6}, {x:0.9, y:0.8}   // Asia/Oceanía
+                    ];
+                    let dots = [];
+                    for(let i=0; i<200; i++) {
+                        let base = mapPoints[Math.floor(Math.random()*mapPoints.length)];
+                        dots.push({
+                            x: (base.x * canvas.width) + (Math.random()-0.5)*100,
+                            y: (base.y * canvas.height) + (Math.random()-0.5)*50,
+                            r: Math.random() * 2,
+                            op: Math.random(),
+                            sp: Math.random() * 0.02 + 0.01
+                        });
+                    }
+                    function draw() {
                         ctx.clearRect(0,0,canvas.width, canvas.height);
-                        points.forEach(p => {
-                            p.op += p.sp;
-                            if(p.op > 0.8 || p.op < 0.1) p.sp *= -1;
+                        dots.forEach(d => {
+                            d.op += d.sp;
+                            if(d.op > 0.8 || d.op < 0.1) d.sp *= -1;
                             ctx.beginPath();
-                            ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-                            ctx.fillStyle = `rgba(0, 122, 255, ${p.op})`;
+                            ctx.arc(d.x, d.y, d.r, 0, Math.PI*2);
+                            ctx.fillStyle = `rgba(0, 122, 255, ${d.op})`;
                             ctx.fill();
                         });
-                        requestAnimationFrame(animate);
+                        requestAnimationFrame(draw);
                     }
-                    init(); animate();
+                    init(); draw();
                     window.addEventListener('resize', init);
                 </script>
-            """, height=130)
+            """, height=160)
 
-            # BOTÓN FAVORITO: NEÓN FLOW (Inyecta directo al input)
+            # BOTÓN FAVORITO: CAPTURA GPS BLINDADA
             st.markdown("""
                 <style>
-                @keyframes flow {
-                    0% { background-position: 0% 50%; }
-                    50% { background-position: 100% 50%; }
-                    100% { background-position: 0% 50%; }
-                }
+                @keyframes flow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
                 .btn-favorito {
                     background: linear-gradient(-45deg, #007AFF, #00C6FF, #34C759, #007AFF);
-                    background-size: 400% 400%;
-                    animation: flow 5s ease infinite;
+                    background-size: 400% 400%; animation: flow 5s ease infinite;
                     color: white; border: none; padding: 20px; width: 100%;
                     border-radius: 15px; font-weight: 800; font-size: 1.1rem;
                     cursor: pointer; box-shadow: 0 8px 20px rgba(0,122,255,0.3);
                     transition: 0.3s; margin-bottom: 15px;
                 }
-                .btn-favorito:hover { transform: translateY(-2px); filter: brightness(1.1); }
+                .btn-favorito:active { transform: scale(0.98); }
                 </style>
-                <button class="btn-favorito" onclick="getGPS()">📍 CAPTURAR LOCALIZACIÓN SATELITAL</button>
+                <button class="btn-favorito" onclick="forceGPS()">📍 CAPTURAR LOCALIZACIÓN SATELITAL</button>
                 <script>
-                function getGPS() {
+                function forceGPS() {
                     navigator.geolocation.getCurrentPosition((pos) => {
                         const coords = pos.coords.latitude.toFixed(8) + "," + pos.coords.longitude.toFixed(8);
                         const inputs = window.parent.document.querySelectorAll('input');
+                        let found = false;
                         for (let input of inputs) {
-                            if (input.placeholder === "Coordenadas del satélite...") {
+                            if (input.placeholder.includes("Coordenadas del satélite")) {
                                 input.value = coords;
                                 input.dispatchEvent(new Event('input', { bubbles: true }));
-                                break;
+                                input.dispatchEvent(new Event('change', { bubbles: true }));
+                                found = true; break;
                             }
                         }
+                        if(found) alert("✅ Ubicación sincronizada!");
                     }, (err) => { alert("Error GPS: " + err.message); }, {enableHighAccuracy: true});
                 }
                 </script>
@@ -770,7 +773,6 @@ elif menu == "👥 Todos mis Clientes":
 
             c1, c2 = st.columns(2)
             with c1:
-                # Placeholder es el ID que usa el script de arriba
                 st.session_state.reg_gps = st.text_input("📍 Coordenadas", value=st.session_state.reg_gps, placeholder="Coordenadas del satélite...", key="gps_persist")
                 st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="nom_persist")
                 st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="tel_persist")
@@ -798,7 +800,7 @@ elif menu == "👥 Todos mis Clientes":
                     for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
                     time.sleep(1); st.rerun()
 
-        # --- SECCIÓN B: CARTERA DE CLIENTES (REPARADA) ---
+        # --- SECCIÓN B: CARTERA DE CLIENTES ---
         st.divider()
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
@@ -808,9 +810,9 @@ elif menu == "👥 Todos mis Clientes":
         else:
             c_busq, c_filt = st.columns([3, 1])
             with c_busq:
-                busq = st.text_input("🔍 Buscar cliente...", key="main_search_final")
+                busq = st.text_input("🔍 Buscar cliente...", key="search_final")
             with c_filt:
-                f_est = st.selectbox("Estado", ["Todos", "🔴 Atrasado", "🟠 Pendiente", "🟢 Al día"], key="filter_status")
+                f_est = st.selectbox("Estado", ["Todos", "🔴 Atrasado", "🟠 Pendiente", "🟢 Al día"], key="status_final")
 
             clientes_finales = []
             for cl in res_cl.data:
@@ -819,23 +821,18 @@ elif menu == "👥 Todos mis Clientes":
                 
                 est_txt, color = "🟢 Al día", "#22c55e"
                 if t_deuda > 0:
-                    # Usamos hoy_dt_sistema (la variable fija) para evitar el NameError
                     atrasado = any(dt.datetime.strptime(str(c['proximo_pago']), '%Y-%m-%d').date() < hoy_dt_sistema for c in cuentas_cl if c.get('proximo_pago'))
                     est_txt, color = ("🔴 Atrasado", "#ef4444") if atrasado else ("🟠 Pendiente", "#f97316")
 
                 if (not busq or busq.lower() in cl['nombre'].lower()) and (f_est == "Todos" or f_est == est_txt):
-                    clientes_finales.append({**cl, "estado": est_txt, "color": color, "deuda": t_deuda, "cuentas": cuentas_cl})
+                    clientes_finales.append({**cl, "estado": est_txt, "color": color, "deuda": t_deuda})
 
-            # Grid de tarjetas
             grid = st.columns(3)
             for idx, cl in enumerate(clientes_finales):
                 with grid[idx % 3]:
                     st.markdown(f"""
                         <div style="background: white; border-radius: 20px; padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 10px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span style="background: {cl['color']}15; color: {cl['color']}; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase;">{cl['estado']}</span>
-                                <span style="color: #94a3b8; font-size: 10px;">ID: {cl.get('cedula') or '---'}</span>
-                            </div>
+                            <span style="background: {cl['color']}15; color: {cl['color']}; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: 800; text-transform: uppercase;">{cl['estado']}</span>
                             <h3 style="margin: 15px 0 5px 0; color: #1e293b; font-size: 1.2rem; font-weight: 700;">{cl['nombre']}</h3>
                             <h2 style="margin: 0; color: #1e293b; font-weight: 800; font-size: 1.4rem;">RD$ {cl['deuda']:,.2f}</h2>
                         </div>
@@ -847,19 +844,14 @@ elif menu == "👥 Todos mis Clientes":
 
                     with st.popover("📁 Ver Expediente", use_container_width=True):
                         if cl.get('latitud'):
-                            # GOOGLE MAPS DIRECTO
                             nav_url = f"https://www.google.com/maps/dir/?api=1&destination={cl['latitud']},{cl['longitud']}&travelmode=driving"
                             st.markdown(f"""
                                 <a href="{nav_url}" target="_blank" style="text-decoration:none;">
-                                    <button style="width:100%; background:#4285F4; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; margin-bottom:10px;">
-                                        🚗 INICIAR RUTA (GOOGLE MAPS)
-                                    </button>
+                                    <button style="width:100%; background:#4285F4; color:white; border:none; padding:12px; border-radius:10px; font-weight:bold; cursor:pointer; margin-bottom:10px;">🚗 INICIAR RUTA</button>
                                 </a>
                             """, unsafe_allow_html=True)
-                        
-                        st.info(f"📍 Referencia: {cl.get('direccion') or 'Sin dirección.'}")
-                        st.write(f"Cédula: {cl.get('cedula')}")
-                        if st.button("🗑️ Eliminar Cliente", key=f"del_{cl['id']}", type="secondary"):
+                        st.info(f"📍 {cl.get('direccion') or 'Sin dirección.'}")
+                        if st.button("🗑️ Eliminar", key=f"del_{cl['id']}", type="secondary"):
                             conn.table("clientes").delete().eq("id", cl['id']).execute()
                             st.rerun()
         
