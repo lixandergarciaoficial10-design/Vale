@@ -705,7 +705,7 @@ elif menu == "👥 Todos mis Clientes":
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                # TU BOTÓN FAVORITO (SIN CAMBIOS VISUALES)
+                # TU BOTÓN FAVORITO (INTACTO, COMO TE GUSTA)
                 gps_html = """
                 <div style="text-align:center;">
                     <button id="gps_btn" onclick="getGPS()" style="
@@ -754,46 +754,44 @@ elif menu == "👥 Todos mis Clientes":
                 """
                 st.components.v1.html(gps_html, height=100)
 
-                # Receptor de coordenadas
+                # RECEPTOR DE COORDENADAS
                 gps_res = st.text_input("Coordenadas:", key="gps_res", placeholder="Sincronizando satélites...", label_visibility="collapsed")
 
-            # --- MAPA AUTOMÁTICO (FLUJO DIRECTO) ---
+            # --- EL MAPA EMBEBIDO (GOOGLE MAPS SATELITAL) ---
             if gps_res and "," in gps_res:
                 try:
                     lat_s, lon_s = gps_res.split(",")
-                    lat_f = float(lat_s.strip())
-                    lon_f = float(lon_s.strip())
-                    
-                    # Guardamos para el formulario final
-                    st.session_state.temp_lat = str(lat_f)
-                    st.session_state.temp_lon = str(lon_f)
-                    
-                    df_punto = pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]})
-                    
-                    st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-                    
-                    with st.expander("🗺️ VER MAPA DE UBICACIÓN", expanded=True):
-                        st.map(df_punto, zoom=16, use_container_width=True)
-                        
-                        st.markdown(f"""
-                            <div style="text-align:center; margin-top:5px;">
-                                <a href="https://www.google.com/maps?q={lat_f},{lon_f}" target="_blank" 
-                                   style="font-size: 0.8rem; color: #0284c7; text-decoration: none; font-weight: bold;">
-                                   📍 Abrir ruta en Google Maps
-                                </a>
-                            </div>
-                        """, unsafe_allow_html=True)
-                except:
-                    pass
+                    lat = lat_s.strip()
+                    lon = lon_s.strip()
 
-            # --- BOTÓN DE LIMPIAR CORREGIDO (SIN ERROR) ---
+                    # Guardamos para el envío a Supabase
+                    st.session_state.temp_lat = lat
+                    st.session_state.temp_lon = lon
+
+                    st.markdown("### 📍 Vista Satelital Confirmada")
+                    
+                    # Usamos iframe directo para evitar bloqueos de Streamlit
+                    # t=k es modo satélite, z=18 es zoom cercano
+                    mapa_html = f"""
+                    <iframe
+                        width="100%"
+                        height="350"
+                        style="border:0; border-radius:20px; box-shadow: 0 8px 20px rgba(0,0,0,0.15);"
+                        loading="lazy"
+                        src="https://maps.google.com/maps?q={lat},{lon}&t=k&z=18&ie=UTF8&iwloc=&output=embed">
+                    </iframe>
+                    """
+                    st.components.v1.html(mapa_html, height=370)
+
+                except Exception as e:
+                    st.error("Error al cargar el mapa")
+
+            # --- BOTÓN DE LIMPIAR CORREGIDO (SIN CRASH) ---
             if st.button("🗑️ LIMPIAR UBICACIÓN", use_container_width=True):
-                # La clave es borrar temp_lat y temp_lon. 
-                # gps_res se limpiará solo al refrescar porque el input está vacío por defecto.
                 st.session_state.temp_lat = ""
                 st.session_state.temp_lon = ""
                 if "gps_res" in st.session_state:
-                    del st.session_state["gps_res"] # Borramos la entrada para resetear el widget
+                    del st.session_state["gps_res"] # Esto resetea el input sin dar error
                 st.rerun()
                 
             # --- PASO 2: FORMULARIO ---
