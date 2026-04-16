@@ -675,41 +675,87 @@ elif menu == "👥 Todos mis Clientes":
         from streamlit_folium import st_folium
         from streamlit_js_eval import streamlit_js_eval
 
-        # --- 1. MEMORIA DE SESIÓN (Anti-Wipe) ---
+        # --- 1. MEMORIA DE SESIÓN ---
         for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
             if k not in st.session_state: st.session_state[k] = ""
 
-        st.markdown("<h1 style='color: #1e293b;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='color: #1e293b; font-size: 1.8rem;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
 
-        # --- 2. EL RADAR (Con manejo de errores real) ---
+        # --- 2. CAPTURA DE ALTA PRECISIÓN ---
         with st.container(border=True):
-            st.subheader("📍 Captura de Ubicación")
+            st.markdown("#### 🎯 Pin de Ubicación Exacta")
             
-            # Debug visual para que sepas qué está pasando
-            st.write(f"🛰️ **Estado actual del GPS:** `{st.session_state.reg_gps if st.session_state.reg_gps else 'Vacío'}`")
+            # JS Mejorado para máxima precisión (GPS Real, no solo WiFi)
+            pos = streamlit_js_eval(
+                js_expressions="""
+                new Promise((resolve) => {
+                    navigator.geolocation.getCurrentPosition(
+                        (p) => resolve(p.coords.latitude + "," + p.coords.longitude),
+                        (e) => resolve("ERROR"),
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                    )
+                })
+                """,
+                key="GPS_ULTRA_PRECISO"
+            )
+            
+            if pos and pos != "ERROR" and pos != st.session_state.reg_gps:
+                st.session_state.reg_gps = pos
+                st.rerun()
 
-            if st.button("🎯 OBTENER COORDENADAS SATELITALES", use_container_width=True, type="primary"):
-                pos = streamlit_js_eval(
-                    js_expressions="""
-                    new Promise((resolve) => {
-                        navigator.geolocation.getCurrentPosition(
-                            (p) => resolve(p.coords.latitude + "," + p.coords.longitude),
-                            (e) => resolve("ERROR: " + e.message)
-                        )
-                    })
-                    """,
-                    key="GPS_ENGINE_STRICT"
-                )
-                
-                if pos:
-                    if "ERROR" in str(pos):
-                        st.error(f"❌ Fallo del Navegador: {pos}")
-                        st.info("Asegúrate de estar usando HTTPS y de haber dado permisos de ubicación.")
-                    else:
-                        st.session_state.reg_gps = pos
-                        st.success("✅ Coordenadas capturadas con éxito.")
-                        time.sleep(0.5)
-                        st.rerun()
+            st.caption(f"📍 Coordenadas actuales: `{st.session_state.reg_gps if st.session_state.reg_gps else 'Buscando satélites...'}`")
+
+        # --- 3. FORMULARIO Y MAPA PEQUEÑO ---
+        with st.expander("📝 Registro de Cliente", expanded=True):
+            
+            # Creamos dos columnas para organizar mejor el espacio
+            col_form, col_mapa = st.columns([1.2, 1]) # La columna del mapa es un poco más pequeña
+            
+            with col_form:
+                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre)
+                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced)
+                st.session_state.reg_tel = st.text_input("WhatsApp / Teléfono *", value=st.session_state.reg_tel)
+                st.session_state.reg_dir = st.text_area("Referencia (Color de casa, etc.)", value=st.session_state.reg_dir, height=70)
+
+            with col_mapa:
+                if st.session_state.reg_gps and "," in st.session_state.reg_gps:
+                    try:
+                        lat, lon = map(float, st.session_state.reg_gps.split(","))
+                        st.markdown("<p style='text-align:center; margin-bottom:0;'>🗺️ Vista Previa</p>", unsafe_allow_html=True)
+                        
+                        # Mapa más compacto
+                        m = folium.Map(location=[lat, lon], zoom_start=19, tiles="OpenStreetMap")
+                        folium.Marker([lat, lon], icon=folium.Icon(color='red', icon='screenshot')).add_to(m)
+                        
+                        # Ajustamos el alto a 250px para que no rompa el diseño
+                        st_folium(m, height=250, use_container_width=True, key=f"mapa_small_{lat}_{lon}")
+                    except:
+                        st.info("Esperando señal...")
+                else:
+                    st.info("Activa el GPS para ver el mapa aquí.")
+
+            # --- 4. BOTÓN DE GUARDADO ---
+            if st.button("💾 GUARDAR CLIENTE", use_container_width=True, type="primary"):
+                if not st.session_state.reg_nombre or not st.session_state.reg_gps:
+                    st.error("Nombre y Ubicación son obligatorios.")
+                else:
+                    try:
+                        lat_v, lon_v = st.session_state.reg_gps.split(",")
+                        conn.table("clientes").insert({
+                            "nombre": st.session_state.reg_nombre,
+                            "telefono": st.session_state.reg_tel,
+                            "cedula": st.session_state.reg_ced,
+                            "direccion": st.session_state.reg_dir,
+                            "latitud": float(lat_v),
+                            "longitud": float(lon_v),
+                            "user_id": u_id
+                        }).execute()
+                        
+                        st.success("✅ Guardado.")
+                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
+                        time.sleep(1); st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
 
         # --- 3. FORMULARIO DE DATOS (Cédula incluida) ---
         with st.expander("📝 Información del Cliente", expanded=True):
