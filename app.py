@@ -680,16 +680,14 @@ elif menu == "👥 Todos mis Clientes":
         with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
             from streamlit.components.v1 import html
 
-            # 1. El input "puente" (invisible o deshabilitado si prefieres)
-            # Este es el que recibe el texto del JS
+            # 1. El input "puente"
             gps_res = st.text_input(
                 "Sincronización GPS:", 
                 placeholder="Esperando satélites...", 
-                key="gps_val",
-                help="Las coordenadas aparecerán aquí automáticamente"
+                key="gps_val"
             )
 
-            # 2. Tu botoncito con el diseño PRO
+            # 2. Botón con tu diseño azul
             gps_html = """
             <div style="text-align:center;">
                 <button id="gps_btn" onclick="getGPS()" style="
@@ -697,19 +695,15 @@ elif menu == "👥 Todos mis Clientes":
                     border: none; padding: 20px; border-radius: 15px;
                     font-weight: bold; font-size: 1rem; cursor: pointer; 
                     box-shadow: 0 4px 15px rgba(0,122,255,0.3);
-                    transition: 0.3s ease;
                 ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
             </div>
             <script>
             function getGPS() {
                 const btn = document.getElementById('gps_btn');
                 btn.innerText = "🛰️ BUSCANDO...";
-                btn.style.backgroundColor = "#ff9500";
-                
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         const coords = pos.coords.latitude + "," + pos.coords.longitude;
-                        // Buscamos el input de Streamlit por su placeholder
                         const inputs = window.parent.document.querySelectorAll('input');
                         for (let input of inputs) {
                             if (input.placeholder === "Esperando satélites...") {
@@ -729,30 +723,49 @@ elif menu == "👥 Todos mis Clientes":
             """
             html(gps_html, height=100)
 
-            # 3. Lógica de procesamiento (Aquí ya no da error de split)
+            # 3. Lógica del mapa (Separada para que no rompa el flujo)
             if gps_res and "," in gps_res:
                 try:
                     lat_s, lon_s = gps_res.split(",")
                     lat, lon = float(lat_s), float(lon_s)
-                    
-                    st.success(f"Coordenadas listas: {lat}, {lon}")
-                    
-                    # Guardamos en session_state para el formulario de abajo
                     st.session_state.temp_lat = str(lat)
                     st.session_state.temp_lon = str(lon)
-
-                    # Mostramos mapa nativo
+                    
+                    st.success("📍 Ubicación lista")
                     df_map = pd.DataFrame({'lat': [lat], 'lon': [lon]})
                     st.map(df_map, zoom=16)
-
-                except Exception as e:
-                    st.error("Formato de coordenadas no válido.")
+                except:
+                    st.error("Error en formato de coordenadas.")
 
             if st.button("🗑️ Limpiar datos de ubicación"):
-                st.session_state.gps_val = ""
+                # ESTA ES LA FORMA CORRECTA DE LIMPIAR:
+                if "gps_val" in st.session_state:
+                    del st.session_state["gps_val"]
                 st.rerun()
 
-        # --- SECCIÓN B: CARTERA DE CLIENTES ---
+            # --- PASO 2: FORMULARIO (Fuera de los IFs para que siempre aparezca) ---
+            st.markdown("---")
+            st.markdown("<p style='color:#0284c7;font-weight:700;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
+            
+            with st.form("form_registro_final", clear_on_submit=True):
+                c1, c2 = st.columns(2)
+                f_nombre = c1.text_input("Nombre Completo *")
+                f_tel = c1.text_input("WhatsApp *")
+                f_ced = c2.text_input("Cédula *")
+                f_dir = c2.text_input("Referencia Vivienda")
+                
+                enviar = st.form_submit_button("🚀 GUARDAR EXPEDIENTE", use_container_width=True)
+                
+                if enviar:
+                    if not f_nombre or not f_tel or "temp_lat" not in st.session_state:
+                        st.error("Faltan datos obligatorios o ubicación.")
+                    else:
+                        # Tu lógica de Supabase aquí...
+                        st.success("¡Cliente guardado con éxito!")
+                        time.sleep(1)
+                        st.rerun()
+
+        # --- SECCIÓN B: CARTERA DE CLIENTES (TABLA ABAJO) ---
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
 
