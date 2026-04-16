@@ -706,100 +706,78 @@ elif menu == "👥 Todos mis Clientes":
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                # 1. ESTE ES EL MOTOR: JavaScript agresivo que inyecta el valor directo al input
-                # No usa iframes, usa el DOM del padre.
+                # 1. MOTOR DE CAPTURA (HACK DE INYECCIÓN DIRECTA)
                 gps_html = """
                 <div style="text-align:center;">
                     <button onclick="getGPS()" style="
-                        width: 100%;
-                        background-color: #007AFF;
-                        color: white;
-                        border: none;
-                        padding: 15px;
-                        border-radius: 12px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                        margin-bottom: 10px;
-                    ">📍 CAPTURAR UBICACIÓN (PRESIONAR AQUÍ)</button>
+                        width: 100%; background-color: #007AFF; color: white;
+                        border: none; padding: 15px; border-radius: 12px;
+                        font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
                 </div>
 
                 <script>
                 function getGPS() {
-                    if (!navigator.geolocation) {
-                        alert("Tu navegador no soporta GPS");
-                        return;
-                    }
-                    
                     const options = { enableHighAccuracy: true, timeout: 7000, maximumAge: 0 };
-                    
                     navigator.geolocation.getCurrentPosition(
                         (pos) => {
-                            const lat = pos.coords.latitude;
-                            const lon = pos.coords.longitude;
-                            const result = lat + "," + lon;
-                            
-                            // Buscamos el input de Streamlit por su placeholder único
+                            const res = pos.coords.latitude + "," + pos.coords.longitude;
                             const inputs = window.parent.document.querySelectorAll('input');
                             for (let input of inputs) {
                                 if (input.placeholder === "Sincronizando satélites...") {
-                                    input.value = result;
+                                    input.value = res;
                                     input.dispatchEvent(new Event('input', { bubbles: true }));
                                     input.dispatchEvent(new Event('change', { bubbles: true }));
-                                    input.dispatchEvent(new Event('blur', { bubbles: true }));
                                     break;
                                 }
                             }
-                            alert("✅ Ubicación detectada: " + result + ". Ahora presiona Enter o fuera del cuadro.");
                         },
-                        (err) => {
-                            alert("❌ Error de GPS: " + err.message + ". Revisa si el GPS está encendido y diste permiso.");
-                        },
+                        (err) => { alert("Error: " + err.message); },
                         options
                     );
                 }
                 </script>
                 """
-                
-                # Renderizamos el botón HTML real
-                st.components.v1.html(gps_html, height=80)
+                st.components.v1.html(gps_html, height=70)
 
-                # Este input es el puente. El JS lo buscará por el placeholder.
-                # IMPORTANTE: No cambiar el placeholder.
-                gps_bridge = st.text_input("Resultado del Satélite:", key="gps_bridge", placeholder="Sincronizando satélites...")
+                # Puente de entrada para captar el dato del JS
+                gps_res = st.text_input("Señal recibida:", key="gps_res", placeholder="Sincronizando satélites...")
 
-                if gps_bridge and "," in gps_bridge:
+                if gps_res and "," in gps_res:
                     try:
-                        lat_s, lon_s = gps_bridge.split(",")
-                        st.session_state.temp_lat = lat_s.strip()
-                        st.session_state.temp_lon = lon_s.strip()
+                        lat_str, lon_str = gps_res.split(",")
+                        st.session_state.temp_lat = lat_str.strip()
+                        st.session_state.temp_lon = lon_str.strip()
                     except:
                         pass
 
-                if st.session_state.get('temp_lat'):
-                    if st.button("🗑️ LIMPIAR GPS", use_container_width=True):
-                        st.session_state.temp_lat = ""
-                        st.session_state.temp_lon = ""
-                        st.rerun()
-
-            # --- MAPA DE CONFIRMACIÓN ---
+            # --- ESTRATEGIA: MAPA DE GOOGLE MAPS GRATUITO ---
             if st.session_state.get('temp_lat'):
-                st.success(f"📍 Posición fijada: {st.session_state.temp_lat}")
-                fig = go.Figure(go.Scattermapbox(
-                    lat=[float(st.session_state.temp_lat)],
-                    lon=[float(st.session_state.temp_lon)],
-                    mode='markers',
-                    marker=go.scattermapbox.Marker(size=25, color='red'),
-                ))
-                fig.update_layout(
-                    mapbox=dict(
-                        style="open-street-map",
-                        center=dict(lat=float(st.session_state.temp_lat), lon=float(st.session_state.temp_lon)),
-                        zoom=18
-                    ),
-                    margin={"r":0,"t":0,"l":0,"b":0}, height=250
-                )
-                st.plotly_chart(fig, use_container_width=True)
+                lat = st.session_state.temp_lat
+                lon = st.session_state.temp_lon
+                
+                # Usamos el modo embed de Google Maps que es gratuito y no requiere API Key
+                map_url = f"https://maps.google.com/maps?q={lat},{lon}&z=18&output=embed"
+                
+                st.markdown(f"""
+                    <div style="border-radius:15px; overflow:hidden; border:2px solid #0284c7; margin-top:10px;">
+                        <iframe 
+                            width="100%" 
+                            height="350" 
+                            frameborder="0" 
+                            src="{map_url}">
+                        </iframe>
+                    </div>
+                    <p style="text-align:center; font-size:0.75rem; color:#666; margin-top:5px;">
+                        <b>📍 Ubicación Confirmada</b> ({lat}, {lon})
+                    </p>
+                """, unsafe_allow_html=True)
+                
+                if st.button("🗑️ BORRAR Y REPETIR CAPTURA", use_container_width=True):
+                    st.session_state.temp_lat = ""
+                    st.session_state.temp_lon = ""
+                    st.session_state.gps_res = ""
+                    st.rerun()
             # --- PASO 2: FORMULARIO (Key Única para evitar el error) ---
             st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
             
