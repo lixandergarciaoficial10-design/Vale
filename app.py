@@ -677,129 +677,80 @@ elif menu == "👥 Todos mis Clientes":
         """, unsafe_allow_html=True)
 
         # --- SECCIÓN A: REGISTRO DE CLIENTE NUEVO ---
-        with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
-            # Inicialización de estados
-            if 'temp_lat' not in st.session_state: st.session_state.temp_lat = ""
-            if 'temp_lon' not in st.session_state: st.session_state.temp_lon = ""
+        from streamlit.components.v1 import html
 
-            # --- PASO 1: LOCALIZACIÓN ---
-            st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
-            
-            with st.container(border=True):
-                gps_html = """
-                <div style="text-align:center;">
-                    <button id="gps_btn" onclick="getGPS()" style="
-                        width: 100%; background-color: #007AFF; color: white;
-                        border: none; padding: 20px; border-radius: 15px;
-                        font-weight: bold; font-size: 1rem; cursor: pointer; 
-                        box-shadow: 0 4px 15px rgba(0,122,255,0.3);
-                        transition: 0.3s ease;
-                    ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
-                </div>
-                <script>
-                function getGPS() {
-                    const btn = document.getElementById('gps_btn');
-                    btn.innerText = "🛰️ BUSCANDO SATÉLITES...";
-                    btn.style.backgroundColor = "#ff9500";
-                    navigator.geolocation.getCurrentPosition(
-                        (pos) => {
-                            const lat = pos.coords.latitude;
-                            const lon = pos.coords.longitude;
-                            const res = lat + "," + lon;
-                            const inputs = window.parent.document.querySelectorAll('input');
-                            for (let input of inputs) {
-                                if (input.placeholder === "Sincronizando satélites...") {
-                                    input.value = res;
-                                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                                    input.dispatchEvent(new Event('blur', { bubbles: true }));
-                                    break;
-                                }
-                            }
-                            btn.innerText = "✅ UBICACIÓN FIJADA";
-                            btn.style.backgroundColor = "#34c759";
-                        },
-                        (err) => { alert("Error GPS: " + err.message); },
-                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                    );
-                }
-                </script>
-                """
-                st.components.v1.html(gps_html, height=100)
-                gps_res = st.text_input("Coordenadas:", key="gps_res", placeholder="Sincronizando satélites...", label_visibility="collapsed")
+# Estado
+if "gps_coords" not in st.session_state:
+    st.session_state.gps_coords = None
 
-            # --- RENDERIZADO DEL MAPA (FUERA DEL CONTENEDOR PARA QUE SE VEA BIEN) ---
-            # --- EL MAPA EMBEBIDO (GOOGLE MAPS SATELITAL) ---
-            if gps_res and "," in gps_res:
-                try:
-                    lat_s, lon_s = gps_res.split(",")
-                    lat = lat_s.strip()
-                    lon = lon_s.strip()
+st.markdown("### 📍 Capturar ubicación")
 
-                    # Guardamos para el envío a Supabase
-                    st.session_state.temp_lat = lat
-                    st.session_state.temp_lon = lon
+# --- BOTÓN + JS REAL ---
+gps_component = """
+<script>
+function sendLocation() {
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            const coords = pos.coords.latitude + "," + pos.coords.longitude;
+            window.parent.postMessage({
+                type: "streamlit:setComponentValue",
+                value: coords
+            }, "*");
+        },
+        (err) => {
+            alert("Error GPS: " + err.message);
+        },
+        { enableHighAccuracy: true }
+    );
+}
+</script>
 
-                    st.markdown("### 📍 Vista Satelital Confirmada")
-                    
-                    # URL CORREGIDA: https:// y dominio maps.google.com directo
-                    mapa_url = f"https://maps.google.com/maps?q={lat},{lon}&t=k&z=18&ie=UTF8&iwloc=&output=embed"
-                    
-                    mapa_html = f"""
-                    <iframe
-                        width="100%"
-                        height="350"
-                        style="border:0; border-radius:20px; box-shadow: 0 8px 20px rgba(0,0,0,0.15);"
-                        src="{mapa_url}">
-                    </iframe>
-                    """
-                    st.components.v1.html(mapa_html, height=370)
+<button onclick="sendLocation()" style="
+    width: 100%;
+    background-color: #007AFF;
+    color: white;
+    border: none;
+    padding: 15px;
+    border-radius: 12px;
+    font-weight: bold;
+">
+📍 CAPTURAR UBICACIÓN
+</button>
+"""
 
-                except Exception as e:
-                    st.error(f"Error al cargar el mapa: {e}")
+coords = html(gps_component, height=80)
 
-            if st.button("🗑️ LIMPIAR UBICACIÓN", use_container_width=True):
-                st.session_state.temp_lat = ""
-                st.session_state.temp_lon = ""
-                if "gps_res" in st.session_state: del st.session_state["gps_res"]
-                st.rerun()
+# --- GUARDAR COORDENADAS ---
+if coords:
+    st.session_state.gps_coords = coords
 
-            # --- PASO 2: FORMULARIO ÚNICO ---
-            st.markdown("<p style='color:#0284c7;font-weight:700;font-size:0.8rem;text-transform:uppercase;margin-top:15px;'>Paso 2: Información del Cliente</p>", unsafe_allow_html=True)
-            with st.form("form_registro_cliente_final", clear_on_submit=True):
-                c1, c2 = st.columns(2)
-                n_nombre = c1.text_input("Nombre y Apellido *")
-                n_telefono = c1.text_input("WhatsApp / Celular *")
-                n_cedula = c2.text_input("Cédula / ID *")
-                n_direccion = c2.text_input("Referencia de Vivienda")
-                n_nota = st.text_area("Notas adicionales")
+# --- MOSTRAR MAPA SI EXISTE ---
+if st.session_state.gps_coords:
+    try:
+        lat, lon = st.session_state.gps_coords.split(",")
+        lat = float(lat)
+        lon = float(lon)
 
-                if st.form_submit_button("🚀 GUARDAR EXPEDIENTE COMPLETO", use_container_width=True):
-                    if not n_nombre or not n_telefono or not n_cedula:
-                        st.error("⚠️ Nombre, WhatsApp y Cédula son obligatorios.")
-                    elif not st.session_state.temp_lat:
-                        st.warning("⚠️ Debes capturar la ubicación primero.")
-                    else:
-                        try:
-                            reg_data = {
-                                "user_id": u_id,
-                                "nombre": n_nombre,
-                                "cedula": n_cedula,
-                                "telefono": n_telefono,
-                                "direccion": n_direccion,
-                                "latitud": str(st.session_state.temp_lat),
-                                "longitud": str(st.session_state.temp_lon),
-                                "notas": n_nota,
-                                "fecha_registro": str(datetime.now())
-                            }
-                            conn.table("clientes").insert(reg_data).execute()
-                            st.success(f"✅ ¡Expediente de {n_nombre} guardado!")
-                            st.session_state.temp_lat = ""
-                            st.session_state.temp_lon = ""
-                            time.sleep(1.5)
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error: {e}")
+        st.success("✅ Ubicación capturada correctamente")
+
+        # MAPA NATIVO (ESTABLE)
+        df = pd.DataFrame({"lat": [lat], "lon": [lon]})
+        st.map(df, zoom=16)
+
+        # LINK EXTERNO
+        st.markdown(f"""
+        <a href="https://www.google.com/maps?q={lat},{lon}" target="_blank">
+            🌍 Abrir en Google Maps
+        </a>
+        """, unsafe_allow_html=True)
+
+    except:
+        st.error("Error procesando coordenadas")
+
+# --- LIMPIAR ---
+if st.button("🗑️ Limpiar ubicación"):
+    st.session_state.gps_coords = None
+    st.rerun()
 
         # --- SECCIÓN B: CARTERA DE CLIENTES (RESTO DEL CÓDIGO) ---
         # ... (aquí sigue tu código de búsqueda y grid de clientes que ya tenías)
