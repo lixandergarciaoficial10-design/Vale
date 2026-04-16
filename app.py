@@ -674,75 +674,80 @@ elif menu == "👥 Todos mis Clientes":
         
         st.markdown("""
             <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
-            <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales y control de campo.</p>
+            <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales con geolocalización exacta.</p>
         """, unsafe_allow_html=True)
 
         # --- SECCIÓN A: REGISTRO DE CLIENTE NUEVO ---
         with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
             from streamlit.components.v1 import html
 
-            # 1. El input "puente" (Esencial para capturar el dato del JS)
+            # 1. Campo de Coordenadas (Editable manualmente si es necesario)
             gps_res = st.text_input(
-                "Coordenadas Sincronizadas:", 
-                placeholder="Esperando satélites...", 
+                "Coordenadas del Cliente (Lat, Lon):", 
+                placeholder="Esperando señal de satélite...", 
                 key="gps_val",
-                help="Presiona el botón azul para capturar la ubicación automáticamente."
+                help="Presiona el botón para capturar la posición exacta o escríbelas manualmente."
             )
 
-            # 2. Tu botón con el diseño original
+            # 2. Botón de Captura de Alta Precisión
             gps_html = """
             <div style="text-align:center;">
-                <button id="gps_btn" onclick="getGPS()" style="
+                <button id="gps_btn" onclick="getExactGPS()" style="
                     width: 100%; background-color: #007AFF; color: white;
-                    border: none; padding: 20px; border-radius: 15px;
-                    font-weight: bold; font-size: 1rem; cursor: pointer; 
-                    box-shadow: 0 4px 15px rgba(0,122,255,0.3);
-                ">📍 CAPTURAR UBICACIÓN ACTUAL</button>
+                    border: none; padding: 22px; border-radius: 18px;
+                    font-weight: 800; font-size: 1.1rem; cursor: pointer; 
+                    box-shadow: 0 10px 20px rgba(0,122,255,0.3);
+                ">📍 CAPTURAR UBICACIÓN DE ALTA PRECISIÓN</button>
             </div>
             <script>
-            function getGPS() {
+            function getExactGPS() {
                 const btn = document.getElementById('gps_btn');
-                btn.innerText = "🛰️ BUSCANDO...";
+                btn.innerText = "🛰️ RASTREANDO POSICIÓN EXACTA...";
+                
+                const options = {
+                    enableHighAccuracy: true, // FUERZA USO DE GPS REAL
+                    timeout: 10000,
+                    maximumAge: 0
+                };
+
                 navigator.geolocation.getCurrentPosition(
                     (pos) => {
                         const coords = pos.coords.latitude + "," + pos.coords.longitude;
                         const inputs = window.parent.document.querySelectorAll('input');
                         for (let input of inputs) {
-                            if (input.placeholder === "Esperando satélites...") {
+                            if (input.placeholder === "Esperando señal de satélite...") {
                                 input.value = coords;
                                 input.dispatchEvent(new Event('input', { bubbles: true }));
                                 break;
                             }
                         }
-                        btn.innerText = "✅ UBICACIÓN FIJADA";
+                        btn.innerText = "✅ UBICACIÓN FIJADA CON ÉXITO";
                         btn.style.backgroundColor = "#34c759";
                     },
-                    (err) => { alert("Error GPS: " + err.message); },
-                    { enableHighAccuracy: true }
+                    (err) => { 
+                        alert("Error GPS: " + err.message + ". Verifica los permisos de ubicación."); 
+                        btn.innerText = "❌ ERROR DE SEÑAL";
+                        btn.style.backgroundColor = "#ff3b30";
+                    },
+                    options
                 );
             }
             </script>
             """
-            html(gps_html, height=100)
+            html(gps_html, height=120)
 
-            # 3. Lógica del Mapa (Se muestra automáticamente al detectar coordenadas)
+            # 3. Mapa de Verificación Automática
             if gps_res and "," in gps_res:
                 try:
-                    lat_s, lon_s = gps_res.split(",")
-                    lat_f, lon_f = float(lat_s), float(lon_s)
-                    
-                    st.markdown("### 🗺️ Confirmación de Ubicación")
-                    # Creamos un DataFrame para el mapa de Streamlit
+                    lat_f, lon_f = map(float, gps_res.split(","))
+                    st.markdown("##### 🗺️ Vista Previa del Punto de Cobro")
                     df_pos = pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]})
-                    st.map(df_pos, zoom=16)
-                    st.success(f"📍 Coordenadas listas para guardar: {lat_f}, {lon_f}")
-                except Exception as e:
-                    st.error("Error procesando coordenadas del mapa.")
+                    st.map(df_pos, zoom=17) # Zoom alto para ver la casa exacta
+                except:
+                    st.warning("Formato manual: latitud, longitud (Ej: 18.4, -69.9)")
 
-            # 4. Formulario de Guardado (Separado para evitar que se borre el GPS)
+            # 4. Formulario de Datos (Independiente para no perder el GPS al escribir)
             st.divider()
-            st.markdown("<p style='color:#1e293b; font-weight:700;'>Información del Cliente</p>", unsafe_allow_html=True)
-            
             with st.form("form_final_registro"):
                 col1, col2 = st.columns(2)
                 f_nombre = col1.text_input("Nombre y Apellido *")
@@ -755,7 +760,6 @@ elif menu == "👥 Todos mis Clientes":
                         st.error("❌ Faltan datos: Nombre, Teléfono y Ubicación son obligatorios.")
                     else:
                         try:
-                            # Extraemos lat/lon finales
                             l_val, o_val = gps_res.split(",")
                             nuevo_cliente = {
                                 "user_id": u_id,
@@ -768,11 +772,26 @@ elif menu == "👥 Todos mis Clientes":
                                 "fecha_registro": str(dt.datetime.now())
                             }
                             conn.table("clientes").insert(nuevo_cliente).execute()
-                            st.success(f"✅ ¡{f_nombre} ha sido registrado!")
+                            st.success(f"✅ ¡{f_nombre} guardado con ubicación exacta!")
                             time.sleep(1)
                             st.rerun()
                         except Exception as e:
                             st.error(f"Error al guardar: {e}")
+
+        # --- SECCIÓN B: CARTERA Y NAVEGACIÓN ---
+        st.divider()
+        res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
+        res_cu = conn.table("cuentas").select("*").eq("user_id", u_id).execute()
+
+        if not res_cl.data:
+            st.info("Tu cartera está vacía.")
+        else:
+            # (Aquí mantienes tu código de buscador y filtros)
+            busq = st.text_input("🔍 Buscar cliente por nombre o ID", key="bus_cartera")
+            
+            # Al renderizar cada cliente, usa esto para el botón de Google Maps:
+            # google_url = f"https://www.google.com/maps/dir/?api=1&destination={cl['latitud']},{cl['longitud']}&travelmode=driving"
+            # st.markdown(f'<a href="{google_url}" target="_blank">...Botón...</a>', unsafe_allow_html=True)
 
         # --- SECCIÓN B: CARTERA DE CLIENTES ---
         st.divider()
