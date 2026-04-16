@@ -675,70 +675,66 @@ elif menu == "👥 Todos mis Clientes":
         from streamlit_folium import st_folium
         from streamlit_js_eval import streamlit_js_eval
 
-        # CORRECCIÓN DE ERROR: Definir hoy_dt para evitar el NameError
+        # Definición de fecha para evitar NameError
         hoy_dt = dt.date.today()
 
-        # 1. MEMORIA DE SESIÓN ÚNICA
+        # 1. MEMORIA DE SESIÓN
         for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
             if k not in st.session_state: st.session_state[k] = ""
 
-        st.markdown("<h1 style='color: #1e293b; font-size: 1.6rem;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
+        st.markdown("<h2 style='color: #1e293b;'>📍 Localizador y Registro</h2>", unsafe_allow_html=True)
 
-        # 2. CAPTURA DE ALTA PRECISIÓN (Solo un bloque)
+        # 2. BLOQUE DE RASTREO Y MAPA (Exactitud arriba)
         with st.container(border=True):
-            st.markdown("#### 🎯 Pin de Ubicación Exacta")
+            col_gps, col_map = st.columns([1, 1.5])
             
-            pos = streamlit_js_eval(
-                js_expressions="""
-                new Promise((resolve) => {
-                    navigator.geolocation.getCurrentPosition(
-                        (p) => resolve(p.coords.latitude + "," + p.coords.longitude),
-                        (e) => resolve("ERROR"),
-                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            with col_gps:
+                st.write("### 🛰️ Rastreo GPS")
+                # El botón que dispara la captura de alta precisión
+                if st.button("🎯 CAPTURAR UBICACIÓN AHORA", use_container_width=True, type="primary", key="btn_rastreo"):
+                    pos = streamlit_js_eval(
+                        js_expressions="""
+                        new Promise((resolve) => {
+                            navigator.geolocation.getCurrentPosition(
+                                (p) => resolve(p.coords.latitude + "," + p.coords.longitude),
+                                (e) => resolve("ERROR"),
+                                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                            )
+                        })
+                        """,
+                        key="GPS_ENGINE_V4"
                     )
-                })
-                """,
-                key="GPS_ULTRA_FINAL_FIX" 
-            )
-            
-            if pos and pos != "ERROR" and pos != st.session_state.reg_gps:
-                st.session_state.reg_gps = pos
-                st.rerun()
+                    if pos and pos != "ERROR":
+                        st.session_state.reg_gps = pos
+                        st.rerun()
+                
+                st.code(st.session_state.reg_gps if st.session_state.reg_gps else "Esperando señal...")
 
-            st.info(f"📍 Coordenadas: {st.session_state.reg_gps if st.session_state.reg_gps else 'Buscando satélites...'}")
-
-        # 3. UN SOLO FORMULARIO ORGANIZADO
-        with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
-            
-            col_izq, col_der = st.columns([1, 1])
-            
-            with col_izq:
-                # Keys únicas para evitar el error DuplicateElementId
-                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="f_nombre")
-                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced, key="f_cedula")
-                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="f_tel")
-                st.session_state.reg_dir = st.text_area("Referencia de Vivienda", value=st.session_state.reg_dir, height=70, key="f_dir")
-
-            with col_der:
+            with col_map:
                 if st.session_state.reg_gps and "," in st.session_state.reg_gps:
-                    try:
-                        lat, lon = map(float, st.session_state.reg_gps.split(","))
-                        st.markdown("<p style='text-align:center; font-weight:bold;'>📍 Confirmación de Casa</p>", unsafe_allow_html=True)
-                        
-                        # Mapa compacto y con zoom máximo para precisión
-                        m = folium.Map(location=[lat, lon], zoom_start=19)
-                        folium.Marker([lat, lon], icon=folium.Icon(color='red', icon='home')).add_to(m)
-                        
-                        st_folium(m, height=280, use_container_width=True, key=f"map_fixed_{lat}_{lon}")
-                    except:
-                        st.write("Cargando mapa...")
+                    lat, lon = map(float, st.session_state.reg_gps.split(","))
+                    # Mapa pequeño y preciso para confirmar la casa
+                    m = folium.Map(location=[lat, lon], zoom_start=19)
+                    folium.Marker([lat, lon], icon=folium.Icon(color='red', icon='home')).add_to(m)
+                    st_folium(m, height=250, use_container_width=True, key=f"map_top_{lat}_{lon}")
                 else:
-                    st.warning("Captura el GPS arriba para ver el mapa.")
+                    st.info("Dale al botón de rastrear para ver el mapa.")
 
-            # UN SOLO BOTÓN DE GUARDADO
-            if st.button("🚀 GUARDAR CLIENTE EN CARTERA", use_container_width=True, type="primary", key="f_guardar"):
+        # 3. FORMULARIO DE DATOS (Abajo)
+        st.markdown("### 📝 Datos del Cliente")
+        with st.container(border=True):
+            c1, c2 = st.columns(2)
+            with c1:
+                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="k_nom")
+                st.session_state.reg_ced = st.text_input("Cédula / Identificación", value=st.session_state.reg_ced, key="k_ced")
+            with c2:
+                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="k_tel")
+                st.session_state.reg_dir = st.text_area("Referencia de Vivienda", value=st.session_state.reg_dir, height=68, key="k_dir")
+
+            # BOTÓN ÚNICO DE GUARDADO
+            if st.button("🚀 GUARDAR TODO EN CARTERA", use_container_width=True, type="primary", key="k_save"):
                 if not st.session_state.reg_nombre or not st.session_state.reg_gps:
-                    st.error("❌ Nombre y Ubicación obligatorios.")
+                    st.error("❌ Falta el Nombre o la Ubicación.")
                 else:
                     try:
                         lat_v, lon_v = st.session_state.reg_gps.split(",")
@@ -750,15 +746,15 @@ elif menu == "👥 Todos mis Clientes":
                             "latitud": float(lat_v),
                             "longitud": float(lon_v),
                             "user_id": u_id,
-                            "fecha_registro": str(hoy_dt) # Usamos la variable hoy_dt definida arriba
+                            "fecha_registro": str(hoy_dt)
                         }).execute()
                         
-                        st.success("✅ Cliente guardado con éxito.")
+                        st.success("✅ ¡Cliente registrado correctamente!")
                         for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
                         time.sleep(1)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error al guardar: {e}")
+                        st.error(f"Error en base de datos: {e}")
 
         st.divider()
         # --- Aquí continúa tu código de visualización de clientes ya registrados ---
