@@ -687,13 +687,16 @@ elif menu == "👥 Todos mis Clientes":
         with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
             
             st.markdown("### 🛰️ Localización Satelital")
-            st.caption("⚠️ **Nota sobre precisión:** El GPS puede tener un margen de error de 5 a 50 metros dependiendo de su conexión y dispositivo.")
+            
+            # NOTA CON SIGNO DE PREGUNTA (HELP)
+            st.caption("⚠️ **Nota sobre precisión:** El GPS puede tener un margen de error de 5 a 50 metros.", 
+                       help="Consejo para mayor precisión: Cuando estés en el terreno, asegúrate de que el celular tenga el Wi-Fi encendido (aunque no estés conectado a una red), ya que Google utiliza las redes cercanas para triangular mejor la posición que el puro satélite.")
             
             with st.container(border=True):
                 col_gps, col_map = st.columns([1, 1.5])
                 
                 with col_gps:
-                    # Motor de captura con máxima precisión configurada
+                    # Motor de captura con máxima precisión
                     pos = streamlit_js_eval(
                         js_expressions="""
                         new Promise((resolve) => {
@@ -709,7 +712,7 @@ elif menu == "👥 Todos mis Clientes":
                             )
                         })
                         """,
-                        key="GPS_ENGINE_ULTRA_PRECISION"
+                        key="GPS_ENGINE_V6_FINAL"
                     )
 
                     if st.button("🎯 CAPTURAR UBICACIÓN AHORA", use_container_width=True, type="primary"):
@@ -718,10 +721,9 @@ elif menu == "👥 Todos mis Clientes":
                             st.success("✅ Ubicación capturada")
                             st.rerun()
                         elif pos and pos.startswith("ERROR"):
-                            st.error("🚫 Error de señal o permisos. Verifique su GPS.")
+                            st.error("🚫 Error de señal. Revisa tus permisos de GPS.")
                     
-                    # Permite corrección manual si el punto no es exacto
-                    st.session_state.reg_gps = st.text_input("📍 Coordenadas (ajuste manual si es necesario)", 
+                    st.session_state.reg_gps = st.text_input("📍 Coordenadas (Ajuste manual)", 
                                                             value=st.session_state.reg_gps,
                                                             placeholder="Lat, Lon")
 
@@ -730,27 +732,25 @@ elif menu == "👥 Todos mis Clientes":
                         try:
                             lat, lon = map(float, st.session_state.reg_gps.split(","))
                             m = folium.Map(location=[lat, lon], zoom_start=19)
-                            folium.Marker([lat, lon], 
-                                          popup="Punto de Registro",
-                                          icon=folium.Icon(color='red', icon='home')).add_to(m)
+                            folium.Marker([lat, lon], icon=folium.Icon(color='red', icon='home')).add_to(m)
                             st_folium(m, height=250, use_container_width=True, key=f"map_p_{lat}_{lon}")
                         except:
-                            st.error("Formato de coordenadas incorrecto.")
+                            st.error("Formato inválido.")
                     else:
-                        st.info("Presione el botón para ver la ubicación en el mapa.")
+                        st.info("Captura ubicación para ver el mapa.")
 
             st.markdown("### 📝 Datos del Cliente")
             c1, c2 = st.columns(2)
             with c1:
-                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="reg_n")
-                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced, key="reg_c")
+                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="f_n")
+                st.session_state.reg_ced = st.text_input("Cédula / ID", value=st.session_state.reg_ced, key="f_c")
             with c2:
-                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="reg_t")
-                st.session_state.reg_dir = st.text_area("Referencia de Vivienda (Color, casa, etc.)", value=st.session_state.reg_dir, height=68, key="reg_d")
+                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="f_t")
+                st.session_state.reg_dir = st.text_area("Referencia (Color de casa, etc.)", value=st.session_state.reg_dir, height=68, key="f_d")
 
             if st.button("🚀 GUARDAR EN CARTERA", use_container_width=True, type="primary"):
                 if not st.session_state.reg_nombre or not st.session_state.reg_gps:
-                    st.error("❌ El nombre y la ubicación son obligatorios.")
+                    st.error("❌ Nombre y ubicación obligatorios.")
                 else:
                     try:
                         lat_v, lon_v = st.session_state.reg_gps.split(",")
@@ -764,12 +764,11 @@ elif menu == "👥 Todos mis Clientes":
                             "user_id": u_id,
                             "fecha_registro": str(hoy_dt)
                         }).execute()
-                        st.success("✅ Cliente guardado con éxito.")
+                        st.success("✅ ¡Registrado!")
                         for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
-                        time.sleep(1)
-                        st.rerun()
+                        time.sleep(1); st.rerun()
                     except Exception as e:
-                        st.error(f"Error al guardar: {e}")
+                        st.error(f"Error: {e}")
 
         st.divider()
     
