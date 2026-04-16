@@ -677,7 +677,7 @@ elif menu == "👥 Todos mis Clientes":
 
         hoy_dt_sistema = dt.date.today()
 
-        # --- 🧠 INICIALIZACIÓN DE ESTADOS ---
+        # --- 🧠 INICIALIZACIÓN DE ESTADOS (ANTI-BORRADO) ---
         for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
             if k not in st.session_state: st.session_state[k] = ""
 
@@ -685,93 +685,113 @@ elif menu == "👥 Todos mis Clientes":
 
         with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
             
-            # --- COMPONENTE AGRESIVO DE CAPTURA (JS INJECTOR) ---
-            # Este bloque detecta la posición y la "pega" directamente en el campo de texto de Streamlit
+            # --- COMPONENTE AGRESIVO DE CAPTURA (FUSIÓN AYER + HOY) ---
             st.markdown("""
                 <style>
                 .btn-ultra {
-                    background: linear-gradient(90deg, #FF4B2B, #FF416C);
-                    color: white; border: none; padding: 20px; width: 100%;
+                    background: linear-gradient(90deg, #1e293b, #334155);
+                    color: white; border: 2px solid #38bdf8; padding: 20px; width: 100%;
                     border-radius: 12px; font-weight: 900; font-size: 1.2rem;
-                    cursor: pointer; box-shadow: 0 10px 20px rgba(255,75,43,0.3);
+                    cursor: pointer; box-shadow: 0 4px 15px rgba(56,189,248,0.2);
                     margin-bottom: 20px; text-transform: uppercase;
                 }
-                .btn-ultra:hover { transform: scale(1.01); filter: brightness(1.1); }
+                .btn-ultra:active { transform: scale(0.98); }
                 </style>
-                <button class="btn-ultra" onclick="agressiveGPS()">📍 OBTENER COORDENADAS AHORA</button>
+                <button class="btn-ultra" onclick="getGPSAgressive()">📍 CAPTURAR COORDENADAS SATELITALES</button>
                 
                 <script>
-                function agressiveGPS() {
-                    if (!navigator.geolocation) { alert("GPS no soportado"); return; }
+                function getGPSAgressive() {
+                    if (!navigator.geolocation) { alert("GPS No compatible"); return; }
                     
                     navigator.geolocation.getCurrentPosition(function(pos) {
-                        const coords = pos.coords.latitude.toFixed(8) + "," + pos.coords.longitude.toFixed(8);
+                        const lat = pos.coords.latitude.toFixed(8);
+                        const lon = pos.coords.longitude.toFixed(8);
+                        const res = lat + "," + lon;
                         
-                        // Buscamos el input por su placeholder específico
+                        // ATAQUE AL DOM: Buscamos el input de Streamlit
                         const inputs = window.parent.document.querySelectorAll('input');
-                        let found = false;
+                        let inputObjetivo = null;
+                        
                         for (let i = 0; i < inputs.length; i++) {
                             if (inputs[i].placeholder === "Satelital...") {
-                                inputs[i].value = coords;
-                                // Disparar eventos para que Streamlit detecte el cambio de valor
-                                inputs[i].dispatchEvent(new Event('input', { bubbles: true }));
-                                inputs[i].dispatchEvent(new Event('change', { bubbles: true }));
-                                found = true;
+                                inputObjetivo = inputs[i];
+                                break;
                             }
                         }
-                        if(found) { 
-                            alert("✅ Coordenadas inyectadas: " + coords);
+                        
+                        if (inputObjetivo) {
+                            inputObjetivo.value = res;
+                            // Forzamos a Streamlit a reconocer el cambio
+                            inputObjetivo.dispatchEvent(new Event('input', { bubbles: true }));
+                            inputObjetivo.dispatchEvent(new Event('change', { bubbles: true }));
+                            alert("✅ Ubicación detectada y pegada: " + res);
                         } else {
-                            alert("❌ Error: Campo de texto no encontrado.");
+                            alert("❌ Error: No encontré el cuadro 'Satelital...'. No cierres el formulario.");
                         }
                     }, function(err) {
-                        alert("Error GPS: " + err.message);
-                    }, { enableHighAccuracy: true, timeout: 5000 });
+                        alert("Error: " + err.message + ". Verifica los permisos de GPS.");
+                    }, { enableHighAccuracy: true });
                 }
                 </script>
             """, unsafe_allow_html=True)
 
             c1, c2 = st.columns(2)
             with c1:
-                # IMPORTANTE: El placeholder "Satelital..." es el ancla del script JS. NO LO CAMBIES.
-                st.text_input("📍 Coordenadas Exactas", key="reg_gps", placeholder="Satelital...")
+                # El ancla es el placeholder "Satelital..."
+                st.text_input("📍 Coordenadas", key="reg_gps", placeholder="Satelital...")
                 st.text_input("Nombre Completo *", key="reg_nombre")
             with c2:
                 st.text_input("WhatsApp / Celular *", key="reg_tel")
                 st.text_input("Cédula / Identificación", key="reg_ced")
             
-            st.text_area("Referencia de Vivienda (Opcional)", key="reg_dir", height=70)
+            st.text_area("Referencia de Vivienda", key="reg_dir", height=70)
 
-            # --- MAPA DE CONFIRMACIÓN (FOLIUM) ---
+            # --- MAPA DE OPENSTREETMAP (SÓLO SI HAY COORDENADAS) ---
             if st.session_state.reg_gps and "," in st.session_state.reg_gps:
                 try:
-                    lat_v, lon_v = map(float, st.session_state.reg_gps.split(","))
-                    st.write("### 🌍 Confirmación de Punto")
-                    m = folium.Map(location=[lat_v, lon_v], zoom_start=18)
-                    folium.Marker([lat_v, lon_v], tooltip="Cliente aquí").add_to(m)
-                    st_folium(m, height=300, width=700, key="confirm_map")
+                    lat_f, lon_f = map(float, st.session_state.reg_gps.split(","))
+                    st.markdown("---")
+                    st.write("#### 🗺️ Ubicación en tiempo real (OpenStreetMap)")
+                    
+                    # Creamos el mapa con Folium (Gratis, sin API Keys)
+                    m = folium.Map(location=[lat_f, lon_f], zoom_start=18)
+                    folium.Marker(
+                        [lat_f, lon_f], 
+                        popup="Punto de Entrega",
+                        icon=folium.Icon(color='red', icon='home')
+                    ).add_to(m)
+                    
+                    # Lo mostramos
+                    st_folium(m, height=350, width=700, key="mapa_folium_final")
                 except:
-                    st.warning("El formato de coordenadas debe ser: Latitud,Longitud")
+                    st.warning("Formato de coordenadas no válido.")
 
-            # --- GUARDADO ---
-            if st.button("🚀 GUARDAR CLIENTE EN BASE DE DATOS", use_container_width=True, type="primary"):
+            # --- BOTÓN DE GUARDADO ---
+            if st.button("🚀 GUARDAR CLIENTE", use_container_width=True, type="primary"):
                 if not st.session_state.reg_nombre or not st.session_state.reg_gps:
-                    st.error("❌ Faltan datos (Nombre y Coordenadas son obligatorios).")
+                    st.error("❌ Faltan datos obligatorios.")
                 else:
                     try:
                         lat_val, lon_val = st.session_state.reg_gps.split(",")
                         conn.table("clientes").insert({
-                            "nombre": st.session_state.reg_nombre, "telefono": st.session_state.reg_tel,
-                            "cedula": st.session_state.reg_ced, "direccion": st.session_state.reg_dir,
-                            "latitud": float(lat_val), "longitud": float(lon_val), "user_id": u_id
+                            "nombre": st.session_state.reg_nombre, 
+                            "telefono": st.session_state.reg_tel,
+                            "cedula": st.session_state.reg_ced, 
+                            "direccion": st.session_state.reg_dir,
+                            "latitud": float(lat_val), 
+                            "longitud": float(lon_val), 
+                            "user_id": u_id
                         }).execute()
-                        st.success("✅ ¡Cliente guardado exitosamente!")
-                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
-                        time.sleep(1); st.rerun()
+                        st.success("✅ ¡Cliente registrado!")
+                        # Limpieza
+                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: 
+                            st.session_state[k] = ""
+                        time.sleep(1)
+                        st.rerun()
                     except Exception as e:
-                        st.error(f"Error al guardar: {e}")
+                        st.error(f"Error: {e}")
 
-        # --- VISUALIZACIÓN DE CARTERA ---
+        # --- LISTADO DE CLIENTES ---
         st.divider()
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         if res_cl.data:
@@ -779,10 +799,13 @@ elif menu == "👥 Todos mis Clientes":
             for idx, cl in enumerate(res_cl.data):
                 with grid[idx % 3]:
                     with st.container(border=True):
-                        st.subheader(cl['nombre'])
-                        # Enlace directo a navegación de Google Maps
-                        g_link = f"http://googleusercontent.com/maps.google.com/4{cl['latitud']},{cl['longitud']}"
-                        st.markdown(f'<a href="{g_link}" target="_blank"><button style="width:100%; background:#4285F4; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">🚗 INICIAR RUTA</button></a>', unsafe_allow_html=True)
+                        st.markdown(f"**{cl['nombre']}**")
+                        st.caption(f"📞 {cl['telefono']}")
+                        
+                        # Link directo para usar el GPS del celular con Google Maps
+                        g_link = f"https://www.google.com/maps?q={cl['latitud']},{cl['longitud']}"
+                        st.markdown(f'<a href="{g_link}" target="_blank"><button style="width:100%; background:#4285F4; color:white; border:none; padding:8px; border-radius:5px; font-weight:bold; cursor:pointer;">🚗 RUTA GOOGLE</button></a>', unsafe_allow_html=True)
+                        
                         if st.button("Eliminar", key=f"del_{cl['id']}", use_container_width=True):
                             conn.table("clientes").delete().eq("id", cl['id']).execute()
                             st.rerun()
