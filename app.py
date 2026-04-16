@@ -668,162 +668,182 @@ elif menu == "Nueva Cuenta por Cobrar":
 # --- SECCIÓN A: REGISTRO PREMIUM ---
 # --- SECCIÓN A: REGISTRO PREMIUM ---
 elif menu == "👥 Todos mis Clientes":
-    import datetime as dt
-    import time
-    hoy_dt = dt.date.today()
-    
-    st.markdown("""
-        <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
-        <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales con geolocalización de grado militar.</p>
-    """, unsafe_allow_html=True)
-
-    with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
-        from streamlit.components.v1 import html
-
-        # --- DISEÑO RADAR HOLOGRÁFICO 3D ---
+        import datetime as dt
+        import time
+        hoy_dt = dt.date.today()
+        
         st.markdown("""
-            <style>
-            .hologram-container {
-                background: radial-gradient(circle, #0f172a 0%, #020617 100%);
-                border: 2px solid #38bdf8; border-radius: 20px;
-                height: 220px; position: relative; overflow: hidden;
-                display: flex; justify-content: center; align-items: center;
-                perspective: 1000px; box-shadow: 0 0 30px rgba(56, 189, 248, 0.2);
-                margin-bottom: 20px;
-            }
-            .grid-3d {
-                position: absolute; width: 200%; height: 200%;
-                background-image: linear-gradient(#38bdf822 1px, transparent 1px), 
-                                  linear-gradient(90deg, #38bdf822 1px, transparent 1px);
-                background-size: 40px 40px; transform: rotateX(60deg) translateY(-50%);
-                animation: grid-move 4s linear infinite;
-            }
-            .scanner-ring {
-                width: 120px; height: 120px; border: 3px solid #38bdf8;
-                border-radius: 50%; position: absolute;
-                animation: rotate3d 3s linear infinite;
-                box-shadow: 0 0 15px #38bdf8;
-            }
-            .scanner-line {
-                width: 160px; height: 2px; background: #38bdf8;
-                position: absolute; box-shadow: 0 0 20px #38bdf8;
-                animation: scan-move 2s ease-in-out infinite;
-            }
-            @keyframes grid-move { 0% { transform: rotateX(60deg) translateY(0); } 100% { transform: rotateX(60deg) translateY(40px); } }
-            @keyframes rotate3d { 0% { transform: rotateY(0deg) rotateX(45deg); } 100% { transform: rotateY(360deg) rotateX(45deg); } }
-            @keyframes scan-move { 0%, 100% { transform: translateY(-40px); opacity: 0.2; } 50% { transform: translateY(40px); opacity: 1; } }
-            </style>
-            
-            <div class="hologram-container">
-                <div class="grid-3d"></div>
-                <div class="scanner-ring"></div>
-                <div class="scanner-line"></div>
-                <div style="position:absolute; bottom:15px; font-family:monospace; color:#38bdf8; font-size:10px; letter-spacing:2px;">
-                    SATELLITE_LINK_ACTIVE // 4D_SCANNING
-                </div>
-            </div>
+            <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
+            <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales con geolocalización de alta precisión.</p>
         """, unsafe_allow_html=True)
 
-        # 1. BOTÓN DE CAPTURA
-        gps_html = """
-        <div style="text-align:center;">
-            <button id="gps_btn" onclick="getExactGPS()" style="
-                width: 100%; background: linear-gradient(135deg, #007AFF 0%, #0040ff 100%);
-                color: white; border: none; padding: 22px; border-radius: 18px;
-                font-weight: 800; font-size: 1.1rem; cursor: pointer; 
-                box-shadow: 0 10px 20px rgba(0,122,255,0.3); transition: 0.3s;
-            ">📍 INICIAR ESCANEO DE PRECISIÓN</button>
-        </div>
-        <script>
-        function getExactGPS() {
-            const btn = document.getElementById('gps_btn');
-            btn.innerText = "🛰️ RASTREANDO POSICIÓN...";
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const coords = pos.coords.latitude.toFixed(7) + "," + pos.coords.longitude.toFixed(7);
-                    const inputs = window.parent.document.querySelectorAll('input');
-                    for (let input of inputs) {
-                        // Buscamos el input por su placeholder específico
-                        if (input.placeholder === "Coordenadas del satélite...") {
-                            input.value = coords;
-                            input.dispatchEvent(new Event('input', { bubbles: true }));
-                            break;
+        with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
+            from streamlit.components.v1 import html
+
+            # --- ANIMACIÓN DE RED DE DATOS DINÁMICA (Efecto Profesional) ---
+            st.markdown("""
+                <style>
+                .canvas-container {
+                    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+                    border: 1px solid rgba(0, 122, 255, 0.2);
+                    border-radius: 24px;
+                    height: 220px; position: relative; overflow: hidden;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.02);
+                    margin-bottom: 20px;
+                }
+                #networkCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+                .overlay-status {
+                    position: absolute; width: 100%; text-align: center; top: 50%;
+                    transform: translateY(-50%); font-family: monospace;
+                    color: #007AFF; font-weight: 700; font-size: 0.75rem;
+                    letter-spacing: 4px; pointer-events: none; text-transform: uppercase;
+                }
+                </style>
+                <div class="canvas-container">
+                    <canvas id="networkCanvas"></canvas>
+                    <div class="overlay-status">Global Positioning System Active</div>
+                </div>
+                
+                <script>
+                const canvas = document.getElementById('networkCanvas');
+                const ctx = canvas.getContext('2d');
+                let particles = [];
+                
+                function init() {
+                    canvas.width = canvas.offsetWidth;
+                    canvas.height = canvas.offsetHeight;
+                    particles = [];
+                    for(let i=0; i<45; i++) {
+                        particles.push({
+                            x: Math.random() * canvas.width,
+                            y: Math.random() * canvas.height,
+                            vx: (Math.random() - 0.5) * 0.4,
+                            vy: (Math.random() - 0.5) * 0.4
+                        });
+                    }
+                }
+
+                function animate() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.strokeStyle = 'rgba(0, 122, 255, 0.15)';
+                    ctx.fillStyle = 'rgba(0, 122, 255, 0.4)';
+                    
+                    particles.forEach((p, i) => {
+                        p.x += p.vx; p.y += p.vy;
+                        if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                        if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                        
+                        ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill();
+                        
+                        for(let j=i+1; j<particles.length; j++) {
+                            const p2 = particles[j];
+                            const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+                            if(dist < 110) {
+                                ctx.lineWidth = (1 - dist/110) * 0.8;
+                                ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+                            }
                         }
-                    }
-                    btn.innerText = "✅ UBICACIÓN FIJADA";
-                    btn.style.background = "#34c759";
-                },
-                (err) => { alert("Error GPS: " + err.message); },
-                { enableHighAccuracy: true, timeout: 10000 }
-            );
-        }
-        </script>
-        """
-        html(gps_html, height=100)
+                    });
+                    requestAnimationFrame(animate);
+                }
+                window.addEventListener('resize', init);
+                init(); animate();
+                </script>
+            """, unsafe_allow_html=True)
 
-        # 2. CAMPOS DE DATOS CON PERSISTENCIA (Usando Session State)
-        st.markdown("### Información del Expediente")
-        
-        # El cuadro de coordenadas ahora es el primero y es editable
-        reg_gps = st.text_input("📍 Coordenadas (Lat, Lon)", key="temp_reg_gps", placeholder="Coordenadas del satélite...")
+            # 1. BOTÓN DE CAPTURA
+            gps_html = """
+            <div style="text-align:center;">
+                <button id="gps_btn" onclick="getExactGPS()" style="
+                    width: 100%; background: #007AFF; color: white; border: none; 
+                    padding: 22px; border-radius: 18px; font-weight: 800; font-size: 1.1rem; 
+                    cursor: pointer; box-shadow: 0 10px 20px rgba(0,122,255,0.25);
+                    transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                ">📍 CAPTURAR POSICIÓN SATELITAL</button>
+            </div>
+            <script>
+            function getExactGPS() {
+                const btn = document.getElementById('gps_btn');
+                btn.innerText = "🛰️ ESCANEANDO NODOS...";
+                btn.style.opacity = "0.8";
 
-        col1, col2 = st.columns(2)
-        # Vinculamos cada input a una clave única en st.session_state
-        reg_nom = col1.text_input("Nombre y Apellido *", key="temp_reg_nom")
-        reg_tel = col1.text_input("WhatsApp / Celular *", key="temp_reg_tel")
-        reg_ced = col2.text_input("Cédula / ID", key="temp_reg_ced")
-        reg_dir = col2.text_input("Referencia de Vivienda", key="temp_reg_dir")
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        const coords = pos.coords.latitude.toFixed(8) + "," + pos.coords.longitude.toFixed(8);
+                        const inputs = window.parent.document.querySelectorAll('input');
+                        for (let input of inputs) {
+                            if (input.placeholder === "Coordenadas del satélite...") {
+                                input.value = coords;
+                                // Disparamos eventos críticos para que Streamlit no borre el dato
+                                input.dispatchEvent(new Event('input', { bubbles: true }));
+                                input.dispatchEvent(new Event('change', { bubbles: true }));
+                                break;
+                            }
+                        }
+                        btn.innerText = "✅ UBICACIÓN VINCULADA";
+                        btn.style.background = "#34c759";
+                    },
+                    (err) => { alert("Error GPS: " + err.message); btn.innerText = "❌ ERROR DE SEÑAL"; },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            }
+            </script>
+            """
+            html(gps_html, height=100)
 
-        # Vista de mapa inmediata si hay coordenadas
-        if reg_gps and "," in reg_gps:
-            try:
-                lat_f, lon_f = map(float, reg_gps.split(","))
-                st.map(pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]}), zoom=17)
-            except: pass
+            # 2. CAMPOS DE DATOS CON PERSISTENCIA
+            st.markdown("### Datos del Nuevo Expediente")
+            
+            # El cuadro de coordenadas ahora es editable y ultra-persistente
+            reg_gps = st.text_input("📍 Coordenadas (Lat, Lon)", key="temp_reg_gps", placeholder="Coordenadas del satélite...", help="Haz clic en el botón superior o escribe manualmente.")
 
-        st.divider()
+            col1, col2 = st.columns(2)
+            reg_nom = col1.text_input("Nombre y Apellido *", key="temp_reg_nom")
+            reg_tel = col1.text_input("WhatsApp / Celular *", key="temp_reg_tel")
+            reg_ced = col2.text_input("Cédula / ID", key="temp_reg_ced")
+            reg_dir = col2.text_input("Referencia de Vivienda", key="temp_reg_dir")
 
-        # 3. BOTÓN DE GUARDADO (Fuera de st.form para controlar errores sin borrar)
-        if st.button("🚀 GUARDAR CLIENTE EN BASE DE DATOS", use_container_width=True):
-            if not reg_nom or not reg_tel or not reg_gps:
-                st.error("❌ Faltan datos críticos: Nombre, Teléfono y Ubicación.")
-            else:
+            # Mapa de verificación en tiempo real
+            if reg_gps and "," in reg_gps:
                 try:
-                    # SIMULACIÓN DE GUARDADO / VERIFICACIÓN
-                    # Aquí iría tu: conn.table("clientes").insert(...).execute()
-                    
-                    # Ejemplo de validación manual
-                    # res_check = conn.table("clientes").select("id").eq("cedula", reg_ced).execute()
-                    # if res_check.data: 
-                    #     st.error(f"❌ La cédula {reg_ced} ya existe en el sistema.")
-                    #     st.stop()
+                    lat_f, lon_f = map(float, reg_gps.split(","))
+                    st.map(pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]}), zoom=18)
+                except: pass
 
-                    lat_v, lon_v = reg_gps.split(",")
-                    nuevo_cliente = {
-                        "user_id": u_id,
-                        "nombre": reg_nom,
-                        "telefono": reg_tel,
-                        "cedula": reg_ced,
-                        "direccion": reg_dir,
-                        "latitud": lat_v.strip(),
-                        "longitud": lon_v.strip(),
-                        "fecha_registro": str(dt.datetime.now())
-                    }
-                    
-                    conn.table("clientes").insert(nuevo_cliente).execute()
-                    st.success(f"✅ ¡{reg_nom} registrado con éxito!")
-                    
-                    # SOLO SI TIENE ÉXITO, LIMPIAMOS LOS DATOS
-                    for key in ["temp_reg_gps", "temp_reg_nom", "temp_reg_tel", "temp_reg_ced", "temp_reg_dir"]:
-                        st.session_state[key] = ""
-                    
-                    time.sleep(1)
-                    st.rerun()
-                    
-                except Exception as e:
-                    # SI HAY ERROR (Duplicados, conexión, etc.), los datos se quedan en los cuadros de texto
-                    st.error(f"❌ Error al guardar: {e}")
-                    st.info("💡 Corrige el error arriba. Los datos no se han borrado.")
+            st.divider()
+
+            # 3. BOTÓN DE GUARDADO CON PROTECCIÓN DE DATOS
+            if st.button("🚀 GUARDAR CLIENTE DEFINITIVAMENTE", use_container_width=True):
+                if not reg_nom or not reg_tel or not reg_gps:
+                    st.error("❌ Faltan datos obligatorios: Nombre, Teléfono y Ubicación.")
+                else:
+                    try:
+                        lat_v, lon_v = reg_gps.split(",")
+                        nuevo_cliente = {
+                            "user_id": u_id,
+                            "nombre": reg_nom,
+                            "telefono": reg_tel,
+                            "cedula": reg_ced,
+                            "direccion": reg_dir,
+                            "latitud": lat_v.strip(),
+                            "longitud": lon_v.strip(),
+                            "fecha_registro": str(dt.datetime.now())
+                        }
+                        
+                        conn.table("clientes").insert(nuevo_cliente).execute()
+                        st.success(f"✅ ¡{reg_nom} registrado exitosamente!")
+                        
+                        # SOLO si el guardado es exitoso, limpiamos los campos
+                        for key in ["temp_reg_gps", "temp_reg_nom", "temp_reg_tel", "temp_reg_ced", "temp_reg_dir"]:
+                            st.session_state[key] = ""
+                        
+                        time.sleep(1.5)
+                        st.rerun()
+                        
+                    except Exception as e:
+                        # Los datos se mantienen en los inputs gracias al session_state
+                        st.error(f"❌ Error crítico: {e}")
+                        st.info("⚠️ Los datos introducidos no se han borrado. Corrígelos y vuelve a intentar.")
 
     # --- SECCIÓN B: CARTERA DE CLIENTES ---
     # (Tu código actual de la tabla de clientes sigue aquí...)
