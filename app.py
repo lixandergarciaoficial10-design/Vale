@@ -671,138 +671,130 @@ elif menu == "👥 Todos mis Clientes":
     import datetime as dt
     import time
     hoy_dt = dt.date.today()
-    
-    # --- TÍTULO DE SECCIÓN ---
+
+    # --- 1. INICIALIZACIÓN FORZOSA DE ESTADOS ---
+    # Esto asegura que Streamlit reconozca las variables desde el segundo 1
+    campos = {
+        "reg_gps": "",
+        "reg_nombre": "",
+        "reg_tel": "",
+        "reg_ced": "",
+        "reg_dir": ""
+    }
+    for key, val in campos.items():
+        if key not in st.session_state:
+            st.session_state[key] = val
+
     st.markdown("""
         <h1 style='color: #1e293b; font-weight: 800; letter-spacing: -1.5px;'>Gestión de Cartera</h1>
         <p style='color: #64748b; font-size: 1.1rem; margin-top: -15px;'>Expedientes digitales con geolocalización de alta precisión.</p>
     """, unsafe_allow_html=True)
 
-    # 1. INICIALIZACIÓN DE ESTADOS (Para evitar pérdida de datos)
-    for key in ["gps_val", "n_val", "t_val", "c_val", "d_val"]:
-        if key not in st.session_state:
-            st.session_state[key] = ""
-
     with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
         from streamlit.components.v1 import html
 
-        # --- ANIMACIÓN DE RED NEURONAL DINÁMICA (Visual Apple-Enterprise) ---
+        # --- ANIMACIÓN DE RED NEURONAL (Fondo Oscuro Enterprise) ---
         st.markdown("""
-            <style>
-            .canvas-container {
-                background: #0f172a; border-radius: 20px; height: 160px; 
-                position: relative; overflow: hidden; margin-bottom: 20px;
-                border: 1px solid #1e293b;
-            }
-            #netCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-            </style>
-            <div class="canvas-container"><canvas id="netCanvas"></canvas></div>
+            <div style="background: #0f172a; border-radius: 20px; height: 150px; position: relative; overflow: hidden; margin-bottom: 20px; border: 1px solid #1e293b;">
+                <canvas id="netCanvas" style="position: absolute; width: 100%; height: 100%;"></canvas>
+            </div>
             <script>
-            const canvas = document.getElementById('netCanvas');
-            const ctx = canvas.getContext('2d');
-            let dots = [];
-            function init() {
-                canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
-                dots = [];
-                for(let i=0; i<40; i++) dots.push({
-                    x: Math.random()*canvas.width, y: Math.random()*canvas.height, 
-                    vx: (Math.random()-0.5)*0.4, vy: (Math.random()-0.5)*0.4
-                });
-            }
-            function draw() {
-                ctx.clearRect(0,0,canvas.width, canvas.height);
-                ctx.fillStyle = "rgba(0,122,255,0.8)"; ctx.strokeStyle = "rgba(0,122,255,0.2)";
-                dots.forEach((d, i) => {
-                    d.x += d.vx; d.y += d.vy;
-                    if(d.x<0 || d.x>canvas.width) d.vx*=-1; if(d.y<0 || d.y>canvas.height) d.vy*=-1;
-                    ctx.beginPath(); ctx.arc(d.x, d.y, 1.5, 0, Math.PI*2); ctx.fill();
-                    for(let j=i+1; j<dots.length; j++) {
-                        let dist = Math.hypot(d.x-dots[j].x, d.y-dots[j].y);
-                        if(dist<80) { ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(dots[j].x, dots[j].y); ctx.stroke(); }
-                    }
-                });
-                requestAnimationFrame(draw);
-            }
-            window.addEventListener('resize', init); init(); draw();
+                const canvas = document.getElementById('netCanvas');
+                const ctx = canvas.getContext('2d');
+                let dots = [];
+                function init() {
+                    canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+                    dots = [];
+                    for(let i=0; i<30; i++) dots.push({x:Math.random()*canvas.width, y:Math.random()*canvas.height, vx:(Math.random()-0.5)*0.5, vy:(Math.random()-0.5)*0.5});
+                }
+                function draw() {
+                    ctx.clearRect(0,0,canvas.width, canvas.height);
+                    ctx.fillStyle = "rgba(0,122,255,0.7)"; ctx.strokeStyle = "rgba(0,122,255,0.15)";
+                    dots.forEach((d, i) => {
+                        d.x += d.vx; d.y += d.vy;
+                        if(d.x<0 || d.x>canvas.width) d.vx*=-1; if(d.y<0 || d.y>canvas.height) d.vy*=-1;
+                        ctx.beginPath(); ctx.arc(d.x, d.y, 2, 0, Math.PI*2); ctx.fill();
+                        for(let j=i+1; j<dots.length; j++) {
+                            let dist = Math.hypot(d.x-dots[j].x, d.y-dots[j].y);
+                            if(dist<90) { ctx.lineWidth = 0.5; ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(dots[j].x, dots[j].y); ctx.stroke(); }
+                        }
+                    });
+                    requestAnimationFrame(draw);
+                }
+                init(); draw();
             </script>
         """, unsafe_allow_html=True)
 
-        # 2. CAPTURA GPS BLINDADA
-        gps_script = """
-        <div style="text-align:center;">
-            <button id="gps_btn" onclick="getGPS()" style="
-                width: 100%; background: #007AFF; color: white; border: none; 
-                padding: 18px; border-radius: 12px; font-weight: 700; cursor: pointer;
-                transition: 0.3s;
-            ">📍 CAPTURAR LOCALIZACIÓN DEL DEUDOR</button>
-        </div>
+        # BOTÓN GPS QUE INYECTA DATOS AL INPUT CON KEY
+        gps_html = """
+        <button onclick="getGPS()" style="width: 100%; background: #007AFF; color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; margin-bottom: 10px;">
+            📍 CAPTURAR UBICACIÓN ACTUAL
+        </button>
         <script>
-        function getGPS() {
-            const btn = document.getElementById('gps_btn');
-            btn.innerText = "🛰️ ESCANEANDO SATÉLITES...";
-            navigator.geolocation.getCurrentPosition((pos) => {
-                const coords = pos.coords.latitude.toFixed(8) + "," + pos.coords.longitude.toFixed(8);
-                // Inyectamos el valor en el input de Streamlit
-                const inputs = window.parent.document.querySelectorAll('input');
-                for (let input of inputs) {
-                    if (input.placeholder === "Latitud, Longitud") {
-                        input.value = coords;
-                        input.dispatchEvent(new Event('input', { bubbles: true }));
-                        break;
+            function getGPS() {
+                navigator.geolocation.getCurrentPosition((pos) => {
+                    const coords = pos.coords.latitude.toFixed(8) + "," + pos.coords.longitude.toFixed(8);
+                    // Buscamos el input por su ID de Streamlit (basado en la key)
+                    const inputs = window.parent.document.querySelectorAll('input');
+                    for (let input of inputs) {
+                        if (input.placeholder === "Esperando coordenadas...") {
+                            input.value = coords;
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            break;
+                        }
                     }
-                }
-                btn.innerText = "✅ COORDENADAS FIJADAS";
-                btn.style.background = "#34c759";
-            }, (err) => { alert("Error GPS: " + err.message); btn.innerText = "❌ ERROR GPS"; });
-        }
+                });
+            }
         </script>
         """
-        html(gps_script, height=75)
+        html(gps_html, height=60)
 
-        # 3. FORMULARIO CON PERSISTENCIA (Uso de st.session_state)
+        # --- FORMULARIO CON KEYS VINCULADAS ---
         c1, c2 = st.columns(2)
         with c1:
-            st.session_state.gps_val = st.text_input("📍 Coordenadas (Editable)", value=st.session_state.gps_val, placeholder="Latitud, Longitud")
-            st.session_state.n_val = st.text_input("Nombre Completo *", value=st.session_state.n_val)
-            st.session_state.t_val = st.text_input("WhatsApp / Celular *", value=st.session_state.t_val)
+            # El uso de 'key' aquí es lo que garantiza la PERSISTENCIA
+            st.text_input("📍 Coordenadas", key="reg_gps", placeholder="Esperando coordenadas...")
+            st.text_input("Nombre Completo *", key="reg_nombre")
+            st.text_input("WhatsApp / Celular *", key="reg_tel")
         
         with c2:
-            st.session_state.c_val = st.text_input("Cédula / ID", value=st.session_state.c_val)
-            st.session_state.d_val = st.text_area("Referencia de Vivienda", value=st.session_state.d_val, height=115)
+            st.text_input("Cédula / ID", key="reg_ced")
+            st.text_area("Referencia de Vivienda", key="reg_dir", height=110)
 
-        # 4. MAPA DE PRECISIÓN EN TIEMPO REAL
-        if st.session_state.gps_val and "," in st.session_state.gps_val:
+        # MAPA DINÁMICO
+        if st.session_state.reg_gps and "," in st.session_state.reg_gps:
             try:
-                lat, lon = map(float, st.session_state.gps_val.split(","))
-                st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}), zoom=16)
-            except:
-                st.caption("Formato de coordenadas no válido.")
+                lat, lon = map(float, st.session_state.reg_gps.split(","))
+                st.map(pd.DataFrame({'lat': [lat], 'lon': [lon]}), zoom=17)
+            except: pass
 
-        # 5. BOTÓN DE GUARDADO CON VALIDACIÓN DE SEGURIDAD
-        if st.button("🚀 GUARDAR EXPEDIENTE DIGITAL", use_container_width=True):
-            if not st.session_state.n_val or not st.session_state.t_val or not st.session_state.gps_val:
-                st.error("❌ Los campos con (*) y la ubicación son obligatorios.")
+        if st.button("🚀 GUARDAR EN CARTERA DIGITAL", use_container_width=True):
+            if not st.session_state.reg_nombre or not st.session_state.reg_tel or not st.session_state.reg_gps:
+                st.error("❌ Faltan datos críticos.")
             else:
                 try:
-                    lat_f, lon_f = st.session_state.gps_val.split(",")
+                    # Lógica de guardado en Supabase
+                    lat_val, lon_val = st.session_state.reg_gps.split(",")
                     conn.table("clientes").insert({
-                        "nombre": st.session_state.n_val,
-                        "telefono": st.session_state.t_val,
-                        "cedula": st.session_state.c_val,
-                        "direccion": st.session_state.d_val,
-                        "latitud": float(lat_f),
-                        "longitud": float(lon_f),
+                        "nombre": st.session_state.reg_nombre,
+                        "telefono": st.session_state.reg_tel,
+                        "cedula": st.session_state.reg_ced,
+                        "direccion": st.session_state.reg_dir,
+                        "latitud": float(lat_val),
+                        "longitud": float(lon_val),
                         "user_id": u_id
                     }).execute()
                     
-                    st.success("✅ Cliente registrado exitosamente.")
-                    # Solo después de un éxito REAL, limpiamos los datos
-                    for key in ["gps_val", "n_val", "t_val", "c_val", "d_val"]:
+                    st.success("✅ Cliente guardado correctamente.")
+                    
+                    # SOLO LIMPIAMOS SI EL GUARDADO FUE EXITOSO
+                    for key in campos.keys():
                         st.session_state[key] = ""
-                    time.sleep(1.5)
+                    time.sleep(1)
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Error al guardar: Ya existe un cliente con esta Cédula o hay un problema de conexión.")
+                    # SI HAY ERROR (Ej: Cédula duplicada), los datos NO se borran
+                    st.error(f"❌ Error de base de datos: {e}")
 
     # --- SECCIÓN B: CARTERA DE CLIENTES ---
     # (Tu código actual de la tabla de clientes sigue aquí...)
