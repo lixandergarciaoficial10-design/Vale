@@ -675,121 +675,90 @@ elif menu == "👥 Todos mis Clientes":
         from streamlit_folium import st_folium
         from streamlit_js_eval import streamlit_js_eval
 
-        hoy_dt_sistema = dt.date.today()
-
-        # --- 🧠 INICIALIZACIÓN DE ESTADOS (ANTI-BORRADO) ---
+        # --- 1. MEMORIA BLINDADA (Anti-Wipe) ---
         for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
-            if k not in st.session_state: st.session_state[k] = ""
+            if k not in st.session_state:
+                st.session_state[k] = ""
 
-        st.markdown("<h1 style='color: #1e293b; font-weight: 800;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='color: #1e293b; font-weight: 800;'>Gestión de Cartera Pro</h1>", unsafe_allow_html=True)
 
-        with st.expander("✨ Registrar Nuevo Cliente", expanded=True):
+        # --- 2. EL RADAR (Captura fuera del formulario) ---
+        with st.container(border=True):
+            st.subheader("🎯 Posicionamiento Global")
+            col_btn, col_txt = st.columns([1, 2])
             
-            # --- COMPONENTE AGRESIVO DE CAPTURA (FUSIÓN AYER + HOY) ---
-            st.markdown("""
-                <style>
-                .btn-ultra {
-                    background: linear-gradient(90deg, #1e293b, #334155);
-                    color: white; border: 2px solid #38bdf8; padding: 20px; width: 100%;
-                    border-radius: 12px; font-weight: 900; font-size: 1.2rem;
-                    cursor: pointer; box-shadow: 0 4px 15px rgba(56,189,248,0.2);
-                    margin-bottom: 20px; text-transform: uppercase;
-                }
-                .btn-ultra:active { transform: scale(0.98); }
-                </style>
-                <button class="btn-ultra" onclick="getGPSAgressive()">📍 CAPTURAR COORDENADAS SATELITALES</button>
-                
-                <script>
-                function getGPSAgressive() {
-                    if (!navigator.geolocation) { alert("GPS No compatible"); return; }
-                    
-                    navigator.geolocation.getCurrentPosition(function(pos) {
-                        const lat = pos.coords.latitude.toFixed(8);
-                        const lon = pos.coords.longitude.toFixed(8);
-                        const res = lat + "," + lon;
-                        
-                        // ATAQUE AL DOM: Buscamos el input de Streamlit
-                        const inputs = window.parent.document.querySelectorAll('input');
-                        let inputObjetivo = null;
-                        
-                        for (let i = 0; i < inputs.length; i++) {
-                            if (inputs[i].placeholder === "Satelital...") {
-                                inputObjetivo = inputs[i];
-                                break;
-                            }
-                        }
-                        
-                        if (inputObjetivo) {
-                            inputObjetivo.value = res;
-                            // Forzamos a Streamlit a reconocer el cambio
-                            inputObjetivo.dispatchEvent(new Event('input', { bubbles: true }));
-                            inputObjetivo.dispatchEvent(new Event('change', { bubbles: true }));
-                            alert("✅ Ubicación detectada y pegada: " + res);
-                        } else {
-                            alert("❌ Error: No encontré el cuadro 'Satelital...'. No cierres el formulario.");
-                        }
-                    }, function(err) {
-                        alert("Error: " + err.message + ". Verifica los permisos de GPS.");
-                    }, { enableHighAccuracy: true });
-                }
-                </script>
-            """, unsafe_allow_html=True)
+            with col_btn:
+                # Botón que activa la comunicación directa con el navegador
+                if st.button("OBTENER GPS AHORA", use_container_width=True, type="primary"):
+                    # Esta promesa de JS devuelve el dato directamente a Python
+                    pos = streamlit_js_eval(
+                        js_expressions="new Promise((res) => navigator.geolocation.getCurrentPosition((p) => res(p.coords.latitude + ',' + p.coords.longitude)))",
+                        key="GPS_TRACKER_ACTUAL"
+                    )
+                    if pos:
+                        st.session_state.reg_gps = pos
+                        st.rerun()
 
+            with col_txt:
+                # Cuadro de texto que recibe el impacto de la coordenada
+                st.text_input("Coordenadas detectadas", value=st.session_state.reg_gps, key="gps_display", placeholder="Esperando satélite...")
+
+        # --- 3. FORMULARIO DE CLIENTE ---
+        with st.expander("📝 Datos del Cliente", expanded=True):
             c1, c2 = st.columns(2)
             with c1:
-                # El ancla es el placeholder "Satelital..."
-                st.text_input("📍 Coordenadas", key="reg_gps", placeholder="Satelital...")
-                st.text_input("Nombre Completo *", key="reg_nombre")
+                st.text_input("Nombre del Cliente *", value=st.session_state.reg_nombre, key="n_in", 
+                             on_change=lambda: st.session_state.update({"reg_nombre": st.session_state.n_in}))
             with c2:
-                st.text_input("WhatsApp / Celular *", key="reg_tel")
-                st.text_input("Cédula / Identificación", key="reg_ced")
+                st.text_input("WhatsApp / Teléfono *", value=st.session_state.reg_tel, key="t_in", 
+                             on_change=lambda: st.session_state.update({"reg_tel": st.session_state.t_in}))
             
-            st.text_area("Referencia de Vivienda", key="reg_dir", height=70)
+            st.session_state.reg_dir = st.text_area("Dirección / Referencia", value=st.session_state.reg_dir)
 
-            # --- MAPA DE OPENSTREETMAP (SÓLO SI HAY COORDENADAS) ---
+            # --- 4. MAPA DE OPENSTREETMAP (Visualización Estratégica) ---
             if st.session_state.reg_gps and "," in st.session_state.reg_gps:
                 try:
-                    lat_f, lon_f = map(float, st.session_state.reg_gps.split(","))
-                    st.markdown("---")
-                    st.write("#### 🗺️ Ubicación en tiempo real (OpenStreetMap)")
+                    lat, lon = map(float, st.session_state.reg_gps.split(","))
+                    st.write("### 🌍 Confirmación de Ubicación")
                     
-                    # Creamos el mapa con Folium (Gratis, sin API Keys)
-                    m = folium.Map(location=[lat_f, lon_f], zoom_start=18)
+                    # Creamos el mapa centrado en la coordenada
+                    m = folium.Map(location=[lat, lon], zoom_start=18, tiles="OpenStreetMap")
                     folium.Marker(
-                        [lat_f, lon_f], 
-                        popup="Punto de Entrega",
-                        icon=folium.Icon(color='red', icon='home')
+                        [lat, lon], 
+                        popup="Ubicación capturada", 
+                        icon=folium.Icon(color='red', icon='info-sign')
                     ).add_to(m)
                     
-                    # Lo mostramos
-                    st_folium(m, height=350, width=700, key="mapa_folium_final")
-                except:
-                    st.warning("Formato de coordenadas no válido.")
+                    # Renderizamos el mapa
+                    st_folium(m, height=350, width=None, key="mapa_clientes_final")
+                    
+                except Exception as e:
+                    st.error(f"Error al procesar el mapa: {e}")
 
-            # --- BOTÓN DE GUARDADO ---
-            if st.button("🚀 GUARDAR CLIENTE", use_container_width=True, type="primary"):
+            # --- 5. ACCIÓN DE GUARDADO ---
+            if st.button("💾 REGISTRAR EN BASE DE DATOS", use_container_width=True):
                 if not st.session_state.reg_nombre or not st.session_state.reg_gps:
-                    st.error("❌ Faltan datos obligatorios.")
+                    st.warning("⚠️ Debes tener al menos el nombre y la ubicación.")
                 else:
                     try:
-                        lat_val, lon_val = st.session_state.reg_gps.split(",")
+                        lat_v, lon_v = st.session_state.reg_gps.split(",")
                         conn.table("clientes").insert({
-                            "nombre": st.session_state.reg_nombre, 
+                            "nombre": st.session_state.reg_nombre,
                             "telefono": st.session_state.reg_tel,
-                            "cedula": st.session_state.reg_ced, 
                             "direccion": st.session_state.reg_dir,
-                            "latitud": float(lat_val), 
-                            "longitud": float(lon_val), 
+                            "latitud": float(lat_v),
+                            "longitud": float(lon_v),
                             "user_id": u_id
                         }).execute()
-                        st.success("✅ ¡Cliente registrado!")
-                        # Limpieza
-                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: 
+                        
+                        st.success("✅ ¡Cliente guardado correctamente!")
+                        # Limpiamos para el próximo registro
+                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_dir"]:
                             st.session_state[k] = ""
                         time.sleep(1)
                         st.rerun()
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        st.error(f"Error al guardar: {e}")
 
         # --- LISTADO DE CLIENTES ---
         st.divider()
