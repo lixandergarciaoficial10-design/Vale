@@ -707,10 +707,11 @@ elif menu == "👥 Todos mis Clientes":
             # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
             # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
             # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
+            # --- PASO 1: LOCALIZACIÓN DE PRECISIÓN ---
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                # MANTENEMOS TU BOTÓN FAVORITO (CON EL HACK DE REFRESCO)
+                # MANTENEMOS TU BOTÓN FAVORITO (SIN CAMBIOS VISUALES)
                 gps_html = """
                 <div style="text-align:center;">
                     <button id="gps_btn" onclick="getGPS()" style="
@@ -748,50 +749,60 @@ elif menu == "👥 Todos mis Clientes":
                             btn.innerText = "✅ UBICACIÓN FIJADA";
                             btn.style.backgroundColor = "#34c759";
                             
-                            // TRUCO MAESTRO: Forzamos un pequeño scroll o click para que el mapa cargue
-                            window.parent.postMessage({type: 'streamlit:set_component_value', value: res}, '*');
+                            // Forzamos al sistema a notar el cambio
+                            setTimeout(() => { window.parent.document.body.click(); }, 500);
                         },
-                        (err) => { alert("Error GPS: " + err.message); },
-                        { enableHighAccuracy: true, timeout: 10000 }
+                        (err) => { 
+                            alert("Error GPS: " + err.message); 
+                            btn.innerText = "❌ ERROR GPS";
+                            btn.style.backgroundColor = "#ff3b30";
+                        },
+                        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                     );
                 }
                 </script>
                 """
                 st.components.v1.html(gps_html, height=100)
 
-                # Receptor invisible/estético
+                # Receptor de coordenadas (Mantenlo con este placeholder)
                 gps_res = st.text_input("Coordenadas:", key="gps_res", placeholder="Sincronizando satélites...", label_visibility="collapsed")
 
                 if gps_res and "," in gps_res:
-                    lat_s, lon_s = gps_res.split(",")
-                    st.session_state.temp_lat = lat_s.strip()
-                    st.session_state.temp_lon = lon_s.strip()
+                    try:
+                        lat_s, lon_s = gps_res.split(",")
+                        st.session_state.temp_lat = lat_s.strip()
+                        st.session_state.temp_lon = lon_s.strip()
+                    except:
+                        pass
 
-            # --- EL MAPA AUTOMÁTICO (ESTÉTICO) ---
-            if st.session_state.get('temp_lat'):
-                lat_f = float(st.session_state.temp_lat)
-                lon_f = float(st.session_state.temp_lon)
-                
-                # Creamos el dataframe para el punto en el mapa
-                map_df = pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]})
-                
-                st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-                
-                # Mapa Nativo: No se bloquea, es rápido y se ve muy limpio
-                with st.expander("📍 VER MAPA DE UBICACIÓN", expanded=True):
-                    st.map(map_df, zoom=16, use_container_width=True)
+            # --- MAPA AUTOMÁTICO CORREGIDO ---
+            if st.session_state.get('temp_lat') and st.session_state.get('temp_lon'):
+                try:
+                    # Convertimos a número para el mapa
+                    lat_f = float(st.session_state.temp_lat)
+                    lon_f = float(st.session_state.temp_lon)
                     
-                    # Link de respaldo discreto pero útil
-                    st.markdown(f"""
-                        <div style="text-align:center;">
-                            <a href="https://www.google.com/maps?q={lat_f},{lon_f}" target="_blank" 
-                               style="font-size: 0.8rem; color: #0284c7; text-decoration: none;">
-                               🌐 Abrir en Google Maps Satelital
-                            </a>
-                        </div>
-                    """, unsafe_allow_html=True)
+                    # El truco para que st.map funcione es este DataFrame exacto
+                    df_punto = pd.DataFrame({'lat': [lat_f], 'lon': [lon_f]})
+                    
+                    st.markdown("<div style='margin-top:15px;'></div>", unsafe_allow_html=True)
+                    
+                    # Usamos st.map que es nativo y no falla nunca
+                    with st.expander("🗺️ VER MAPA DE UBICACIÓN", expanded=True):
+                        st.map(df_punto, zoom=16, use_container_width=True)
+                        
+                        st.markdown(f"""
+                            <div style="text-align:center; margin-top:5px;">
+                                <a href="https://www.google.com/maps?q={lat_f},{lon_f}" target="_blank" 
+                                   style="font-size: 0.8rem; color: #0284c7; text-decoration: none; font-weight: bold;">
+                                   📍 Abrir ruta en Google Maps
+                                </a>
+                            </div>
+                        """, unsafe_allow_html=True)
+                except:
+                    st.error("Esperando coordenadas válidas...")
 
-                if st.button("🗑️ LIMPIAR Y REINTENTAR", use_container_width=True):
+                if st.button("🗑️ LIMPIAR UBICACIÓN", use_container_width=True):
                     st.session_state.temp_lat = ""
                     st.session_state.temp_lon = ""
                     st.session_state.gps_res = ""
