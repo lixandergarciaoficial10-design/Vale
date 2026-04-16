@@ -704,34 +704,54 @@ elif menu == "👥 Todos mis Clientes":
             st.markdown("<p style='color: #0284c7; font-weight: 700; font-size: 0.8rem; text-transform: uppercase;'>Paso 1: Localización de Precisión</p>", unsafe_allow_html=True)
             
             with st.container(border=True):
-                col_gps_btn, col_gps_status = st.columns([1, 1])
-                with col_gps_btn:
-                    from streamlit_geolocation import streamlit_geolocation
-                    # Sensor nativo
-                    loc_nativa = streamlit_geolocation() 
-                    
-                    # AUTOSINCRO: Si detecta coordenadas, las guarda en el estado automáticamente
-                    if loc_nativa and loc_nativa.get('latitude'):
-                        st.session_state.temp_lat = loc_nativa['latitude']
-                        st.session_state.temp_lon = loc_nativa['longitude']
-                    
-                    if st.button("🔵 ACTUALIZAR POSICIÓN", use_container_width=True, type="primary"):
-                        if loc_nativa and loc_nativa.get('latitude'):
-                            st.session_state.temp_lat = loc_nativa['latitude']
-                            st.session_state.temp_lon = loc_nativa['longitude']
-                            st.toast("🎯 Posición fijada")
-                        else:
-                            st.error("⚠️ Toca el icono 📍 de la izquierda.")
+                # Componente de sensor (aparece como un pequeño icono de mira)
+                from streamlit_geolocation import streamlit_geolocation
+                loc_nativa = streamlit_geolocation() 
+                
+                # Sincronización automática de coordenadas
+                if loc_nativa and loc_nativa.get('latitude'):
+                    st.session_state.temp_lat = loc_nativa['latitude']
+                    st.session_state.temp_lon = loc_nativa['longitude']
 
-                with col_gps_status:
+                col_status, col_clear = st.columns([2, 1])
+
+                with col_status:
                     if st.session_state.temp_lat:
-                        st.markdown(f"""<div style="background:#f0fdf4;padding:8px;border-radius:12px;border:1px solid #bbf7d0;text-align:center;">
-                            <p style="margin:0;color:#166534;font-size:0.75rem;"><b>📍 GPS Activo</b></p>
-                            <p style="margin:0;color:#15803d;font-size:0.65rem;">Listo para guardar</p></div>""", unsafe_allow_html=True)
-                        if st.button("🧹 Limpiar GPS", use_container_width=True):
-                            st.session_state.temp_lat = ""; st.session_state.temp_lon = ""; st.rerun()
+                        st.markdown(f"""
+                            <div style="background:#f0fdf4; padding:10px; border-radius:10px; border:1px solid #bbf7d0;">
+                                <p style="margin:0; color:#166534; font-size:0.85rem; font-weight:bold;">📍 UBICACIÓN CAPTURADA</p>
+                                <p style="margin:0; color:#15803d; font-size:0.7rem;">Lista para registrar en el expediente</p>
+                            </div>
+                        """, unsafe_allow_html=True)
                     else:
-                        st.warning("Toca el icono 📍")
+                        st.info("👋 Toca el icono de la mira arriba para obtener GPS")
+
+                with col_clear:
+                    # Botón para limpiar, solo visible si hay datos
+                    if st.session_state.temp_lat:
+                        if st.button("🧹 BORRAR", use_container_width=True):
+                            st.session_state.temp_lat = ""
+                            st.session_state.temp_lon = ""
+                            st.rerun()
+
+            # --- MAPA DE CONFIRMACIÓN ---
+            if st.session_state.temp_lat:
+                fig = go.Figure(go.Scattermapbox(
+                    lat=[float(st.session_state.temp_lat)],
+                    lon=[float(st.session_state.temp_lon)],
+                    mode='markers',
+                    marker=go.scattermapbox.Marker(size=20, color='red'), # Punto bien visible
+                    text=["Punto exacto"]
+                ))
+                fig.update_layout(
+                    mapbox=dict(
+                        style="open-street-map",
+                        center=dict(lat=float(st.session_state.temp_lat), lon=float(st.session_state.temp_lon)),
+                        zoom=18
+                    ),
+                    margin={"r":0,"t":0,"l":0,"b":0}, height=250
+                )
+                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
 
             # --- MAPA GRATUITO (SIN API KEY) ---
             if st.session_state.temp_lat:
