@@ -800,10 +800,9 @@ elif menu == "👥 Todos mis Clientes":
 
         st.divider()
     
-        # --- 4. CENTRO DE CONTROL DE CLIENTES (Filtros Pro y Ventana de Facturación) ---
-        st.divider()
-        
-        # 1. CARGA DE DATOS (Asegurando nombres exactos de tus tablas)
+        # --- 4. CENTRO DE CONTROL DE CLIENTES (Lógica Avanzada y Diseño Premium) ---
+    
+        # 1. CARGA DE DATOS Y ESTADOS (Usando tus columnas reales del CSV)
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         clientes_db = res_cl.data if res_cl.data else []
         res_cuentas = conn.table("cuentas").select("*").execute()
@@ -811,106 +810,130 @@ elif menu == "👥 Todos mis Clientes":
         res_pagos = conn.table("pagos").select("*").execute()
         pagos_db = res_pagos.data if res_pagos.data else []
 
-        # --- BARRA DE COMANDO (Buscador + Filtros Inteligentes) ---
-        col_search, col_filter = st.columns([1.5, 2])
-        
+        hoy = datetime.now().date()
+
+        # --- BARRA DE COMANDO: BUSCADOR + PILLS ---
+        col_search, col_filter = st.columns([1.2, 2])
         with col_search:
             search_query = st.text_input("🔍", placeholder="Buscar cliente...", label_visibility="collapsed")
         
         with col_filter:
-            # Los filtros reales que pediste: Atrasado, Al día, etc.
-            opciones = ["Todos", "Atrasado", "Al Día", "Próximo"]
-            filtro_seleccionado = st.pills("Estado:", opciones, selection_mode="single", default="Todos", label_visibility="collapsed")
+            opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟡 Próximos/Hoy"]
+            sel_filtro = st.pills("Filtro Inteligente:", opciones, selection_mode="single", default="🌍 Todos", label_visibility="collapsed")
 
-        # --- LÓGICA DE FILTRADO REAL ---
+        # --- LÓGICA DE FILTRADO "GENIO" ---
         clientes_f = []
         for c in clientes_db:
+            # Buscamos la cuenta principal (o la más reciente)
             cuenta = next((d for d in cuentas_db if d['cliente_id'] == c['id']), None)
-            est_c = cuenta.get('estado', 'Sin Cuenta') if cuenta else 'Sin Cuenta'
             
-            # Filtro por texto
+            # Si no hay cuenta, solo aparece en "Todos"
+            match_estado = False
+            if sel_filtro == "🌍 Todos":
+                match_estado = True
+            elif cuenta:
+                prox_pago = pd.to_datetime(cuenta.get('proximo_pago')).date() if cuenta.get('proximo_pago') else None
+                balance = cuenta.get('balance_pendiente', 0)
+                
+                # Atrasado: Si hoy es después de la fecha y tiene deuda
+                if sel_filtro == "🔴 Atrasados":
+                    if prox_pago and hoy > prox_pago and balance > 0:
+                        match_estado = True
+                
+                # Al Día: Balance 0 O la fecha es futura y no hay retrasos previos
+                elif sel_filtro == "🟢 Al Día":
+                    if balance <= 0 or (prox_pago and prox_pago > hoy):
+                        # Nota: Si estaba atrasado no entra aquí
+                        if not (prox_pago and hoy > prox_pago and balance > 0):
+                            match_estado = True
+                
+                # Próximos/Hoy: Falta 1 día o es hoy mismo
+                elif sel_filtro == "🟡 Próximos/Hoy":
+                    if prox_pago:
+                        dias_dif = (prox_pago - hoy).days
+                        if dias_dif == 0 or dias_dif == 1:
+                            match_estado = True
+
+            # Match de búsqueda por texto
             match_search = not search_query or (search_query.lower() in c['nombre'].lower() or search_query in str(c.get('cedula', '')))
-            # Filtro por estado del botón
-            match_estado = (filtro_seleccionado == "Todos" or est_c == filtro_seleccionado)
             
             if match_search and match_estado:
                 clientes_f.append(c)
 
-        # --- VENTANA EMERGENTE (DIALOG) PARA FACTURAS ---
-        @st.dialog("📋 Detalle de Facturación")
-        def modal_facturas(cliente, cuentas, pagos):
-            st.markdown(f"### Historial de {cliente['nombre']}")
-            st.caption(f"Cédula: {cliente.get('cedula', 'N/A')}")
+        # --- VENTANA DE HISTORIAL (MODAL) ---
+        @st.dialog("📄 Expediente de Facturación")
+        def modal_detalle(cliente, cuentas, pagos):
+            st.markdown(f"### {cliente['nombre']}")
+            st.caption(f"📍 GPS: {cliente.get('latitud', '0')}, {cliente.get('longitud', '0')}")
             st.divider()
             
-            cuentas_cl = [cta for cta in cuentas if cta['cliente_id'] == cliente['id']]
-            
-            if not cuentas_cl:
-                st.info("No hay facturas registradas para este cliente.")
+            mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
+            if not mis_ctas:
+                st.info("Sin cuentas activas.")
             else:
-                for cta in cuentas_cl:
-                    # Tarjeta de factura minimalista
+                for ct in mis_ctas:
                     with st.container(border=True):
-                        c1, c2 = st.columns([2, 1])
-                        c1.markdown(f"**📄 Factura #{cta['id']}**")
-                        c1.caption(f"📅 Emitida: {cta.get('created_at', '')[:10]}")
+                        c1, c2 = st.columns([2,1])
+                        c1.markdown(f"**Factura ID: {str(ct['id'])[:8]}**")
+                        c1.write(f"📅 Próximo cobro: `{ct.get('proximo_pago')}`")
+                        c2.metric("Pendiente", f"${ct.get('balance_pendiente', 0):,}")
                         
-                        monto_p = cta.get('balance_pendiente', 0)
-                        c2.markdown(f"### `${monto_p:,}`")
-                        c2.caption("Pendiente")
-                        
-                        # Sub-historial de abonos
-                        abonos_cta = [p for p in pagos if p['cuenta_id'] == cta['id']]
-                        if abonos_cta:
-                            with st.expander("Ver abonos realizados"):
-                                for ab in abonos_cta:
-                                    st.markdown(f"✅ `${ab['monto_pagado']:,}` <br><small>Fecha: {ab['fecha_pago'][:10]}</small>", unsafe_allow_html=True)
+                        # LÓGICA DE ABONOS ESPECÍFICOS
+                        st.markdown("**💰 Desglose de Abonos:**")
+                        mis_p = [p for p in pagos if p.get('cuenta_id') == ct['id']]
+                        if mis_p:
+                            for p in mis_p:
+                                st.markdown(f"""
+                                <div style='display:flex; justify-content:space-between; background:#f0f2f6; padding:5px 10px; border-radius:8px; margin-bottom:5px;'>
+                                    <span>✅ ${p.get('monto_pagado', 0):,}</span>
+                                    <span style='color:gray; font-size:12px;'>{str(p.get('fecha_pago'))[:10]}</span>
+                                </div>
+                                """, unsafe_allow_html=True)
                         else:
-                            st.caption("No registra abonos.")
+                            st.caption("No se han registrado abonos a esta factura.")
 
-        # --- RENDERIZADO DE CARTERA ---
+        # --- GRID DE CLIENTES ---
         if not clientes_f:
-            st.warning("No hay clientes que coincidan con el filtro.")
+            st.warning("No hay clientes en esta categoría.")
         else:
             grid = st.columns(3)
             for idx, cl in enumerate(clientes_f):
                 with grid[idx % 3]:
                     with st.container(border=True):
-                        # Indicador de estado minimalista
-                        cta_actual = next((d for d in cuentas_db if d['cliente_id'] == cl['id']), None)
-                        estado = cta_actual.get('estado', 'N/A') if cta_actual else "Sin Cuenta"
-                        color = "#ef4444" if estado == "Atrasado" else "#10b981" if estado == "Al Día" else "#f59e0b"
-                        
-                        st.markdown(f"<div style='float:right; width:12px; height:12px; border-radius:50%; background:{color};'></div>", unsafe_allow_html=True)
+                        # Cabecera Estética
                         st.markdown(f"**{cl['nombre']}**")
-                        st.caption(f"📞 {cl.get('telefono', 'S/N')}")
+                        st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
                         
-                        # Botones de Acción Estilo CRM
-                        col_ver, col_wa, col_map = st.columns(3)
-                        with col_ver:
-                            if st.button("📊", key=f"v_{cl['id']}", help="Ver historial de facturas"):
-                                modal_facturas(cl, cuentas_db, pagos_db)
-                        with col_wa:
-                            num = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
-                            st.markdown(f'''<a href="https://wa.me/{num}" target="_blank">
-                                <button style="width:100%; background:#25D366; color:white; border:none; padding:5px; border-radius:5px; cursor:pointer;">💬</button>
-                                </a>''', unsafe_allow_html=True)
-                        with col_map:
-                            if cl.get('latitud'):
-                                st.markdown(f'''<a href="https://www.google.com/maps/search/?api=1&query={cl['latitud']},{cl['longitud']}" target="_blank">
-                                    <button style="width:100%; background:#4285F4; color:white; border:none; padding:5px; border-radius:5px; cursor:pointer;">📍</button>
-                                    </a>''', unsafe_allow_html=True)
+                        # BOTONES CON LOGOS REALES (Diseño Apple/Premium)
+                        b1, b2, b3 = st.columns(3)
+                        with b1: # HISTORIAL
+                            if st.button("📊", key=f"h_{cl['id']}", use_container_width=True, help="Historial"):
+                                modal_detalle(cl, cuentas_db, pagos_db)
+                        
+                        with b2: # WHATSAPP LOGO EXACTO
+                            tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
+                            wa_url = f"https://wa.me/{tel}"
+                            st.markdown(f'''<a href="{wa_url}" target="_blank">
+                                <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer;">
+                                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="20">
+                                </button></a>''', unsafe_allow_html=True)
+                        
+                        with b3: # GOOGLE MAPS LOGO EXACTO
+                            lat, lon = cl.get('latitud'), cl.get('longitud')
+                            if lat and lat != "0" and lat != "0.0":
+                                map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                                st.markdown(f'''<a href="{map_url}" target="_blank">
+                                    <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer;">
+                                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="20">
+                                    </button></a>''', unsafe_allow_html=True)
                             else:
-                                st.button("🚫", disabled=True, key=f"no_gps_{cl['id']}")
+                                st.button("📍❔", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
 
-                        # ELIMINAR: Discreto en la esquina
-                        col_empty, col_del = st.columns([4, 1])
-                        with col_del:
-                            with st.popover("🗑️"):
-                                st.error("¿Borrar?")
-                                if st.button("SÍ", key=f"confirm_{cl['id']}", type="primary"):
-                                    conn.table("clientes").delete().eq("id", cl['id']).execute()
-                                    st.rerun()
+                        # ELIMINAR DISCRETO
+                        with st.popover("⚙️", use_container_width=True):
+                            if st.button("🗑️ Eliminar Cliente", key=f"del_{cl['id']}", type="primary"):
+                                conn.table("clientes").delete().eq("id", cl['id']).execute()
+                                st.rerun()
         
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
