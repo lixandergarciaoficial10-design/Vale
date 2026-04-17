@@ -800,16 +800,23 @@ elif menu == "👥 Todos mis Clientes":
 
         st.divider()
     
-        # --- 4. CENTRO DE CONTROL DE CLIENTES (Gestión Inteligente) ---
+        # --- 4. CENTRO DE CONTROL DE CLIENTES (Gestión Financiera y Seguridad) ---
         st.divider()
-        st.markdown("<h2 style='color: #1e293b;'>💼 Centro de Clientes Inteligente</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='color: #1e293b;'>💼 Centro de Gestión de Cartera Pro</h2>", unsafe_allow_html=True)
 
-        # Traer datos de Supabase
+        # Traer Clientes, Deudas y Abonos para tener el historial listo
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         clientes_db = res_cl.data if res_cl.data else []
+        
+        # Traemos deudas y abonos para el historial
+        res_deudas = conn.table("prestamos").select("*").execute() # Ajusta el nombre de la tabla si es distinto
+        res_abonos = conn.table("abonos").select("*").execute()
+        
+        deudas_db = res_deudas.data if res_deudas.data else []
+        abonos_db = res_abonos.data if res_abonos.data else []
 
         if clientes_db:
-            # 💰 MÉTRICAS ESTRATÉGICAS (Lo que vende el sistema)
+            # 💰 DASHBOARD DE CONTROL
             total_c = len(clientes_db)
             con_gps = len([c for c in clientes_db if c['latitud'] != 0])
             sin_gps = total_c - con_gps
@@ -817,75 +824,80 @@ elif menu == "👥 Todos mis Clientes":
             m1, m2, m3 = st.columns(3)
             m1.metric("👥 Cartera Total", f"{total_c} Clientes")
             m2.metric("📍 Rutas Listas", f"{con_gps}", delta="GPS Activo")
-            m3.metric("⚠️ Riesgo de Pérdida", f"{sin_gps}", delta="- Sin GPS", delta_color="inverse")
+            m3.metric("⚠️ Riesgo Logístico", f"{sin_gps}", delta="- Sin GPS", delta_color="inverse")
 
-            # 🚨 AVISO DE PRIORIDAD (Genera urgencia)
+            # 🚨 ALERTAS DE GESTIÓN
             clientes_riesgo = [c for c in clientes_db if c['latitud'] == 0 or not c['telefono']]
             if clientes_riesgo:
-                st.warning(f"🚨 **Atención:** Tienes {len(clientes_riesgo)} clientes incompletos. Sin ubicación o teléfono no hay cobro seguro.")
+                st.warning(f"🚨 **Urgent:** Tienes {len(clientes_riesgo)} perfiles incompletos. Esto afecta la velocidad de cobro.")
 
-            # 🔍 BUSCADOR OPTIMIZADO
-            search_query = st.text_input("🎯 Encuentra cualquier cliente en segundos:", 
-                                        placeholder="Escribe nombre, cédula o teléfono...")
+            # 🔍 MOTOR DE BÚSQUEDA PROFESIONAL
+            search_query = st.text_input("🎯 Localizar cliente:", placeholder="Busca por nombre, cédula, teléfono...")
 
-            # Filtro de búsqueda
-            if search_query:
-                clientes_f = [c for c in clientes_db if 
-                             search_query.lower() in c['nombre'].lower() or 
-                             search_query in str(c['cedula']) or 
-                             search_query in str(c['telefono'])]
-            else:
-                clientes_f = clientes_db
+            clientes_f = [c for c in clientes_db if search_query.lower() in c['nombre'].lower() or search_query in str(c['cedula']) or search_query in str(c['telefono'])] if search_query else clientes_db
 
-            # Mostrar resultados
             if not clientes_f:
-                st.info("No hay coincidencias para esa búsqueda.")
+                st.info("No hay resultados para esta búsqueda.")
             else:
-                # Cuadrícula dinámica
                 grid = st.columns(3)
                 for idx, cl in enumerate(clientes_f):
                     with grid[idx % 3]:
                         with st.container(border=True):
-                            # --- ETIQUETAS DE STATUS ---
-                            if cl['latitud'] != 0:
-                                st.markdown("<span style='color: #10b981; font-weight: bold;'>✅ Ubicado</span>", unsafe_allow_html=True)
-                            else:
-                                st.markdown("<span style='color: #ef4444; font-weight: bold;'>⚠️ Sin GPS (Riesgo)</span>", unsafe_allow_html=True)
-
-                            st.markdown(f"**{cl['nombre']}**")
-                            st.caption(f"🆔 {cl['cedula']}")
-                            st.caption(f"📞 {cl['telefono']}")
+                            # Status Visual
+                            st.markdown(f"{'✅ **Ubicado**' if cl['latitud'] != 0 else '⚠️ **Sin GPS**'}")
+                            st.markdown(f"### {cl['nombre']}")
+                            st.caption(f"🆔 {cl['cedula']} | 📞 {cl['telefono']}")
                             
-                            # --- BOTONES DE ACCIÓN RÁPIDA ---
+                            # Botones de Acción
                             tel_clean = "".join(filter(str.isdigit, str(cl['telefono'])))
-                            
-                            # Fila de botones principales
-                            col_wa, col_gps = st.columns(2)
-                            with col_wa:
-                                wa_link = f"https://wa.me/{tel_clean}"
-                                st.markdown(f'<a href="{wa_link}" target="_blank"><button style="width:100%; background:#25D366; color:white; border:none; padding:8px; border-radius:5px; font-weight:bold; cursor:pointer;">💬 CHAT</button></a>', unsafe_allow_html=True)
-                            
-                            with col_gps:
+                            c_w, c_g = st.columns(2)
+                            with c_w:
+                                st.markdown(f'<a href="https://wa.me/{tel_clean}" target="_blank"><button style="width:100%; background:#25D366; color:white; border:none; padding:8px; border-radius:5px; font-weight:bold; cursor:pointer;">💬 CHAT</button></a>', unsafe_allow_html=True)
+                            with c_g:
                                 if cl['latitud'] != 0:
                                     g_link = f"https://www.google.com/maps/search/?api=1&query={cl['latitud']},{cl['longitud']}"
                                     st.markdown(f'<a href="{g_link}" target="_blank"><button style="width:100%; background:#4285F4; color:white; border:none; padding:8px; border-radius:5px; font-weight:bold; cursor:pointer;">🚗 RUTA</button></a>', unsafe_allow_html=True)
-                                else:
-                                    st.button("📍 Sin GPS", disabled=True, use_container_width=True)
+                                else: st.button("🚫 GPS", disabled=True, use_container_width=True)
 
-                            # --- GESTIÓN Y DETALLES ---
-                            with st.popover("⚙️ Gestión", use_container_width=True):
-                                st.write("**📍 Referencia Domiciliaria:**")
-                                st.info(cl['direccion'] if cl['direccion'] else "Sin referencia guardada.")
+                            # --- EXPANDER DE HISTORIAL Y SEGURIDAD ---
+                            with st.expander("📊 Ver Historial y Gestión"):
+                                # 1. Historial de Pagos y Deudas
+                                st.write("**💰 Estado de Cuenta:**")
+                                deudas_cliente = [d for d in deudas_db if d['cliente_id'] == cl['id']]
                                 
+                                if not deudas_cliente:
+                                    st.write("No tiene deudas registradas.")
+                                else:
+                                    for d in deudas_cliente:
+                                        with st.container(border=True):
+                                            st.markdown(f"**Deuda: ${d['monto']:,}**")
+                                            st.caption(f"Fecha: {d['fecha']}")
+                                            # Buscar abonos para esta deuda específica
+                                            abonos_deuda = [a for a in abonos_db if a['prestamo_id'] == d['id']]
+                                            if abonos_deuda:
+                                                for a in abonos_deuda:
+                                                    st.markdown(f"↳ *Abono:* `${a['monto']:,}` - {a['fecha']}")
+                                            else:
+                                                st.caption("No registra abonos aún.")
+
                                 st.divider()
-                                if st.button("🗑️ Eliminar Cliente", key=f"del_{cl['id']}", type="secondary", use_container_width=True):
+                                st.write("**📍 Referencia Física:**")
+                                st.info(cl['direccion'] if cl['direccion'] else "Sin datos.")
+
+                                # 2. SEGURIDAD ANT-ERROR (Para eliminar)
+                                st.write("**⚠️ Zona Crítica (Eliminación):**")
+                                confirm_del = st.text_input(f"Escribe 'BORRAR' para confirmar:", key=f"conf_{cl['id']}")
+                                if st.button(f"🗑️ ELIMINAR A {cl['nombre'].split()[0].upper()}", 
+                                             key=f"del_{cl['id']}", 
+                                             type="primary", 
+                                             disabled=(confirm_del != "BORRAR"),
+                                             use_container_width=True):
                                     conn.table("clientes").delete().eq("id", cl['id']).execute()
-                                    st.toast(f"Cliente {cl['nombre']} eliminado")
-                                    time.sleep(1)
-                                    st.rerun()
+                                    st.toast("Cliente eliminado correctamente.")
+                                    time.sleep(1); st.rerun()
 
         else:
-            st.info("Aún no tienes clientes registrados. Usa el formulario de arriba.")
+            st.info("Cartera vacía. Registra clientes para activar el centro de control.")
         
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
