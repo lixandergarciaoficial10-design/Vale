@@ -596,130 +596,122 @@ elif menu == "Gestión de Cobros":
 
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
+    
+    # Contenedor principal para poder limpiar la pantalla
+    contenedor_formulario = st.empty()
 
-    # 0. CARGA DE DATOS Y AUDITORÍA DE DEUDAS
+    # 0. AUDITORÍA DE DEUDAS
     res_cli = conn.table("clientes").select("id, nombre, cedula, telefono").eq("user_id", u_id).execute()
     res_activas = conn.table("cuentas").select("cliente_id, balance_pendiente").eq("user_id", u_id).gt("balance_pendiente", 0).execute()
     
-    # Sumarizamos deudas para el Escudo de Seguridad
     resumen_deudas = {}
     if res_activas.data:
         for d in res_activas.data:
             c_id = d['cliente_id']
-            if c_id not in resumen_deudas:
-                resumen_deudas[c_id] = {'cantidad': 1, 'total': float(d['balance_pendiente'])}
-            else:
-                resumen_deudas[c_id]['cantidad'] += 1
-                resumen_deudas[c_id]['total'] += float(d['balance_pendiente'])
+            resumen_deudas[c_id] = resumen_deudas.get(c_id, {'cantidad': 0, 'total': 0})
+            resumen_deudas[c_id]['cantidad'] += 1
+            resumen_deudas[c_id]['total'] += float(d['balance_pendiente'])
 
-    # --- SECCIÓN A: ACCIONES POST-GUARDADO (Solo aparece si acabas de crear una) ---
-    if "pdf_ready" in st.session_state:
-        st.success(f"✅ ¡Cuenta activada con éxito para {st.session_state.get('last_name', 'el cliente')}!")
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.download_button("📥 Descargar Factura PDF", 
-                             data=st.session_state.pdf_ready, 
-                             file_name=f"Factura_{st.session_state.get('last_name')}.pdf", 
-                             use_container_width=True)
-        with c2:
-            st.markdown(f'''<a href="{st.session_state.get('wa_link', '#')}" target="_blank">
-                <button style="width:100%; background:#25D366; color:white; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold; height:45px;">
-                    💬 Enviar a WhatsApp
-                </button></a>''', unsafe_allow_html=True)
-        with c3:
-            if st.button("🧹 Finalizar y Limpiar Todo", use_container_width=True, type="primary"):
-                for key in ["pdf_ready", "wa_link", "last_name"]:
-                    if key in st.session_state: del st.session_state[key]
-                st.rerun()
-        st.divider()
-
-    # --- SECCIÓN B: FORMULARIO DE ENTRADA ---
-    if res_cli.data:
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            cliente_obj = st.selectbox("Seleccionar Cliente", options=res_cli.data, format_func=lambda x: x['nombre'])
-            capital = st.number_input("Capital Prestado (RD$)", min_value=0.0, step=100.0, key="cap_in")
+    # --- LÓGICA DE MOSTRAR ÉXITO O FORMULARIO ---
+    if "prestamo_exitoso" in st.session_state:
+        # Esto es lo que aparece DESPUÉS de confirmar
+        with st.container(border=True):
+            st.balloons()
+            st.success(f"### ✅ ¡Préstamo Activado para {st.session_state.last_name}!")
+            st.write("La cuenta se registró correctamente. Ahora puedes descargar el contrato y enviarlo.")
             
-            # Lógica de advertencia de deuda
-            if cliente_obj['id'] in resumen_deudas:
-                info = resumen_deudas[cliente_obj['id']]
-                st.error(f"⚠️ DEUDA DETECTADA: {info['cantidad']} factura(s) / Total: RD$ {info['total']:,.2f}")
-                continuar = st.checkbox("Autorizar nueva deuda sobre la anterior")
-            else:
-                st.success("✅ Cliente sin deudas pendientes")
-                continuar = True
-        
-        with col2:
-            porcentaje = st.number_input("Interés (%)", min_value=0, value=20)
-            freq_sel = st.selectbox("Frecuencia", ["Semanal", "Quincenal", "Mensual"], index=2)
-        
-        with col3:
-            cuotas_n = st.number_input("Cuotas", min_value=1, value=4)
-            fecha_inicio = st.date_input("Fecha Inicio", value=datetime.now().date())
-
-        # Cálculos de Rentabilidad
-        total_esperado = capital * (1 + (porcentaje / 100))
-        ganancia = total_esperado - capital
-        monto_cuota = total_esperado / cuotas_n if cuotas_n > 0 else 0
-
-        # Visualización de Ganancias (Lo que pediste de "vender" el negocio)
-        st.markdown("#### 📈 Resumen de Ganancia Real")
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Capital", f"RD$ {capital:,.2f}")
-        m2.metric("Ganancia Neta", f"RD$ {ganancia:,.2f}", delta=f"{porcentaje}%", delta_color="normal")
-        m3.metric("Cobro Total", f"RD$ {total_esperado:,.2f}")
-
-        # Plan de pagos (Tabla editable)
-        df_plan = pd.DataFrame([{
-            "Nº": i + 1,
-            "Fecha": (fecha_inicio + pd.DateOffset(days=i*7 if freq_sel=="Semanal" else i*14 if freq_sel=="Quincenal" else i*30)).date(),
-            "Monto Cuota (RD$)": round(monto_cuota, 2)
-        } for i in range(cuotas_n)])
-        
-        df_edit = st.data_editor(df_plan, use_container_width=True)
-        total_final = df_edit["Monto Cuota (RD$)"].sum()
-
-        if st.button("🚀 ACTIVAR PRÉSTAMO Y GENERAR FACTURA", use_container_width=True, disabled=not (capital > 0 and continuar)):
-            with st.spinner("Procesando..."):
-                # 1. Guardar en Supabase
-                conn.table("cuentas").insert({
-                    "cliente_id": cliente_obj['id'],
-                    "monto_inicial": total_final,
-                    "balance_pendiente": total_final,
-                    "user_id": u_id,
-                    "estado": "Al Día",
-                    "proximo_pago": str(df_edit.iloc[0]["Fecha"])
-                }).execute()
-
-                # 2. Generar PDF (Aquí toma tus configuraciones de logo/cláusulas automáticamente)
-                pdf_output = generar_pdf_contrato_legal(
-                    cliente_obj['nombre'], 
-                    cliente_obj.get('cedula', 'S/N'), 
-                    float(capital), 
-                    float(total_final), 
-                    df_edit, 
-                    freq_sel,
-                    st.session_state.get("mis_clausulas", "Sin cláusulas adicionales.")
-                )
-
-                # 3. Guardar en Session State para que no se borre al refrescar
-                st.session_state.pdf_ready = pdf_output
-                st.session_state.last_name = cliente_obj['nombre']
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.download_button("📥 Descargar Contrato PDF", 
+                                 data=st.session_state.pdf_ready, 
+                                 file_name=f"Factura_{st.session_state.last_name}.pdf", 
+                                 use_container_width=True)
+            with c2:
+                # El link de WhatsApp ya lleva el mensaje profesional
+                st.markdown(f'''<a href="{st.session_state.wa_link}" target="_blank">
+                    <button style="width:100%; background:#25D366; color:white; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold; height:45px;">
+                        💬 Enviar por WhatsApp
+                    </button></a>''', unsafe_allow_html=True)
+            with c3:
+                if st.button("🔄 Crear otra factura", use_container_width=True):
+                    for k in ["prestamo_exitoso", "pdf_ready", "wa_link", "last_name"]:
+                        if k in st.session_state: del st.session_state[k]
+                    st.rerun()
+    else:
+        # FORMULARIO ORIGINAL (Dentro del contenedor vacío)
+        with contenedor_formulario.container():
+            if res_cli.data:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    cliente_obj = st.selectbox("Seleccionar Cliente", options=res_cli.data, format_func=lambda x: x['nombre'])
+                    capital = st.number_input("Capital Prestado (RD$)", min_value=0.0, step=100.0)
+                    
+                    if cliente_obj['id'] in resumen_deudas:
+                        info = resumen_deudas[cliente_obj['id']]
+                        st.error(f"⚠️ YA DEBE: RD$ {info['total']:,.2f} en {info['cantidad']} factura(s)")
+                        continuar = st.checkbox("Autorizar nueva deuda")
+                    else:
+                        st.success("✅ Cliente al día")
+                        continuar = True
                 
-                # Mensaje de WhatsApp prederminado
-                msg = f"✅ *FACTURA GENERADA - {st.session_state.get('nombre_negocio', 'CobroYa')}*\n\n" \
-                      f"Hola *{cliente_obj['nombre']}*,\n" \
-                      f"Tu préstamo ha sido aprobado:\n" \
-                      f"💰 *Capital:* RD$ {capital:,.2f}\n" \
-                      f"📈 *Total a pagar:* RD$ {total_final:,.2f}\n" \
-                      f"🗓️ *Cuotas:* {cuotas_n} pagos de RD$ {monto_cuota:,.2f}\n" \
-                      f"📅 *Primer pago:* {df_edit.iloc[0]['Fecha']}\n\n" \
-                      "Tu contrato PDF ha sido generado. ¡Gracias por tu confianza!"
+                with col2:
+                    porcentaje = st.number_input("Interés (%)", min_value=0, value=20)
+                    freq_sel = st.selectbox("Frecuencia", ["Semanal", "Quincenal", "Mensual"], index=2)
                 
-                st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(msg)}"
+                with col3:
+                    cuotas_n = st.number_input("Cuotas", min_value=1, value=4)
+                    fecha_inicio = st.date_input("Fecha Inicio", value=datetime.now().date())
+
+                total_esp = capital * (1 + (porcentaje / 100))
+                ganancia = total_esp - capital
+                monto_c = total_esp / cuotas_n if cuotas_n > 0 else 0
+
+                # Métricas de ganancia real
+                st.markdown("#### 📊 Proyección de Rentabilidad")
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Inversión", f"RD$ {capital:,.2f}")
+                m2.metric("Ganancia Neta", f"RD$ {ganancia:,.2f}", delta=f"{porcentaje}%")
+                m3.metric("Total a Cobrar", f"RD$ {total_esp:,.2f}")
+
+                df_p = pd.DataFrame([{
+                    "Nº": i + 1,
+                    "Fecha": (fecha_inicio + pd.DateOffset(days=i*7 if freq_sel=="Semanal" else i*14 if freq_sel=="Quincenal" else i*30)).date(),
+                    "Monto Cuota (RD$)": round(monto_c, 2)
+                } for i in range(cuotas_n)])
                 
-                # 4. Al hacer st.rerun(), los campos del formulario se vacían pero el PDF se queda en la sección de arriba
-                st.rerun()
+                df_e = st.data_editor(df_p, use_container_width=True, key="editor_p")
+                total_f = df_e["Monto Cuota (RD$)"].sum()
+
+                if st.button("🚀 ACTIVAR PRÉSTAMO", use_container_width=True, disabled=not (capital > 0 and continuar)):
+                    # 1. Guardar en DB
+                    conn.table("cuentas").insert({
+                        "cliente_id": cliente_obj['id'], "monto_inicial": total_f,
+                        "balance_pendiente": total_f, "user_id": u_id,
+                        "estado": "Al Día", "proximo_pago": str(df_e.iloc[0]["Fecha"])
+                    }).execute()
+
+                    # 2. PDF y WhatsApp
+                    pdf_out = generar_pdf_contrato_legal(
+                        cliente_obj['nombre'], cliente_obj.get('cedula', 'S/N'), 
+                        float(capital), float(total_f), df_e, freq_sel,
+                        st.session_state.get("mis_clausulas", "Sujeto a términos.")
+                    )
+
+                    # Guardar info en estado y limpiar pantalla
+                    st.session_state.pdf_ready = pdf_out
+                    st.session_state.last_name = cliente_obj['nombre']
+                    st.session_state.prestamo_exitoso = True
+                    
+                    wa_msg = f"✅ *NUEVA FACTURA DISPONIBLE*\n\n" \
+                             f"Hola {cliente_obj['nombre']},\n" \
+                             f"Se ha generado tu plan de pagos:\n" \
+                             f"💰 *Total:* RD$ {total_f:,.2f}\n" \
+                             f"🗓️ *{cuotas_n} cuotas* de RD$ {monto_c:,.2f}\n" \
+                             f"📅 *Primer pago:* {df_e.iloc[0]['Fecha']}\n\n" \
+                             "Te envío el contrato legal adjunto."
+                    
+                    st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(wa_msg)}"
+                    st.rerun()
 # --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
 # --- SECCIÓN A: REGISTRO PREMIUM ---
 # --- SECCIÓN A: REGISTRO PREMIUM ---
