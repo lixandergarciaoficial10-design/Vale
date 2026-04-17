@@ -800,94 +800,115 @@ elif menu == "👥 Todos mis Clientes":
 
         st.divider()
     
-        # --- 4. CENTRO DE CONTROL DE CLIENTES (Sincronizado con Pagos y Cuentas) ---
+        # --- 4. CENTRO DE CONTROL DE CLIENTES (Filtros Inteligentes y Seguridad) ---
         st.divider()
-        st.markdown("<h2 style='color: #1e293b;'>💼 Centro de Gestión de Cartera Pro</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='color: #1e293b;'>💼 Centro de Cartera Inteligente</h2>", unsafe_allow_html=True)
 
-        # 1. Extracción de Datos (Tablas: clientes, cuentas, pagos)
+        # 1. Carga de datos
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         clientes_db = res_cl.data if res_cl.data else []
-        
         res_cuentas = conn.table("cuentas").select("*").execute()
-        res_pagos = conn.table("pagos").select("*").execute()
-        
         cuentas_db = res_cuentas.data if res_cuentas.data else []
+        res_pagos = conn.table("pagos").select("*").execute()
         pagos_db = res_pagos.data if res_pagos.data else []
 
         if clientes_db:
-            # 📊 DASHBOARD RÁPIDO
-            total_c = len(clientes_db)
-            con_gps = len([c for c in clientes_db if c.get('latitud') and c.get('latitud') != 0])
+            # 📊 FILTROS DE ESTADO (Inteligencia de Negocio)
+            st.write("**🔍 Filtrar por Estado de Cobro:**")
+            col_f1, col_f2, col_f3, col_f4 = st.columns(4)
             
-            m1, m2, m3 = st.columns(3)
-            m1.metric("👥 Cartera Total", f"{total_c} Clientes")
-            m2.metric("📍 Rutas Listas", f"{con_gps}", delta="GPS Activo")
-            m3.metric("⚠️ Sin Ubicación", f"{total_c - con_gps}", delta_color="inverse")
+            with col_f1: f_todos = st.button("👥 Todos", use_container_width=True)
+            with col_f2: f_atrasados = st.button("🔴 Atrasados", use_container_width=True)
+            with col_f3: f_al_dia = st.button("🟢 Al Día", use_container_width=True)
+            with col_f4: f_proximos = st.button("🟡 Próximos", use_container_width=True)
 
-            # 🔍 BUSCADOR INTELIGENTE
-            search_query = st.text_input("🎯 Buscar cliente:", placeholder="Nombre, cédula o teléfono...")
+            # Lógica de filtrado por estado
+            estado_filtro = "Todos"
+            if f_atrasados: estado_filtro = "Atrasado"
+            if f_al_dia: estado_filtro = "Al Día"
+            if f_proximos: estado_filtro = "Próximo"
 
-            clientes_f = [c for c in clientes_db if search_query.lower() in c['nombre'].lower() or search_query in str(c.get('cedula', '')) or search_query in str(c.get('telefono', ''))] if search_query else clientes_db
+            # 🎯 BUSCADOR MANUAL
+            search_query = st.text_input("🎯 Localizar por nombre o cédula:", placeholder="Escribe aquí...")
+
+            # Aplicar Filtros Combinados
+            clientes_f = []
+            for c in clientes_db:
+                # Obtener cuenta del cliente para saber su estado
+                cuenta = next((d for d in cuentas_db if d['cliente_id'] == c['id']), None)
+                est_c = cuenta.get('estado', 'Sin Cuenta') if cuenta else 'Sin Cuenta'
+                
+                # Match por búsqueda manual
+                match_search = not search_query or (search_query.lower() in c['nombre'].lower() or search_query in str(c.get('cedula', '')))
+                
+                # Match por botones de estado
+                match_estado = True
+                if estado_filtro != "Todos":
+                    match_estado = (est_c == estado_filtro)
+                
+                if match_search and match_estado:
+                    clientes_f.append(c)
+
+            # 📈 MÉTRICAS DINÁMICAS (Cambian según el filtro)
+            st.info(f"Mostrando: **{len(clientes_f)}** clientes con estado **{estado_filtro}**")
 
             if not clientes_f:
-                st.info("No se encontraron coincidencias.")
+                st.warning("No hay clientes que coincidan con este filtro.")
             else:
                 grid = st.columns(3)
                 for idx, cl in enumerate(clientes_f):
                     with grid[idx % 3]:
                         with st.container(border=True):
-                            # Cabecera de Tarjeta
-                            st.markdown(f"### {cl['nombre']}")
-                            st.caption(f"🆔 {cl.get('cedula', 'S/N')} | 📞 {cl.get('telefono', 'S/N')}")
+                            # Status Visual según el filtro
+                            cuenta_cl = next((d for d in cuentas_db if d['cliente_id'] == cl['id']), None)
+                            status = cuenta_cl.get('estado', 'N/A') if cuenta_cl else "Sin Deuda"
                             
-                            # Botones de Acción (WhatsApp y Maps)
-                            tel_clean = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
-                            c_w, c_g = st.columns(2)
-                            with c_w:
-                                st.markdown(f'<a href="https://wa.me/{tel_clean}" target="_blank"><button style="width:100%; background:#25D366; color:white; border:none; padding:8px; border-radius:5px; font-weight:bold; cursor:pointer;">💬 CHAT</button></a>', unsafe_allow_html=True)
-                            with c_g:
-                                if cl.get('latitud'):
-                                    g_link = f"https://www.google.com/maps?q={cl['latitud']},{cl['longitud']}"
-                                    st.markdown(f'<a href="{g_link}" target="_blank"><button style="width:100%; background:#4285F4; color:white; border:none; padding:8px; border-radius:5px; font-weight:bold; cursor:pointer;">🚗 RUTA</button></a>', unsafe_allow_html=True)
-                                else: st.button("📍 Sin GPS", disabled=True, use_container_width=True)
+                            st.markdown(f"### {cl['nombre']}")
+                            color_st = "red" if status == "Atrasado" else "green" if status == "Al Día" else "orange"
+                            st.markdown(f"<span style='background:{color_st}; color:white; padding:2px 8px; border-radius:10px; font-size:12px;'>{status}</span>", unsafe_allow_html=True)
+                            
+                            # Botones rápidos
+                            tel_c = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
+                            c1, c2 = st.columns(2)
+                            c1.markdown(f'[@Chat](https://wa.me/{tel_c})', unsafe_allow_html=True)
+                            if cl.get('latitud'):
+                                c2.markdown(f'[@Ruta](https://www.google.com/maps/search/?api=1&query={cl["latitud"]},{cl["longitud"]})', unsafe_allow_html=True)
 
-                            # --- SECCIÓN DE HISTORIAL Y SEGURIDAD ---
-                            with st.expander("📊 Ver Cuentas y Pagos"):
-                                # Filtrar deudas del cliente
-                                deudas_cliente = [d for d in cuentas_db if d.get('cliente_id') == cl['id']]
+                            # --- DETALLES Y SEGURIDAD CREATIVA ---
+                            with st.expander("📂 Historial y Gestión"):
+                                if cuenta_cl:
+                                    st.write(f"**Deuda Original:** ${cuenta_cl.get('monto_inicial', 0):,}")
+                                    st.write(f"**Pendiente:** ${cuenta_cl.get('balance_pendiente', 0):,}")
+                                    # Historial de pagos
+                                    pags = [p for p in pagos_db if p.get('cuenta_id') == cuenta_cl['id']]
+                                    for p in pags[:3]: # Muestra los últimos 3
+                                        st.caption(f"✅ Pagó ${p['monto_pagado']:,} el {p['fecha_pago'][:10]}")
                                 
-                                if deudas_cliente:
-                                    for d in deudas_cliente:
-                                        with st.container(border=True):
-                                            st.markdown(f"**Cuenta: `${d.get('monto_inicial', 0):,}`**")
-                                            st.markdown(f"<small>Pendiente: <b style='color:red;'>${d.get('balance_pendiente', 0):,}- </b> Estado: **{d.get('estado')}**</small>", unsafe_allow_html=True)
-                                            
-                                            # Mostrar historial de abonos (Tabla 'pagos')
-                                            abonos = [p for p in pagos_db if p.get('cuenta_id') == d['id']]
-                                            if abonos:
-                                                st.markdown("---")
-                                                for a in abonos:
-                                                    st.markdown(f"✅ `${a.get('monto_pagado', 0):,}` <small>({a.get('fecha_pago', '')[:10]})</small>", unsafe_allow_html=True)
-                                            else:
-                                                st.caption("No hay abonos registrados.")
-                                else:
-                                    st.info("No tiene cuentas activas.")
-
                                 st.divider()
-                                # 🛡️ BOTÓN ELIMINAR BLINDADO
-                                st.write("**⚠️ Zona de Peligro:**")
-                                confirmacion = st.text_input(f"Escribe 'ELIMINAR' para confirmar:", key=f"del_confirm_{cl['id']}")
-                                if st.button(f"🗑️ BORRAR CLIENTE", 
-                                             key=f"btn_delete_{cl['id']}", 
-                                             type="primary", 
-                                             disabled=(confirmacion != "ELIMINAR"),
-                                             use_container_width=True):
-                                    conn.table("clientes").delete().eq("id", cl['id']).execute()
-                                    st.toast(f"Cliente {cl['nombre']} eliminado.")
-                                    time.sleep(1); st.rerun()
+                                # 🛡️ ELIMINACIÓN SEGURA PERO NO TORTUOSA
+                                st.write("<small>Zona de Seguridad</small>", unsafe_allow_html=True)
+                                if f"step2_{cl['id']}" not in st.session_state:
+                                    if st.button("🗑️ Eliminar", key=f"del1_{cl['id']}", type="secondary", use_container_width=True):
+                                        st.session_state[f"step2_{cl['id']}"] = True
+                                        st.rerun()
+                                
+                                elif f"step3_{cl['id']}" not in st.session_state:
+                                    st.warning("¿Seguro?")
+                                    if st.button("Confirmar ✅", key=f"del2_{cl['id']}", type="primary", use_container_width=True):
+                                        st.session_state[f"step3_{cl['id']}"] = True
+                                        st.rerun()
+                                    if st.button("Cancelar ❌", key=f"can_{cl['id']}", use_container_width=True):
+                                        del st.session_state[f"step2_{cl['id']}"]
+                                        st.rerun()
 
-        else:
-            st.info("Aún no tienes clientes registrados.")
+                                else:
+                                    st.error("ÚLTIMO AVISO")
+                                    if st.button("BORRAR AHORA", key=f"del3_{cl['id']}", type="primary", use_container_width=True):
+                                        conn.table("clientes").delete().eq("id", cl['id']).execute()
+                                        del st.session_state[f"step2_{cl['id']}"]
+                                        del st.session_state[f"step3_{cl['id']}"]
+                                        st.toast("Cliente eliminado")
+                                        time.sleep(1); st.rerun()
         
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
