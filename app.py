@@ -927,7 +927,8 @@ elif menu == "👥 Todos mis Clientes":
                                         <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="20">
                                     </button></a>''', unsafe_allow_html=True)
                             else:
-                                st.button("📍❔", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
+                                st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
+                                   help="No se han guardado las coordenadas GPS de este cliente")
 
                         # ELIMINAR DISCRETO
                         with st.popover("⚙️", use_container_width=True):
