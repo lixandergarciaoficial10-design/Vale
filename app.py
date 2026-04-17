@@ -597,10 +597,14 @@ elif menu == "Gestión de Cobros":
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("Crear cuenta por Cobrar")
     
-    # 0. CARGA DE DATOS Y ESCUDO ANTI-DUPLICADOS
-    res_cli = conn.table("clientes").select("id, nombre, cedula").eq("user_id", u_id).execute()
-    res_activas = conn.table("cuentas").select("cliente_id").eq("user_id", u_id).eq("estado", "Atrasado").execute()
-    ids_con_deuda = [d['cliente_id'] for d in res_activas.data] if res_activas.data else []
+    # 0. CARGA DE DATOS Y ESCUDO ANTI-DUPLICADOS (Lógica Genio Correjida)
+    res_cli = conn.table("clientes").select("id, nombre, cedula, telefono").eq("user_id", u_id).execute()
+    
+    # Buscamos CUALQUIER cuenta que tenga balance pendiente mayor a 0
+    res_activas = conn.table("cuentas").select("cliente_id, balance_pendiente").eq("user_id", u_id).gt("balance_pendiente", 0).execute()
+    
+    # Creamos un diccionario para saber cuánto debe cada quien
+    deudas_dict = {d['cliente_id']: d['balance_pendiente'] for d in res_activas.data} if res_activas.data else {}
 
     if res_cli.data:
         # 1. PARAMETRIZACIÓN
@@ -609,12 +613,13 @@ elif menu == "Nueva Cuenta por Cobrar":
             cliente_obj = st.selectbox("Cliente", options=res_cli.data, format_func=lambda x: x['nombre'])
             capital = st.number_input("Capital a Entregar (RD$)", min_value=0.0, step=100.0)
             
-            # --- ALERTA VISUAL DE SEGURIDAD ---
-            if cliente_obj['id'] in ids_con_deuda:
-                st.warning("⚠️ ESTE CLIENTE YA TIENE UNA DEUDA ACTIVA O ATRASADA.")
-                continuar = st.checkbox("Entiendo el riesgo y deseo abrir otra deuda")
+            # --- ALERTA VISUAL DE SEGURIDAD MEJORADA ---
+            if cliente_obj['id'] in deudas_dict:
+                monto_debe = deudas_dict[cliente_obj['id']]
+                st.warning(f"⚠️ **ATENCIÓN:** Este cliente ya tiene una deuda activa de **RD$ {monto_debe:,.2f}**.")
+                continuar = st.checkbox("Entiendo que ya tiene deuda y deseo abrir otra", key="check_riesgo")
             else:
-                st.success("✅ Cliente libre de deudas actuales.")
+                st.success("✅ **Cliente Limpio:** No tiene deudas pendientes en el sistema.")
                 continuar = True
         
         with col2:
@@ -626,22 +631,20 @@ elif menu == "Nueva Cuenta por Cobrar":
             cuotas_n = st.number_input("Número de Cuotas", min_value=1, value=4)
             fecha_inicio = st.date_input("Fecha de Primera Cuota", value=datetime.now().date())
 
-        # 2. PANEL DE RENTABILIDAD EN TIEMPO REAL
+        # 2. PANEL DE RENTABILIDAD (Cálculos Automáticos)
         total_esperado = capital * (1 + (porcentaje / 100))
         ganancia_neta = total_esperado - capital
-        monto_sugerido = total_esperado / cuotas_n
+        monto_sugerido = total_esperado / cuotas_n if cuotas_n > 0 else 0
 
-        st.markdown("### 📊 Proyección de Negocio")
-        met1, met2, met3 = st.columns(3)
-        with met1:
-            st.metric("💰 Capital Prestado", f"RD$ {capital:,.2f}")
-        with met2:
-            st.metric("💵 Ganancia Neta", f"RD$ {ganancia_neta:,.2f}", delta=f"{porcentaje}%", delta_color="normal")
-        with met3:
-            st.metric("📈 Retorno Total", f"RD$ {total_esperado:,.2f}")
-
+        # Diseño de métricas una al lado de la otra
         st.markdown("---")
-        # Generar Plan de Amortización
+        m_col1, m_col2, m_col3 = st.columns(3)
+        m_col1.metric("💰 Capital Prestado", f"RD$ {capital:,.2f}")
+        m_col2.metric("💵 Ganancia Real", f"RD$ {ganancia_neta:,.2f}", delta=f"{porcentaje}% Rentabilidad")
+        m_col3.metric("📈 Retorno Total", f"RD$ {total_esperado:,.2f}")
+        st.markdown("---")
+
+        # Generar Plan de Amortización Editable
         df_plan = pd.DataFrame([{
             "Nº": i + 1,
             "Fecha": (fecha_inicio + pd.DateOffset(days=i*7 if freq_sel=="Semanal" else i*14 if freq_sel=="Quincenal" else i*30)).date(),
@@ -651,65 +654,58 @@ elif menu == "Nueva Cuenta por Cobrar":
         df_editable = st.data_editor(df_plan, use_container_width=True, key="amortizacion_pro")
         total_real = df_editable["Monto Cuota (RD$)"].sum()
 
-        # 3. EL BOTÓN DE GUARDAR CON LÓGICA DE WHATSAPP
-        if st.button("🚀 Confirmar y Activar Préstamo", use_container_width=True, disabled=not continuar):
-            if capital > 0:
-                with st.spinner("Registrando operación..."):
-                    # Insertar en DB
-                    new_acc = conn.table("cuentas").insert({
-                        "cliente_id": cliente_obj['id'],
-                        "monto_inicial": total_real,
-                        "balance_pendiente": total_real,
-                        "user_id": u_id,
-                        "estado": "Al Día",
-                        "proximo_pago": str(df_editable.iloc[0]["Fecha"])
-                    }).execute()
-                    
-                    # Generar PDF
-                    pdf_bin = generar_pdf_contrato_legal(
-                        cliente_obj['nombre'], 
-                        cliente_obj.get('cedula', '000-0000000-0'), 
-                        float(capital), 
-                        float(total_real), 
-                        df_editable, 
-                        freq_sel,
-                        st.session_state.get("mis_clausulas", "Sujeto a términos legales.")
-                    )
-                    
-                    st.session_state.pdf_ready = pdf_bin
-                    st.session_state.last_client_name = cliente_obj['nombre']
-                    
-                    # Preparar mensaje de WhatsApp automático
-                    mensaje_wa = f"Hola *{cliente_obj['nombre']}*, tu préstamo ha sido activado. ✅\n\n" \
-                                 f"🔹 *Capital:* RD$ {capital:,.2f}\n" \
-                                 f"🔹 *Total a pagar:* RD$ {total_real:,.2f}\n" \
-                                 f"🔹 *Cuotas:* {cuotas_n} de RD$ {monto_sugerido:,.2f}\n" \
-                                 f"📅 *Tu primer pago es el:* {df_editable.iloc[0]['Fecha']}\n\n" \
-                                 f"Se adjunta tu contrato legal en PDF."
-                    
-                    st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(mensaje_wa)}"
-                    
-                    st.success(f"¡Préstamo activado para {cliente_obj['nombre']}!")
-                    st.rerun()
+        # 3. EL BOTÓN DE GUARDAR
+        # Solo se activa si el capital es > 0 Y (el cliente está limpio O aceptaste el riesgo)
+        if st.button("🚀 Confirmar y Activar Préstamo", use_container_width=True, disabled=not (capital > 0 and continuar)):
+            with st.spinner("Procesando contrato y activando cuenta..."):
+                # Insertar en Supabase
+                res = conn.table("cuentas").insert({
+                    "cliente_id": cliente_obj['id'],
+                    "monto_inicial": total_real,
+                    "balance_pendiente": total_real,
+                    "user_id": u_id,
+                    "estado": "Al Día",
+                    "proximo_pago": str(df_editable.iloc[0]["Fecha"])
+                }).execute()
+                
+                # Generar PDF
+                pdf_bin = generar_pdf_contrato_legal(
+                    cliente_obj['nombre'], 
+                    cliente_obj.get('cedula', '000-0000000-0'), 
+                    float(capital), 
+                    float(total_real), 
+                    df_editable, 
+                    freq_sel,
+                    st.session_state.get("mis_clausulas", "Sujeto a términos legales.")
+                )
+                
+                st.session_state.pdf_ready = pdf_bin
+                
+                # Preparar mensaje de WhatsApp
+                msg = f"✅ *NUEVO PRÉSTAMO ACTIVADO*\n\n" \
+                      f"Hola {cliente_obj['nombre']},\n" \
+                      f"Se ha generado tu factura por **RD$ {total_real:,.2f}**.\n" \
+                      f"Cuotas: {cuotas_n} de RD$ {monto_sugerido:,.2f}.\n" \
+                      f"📅 Primera cuota: {df_editable.iloc[0]['Fecha']}.\n\n" \
+                      f"Adjunto contrato digital."
+                
+                st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(msg)}"
+                st.success("¡Préstamo registrado exitosamente!")
+                st.rerun()
 
-        # 4. BOTONES POST-ACTIVACIÓN
+        # 4. ACCIONES POST-GUARDADO
         if "pdf_ready" in st.session_state:
-            st.divider()
-            st.subheader("✅ Acciones del Préstamo Activo")
+            st.info("📨 **Factura lista para enviar**")
             c1, c2, c3 = st.columns(3)
-            
             with c1:
-                st.download_button("📥 Descargar Contrato PDF", data=st.session_state.pdf_ready, file_name="contrato.pdf", use_container_width=True)
-            
+                st.download_button("📥 Descargar PDF", data=st.session_state.pdf_ready, file_name=f"Contrato_{datetime.now().strftime('%Y%m%d')}.pdf", use_container_width=True)
             with c2:
-                # Botón de WhatsApp estilizado
                 st.markdown(f'''<a href="{st.session_state.wa_link}" target="_blank">
                     <button style="width:100%; background:#25D366; color:white; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold;">
-                        💬 Enviar Detalles WhatsApp
+                        💬 Enviar por WhatsApp
                     </button></a>''', unsafe_allow_html=True)
-            
             with c3:
-                if st.button("🧹 Limpiar Pantalla", use_container_width=True):
+                if st.button("🧹 Nueva Transacción", use_container_width=True):
                     del st.session_state.pdf_ready
                     if "wa_link" in st.session_state: del st.session_state.wa_link
                     st.rerun()
