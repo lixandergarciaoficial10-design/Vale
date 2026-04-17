@@ -907,7 +907,7 @@ elif menu == "👥 Todos mis Clientes":
                         # BOTONES CON LOGOS REALES (Diseño Apple/Premium)
                         b1, b2, b3 = st.columns(3)
                         with b1: # HISTORIAL
-                            if st.button("📊", key=f"h_{cl['id']}", use_container_width=True, help="Ver historial y facturas"):
+                            if st.button("📂", key=f"h_{cl['id']}", use_container_width=True, help="Ver historial y facturas"):
                                 modal_detalle(cl, cuentas_db, pagos_db)
                         
                         with b2: # WHATSAPP LOGO EXACTO
