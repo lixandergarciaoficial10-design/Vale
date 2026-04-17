@@ -907,39 +907,54 @@ elif menu == "👥 Todos mis Clientes":
                         # BOTONES CON LOGOS REALES (Diseño Apple/Premium)
                         b1, b2, b3 = st.columns(3)
                         with b1: # HISTORIAL
-                            if st.button("📊", key=f"h_{cl['id']}", use_container_width=True, help="Historial"):
+                            if st.button("📊", key=f"h_{cl['id']}", use_container_width=True, help="Ver historial y facturas"):
                                 modal_detalle(cl, cuentas_db, pagos_db)
                         
                         with b2: # WHATSAPP LOGO EXACTO
                             tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
                             wa_url = f"https://wa.me/{tel}"
                             st.markdown(f'''<a href="{wa_url}" target="_blank">
-                                <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer;">
+                                <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
                                     <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="20">
                                 </button></a>''', unsafe_allow_html=True)
                         
                         with b3: # GOOGLE MAPS LOGO EXACTO
                             lat, lon = cl.get('latitud'), cl.get('longitud')
-                            if lat and lat != "0" and lat != "0.0":
+                            if lat and str(lat) not in ["0", "0.0", "None"]:
                                 map_url = f"https://www.google.com/maps?q={lat},{lon}"
                                 st.markdown(f'''<a href="{map_url}" target="_blank">
-                                    <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer;">
+                                    <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
                                         <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="20">
                                     </button></a>''', unsafe_allow_html=True)
                             else:
-                                # El botón de "No hay GPS" con el mensaje flotante (help)
                                 st.button(
                                     "📵", 
                                     disabled=True, 
                                     key=f"no_gps_{cl['id']}", 
                                     help="No se han guardado las coordenadas GPS de este cliente",
                                     use_container_width=True
+                                )
 
-                        # ELIMINAR DISCRETO
+                        # ELIMINAR CON DOBLE ADVERTENCIA
                         with st.popover("⚙️", use_container_width=True):
-                            if st.button("🗑️ Eliminar Cliente", key=f"del_{cl['id']}", type="primary"):
-                                conn.table("clientes").delete().eq("id", cl['id']).execute()
-                                st.rerun()
+                            st.write("### 🛠️ Gestión")
+                            if st.button("🗑️ Eliminar Cliente", key=f"del_step1_{cl['id']}", type="primary", use_container_width=True):
+                                st.session_state[f"confirm_del_{cl['id']}"] = True
+
+                            if st.session_state.get(f"confirm_del_{cl['id']}"):
+                                st.error("⚠️ **¿ESTÁS SEGURO?**")
+                                st.warning("Se borrarán PERMANENTEMENTE todos los datos: deudas, facturas, abonos y ubicación de este cliente.")
+                                
+                                c1, c2 = st.columns(2)
+                                with c1:
+                                    if st.button("SÍ, BORRAR TODO", key=f"del_final_{cl['id']}", type="primary", use_container_width=True):
+                                        conn.table("clientes").delete().eq("id", cl['id']).execute()
+                                        del st.session_state[f"confirm_del_{cl['id']}"]
+                                        st.rerun()
+                                with c2:
+                                    if st.button("CANCELAR", key=f"cancel_{cl['id']}", use_container_width=True):
+                                        del st.session_state[f"confirm_del_{cl['id']}"]
+                                        st.rerun()
         
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
