@@ -986,58 +986,88 @@ if menu == "👥 Todos mis Clientes":
                     st.markdown(f"**{cl['nombre']}**")
                     st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
                     
-                    # 2. Botones de Acción
-                    b1, b2, b3 = st.columns(3)
-                    with b1: # HISTORIAL
-                        if st.button("📂", key=f"h_{cl['id']}", use_container_width=True):
-                            modal_detalle(cl, cuentas_db, pagos_db)
-                    
-                    with b2: # WHATSAPP
-                        tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
-                        wa_url = f"https://wa.me/{tel}"
-                        st.markdown(f'''<a href="{wa_url}" target="_blank">
-                            <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
-                                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
+                    # 2. Botones de Acción Rápidos
+                b1, b2, b3 = st.columns(3)
+                with b1: # HISTORIAL
+                    if st.button("📂", key=f"h_{cl['id']}", use_container_width=True):
+                        modal_detalle(cl, cuentas_db, pagos_db)
+                
+                with b2: # WHATSAPP
+                    tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
+                    wa_url = f"https://wa.me/{tel}"
+                    st.markdown(f'''<a href="{wa_url}" target="_blank">
+                        <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
+                        </button></a>''', unsafe_allow_html=True)
+                
+                with b3: # GOOGLE MAPS
+                    lat, lon = cl.get('latitud'), cl.get('longitud')
+                    if lat and str(lat) not in ["0", "0.0", "None"]:
+                        map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                        st.markdown(f'''<a href="{map_url}" target="_blank">
+                            <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
                             </button></a>''', unsafe_allow_html=True)
+                    else:
+                        st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
+
+                # 3. Centro de Gestión (Editar y Eliminar)
+                with st.popover("⚙️ Ajustes", use_container_width=True):
+                    g1, g2 = st.columns(2)
+                    with g1:
+                        if st.button("✏️ Editar", key=f"e_b_{cl['id']}", use_container_width=True):
+                            st.session_state[f"editing_{cl['id']}"] = True
+                    with g2:
+                        if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", type="primary", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 1
+
+                    # --- LÓGICA DE EDICIÓN TOTAL ---
+                    if st.session_state.get(f"editing_{cl['id']}"):
+                        st.markdown("---")
+                        st.caption("📝 **Editor de Perfil**")
+                        
+                        e_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
+                        
+                        # Edición de Cédula con advertencia
+                        e_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
+                        if e_ced != cl.get('cedula'):
+                            st.warning("⚠️ El cambio de cédula modificará el registro oficial.")
+                        
+                        e_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
+                        
+                        # Edición de GPS con advertencia
+                        c_la, c_lo = st.columns(2)
+                        e_lat = c_la.text_input("Latitud", value=str(cl.get('latitud', '0.0')), key=f"elat_{cl['id']}")
+                        e_lon = c_lo.text_input("Longitud", value=str(cl.get('longitud', '0.0')), key=f"elon_{cl['id']}")
+                        if e_lat != str(cl.get('latitud')) or e_lon != str(cl.get('longitud')):
+                            st.info("📍 Se actualizará el punto de cobro en el mapa.")
+
+                        if st.button("💾 Guardar Cambios", key=f"sv_{cl['id']}", type="primary", use_container_width=True):
+                            conn.table("clientes").update({
+                                "nombre": e_nom, "cedula": e_ced, "telefono": e_tel,
+                                "latitud": float(e_lat), "longitud": float(e_lon)
+                            }).eq("id", cl['id']).execute()
+                            st.toast("✅ ¡Datos actualizados!")
+                            del st.session_state[f"editing_{cl['id']}"]
+                            st.rerun()
+
+                    # --- LÓGICA DE TRIPLE CONFIRMACIÓN PARA ELIMINAR ---
+                    if st.session_state.get(f"del_step_{cl['id']}") == 1:
+                        st.warning("¿Seguro que deseas eliminar este cliente?")
+                        if st.button("SÍ, ESTOY SEGURO", key=f"d1_{cl['id']}", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 2
+                            st.rerun()
                     
-                    with b3: # GOOGLE MAPS
-                        lat, lon = cl.get('latitud'), cl.get('longitud')
-                        if lat and str(lat) not in ["0", "0.0", "None"]:
-                            map_url = f"https://www.google.com/maps?q={lat},{lon}"
-                            st.markdown(f'''<a href="{map_url}" target="_blank">
-                                <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
-                                </button></a>''', unsafe_allow_html=True)
-                        else:
-                            st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
-
-                    # 3. Configuración (Popover)
-                    with st.popover("⚙️", use_container_width=True):
-                        st.write("### 🛠️ Gestión")
-                        g1, g2 = st.columns(2)
-                        with g1:
-                            if st.button("✏️", key=f"edit_btn_{cl['id']}", use_container_width=True):
-                                st.session_state[f"editing_{cl['id']}"] = True
-                        with g2:
-                            if st.button("🗑️", key=f"del_step1_{cl['id']}", type="primary", use_container_width=True):
-                                st.session_state[f"confirm_del_{cl['id']}"] = True
-
-                        # Lógicas de sesión (Edición/Borrado)
-                        if st.session_state.get(f"editing_{cl['id']}"):
-                            st.info("📝 Modo Edición")
-                            new_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
-                            new_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
-                            if st.button("💾 Guardar", key=f"save_{cl['id']}", type="primary", use_container_width=True):
-                                conn.table("clientes").update({"nombre": new_nom, "telefono": new_tel}).eq("id", cl['id']).execute()
-                                del st.session_state[f"editing_{cl['id']}"]
-                                st.rerun()
-
-                        if st.session_state.get(f"confirm_del_{cl['id']}"):
-                            st.error("¿Borrar cliente?")
-                            if st.button("SÍ, CONFIRMO", key=f"f_del_{cl['id']}", type="primary", use_container_width=True):
-                                conn.table("clientes").delete().eq("id", cl['id']).execute()
-                                del st.session_state[f"confirm_del_{cl['id']}"]
-                                st.rerun()
+                    elif st.session_state.get(f"del_step_{cl['id']}") == 2:
+                        st.error("❗ AVISO FINAL: Se borrarán todas las deudas y pagos. ¿Confirmar?")
+                        if st.button("BORRAR DEFINITIVAMENTE", key=f"d2_{cl['id']}", type="primary", use_container_width=True):
+                            conn.table("clientes").delete().eq("id", cl['id']).execute()
+                            st.toast("🗑️ Cliente eliminado del sistema")
+                            del st.session_state[f"del_step_{cl['id']}"]
+                            st.rerun()
+                        if st.button("CANCELAR", key=f"can_{cl['id']}", use_container_width=True):
+                            del st.session_state[f"del_step_{cl['id']}"]
+                            st.rerun()
 
 # --- CAMBIO DE SECCIÓN (AQUÍ ESTABA EL ERROR) ---
 elif menu == "Cuentas por Pagar":
