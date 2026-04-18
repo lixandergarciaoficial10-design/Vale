@@ -1034,7 +1034,7 @@ else:
                     else:
                         st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
 
-                # 3. Centro de Gestión (Popover corregido)
+                # 3. Centro de Gestión (Popover)
                 with st.popover("⚙️ Ajustes", use_container_width=True):
                     g1, g2 = st.columns(2)
                     with g1:
@@ -1044,28 +1044,18 @@ else:
                         if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", type="primary", use_container_width=True):
                             st.session_state[f"del_step_{cl['id']}"] = 1
 
-                    # --- LÓGICA DE EDICIÓN TOTAL ---
+                    # --- LÓGICA DE EDICIÓN ---
                     if st.session_state.get(f"editing_{cl['id']}"):
                         st.markdown("---")
-                        st.caption("📝 **Editor de Perfil**")
-                        
                         e_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
-                        
-                        # Edición de Cédula con advertencia
                         e_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
-                        if e_ced != cl.get('cedula'):
-                            st.warning("⚠️ El cambio de cédula modificará el registro oficial.")
-                        
                         e_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
                         
-                        # Edición de GPS con advertencia
                         c_la, c_lo = st.columns(2)
                         e_lat = c_la.text_input("Latitud", value=str(cl.get('latitud', '0.0')), key=f"elat_{cl['id']}")
                         e_lon = c_lo.text_input("Longitud", value=str(cl.get('longitud', '0.0')), key=f"elon_{cl['id']}")
-                        if e_lat != str(cl.get('latitud')) or e_lon != str(cl.get('longitud')):
-                            st.info("📍 Se actualizará el punto de cobro en el mapa.")
 
-                        if st.button("💾 Guardar Cambios", key=f"sv_{cl['id']}", type="primary", use_container_width=True):
+                        if st.button("💾 Guardar", key=f"sv_{cl['id']}", type="primary", use_container_width=True):
                             conn.table("clientes").update({
                                 "nombre": e_nom, "cedula": e_ced, "telefono": e_tel,
                                 "latitud": float(e_lat), "longitud": float(e_lon)
@@ -1074,33 +1064,29 @@ else:
                             del st.session_state[f"editing_{cl['id']}"]
                             st.rerun()
 
-                    # --- LÓGICA DE TRIPLE CONFIRMACIÓN PARA ELIMINAR ---
+                    # --- LÓGICA DE ELIMINAR ---
                     if st.session_state.get(f"del_step_{cl['id']}") == 1:
-                        st.warning("¿Seguro que deseas eliminar este cliente?")
-                        if st.button("SÍ, ESTOY SEGURO", key=f"d1_{cl['id']}", use_container_width=True):
+                        st.warning("¿Seguro?")
+                        if st.button("SÍ", key=f"d1_{cl['id']}", use_container_width=True):
                             st.session_state[f"del_step_{cl['id']}"] = 2
                             st.rerun()
                     
                     elif st.session_state.get(f"del_step_{cl['id']}") == 2:
-                        st.error("❗ AVISO FINAL: Se borrarán todas las deudas y pagos. ¿Confirmar?")
-                        if st.button("BORRAR DEFINITIVAMENTE", key=f"d2_{cl['id']}", type="primary", use_container_width=True):
+                        if st.button("CONFIRMAR BORRADO", key=f"d2_{cl['id']}", type="primary", use_container_width=True):
                             conn.table("clientes").delete().eq("id", cl['id']).execute()
-                            st.toast("🗑️ Cliente eliminado del sistema")
-                            del st.session_state[f"del_step_{cl['id']}"]
-                            st.rerun()
-                        if st.button("CANCELAR", key=f"can_{cl['id']}", use_container_width=True):
+                            st.toast("🗑️ Eliminado")
                             del st.session_state[f"del_step_{cl['id']}"]
                             st.rerun()
 
-# --- CAMBIO DE SECCIÓN (AQUÍ ESTABA EL ERROR) ---
-elif menu == "Cuentas por Pagar":
+# --- CAMBIO DE SECCIÓN (CORREGIDO) ---
+# Este bloque debe estar alineado con el 'if menu == "..." ' inicial de tu aplicación
+if menu == "Cuentas por Pagar":
     st.header("🏧 Movimientos de Efectivo")
     
-    # 1. Recuperar datos
+    # Lógica de la sección...
     res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
     res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
     
-    # 2. Cálculos
     total_pagos = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
 
 
