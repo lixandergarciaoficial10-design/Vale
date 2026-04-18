@@ -919,91 +919,95 @@ def modal_detalle(cliente, cuentas, pagos):
         st.markdown(f"### {cliente['nombre']}")
         st.caption(f"🆔 Cédula: {cliente.get('cedula', 'N/A')} | 📞 {cliente.get('telefono', 'N/A')}")
     
-    # --- INDICADORES RÁPIDOS (CORRECCIÓN VISUAL TOTAL) ---
+    # --- INDICADORES (NUMEROS COMPLETOS SIN RECORTES) ---
     mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
     total_deuda = sum(float(ct.get('balance_pendiente', 0)) for ct in mis_ctas)
     
-    # Formato de visualización: Siempre completo pero con tamaño de fuente adaptable para móvil
-    # Si pasa de un millón, bajamos un poco el tamaño de letra para que no rompa el diseño
-    font_size = "22px" if total_deuda >= 1000000 else "28px"
-    
+    # Banner de Deuda Principal
     st.markdown(f"""
-        <div style="background: white; padding: 20px; border-radius: 15px; border: 1px solid #E5E7EB; text-align: center; margin-bottom: 20px;">
-            <p style="margin: 0; color: #6B7280; font-size: 14px; font-weight: bold;">DEUDA TOTAL PENDIENTE</p>
-            <h2 style="margin: 0; color: #111827; font-size: {font_size}; white-space: nowrap;">RD$ {total_deuda:,.2f}</h2>
+        <div style="background: #1e293b; padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px;">
+            <p style="margin: 0; color: #94a3b8; font-size: 14px; font-weight: bold;">DEUDA TOTAL PENDIENTE</p>
+            <h2 style="margin: 0; color: #ffffff; font-size: 32px; white-space: nowrap;">RD$ {total_deuda:,.2f}</h2>
         </div>
     """, unsafe_allow_html=True)
 
-    # Columnas secundarias con estilo Apple-Enterprise
-    c2, c3 = st.columns(2)
-    activas = len([c for c in mis_ctas if float(c.get('balance_pendiente', 0)) > 0])
+    # Indicadores de Estado
     atrasos = 0
     for ct in mis_ctas:
         if ct.get('proximo_pago') and pd.to_datetime(ct['proximo_pago']).date() < hoy_dt and float(ct.get('balance_pendiente', 0)) > 0:
             atrasos += 1
-            
-    with c2:
-        st.markdown(f"<div style='background:#F3F4F6; padding:10px; border-radius:10px; text-align:center;'><small>Cuentas</small><br><b>{activas} Activas</b></div>", unsafe_allow_html=True)
-    with c3:
-        color_atraso = "#EF4444" if atrasos > 0 else "#10B981"
-        st.markdown(f"<div style='background:#F3F4F6; padding:10px; border-radius:10px; text-align:center;'><small>Estado</small><br><b style='color:{color_atraso};'>{atrasos} Atrasos</b></div>", unsafe_allow_html=True)
+    
+    c_ctas, c_est = st.columns(2)
+    c_ctas.markdown(f"<div style='background:#f3f4f6; padding:10px; border-radius:10px; text-align:center;'><small>Cuentas</small><br><b>{len(mis_ctas)} Registradas</b></div>", unsafe_allow_html=True)
+    color_at = "#ef4444" if atrasos > 0 else "#10b981"
+    c_est.markdown(f"<div style='background:#f3f4f6; padding:10px; border-radius:10px; text-align:center;'><small>Estado</small><br><b style='color:{color_at};'>{atrasos} Facturas en Mora</b></div>", unsafe_allow_html=True)
 
     st.divider()
     
-    # --- EXCEL EDITABLE DE ABONOS ---
-    st.markdown("#### 📑 Historial de Abonos")
+    # --- TABLA DE AMORTIZACIÓN Y RECAUDO ---
+    st.markdown("#### 📅 Plan de Pagos vs. Realizado")
     
-    # Aviso de responsabilidad obligatorio
-    st.warning("""**AVISO DE CONTROL:** La edición manual de estos datos ajusta el balance del sistema. 
-    CobroYa no se responsabiliza por cambios realizados fuera del flujo automático.""")
-
-    ids_mis_ctas = [ct['id'] for ct in mis_ctas]
-    mis_p = [p for p in pagos if p.get('cuenta_id') in ids_mis_ctas]
-
-    # Convertimos a DataFrame para el editor (Siempre se muestra la estructura)
-    if mis_p:
-        df_p = pd.DataFrame(mis_p)
-        df_p['fecha_pago'] = pd.to_datetime(df_p['fecha_pago']).dt.date
+    if not mis_ctas:
+        st.info("No hay facturas para este cliente.")
     else:
-        # Si no hay pagos, creamos un DataFrame vacío con las columnas para que vea la tabla
-        df_p = pd.DataFrame(columns=['id', 'fecha_pago', 'monto_pagado', 'cuenta_id'])
-        st.info("ℹ️ No se han registrado abonos para este cliente todavía.")
-
-    # El Editor siempre visible
-    edited_p = st.data_editor(
-        df_p[['id', 'fecha_pago', 'monto_pagado', 'cuenta_id']],
-        column_config={
-            "id": None, 
-            "fecha_pago": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
-            "monto_pagado": st.column_config.NumberColumn("Monto (RD$)", format="%.2f", min_value=0),
-            "cuenta_id": st.column_config.SelectboxColumn("Factura ID", options=ids_mis_ctas, disabled=True)
-        },
-        hide_index=True,
-        use_container_width=True,
-        key=f"editor_v2_{cliente['id']}"
-    )
-
-    # Botón de Guardado (Solo si hay datos para editar)
-    if not df_p.empty:
-        if st.button("💾 Guardar y Sincronizar Abonos", use_container_width=True, type="primary"):
-            try:
-                for i, row in edited_p.iterrows():
-                    conn.table("pagos").update({
-                        "monto_pagado": float(row['monto_pagado']),
-                        "fecha_pago": str(row['fecha_pago'])
-                    }).eq("id", row['id']).execute()
+        for ct in mis_ctas:
+            with st.container(border=True):
+                # Info de la Factura
+                st.markdown(f"**Factura: #{str(ct['id'])[:6].upper()}**")
                 
-                st.success("✅ Cambios aplicados con éxito.")
-                time.sleep(1)
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error técnico: {e}")
+                # Buscamos abonos de esta factura
+                abonos_f = [p for p in pagos if p.get('cuenta_id') == ct['id']]
+                
+                # Si no hay abonos, creamos la estructura visual vacía para control
+                if not abonos_f:
+                    st.caption("No se han registrado abonos aún.")
+                    # Generamos tabla vacía con estructura de amortización
+                    df_vacio = pd.DataFrame(columns=["Fecha Cuota", "Monto Esperado", "Monto Pagado", "Estado"])
+                    st.table(df_vacio)
+                else:
+                    data_amort = []
+                    for ab in abonos_f:
+                        m_pagado = float(ab.get('monto_pagado', 0))
+                        # Esto es lo que tú vas a ajustar en gestión de cobros
+                        m_esperado = float(ct.get('monto_inicial', 0)) / 1 # Ejemplo: ajuste según tu lógica de cuotas
+                        
+                        # Lógica de Estado
+                        if m_pagado >= m_esperado: est = "✅ COMPLETO"
+                        elif m_pagado > 0: est = "🟡 PARCIAL"
+                        else: est = "❌ NO PAGO"
+                        
+                        data_amort.append({
+                            "Fecha": ab.get('fecha_pago'),
+                            "Abonado": f"RD$ {m_pagado:,.2f}",
+                            "Estado": est
+                        })
+                    
+                    st.table(pd.DataFrame(data_amort))
 
+    # --- BOTONES DE MAPA Y CONTACTO ---
     st.divider()
+    col1, col2 = st.columns(2)
+    with col1:
+        tel = "".join(filter(str.isdigit, str(cliente.get('telefono', ''))))
+        st.markdown(f'''<a href="https://wa.me/{tel}" target="_blank" style="text-decoration:none;">
+            <div style="background:#25D366; color:white; padding:10px; border-radius:10px; text-align:center; font-weight:bold;">WhatsApp</div>
+        </a>''', unsafe_allow_html=True)
+    
+    with col2:
+        lat, lon = cliente.get('latitud'), cliente.get('longitud')
+        if lat and str(lat) not in ["0", "0.0", "None", ""]:
+            # URL de Google Maps corregida
+            map_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+            st.markdown(f'''<a href="{map_url}" target="_blank" style="text-decoration:none;">
+                <div style="background:#4285F4; color:white; padding:10px; border-radius:10px; text-align:center; font-weight:bold;">Abrir Mapa</div>
+            </a>''', unsafe_allow_html=True)
+        else:
+            st.button("📵 Sin Ubicación", disabled=True, use_container_width=True)
+
     if st.button("Cerrar", use_container_width=True):
         st.rerun()
 
-# --- GRID DE CLIENTES (CORRECCIÓN DE ICONOS Y MAPS) ---
+# --- GRID DE CLIENTES ---
 if not clientes_f:
     st.warning("No hay resultados.")
 else:
@@ -1014,33 +1018,14 @@ else:
                 st.markdown(f"**{cl['nombre']}**")
                 st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
                 
-                b1, b2, b3 = st.columns(3)
-                with b1:
-                    if st.button("📂", key=f"btn_h_{cl['id']}", use_container_width=True):
-                        modal_detalle(cl, cuentas_db, pagos_db)
+                # Botón para abrir el expediente
+                if st.button("📂 Abrir Expediente", key=f"exp_{cl['id']}", use_container_width=True):
+                    modal_detalle(cl, cuentas_db, pagos_db)
                 
-                with b2:
-                    tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
-                    st.markdown(f'''<a href="https://wa.me/{tel}" target="_blank">
-                        <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer;">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
-                        </button></a>''', unsafe_allow_html=True)
-                
-                with b3:
-                    lat, lon = cl.get('latitud'), cl.get('longitud')
-                    if lat and str(lat) not in ["0", "0.0", "None", ""]:
-                        map_url = f"https://www.google.com/maps?q={lat},{lon}"
-                        st.markdown(f'''<a href="{map_url}" target="_blank">
-                            <button style="width:100%; background:#F3F4F6; border:1px solid #D1D5DB; padding:8px; border-radius:10px; cursor:pointer;">
-                                <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
-                            </button></a>''', unsafe_allow_html=True)
-                    else:
-                        st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
-
-                # --- POP OVER DE AJUSTES ---
                 with st.popover("⚙️ Ajustes", use_container_width=True):
-                    if st.button("✏️ Editar Perfil", key=f"ed_p_{cl['id']}", use_container_width=True):
+                    if st.button("✏️ Editar", key=f"ed_{cl['id']}", use_container_width=True):
                         st.session_state[f"editing_{cl['id']}"] = True
+                    # Lógica de edición simplificada...
                     
                     if st.session_state.get(f"editing_{cl['id']}"):
                         with st.form(f"form_ed_{cl['id']}"):
