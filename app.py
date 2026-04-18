@@ -961,16 +961,21 @@ def modal_detalle(cliente, cuentas, pagos):
                         <span style='background:{est_color}; color:white; padding:2px 8px; border-radius:10px; font-size:11px;'>{est_txt}</span>
                     </div>
                 """, unsafe_allow_html=True)
-                
-                col_info, col_monto = st.columns([2, 1])
+             
+                col_info, col_monto = st.columns([1.2, 1])
                 with col_info:
                     st.write(f"📅 **Vence:** {f_pago if f_pago else 'N/A'}")
                     if atrasada:
                         dias = (hoy_dt - f_pago).days
-                        st.markdown(f"<span style='color:#ef4444; font-size:12px;'>Mora de {dias} días</span>", unsafe_allow_html=True)
-                
+                         st.markdown(f"<span style='color:#ef4444; font-size:12px;'>Mora de {dias} días</span>", unsafe_allow_html=True)
+
                 with col_monto:
-                    st.markdown(f"<h4 style='margin:0; text-align:right;'>RD$ {balance:,.2f}</h4>", unsafe_allow_html=True)
+    # Ajustamos el estilo para asegurar que el número no se rompa ni se corte
+                    st.markdown(f"""
+                        <div style='text-align:right; font-size:1.1rem; font-weight:bold; white-space:nowrap; margin-top:5px;'>
+                             RD$ {balance:,.2f}
+                        </div>
+                    """, unsafe_allow_html=True)
 
                 # --- DESPLEGABLE DE ABONOS ---
                 with st.expander("🔍 Ver desglose de abonos y movimientos"):
