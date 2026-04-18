@@ -731,106 +731,365 @@ elif menu == "👥 Todos mis Clientes":
 
         st.markdown("<h1 style='color: #1e293b; font-size: 1.6rem;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
 
-        # 2. REGISTRO DE NUEVO CLIENTE
+        # 2. REGISTRO DESPLEGABLE
         with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
+            
             st.markdown("### 🛰️ Localización Satelital")
+            
+            # NOTA CON SIGNO DE PREGUNTA (HELP)
+            st.caption("⚠️ **Nota sobre precisión:** El GPS puede tener un margen de error de 5 a 50 metros.", 
+                       help="Consejo para mayor precisión: Cuando estés en el terreno, asegúrate de que el celular tenga el Wi-Fi encendido (aunque no estés conectado a una red), ya que Google utiliza las redes cercanas para triangular mejor la posición que el puro satélite.")
+            
             with st.container(border=True):
                 col_gps, col_map = st.columns([1, 1.5])
+                
                 with col_gps:
+                    # Motor de captura con máxima precisión
                     pos = streamlit_js_eval(
-                        js_expressions='new Promise((res) => { navigator.geolocation.getCurrentPosition((p) => res(p.coords.latitude + "," + p.coords.longitude), (e) => res("ERROR"), {enableHighAccuracy:true}); })',
-                        key="GPS_FIX_FINAL"
+                        js_expressions="""
+                        new Promise((resolve) => {
+                            if (!navigator.geolocation) { resolve("NO_SOPORTADO"); }
+                            navigator.geolocation.getCurrentPosition(
+                                (p) => resolve(p.coords.latitude + "," + p.coords.longitude),
+                                (e) => resolve("ERROR_" + e.code),
+                                { 
+                                    enableHighAccuracy: true, 
+                                    timeout: 15000, 
+                                    maximumAge: 0 
+                                }
+                            )
+                        })
+                        """,
+                        key="GPS_ENGINE_V6_FINAL"
                     )
-                    if st.button("🎯 CAPTURAR UBICACIÓN", use_container_width=True, type="primary"):
-                        if pos and "ERROR" not in pos:
+
+                    if st.button("🎯 CAPTURAR UBICACIÓN AHORA", use_container_width=True, type="primary"):
+                        if pos and not pos.startswith("ERROR") and pos != "NO_SOPORTADO":
                             st.session_state.reg_gps = pos
+                            st.success("✅ Ubicación capturada")
                             st.rerun()
-                    st.session_state.reg_gps = st.text_input("📍 Coordenadas", value=st.session_state.reg_gps)
+                        elif pos and pos.startswith("ERROR"):
+                            st.error("🚫 Error de señal. Revisa tus permisos de GPS.")
+                    
+                    st.session_state.reg_gps = st.text_input("📍 Coordenadas (Ajuste manual)", 
+                                                            value=st.session_state.reg_gps,
+                                                            placeholder="Lat, Lon")
 
                 with col_map:
                     if st.session_state.reg_gps and "," in st.session_state.reg_gps:
                         try:
                             lat, lon = map(float, st.session_state.reg_gps.split(","))
-                            m = folium.Map(location=[lat, lon], zoom_start=18)
-                            folium.Marker([lat, lon]).add_to(m)
-                            st_folium(m, height=200, use_container_width=True, key=f"m_{lat}")
-                        except: st.error("GPS Inválido")
+                            m = folium.Map(location=[lat, lon], zoom_start=19)
+                            folium.Marker([lat, lon], icon=folium.Icon(color='red', icon='home')).add_to(m)
+                            st_folium(m, height=250, use_container_width=True, key=f"map_p_{lat}_{lon}")
+                        except:
+                            st.error("Formato inválido.")
+                    else:
+                        st.info("Captura ubicación para ver el mapa.")
 
             st.markdown("### 📝 Datos del Cliente")
             c1, c2 = st.columns(2)
             with c1:
-                st.session_state.reg_nombre = st.text_input("Nombre *", value=st.session_state.reg_nombre, key="n_cl")
-                st.session_state.reg_ced = st.text_input("Cédula *", value=st.session_state.reg_ced, key="c_cl")
+                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="f_n")
+                st.session_state.reg_ced = st.text_input("Cédula / ID *", value=st.session_state.reg_ced, key="f_c")
             with c2:
-                st.session_state.reg_tel = st.text_input("WhatsApp *", value=st.session_state.reg_tel, key="t_cl")
-                st.session_state.reg_dir = st.text_area("Referencia", value=st.session_state.reg_dir, height=68, key="d_cl")
+                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="f_t")
+                st.session_state.reg_dir = st.text_area("Referencia (Color de casa, etc.)", value=st.session_state.reg_dir, height=68, key="f_d")
 
-            if st.button("🚀 GUARDAR EN CARTERA", use_container_width=True, type="primary"):
-                if st.session_state.reg_nombre and st.session_state.reg_ced:
-                    lat_f, lon_f = 0.0, 0.0
-                    if st.session_state.reg_gps:
-                        try: lat_f, lon_f = map(float, st.session_state.reg_gps.split(","))
-                        except: pass
-                    conn.table("clientes").insert({
-                        "nombre": st.session_state.reg_nombre, "telefono": st.session_state.reg_tel,
-                        "cedula": st.session_state.reg_ced, "direccion": st.session_state.reg_dir,
-                        "latitud": lat_f, "longitud": lon_f, "user_id": u_id, "fecha_registro": str(hoy_dt)
-                    }).execute()
-                    st.success("¡Cliente guardado!")
-                    for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
-                    time.sleep(1)
+            # --- BOTONES DE ACCIÓN (LIMPIAR Y GUARDAR) ---
+            col_b1, col_b2 = st.columns(2)
+            
+            with col_b1:
+                if st.button("🧹 LIMPIAR CAMPOS", use_container_width=True):
+                    for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
+                        st.session_state[k] = ""
                     st.rerun()
 
-        st.divider()
+            with col_b2:
+                btn_guardar = st.button("🚀 GUARDAR EN CARTERA", use_container_width=True, type="primary")
 
-        # 3. LISTADO DE CLIENTES (TARJETAS)
+            if btn_guardar:
+                # 1. BLOQUEO TOTAL: Solo Nombre y Cédula
+                if not st.session_state.reg_nombre or not st.session_state.reg_ced:
+                    st.error("❌ El **Nombre** y la **Cédula** son obligatorios.")
+                
+                else:
+                    # 2. MANEJO DE GPS OPCIONAL
+                    lat_final, lon_final = 0.0, 0.0
+                    if not st.session_state.reg_gps:
+                        st.warning("⚠️ **Aviso:** Guardando cliente sin ubicación exacta.")
+                    else:
+                        try:
+                            lat_v, lon_v = st.session_state.reg_gps.split(",")
+                            lat_final, lon_final = float(lat_v), float(lon_v)
+                        except:
+                            pass
+
+                    # 3. EJECUCIÓN DEL GUARDADO
+                    try:
+                        conn.table("clientes").insert({
+                            "nombre": st.session_state.reg_nombre,
+                            "telefono": st.session_state.reg_tel,
+                            "cedula": st.session_state.reg_ced,
+                            "direccion": st.session_state.reg_dir,
+                            "latitud": lat_final,
+                            "longitud": lon_final,
+                            "user_id": u_id,
+                            "fecha_registro": str(hoy_dt)
+                        }).execute()
+                        
+                        st.success(f"✅ ¡Cliente {st.session_state.reg_nombre} registrado!")
+                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: 
+                            st.session_state[k] = ""
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+
+        st.divider()
+    
+        # --- 4. CENTRO DE CONTROL DE CLIENTES (Lógica Avanzada y Diseño Premium) ---
+    
+        # 1. CARGA DE DATOS Y ESTADOS (Usando tus columnas reales del CSV)
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         clientes_db = res_cl.data if res_cl.data else []
-        res_ct = conn.table("cuentas").select("*").execute()
-        cuentas_db = res_ct.data if res_ct.data else []
-        res_pg = conn.table("pagos").select("*").execute()
-        pagos_db = res_pg.data if res_pg.data else []
+        res_cuentas = conn.table("cuentas").select("*").execute()
+        cuentas_db = res_cuentas.data if res_cuentas.data else []
+        res_pagos = conn.table("pagos").select("*").execute()
+        pagos_db = res_pagos.data if res_pagos.data else []
 
-        search = st.text_input("🔍 Buscar cliente...")
-        clientes_f = [c for c in clientes_db if not search or search.lower() in c['nombre'].lower()]
+        hoy = datetime.now().date()
 
-        if not clientes_f:
-            st.info("No hay clientes registrados.")
-        else:
-            grid = st.columns(3)
-            for idx, cl in enumerate(clientes_f):
-                with grid[idx % 3]:
-                    with st.container(border=True):
-                        st.markdown(f"**{cl['nombre']}**")
-                        st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
-                        colb1, colb2 = st.columns(2)
-                        with colb1:
-                            if st.button("📂 Ver", key=f"v_{cl['id']}", use_container_width=True):
-                                modal_detalle(cl, cuentas_db, pagos_db)
-                        with colb2:
-                            if st.button("🗑️", key=f"d_{cl['id']}", type="primary", use_container_width=True):
-                                conn.table("clientes").delete().eq("id", cl['id']).execute()
-                                st.rerun()
-
-elif menu == "Cuentas por Pagar":
-    st.header("🏧 Movimientos de Efectivo")
+        # --- BARRA DE COMANDO: BUSCADOR + PILLS ---
+        col_search, col_filter = st.columns([1.2, 2])
+        with col_search:
+            search_query = st.text_input("🔍", placeholder="Buscar cliente...", label_visibility="collapsed")
         
-    # 4. LÓGICA FINANCIERA RESTAURADA
+        with col_filter:
+            opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟡 Próximos/Hoy"]
+            sel_filtro = st.pills("Filtro Inteligente:", opciones, selection_mode="single", default="🌍 Todos", label_visibility="collapsed")
+
+        # --- LÓGICA DE FILTRADO "GENIO" ---
+        clientes_f = []
+        for c in clientes_db:
+            # Buscamos la cuenta principal (o la más reciente)
+            cuenta = next((d for d in cuentas_db if d['cliente_id'] == c['id']), None)
+            
+            # Si no hay cuenta, solo aparece en "Todos"
+            match_estado = False
+            if sel_filtro == "🌍 Todos":
+                match_estado = True
+            elif cuenta:
+                prox_pago = pd.to_datetime(cuenta.get('proximo_pago')).date() if cuenta.get('proximo_pago') else None
+                balance = cuenta.get('balance_pendiente', 0)
+                
+                # Atrasado: Si hoy es después de la fecha y tiene deuda
+                if sel_filtro == "🔴 Atrasados":
+                    if prox_pago and hoy > prox_pago and balance > 0:
+                        match_estado = True
+                
+                # Al Día: Balance 0 O la fecha es futura y no hay retrasos previos
+                elif sel_filtro == "🟢 Al Día":
+                    if balance <= 0 or (prox_pago and prox_pago > hoy):
+                        # Nota: Si estaba atrasado no entra aquí
+                        if not (prox_pago and hoy > prox_pago and balance > 0):
+                            match_estado = True
+                
+                # Próximos/Hoy: Falta 1 día o es hoy mismo
+                elif sel_filtro == "🟡 Próximos/Hoy":
+                    if prox_pago:
+                        dias_dif = (prox_pago - hoy).days
+                        if dias_dif == 0 or dias_dif == 1:
+                            match_estado = True
+
+            # Match de búsqueda por texto
+            match_search = not search_query or (search_query.lower() in c['nombre'].lower() or search_query in str(c.get('cedula', '')))
+            
+            if match_search and match_estado:
+                clientes_f.append(c)
+
+        # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
+@st.dialog("📄 Expediente de Facturación")
+def modal_detalle(cliente, cuentas, pagos):
+    # --- CABECERA ---
+    col_icon, col_data = st.columns([1, 4])
+    with col_icon:
+        st.markdown("<h1 style='text-align:center;'>👤</h1>", unsafe_allow_html=True)
+    with col_data:
+        st.markdown(f"### {cliente['nombre']}")
+        st.caption(f"🆔 Cédula: {cliente.get('cedula', 'N/A')} | 📞 {cliente.get('telefono', 'N/A')}")
+    
+    # --- INDICADORES RÁPIDOS ---
+    mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
+    total_deuda = sum(float(ct.get('balance_pendiente', 0)) for ct in mis_ctas)
+    
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Deuda Total", f"RD$ {total_deuda:,.2f}")
+    c2.metric("Cuentas Activas", len([c for c in mis_ctas if float(c.get('balance_pendiente', 0)) > 0]))
+    
+    # Cálculo de salud financiera
+    p_vencidos = 0
+    for ct in mis_ctas:
+        if ct.get('proximo_pago') and pd.to_datetime(ct['proximo_pago']).date() < hoy_dt and float(ct.get('balance_pendiente', 0)) > 0:
+            p_vencidos += 1
+    c3.metric("Atrasos", p_vencidos, delta_color="inverse")
+
+    st.divider()
+    
+    # --- LISTADO DE CUENTAS DETALLADO ---
+    st.markdown("#### 📑 Historial de Deudas y Abonos")
+    
+    if not mis_ctas:
+        st.info("Este cliente no tiene registros financieros.")
+    else:
+        for ct in mis_ctas:
+            with st.container(border=True):
+                # Encabezado de la factura con Badge de estado
+                f_pago = pd.to_datetime(ct.get('proximo_pago')).date() if ct.get('proximo_pago') else None
+                balance = float(ct.get('balance_pendiente', 0))
+                atrasada = f_pago and f_pago < hoy_dt and balance > 0
+                
+                est_color = "#ef4444" if atrasada else "#22c55e"
+                est_txt = "⚠️ ATRASADA" if atrasada else "✅ AL DÍA"
+                if balance <= 0:
+                    est_txt = "🏁 PAGADA"
+                    est_color = "#64748b"
+
+                st.markdown(f"""
+                    <div style='display:flex; justify-content:space-between; align-items:center;'>
+                        <b>Factura: #{str(ct['id'])[:6].upper()}</b>
+                        <span style='background:{est_color}; color:white; padding:2px 8px; border-radius:10px; font-size:11px;'>{est_txt}</span>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                col_info, col_monto = st.columns([2, 1])
+                with col_info:
+                    st.write(f"📅 **Vence:** {f_pago if f_pago else 'N/A'}")
+                    if atrasada:
+                        dias = (hoy_dt - f_pago).days
+                        st.markdown(f"<span style='color:#ef4444; font-size:12px;'>Mora de {dias} días</span>", unsafe_allow_html=True)
+                
+                with col_monto:
+                    st.markdown(f"<h4 style='margin:0; text-align:right;'>RD$ {balance:,.2f}</h4>", unsafe_allow_html=True)
+
+                # --- DESPLEGABLE DE ABONOS ---
+                with st.expander("🔍 Ver desglose de abonos y movimientos"):
+                    mis_p = [p for p in pagos if p.get('cuenta_id') == ct['id']]
+                    if mis_p:
+                        df_p = pd.DataFrame(mis_p).sort_values("fecha_pago", ascending=False)
+                        for _, p in df_p.iterrows():
+                            monto_p = float(p.get('monto_pagado', 0))
+                            cuota_e = float(ct.get('cuota_esperada', 0))
+                            tipo_pago = "Abono Extra" if monto_p > cuota_e else "Pago Regular"
+                            
+                            st.markdown(f"""
+                                <div style='display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;'>
+                                    <div>
+                                        <small style='color:gray;'>{str(p['fecha_pago'])[:10]}</small><br>
+                                        <b style='font-size:13px;'>{tipo_pago}</b>
+                                    </div>
+                                    <b style='color:#16a34a;'>+ RD$ {monto_p:,.2f}</b>
+                                </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.caption("No se han registrado abonos aún.")
+
+    if st.button("Cerrar Expediente", use_container_width=True):
+        st.rerun()
+
+# --- GRID DE CLIENTES (CORREGIDO) ---
+if not clientes_f:
+    st.warning("No hay clientes que coincidan con la búsqueda o filtro.")
+else:
+    grid = st.columns(3)
+    for idx, cl in enumerate(clientes_f):
+        with grid[idx % 3]:
+            with st.container(border=True):
+                # 1. Cabecera de Tarjeta
+                st.markdown(f"**{cl['nombre']}**")
+                st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
+                
+                # 2. Botones de Acción
+                b1, b2, b3 = st.columns(3)
+                with b1:
+                    if st.button("📂", key=f"h_{cl['id']}", use_container_width=True):
+                        modal_detalle(cl, cuentas_db, pagos_db)
+                
+                with b2:
+                    tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
+                    wa_url = f"https://wa.me/{tel}"
+                    st.markdown(f'''<a href="{wa_url}" target="_blank">
+                        <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
+                        </button></a>''', unsafe_allow_html=True)
+                
+                with b3:
+                    lat, lon = cl.get('latitud'), cl.get('longitud')
+                    if lat and str(lat) not in ["0", "0.0", "None"]:
+                        map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                        st.markdown(f'''<a href="{map_url}" target="_blank">
+                            <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
+                            </button></a>''', unsafe_allow_html=True)
+                    else:
+                        st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
+
+                # 3. Centro de Gestión (Popover)
+                with st.popover("⚙️ Ajustes", use_container_width=True):
+                    g1, g2 = st.columns(2)
+                    with g1:
+                        if st.button("✏️ Editar", key=f"e_b_{cl['id']}", use_container_width=True):
+                            st.session_state[f"editing_{cl['id']}"] = True
+                    with g2:
+                        if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", type="primary", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 1
+
+                    # --- LÓGICA DE EDICIÓN ---
+                    if st.session_state.get(f"editing_{cl['id']}"):
+                        st.markdown("---")
+                        e_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
+                        e_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
+                        e_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
+                        
+                        c_la, c_lo = st.columns(2)
+                        e_lat = c_la.text_input("Latitud", value=str(cl.get('latitud', '0.0')), key=f"elat_{cl['id']}")
+                        e_lon = c_lo.text_input("Longitud", value=str(cl.get('longitud', '0.0')), key=f"elon_{cl['id']}")
+
+                        if st.button("💾 Guardar", key=f"sv_{cl['id']}", type="primary", use_container_width=True):
+                            conn.table("clientes").update({
+                                "nombre": e_nom, "cedula": e_ced, "telefono": e_tel,
+                                "latitud": float(e_lat), "longitud": float(e_lon)
+                            }).eq("id", cl['id']).execute()
+                            st.toast("✅ ¡Datos actualizados!")
+                            del st.session_state[f"editing_{cl['id']}"]
+                            st.rerun()
+
+                    # --- LÓGICA DE ELIMINAR ---
+                    if st.session_state.get(f"del_step_{cl['id']}") == 1:
+                        st.warning("¿Seguro?")
+                        if st.button("SÍ", key=f"d1_{cl['id']}", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 2
+                            st.rerun()
+                    
+                    elif st.session_state.get(f"del_step_{cl['id']}") == 2:
+                        if st.button("CONFIRMAR BORRADO", key=f"d2_{cl['id']}", type="primary", use_container_width=True):
+                            conn.table("clientes").delete().eq("id", cl['id']).execute()
+                            st.toast("🗑️ Eliminado")
+                            del st.session_state[f"del_step_{cl['id']}"]
+                            st.rerun()
+
+# --- CAMBIO DE SECCIÓN (CORREGIDO) ---
+# Este bloque debe estar alineado con el 'if menu == "..." ' inicial de tu aplicación
+if menu == "Cuentas por Pagar":
+    st.header("🏧 Movimientos de Efectivo")
+    
+    # Lógica de la sección...
     res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
     res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
-        
-    total_pagos = sum([float(p['monto_pagado']) for p in res_p.data]) if res_p.data else 0.0
-    total_gastos = sum([float(g['monto']) for g in res_g.data]) if res_g.data else 0.0
-    balance_caja = total_pagos - total_gastos
+    
+    total_pagos = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Ingresos Totales", f"RD$ {total_pagos:,.2f}")
-    col2.metric("Gastos Totales", f"RD$ {total_gastos:,.2f}", delta_color="inverse")
-    col3.metric("Balance en Caja", f"RD$ {balance_caja:,.2f}")
-        
-    st.divider()
-    st.info("Visualización de flujo de caja y egresos.")
-        
+
 elif menu == "IA Predictiva":
     # ---------------------------------------------------------
     # 1. CSS AVANZADO PARA ESTILO META AI (Tarjetas Flotantes)
