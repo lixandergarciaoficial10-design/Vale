@@ -1010,105 +1010,110 @@ elif menu == "👥 Todos mis Clientes":
                                     use_container_width=True
                                 )
 
-                        # ELIMINAR CON DOBLE ADVERTENCIA
-                        # ELIMINAR Y EDITAR DISCRETO
-with st.popover("⚙️", use_container_width=True):
-    st.write("### 🛠️ Gestión de Cliente")
-    
-    # Botones principales pequeños uno al lado del otro
-    g1, g2 = st.columns(2)
-    
-    with g1:
-        # Botón de Editar con Lápiz (Estilo Apple/Premium)
-        if st.button("✏️ Editar", key=f"edit_btn_{cl['id']}", use_container_width=True):
-            st.session_state[f"editing_{cl['id']}"] = True
-            
-    with g2:
-        # Botón de Eliminar (Compacto)
-        if st.button("🗑️ Borrar", key=f"del_step1_{cl['id']}", type="primary", use_container_width=True):
-            st.session_state[f"confirm_del_{cl['id']}"] = True
+                        if not clientes_f:
+            st.warning("No hay clientes en esta categoría.")
+        else:
+            grid = st.columns(3)
+            for idx, cl in enumerate(clientes_f):
+                with grid[idx % 3]:
+                    with st.container(border=True):
+                        # --- CABECERA ESTÉTICA ---
+                        st.markdown(f"**{cl['nombre']}**")
+                        st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
+                        
+                        # --- BOTONES DE ACCIÓN RÁPIDA ---
+                        b1, b2, b3 = st.columns(3)
+                        with b1: # HISTORIAL
+                            if st.button("📂", key=f"h_{cl['id']}", use_container_width=True, help="Ver historial"):
+                                modal_detalle(cl, cuentas_db, pagos_db)
+                        
+                        with b2: # WHATSAPP
+                            tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
+                            wa_url = f"https://wa.me/{tel}"
+                            st.markdown(f'''<a href="{wa_url}" target="_blank">
+                                <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
+                                </button></a>''', unsafe_allow_html=True)
+                        
+                        with b3: # GOOGLE MAPS
+                            lat, lon = cl.get('latitud'), cl.get('longitud')
+                            if lat and str(lat) not in ["0", "0.0", "None"]:
+                                map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                                st.markdown(f'''<a href="{map_url}" target="_blank">
+                                    <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
+                                    </button></a>''', unsafe_allow_html=True)
+                            else:
+                                st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
 
-    # --- LÓGICA DE EDICIÓN ---
-    if st.session_state.get(f"editing_{cl['id']}"):
-        st.info("📝 **Modo Edición Activo**")
-        with st.container(border=True):
-            new_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
-            new_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
-            new_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
-            new_not = st.text_area("Notas", value=cl.get('notas', ''), key=f"eno_{cl['id']}")
-            
-            st.caption("📍 Coordenadas actuales: " + f"{cl.get('latitud')}, {cl.get('longitud')}")
-            # Opción para actualizar ubicación si se desea (opcional)
-            update_gps = st.checkbox("🔄 Actualizar a ubicación actual", key=f"egps_{cl['id']}")
+                        # --- GESTIÓN DISCRETA (DENTRO DE LA TARJETA) ---
+                        with st.popover("⚙️", use_container_width=True):
+                            st.write("### 🛠️ Gestión")
+                            g1, g2 = st.columns(2)
+                            with g1:
+                                if st.button("✏️", key=f"edit_btn_{cl['id']}", use_container_width=True, help="Editar datos"):
+                                    st.session_state[f"editing_{cl['id']}"] = True
+                            with g2:
+                                if st.button("🗑️", key=f"del_step1_{cl['id']}", type="primary", use_container_width=True, help="Eliminar"):
+                                    st.session_state[f"confirm_del_{cl['id']}"] = True
 
-            e_c1, e_c2 = st.columns(2)
-            with e_c1:
-                if st.button("💾 Guardar Cambios", key=f"save_{cl['id']}", type="primary", use_container_width=True):
-                    upd_data = {
-                        "nombre": new_nom,
-                        "cedula": new_ced,
-                        "telefono": new_tel,
-                        "notas": new_not
-                    }
-                    # Si el usuario quiere actualizar GPS, aquí iría tu lógica de navigator.geolocation
-                    conn.table("clientes").update(upd_data).eq("id", cl['id']).execute()
-                    st.toast("✅ Datos actualizados correctamente")
-                    del st.session_state[f"editing_{cl['id']}"]
-                    st.rerun()
-            with e_c2:
-                if st.button("❌ Cancelar", key=f"cancel_edit_{cl['id']}", use_container_width=True):
-                    del st.session_state[f"editing_{cl['id']}"]
-                    st.rerun()
+                            # Lógica de Edición
+                            if st.session_state.get(f"editing_{cl['id']}"):
+                                st.info("📝 **Modo Edición**")
+                                new_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
+                                new_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
+                                new_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
+                                new_not = st.text_area("Notas", value=cl.get('notas', ''), key=f"eno_{cl['id']}")
+                                
+                                e1, e2 = st.columns(2)
+                                if e1.button("💾", key=f"save_{cl['id']}", type="primary", use_container_width=True):
+                                    conn.table("clientes").update({
+                                        "nombre": new_nom, "cedula": new_ced, 
+                                        "telefono": new_tel, "notas": new_not
+                                    }).eq("id", cl['id']).execute()
+                                    st.toast("✅ Actualizado")
+                                    del st.session_state[f"editing_{cl['id']}"]
+                                    st.rerun()
+                                if e2.button("❌", key=f"cancel_e_{cl['id']}", use_container_width=True):
+                                    del st.session_state[f"editing_{cl['id']}"]
+                                    st.rerun()
 
-    # --- LÓGICA DE ELIMINACIÓN (TU SEGURIDAD ORIGINAL) ---
-    if st.session_state.get(f"confirm_del_{cl['id']}"):
-        st.error("⚠️ **¿ELIMINAR PERMANENTEMENTE?**")
-        st.warning("Esta acción no se puede deshacer. Se borrarán todas las facturas y abonos.")
-        
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("SÍ, BORRAR", key=f"del_final_{cl['id']}", type="primary", use_container_width=True):
-                conn.table("clientes").delete().eq("id", cl['id']).execute()
-                del st.session_state[f"confirm_del_{cl['id']}"]
-                st.rerun()
-        with c2:
-            if st.button("VOLVER", key=f"cancel_{cl['id']}", use_container_width=True):
-                del st.session_state[f"confirm_del_{cl['id']}"]
-                st.rerun()
-        
-# --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
+                            # Lógica de Eliminación
+                            if st.session_state.get(f"confirm_del_{cl['id']}"):
+                                st.error("¿Borrar todo?")
+                                c1, c2 = st.columns(2)
+                                if c1.button("SÍ", key=f"f_del_{cl['id']}", type="primary", use_container_width=True):
+                                    conn.table("clientes").delete().eq("id", cl['id']).execute()
+                                    del st.session_state[f"confirm_del_{cl['id']}"]
+                                    st.rerun()
+                                if c2.button("NO", key=f"c_del_{cl['id']}", use_container_width=True):
+                                    del st.session_state[f"confirm_del_{cl['id']}"]
+                                    st.rerun()
+
+# --- SALIDA DEL CICLO Y SECCIÓN SIGUIENTE ---
 elif menu == "Cuentas por Pagar":
-    st.header("Movimientos de Efectivo")
+    st.header("🏧 Movimientos de Efectivo")
     
-    # 1. Recuperar datos de Supabase
+    # 1. Recuperar datos
     res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
     res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
     
-    # 2. Calcular balance neto
+    # 2. Cálculos
     total_pagos = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
     total_gastos = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
     neto = total_pagos - total_gastos
     
-    # 3. Mostrar métrica
     st.metric("Balance Neto en Mano", f"RD$ {neto:,.2f}")
     
-    # 4. Formulario de Gastos
     with st.expander("Registrar Nuevo Gasto"):
         with st.form("gasto_real"):
             motivo = st.text_input("¿En qué se gastó?")
             m_gasto = st.number_input("Monto RD$", min_value=0.0, step=100.0)
-            
             if st.form_submit_button("Guardar Gasto"):
                 if motivo and m_gasto > 0:
-                    conn.table("gastos").insert({
-                        "descripcion": motivo, 
-                        "monto": m_gasto, 
-                        "user_id": u_id
-                    }).execute()
-                    st.success("Gasto registrado correctamente")
+                    conn.table("gastos").insert({"descripcion": motivo, "monto": m_gasto, "user_id": u_id}).execute()
+                    st.success("Gasto registrado")
                     st.rerun()
-                else:
-                    st.error("Por favor rellena todos los campos")
 
 elif menu == "IA Predictiva":
     # ---------------------------------------------------------
