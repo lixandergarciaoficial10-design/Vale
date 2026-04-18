@@ -908,23 +908,50 @@ elif menu == "👥 Todos mis Clientes":
             if match_search and match_estado:
                 clientes_f.append(c)
 
-        # --- VENTANA DE HISTORIAL (MODAL) ---
+        # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO) ---
         @st.dialog("📄 Expediente de Facturación")
         def modal_detalle(cliente, cuentas, pagos):
-            st.markdown(f"### {cliente['nombre']}")
-            st.caption(f"📍 GPS: {cliente.get('latitud', '0')}, {cliente.get('longitud', '0')}")
+            # --- CABECERA: DATOS COMPLETOS DEL CLIENTE ---
+            col_icon, col_data = st.columns([1, 4])
+            with col_icon:
+                st.write("👤") # Icono grande de usuario
+            with col_data:
+                st.markdown(f"### {cliente['nombre']}")
+                st.caption(f"🆔 Cédula: {cliente.get('cedula', 'N/A')}")
+            
+            # Fila de contacto y ubicación
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown(f"📞 **Teléfono:** {cliente.get('telefono', 'N/A')}")
+            with c2:
+                lat, lon = cliente.get('latitud'), cliente.get('longitud')
+                if lat and str(lat) not in ["0", "0.0", "None"]:
+                    map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                    st.markdown(f'''<a href="{map_url}" target="_blank" style="text-decoration:none;">
+                        <span style="background:#f0f2f6; padding:5px 10px; border-radius:10px; font-size:14px;">📍 Ver GPS en Google Maps</span>
+                    </a>''', unsafe_allow_html=True)
+                else:
+                    st.caption("📍 GPS: No registrado")
+
+            # Sección de Notas
+            with st.expander("📝 Ver Notas del Cliente", expanded=True):
+                st.write(cliente.get('notas', 'Este cliente no tiene notas registradas.'))
+            
             st.divider()
             
+            # --- LISTADO DE CUENTAS (Tu lógica original mejorada) ---
+            st.markdown("#### 📑 Historial de Cuentas")
             mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
+            
             if not mis_ctas:
-                st.info("Sin cuentas activas.")
+                st.info("Este cliente no tiene cuentas activas actualmente.")
             else:
                 for ct in mis_ctas:
                     with st.container(border=True):
-                        c1, c2 = st.columns([2,1])
-                        c1.markdown(f"**Factura ID: {str(ct['id'])[:8]}**")
-                        c1.write(f"📅 Próximo cobro: `{ct.get('proximo_pago')}`")
-                        c2.metric("Pendiente", f"${ct.get('balance_pendiente', 0):,}")
+                        col_acc, col_met = st.columns([2,1])
+                        col_acc.markdown(f"**Factura ID: {str(ct['id'])[:8]}**")
+                        col_acc.write(f"📅 Próximo cobro: `{ct.get('proximo_pago')}`")
+                        col_met.metric("Pendiente", f"RD$ {ct.get('balance_pendiente', 0):,}")
                         
                         # LÓGICA DE ABONOS ESPECÍFICOS
                         st.markdown("**💰 Desglose de Abonos:**")
@@ -932,13 +959,13 @@ elif menu == "👥 Todos mis Clientes":
                         if mis_p:
                             for p in mis_p:
                                 st.markdown(f"""
-                                <div style='display:flex; justify-content:space-between; background:#f0f2f6; padding:5px 10px; border-radius:8px; margin-bottom:5px;'>
-                                    <span>✅ ${p.get('monto_pagado', 0):,}</span>
+                                <div style='display:flex; justify-content:space-between; background:#f9f9f9; padding:5px 10px; border: 1px solid #eee; border-radius:8px; margin-bottom:5px;'>
+                                    <span style='color:#2e7d32; font-weight:bold;'>✅ RD$ {p.get('monto_pagado', 0):,}</span>
                                     <span style='color:gray; font-size:12px;'>{str(p.get('fecha_pago'))[:10]}</span>
                                 </div>
                                 """, unsafe_allow_html=True)
                         else:
-                            st.caption("No se han registrado abonos a esta factura.")
+                            st.caption("No hay abonos registrados en esta factura.")
 
         # --- GRID DE CLIENTES ---
         if not clientes_f:
