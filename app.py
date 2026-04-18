@@ -1011,25 +1011,70 @@ elif menu == "👥 Todos mis Clientes":
                                 )
 
                         # ELIMINAR CON DOBLE ADVERTENCIA
-                        with st.popover("⚙️", use_container_width=True):
-                            st.write("### 🛠️ Gestión")
-                            if st.button("🗑️ Eliminar Cliente", key=f"del_step1_{cl['id']}", type="primary", use_container_width=True):
-                                st.session_state[f"confirm_del_{cl['id']}"] = True
+                        # ELIMINAR Y EDITAR DISCRETO
+with st.popover("⚙️", use_container_width=True):
+    st.write("### 🛠️ Gestión de Cliente")
+    
+    # Botones principales pequeños uno al lado del otro
+    g1, g2 = st.columns(2)
+    
+    with g1:
+        # Botón de Editar con Lápiz (Estilo Apple/Premium)
+        if st.button("✏️ Editar", key=f"edit_btn_{cl['id']}", use_container_width=True):
+            st.session_state[f"editing_{cl['id']}"] = True
+            
+    with g2:
+        # Botón de Eliminar (Compacto)
+        if st.button("🗑️ Borrar", key=f"del_step1_{cl['id']}", type="primary", use_container_width=True):
+            st.session_state[f"confirm_del_{cl['id']}"] = True
 
-                            if st.session_state.get(f"confirm_del_{cl['id']}"):
-                                st.error("⚠️ **¿ESTÁS SEGURO?**")
-                                st.warning("Se borrarán PERMANENTEMENTE todos los datos: deudas, facturas, abonos y ubicación de este cliente.")
-                                
-                                c1, c2 = st.columns(2)
-                                with c1:
-                                    if st.button("SÍ, BORRAR TODO", key=f"del_final_{cl['id']}", type="primary", use_container_width=True):
-                                        conn.table("clientes").delete().eq("id", cl['id']).execute()
-                                        del st.session_state[f"confirm_del_{cl['id']}"]
-                                        st.rerun()
-                                with c2:
-                                    if st.button("CANCELAR", key=f"cancel_{cl['id']}", use_container_width=True):
-                                        del st.session_state[f"confirm_del_{cl['id']}"]
-                                        st.rerun()
+    # --- LÓGICA DE EDICIÓN ---
+    if st.session_state.get(f"editing_{cl['id']}"):
+        st.info("📝 **Modo Edición Activo**")
+        with st.container(border=True):
+            new_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
+            new_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
+            new_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
+            new_not = st.text_area("Notas", value=cl.get('notas', ''), key=f"eno_{cl['id']}")
+            
+            st.caption("📍 Coordenadas actuales: " + f"{cl.get('latitud')}, {cl.get('longitud')}")
+            # Opción para actualizar ubicación si se desea (opcional)
+            update_gps = st.checkbox("🔄 Actualizar a ubicación actual", key=f"egps_{cl['id']}")
+
+            e_c1, e_c2 = st.columns(2)
+            with e_c1:
+                if st.button("💾 Guardar Cambios", key=f"save_{cl['id']}", type="primary", use_container_width=True):
+                    upd_data = {
+                        "nombre": new_nom,
+                        "cedula": new_ced,
+                        "telefono": new_tel,
+                        "notas": new_not
+                    }
+                    # Si el usuario quiere actualizar GPS, aquí iría tu lógica de navigator.geolocation
+                    conn.table("clientes").update(upd_data).eq("id", cl['id']).execute()
+                    st.toast("✅ Datos actualizados correctamente")
+                    del st.session_state[f"editing_{cl['id']}"]
+                    st.rerun()
+            with e_c2:
+                if st.button("❌ Cancelar", key=f"cancel_edit_{cl['id']}", use_container_width=True):
+                    del st.session_state[f"editing_{cl['id']}"]
+                    st.rerun()
+
+    # --- LÓGICA DE ELIMINACIÓN (TU SEGURIDAD ORIGINAL) ---
+    if st.session_state.get(f"confirm_del_{cl['id']}"):
+        st.error("⚠️ **¿ELIMINAR PERMANENTEMENTE?**")
+        st.warning("Esta acción no se puede deshacer. Se borrarán todas las facturas y abonos.")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("SÍ, BORRAR", key=f"del_final_{cl['id']}", type="primary", use_container_width=True):
+                conn.table("clientes").delete().eq("id", cl['id']).execute()
+                del st.session_state[f"confirm_del_{cl['id']}"]
+                st.rerun()
+        with c2:
+            if st.button("VOLVER", key=f"cancel_{cl['id']}", use_container_width=True):
+                del st.session_state[f"confirm_del_{cl['id']}"]
+                st.rerun()
         
 # --- SECCIÓN DE CUENTAS POR PAGAR (FUERA DEL BLOQUE ANTERIOR) ---
 elif menu == "Cuentas por Pagar":
