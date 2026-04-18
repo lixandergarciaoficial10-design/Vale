@@ -1051,7 +1051,7 @@ else:
                         if st.button("✏️ Editar", key=f"e_b_{cl['id']}", use_container_width=True):
                             st.session_state[f"editing_{cl['id']}"] = True
                     with g2:
-                        if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", type="primary", use_container_width=True):
+                        if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", use_container_width=True):
                             st.session_state[f"del_step_{cl['id']}"] = 1
 
                     # --- LÓGICA DE EDICIÓN CON DESCARGO ---
