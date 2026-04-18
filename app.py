@@ -968,6 +968,7 @@ def mostrar_historial_cuentas(cliente, cuentas, pagos):
                     st.caption("No hay abonos registrados en esta factura.")
 
 # --- GRID DE CLIENTES (CORREGIDO) ---
+# --- GRID DE CLIENTES ---
 if not clientes_f:
     st.warning("No hay clientes en esta categoría.")
 else:
@@ -1042,7 +1043,8 @@ else:
                         if c2.button("NO", key=f"c_del_{cl['id']}", use_container_width=True):
                             del st.session_state[f"confirm_del_{cl['id']}"]
                             st.rerun()
-# --- SALIDA DEL CICLO Y SECCIÓN SIGUIENTE ---
+
+# --- ESTA LÍNEA DEBE ESTAR AL RAS DEL MARGEN IZQUIERDO (O AL NIVEL DEL IF MENU) ---
 elif menu == "Cuentas por Pagar":
     st.header("🏧 Movimientos de Efectivo")
     
@@ -1066,6 +1068,7 @@ elif menu == "Cuentas por Pagar":
                     conn.table("gastos").insert({"descripcion": motivo, "monto": m_gasto, "user_id": u_id}).execute()
                     st.success("Gasto registrado")
                     st.rerun()
+
 
 elif menu == "IA Predictiva":
     # ---------------------------------------------------------
