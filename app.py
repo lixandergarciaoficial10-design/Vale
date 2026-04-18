@@ -968,64 +968,70 @@ elif menu == "👥 Todos mis Clientes":
                             st.caption("No hay abonos registrados en esta factura.")
 
         # --- GRID DE CLIENTES ---
-        if not clientes_f:
-            st.warning("No hay clientes en esta categoría.")
-        else:
-            grid = st.columns(3)
-            for idx, cl in enumerate(clientes_f):
-                with grid[idx % 3]:
-                    with st.container(border=True):
-                        # Cabecera Estética
-                        st.markdown(f"**{cl['nombre']}**")
-                        st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
-                        
-                        # BOTONES CON LOGOS REALES (Diseño Apple/Premium)
-                        b1, b2, b3 = st.columns(3)
-                        with b1: # HISTORIAL
-                            if st.button("📂", key=f"h_{cl['id']}", use_container_width=True, help="Ver historial y facturas"):
-                                modal_detalle(cl, cuentas_db, pagos_db)
-                        
-                        with b2: # WHATSAPP LOGO EXACTO
-                            tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
-                            wa_url = f"https://wa.me/{tel}"
-                            st.markdown(f'''<a href="{wa_url}" target="_blank">
-                                <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="20">
+    if not clientes_f:
+        st.warning("No hay clientes en esta categoría.")
+    else:
+        grid = st.columns(3)
+        for idx, cl in enumerate(clientes_f):
+            with grid[idx % 3]:
+                with st.container(border=True):
+                    # 1. Cabecera Estética
+                    st.markdown(f"**{cl['nombre']}**")
+                    st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
+                    
+                    # 2. Botones de Acción (Historial, WhatsApp, Maps)
+                    b1, b2, b3 = st.columns(3)
+                    with b1:
+                        if st.button("📂", key=f"h_{cl['id']}", use_container_width=True, help="Ver historial"):
+                            modal_detalle(cl, cuentas_db, pagos_db)
+                    
+                    with b2:
+                        tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
+                        wa_url = f"https://wa.me/{tel}"
+                        st.markdown(f'''<a href="{wa_url}" target="_blank">
+                            <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
+                            </button></a>''', unsafe_allow_html=True)
+                    
+                    with b3:
+                        lat, lon = cl.get('latitud'), cl.get('longitud')
+                        if lat and str(lat) not in ["0", "0.0", "None"]:
+                            map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                            st.markdown(f'''<a href="{map_url}" target="_blank">
+                                <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                    <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
                                 </button></a>''', unsafe_allow_html=True)
-                        
-                        with b3: # GOOGLE MAPS LOGO EXACTO
-                            lat, lon = cl.get('latitud'), cl.get('longitud')
-                            if lat and str(lat) not in ["0", "0.0", "None"]:
-                                map_url = f"https://www.google.com/maps?q={lat},{lon}"
-                                st.markdown(f'''<a href="{map_url}" target="_blank">
-                                    <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
-                                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="20">
-                                    </button></a>''', unsafe_allow_html=True)
-                            else:
-                                st.button(
-                                    "📵", 
-                                    disabled=True, 
-                                    key=f"no_gps_{cl['id']}", 
-                                    help="No se han guardado las coordenadas GPS de este cliente",
-                                    use_container_width=True
-                                )
+                        else:
+                            st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
 
-                        if not clientes_f:
-            st.warning("No hay clientes en esta categoría.")
-        else:
-            grid = st.columns(3)
-            for idx, cl in enumerate(clientes_f):
-                with grid[idx % 3]:
-                    with st.container(border=True):
-                        # --- CABECERA ESTÉTICA ---
-                        st.markdown(f"**{cl['nombre']}**")
-                        st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
-                        
-                        # --- BOTONES DE ACCIÓN RÁPIDA ---
-                        b1, b2, b3 = st.columns(3)
-                        with b1: # HISTORIAL
-                            if st.button("📂", key=f"h_{cl['id']}", use_container_width=True, help="Ver historial"):
-                                modal_detalle(cl, cuentas_db, pagos_db)
+                    # 3. Gestión (Editar / Borrar)
+                    with st.popover("⚙️", use_container_width=True):
+                        st.write("### 🛠️ Gestión")
+                        g1, g2 = st.columns(2)
+                        with g1:
+                            if st.button("✏️", key=f"edit_{cl['id']}", use_container_width=True):
+                                st.session_state[f"editing_{cl['id']}"] = True
+                        with g2:
+                            if st.button("🗑️", key=f"del_{cl['id']}", type="primary", use_container_width=True):
+                                st.session_state[f"confirm_del_{cl['id']}"] = True
+
+                        # Lógica Edición
+                        if st.session_state.get(f"editing_{cl['id']}"):
+                            st.info("Modo Edición")
+                            new_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
+                            new_tel = st.text_input("Teléfono", value=cl.get('telefono',''), key=f"et_{cl['id']}")
+                            if st.button("💾 Guardar", key=f"sv_{cl['id']}", type="primary", use_container_width=True):
+                                conn.table("clientes").update({"nombre": new_nom, "telefono": new_tel}).eq("id", cl['id']).execute()
+                                del st.session_state[f"editing_{cl['id']}"]
+                                st.rerun()
+
+                        # Lógica Borrado
+                        if st.session_state.get(f"confirm_del_{cl['id']}"):
+                            st.error("¿Borrar?")
+                            if st.button("SÍ, BORRAR", key=f"fdel_{cl['id']}", type="primary", use_container_width=True):
+                                conn.table("clientes").delete().eq("id", cl['id']).execute()
+                                del st.session_state[f"confirm_del_{cl['id']}"]
+                                st.rerun()
                         
                         with b2: # WHATSAPP
                             tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
