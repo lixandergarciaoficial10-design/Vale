@@ -1048,10 +1048,10 @@ else:
                 with st.popover("⚙️ Ajustes", use_container_width=True):
                     g1, g2 = st.columns(2)
                     with g1:
-                        if st.button("✏️ Editar", key=f"e_b_{cl['id']}", use_container_width=True):
+                        if st.button("✏️Editar", key=f"e_b_{cl['id']}", use_container_width=True):
                             st.session_state[f"editing_{cl['id']}"] = True
                     with g2:
-                        if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", use_container_width=True):
+                        if st.button("🗑️Borrar", key=f"d_b_{cl['id']}", use_container_width=True):
                             st.session_state[f"del_step_{cl['id']}"] = 1
 
                     # --- LÓGICA DE EDICIÓN CON DESCARGO ---
