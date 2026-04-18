@@ -970,13 +970,17 @@ def mostrar_historial_cuentas(cliente, cuentas, pagos):
 # --- GRID DE CLIENTES (CORREGIDO) ---
 # --- GRID DE CLIENTES ---
 # --- SECCIÓN DE CLIENTES ---
-if menu == "Clientes":  # Asegúrate de que este nombre coincida con tu variable de menú
+# --- GRID DE CLIENTES ---
+# Cambia "Clientes" por "👥 Todos mis Clientes" para que coincida con tu sidebar
+if menu == "👥 Todos mis Clientes": 
     if not clientes_f:
-        st.warning("No hay clientes en esta categoría.")
+        st.warning("No hay clientes que coincidan con la búsqueda o filtro.")
     else:
         grid = st.columns(3)
         for idx, cl in enumerate(clientes_f):
             with grid[idx % 3]:
+                # Aquí va todo tu bloque de st.container(border=True)
+                # que ya tienes escrito para mostrar nombre, cédula y botones.
                 with st.container(border=True):
                     # 1. Cabecera
                     st.markdown(f"**{cl['nombre']}**")
