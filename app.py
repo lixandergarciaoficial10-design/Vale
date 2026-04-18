@@ -908,111 +908,133 @@ elif menu == "👥 Todos mis Clientes":
             if match_search and match_estado:
                 clientes_f.append(c)
 
-        # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO) ---
+        # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
         @st.dialog("📄 Expediente de Facturación")
         def modal_detalle(cliente, cuentas, pagos):
-            # --- CABECERA: DATOS COMPLETOS DEL CLIENTE ---
+            # --- CABECERA ---
             col_icon, col_data = st.columns([1, 4])
             with col_icon:
-                st.write("👤") # Icono grande de usuario
+                st.markdown("<h1 style='text-align:center;'>👤</h1>", unsafe_allow_html=True)
             with col_data:
                 st.markdown(f"### {cliente['nombre']}")
-                st.caption(f"🆔 Cédula: {cliente.get('cedula', 'N/A')}")
+                st.caption(f"🆔 Cédula: {cliente.get('cedula', 'N/A')} | 📞 {cliente.get('telefono', 'N/A')}")
             
-            # Fila de contacto y ubicación
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown(f"📞 **Teléfono:** {cliente.get('telefono', 'N/A')}")
-            with c2:
-                lat, lon = cliente.get('latitud'), cliente.get('longitud')
-                if lat and str(lat) not in ["0", "0.0", "None"]:
-                    map_url = f"https://www.google.com/maps?q={lat},{lon}"
-                    st.markdown(f'''<a href="{map_url}" target="_blank" style="text-decoration:none;">
-                        <span style="background:#f0f2f6; padding:5px 10px; border-radius:10px; font-size:14px;">📍 Ver GPS en Google Maps</span>
-                    </a>''', unsafe_allow_html=True)
-                else:
-                    st.caption("📍 GPS: No registrado")
+            # --- INDICADORES RÁPIDOS ---
+            mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
+            total_deuda = sum(ct.get('balance_pendiente', 0) for ct in mis_ctas)
+            
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Deuda Total", f"RD$ {total_deuda:,}")
+            c2.metric("Cuentas Activas", len([c for c in mis_ctas if c.get('balance_pendiente', 0) > 0]))
+            
+            # Cálculo de salud financiera
+            p_vencidos = 0
+            for ct in mis_ctas:
+                if ct.get('proximo_pago') and pd.to_datetime(ct['proximo_pago']).date() < hoy_dt and ct.get('balance_pendiente', 0) > 0:
+                    p_vencidos += 1
+            c3.metric("Atrasos", p_vencidos, delta_color="inverse")
 
-            # Sección de Notas
-            with st.expander("📝 Ver Notas del Cliente", expanded=True):
-                st.write(cliente.get('notas', 'Este cliente no tiene notas registradas.'))
-            
             st.divider()
             
-            # --- LISTADO DE CUENTAS (DENTRO DEL MODAL O SECCIÓN CORRESPONDIENTE) ---
-def mostrar_historial_cuentas(cliente, cuentas, pagos):
-    st.markdown("#### 📑 Historial de Cuentas")
-    mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
-    
-    if not mis_ctas:
-        st.info("Este cliente no tiene cuentas activas actualmente.")
-    else:
-        for ct in mis_ctas:
-            with st.container(border=True):
-                col_acc, col_met = st.columns([2, 1])
-                col_acc.markdown(f"**Factura ID: {str(ct['id'])[:8]}**")
-                col_acc.write(f"📅 Próximo cobro: `{ct.get('proximo_pago')}`")
-                col_met.metric("Pendiente", f"RD$ {ct.get('balance_pendiente', 0):,}")
-                
-                st.markdown("**💰 Desglose de Abonos:**")
-                mis_p = [p for p in pagos if p.get('cuenta_id') == ct['id']]
-                if mis_p:
-                    for p in mis_p:
+            # --- LISTADO DE CUENTAS DETALLADO ---
+            st.markdown("#### 📑 Historial de Deudas y Abonos")
+            
+            if not mis_ctas:
+                st.info("Este cliente no tiene registros financieros.")
+            else:
+                for ct in mis_ctas:
+                    with st.container(border=True):
+                        # Encabezado de la factura con Badge de estado
+                        f_pago = pd.to_datetime(ct.get('proximo_pago')).date() if ct.get('proximo_pago') else None
+                        atrasada = f_pago and f_pago < hoy_dt and ct.get('balance_pendiente', 0) > 0
+                        
+                        est_color = "#ef4444" if atrasada else "#22c55e"
+                        est_txt = "⚠️ ATRASADA" if atrasada else "✅ AL DÍA"
+                        if ct.get('balance_pendiente', 0) <= 0:
+                            est_txt = "🏁 PAGADA"
+                            est_color = "#64748b"
+
                         st.markdown(f"""
-                        <div style='display:flex; justify-content:space-between; background:#f9f9f9; padding:5px 10px; border: 1px solid #eee; border-radius:8px; margin-bottom:5px;'>
-                            <span style='color:#2e7d32; font-weight:bold;'>✅ RD$ {p.get('monto_pagado', 0):,}</span>
-                            <span style='color:gray; font-size:12px;'>{str(p.get('fecha_pago'))[:10]}</span>
-                        </div>
+                            <div style='display:flex; justify-content:space-between; align-items:center;'>
+                                <b>Factura: #{str(ct['id'])[:6].upper()}</b>
+                                <span style='background:{est_color}; color:white; padding:2px 8px; border-radius:10px; font-size:11px;'>{est_txt}</span>
+                            </div>
                         """, unsafe_allow_html=True)
-                else:
-                    st.caption("No hay abonos registrados en esta factura.")
+                        
+                        col_info, col_monto = st.columns([2, 1])
+                        with col_info:
+                            st.write(f"📅 **Vence:** {f_pago if f_pago else 'N/A'}")
+                            if atrasada:
+                                dias = (hoy_dt - f_pago).days
+                                st.markdown(f"<span style='color:#ef4444; font-size:12px;'>Mora de {dias} días</span>", unsafe_allow_html=True)
+                        
+                        with col_monto:
+                            st.markdown(f"<h4 style='margin:0; text-align:right;'>RD$ {ct.get('balance_pendiente', 0):,}</h4>", unsafe_allow_html=True)
 
-# --- GRID DE CLIENTES (CORREGIDO) ---
-# --- GRID DE CLIENTES ---
-# --- SECCIÓN DE CLIENTES ---
-# --- GRID DE CLIENTES ---
-# Cambia "Clientes" por "👥 Todos mis Clientes" para que coincida con tu sidebar
-if menu == "👥 Todos mis Clientes": 
-    if not clientes_f:
-        st.warning("No hay clientes que coincidan con la búsqueda o filtro.")
-    else:
-        grid = st.columns(3)
-        for idx, cl in enumerate(clientes_f):
-            with grid[idx % 3]:
-                # Aquí va todo tu bloque de st.container(border=True)
-                # que ya tienes escrito para mostrar nombre, cédula y botones.
-                with st.container(border=True):
-                    # 1. Cabecera
-                    st.markdown(f"**{cl['nombre']}**")
-                    st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
-                    
-                    # 2. Botones de Acción Rápidos
-                b1, b2, b3 = st.columns(3)
-                with b1: # HISTORIAL
-                    if st.button("📂", key=f"h_{cl['id']}", use_container_width=True):
-                        modal_detalle(cl, cuentas_db, pagos_db)
-                
-                with b2: # WHATSAPP
-                    tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
-                    wa_url = f"https://wa.me/{tel}"
-                    st.markdown(f'''<a href="{wa_url}" target="_blank">
-                        <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
-                        </button></a>''', unsafe_allow_html=True)
-                
-                with b3: # GOOGLE MAPS
-                    lat, lon = cl.get('latitud'), cl.get('longitud')
-                    if lat and str(lat) not in ["0", "0.0", "None"]:
-                        map_url = f"https://www.google.com/maps?q={lat},{lon}"
-                        st.markdown(f'''<a href="{map_url}" target="_blank">
-                            <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
-                                <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
-                            </button></a>''', unsafe_allow_html=True)
-                    else:
-                        st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
+                        # --- DESPLEGABLE DE ABONOS ---
+                        with st.expander("🔍 Ver desglose de abonos y movimientos"):
+                            mis_p = [p for p in pagos if p.get('cuenta_id') == ct['id']]
+                            if mis_p:
+                                # Ordenar pagos por fecha
+                                df_p = pd.DataFrame(mis_p).sort_values("fecha_pago", ascending=False)
+                                for _, p in df_p.iterrows():
+                                    tipo_pago = "Abono Extra" if p.get('monto_pagado', 0) > ct.get('cuota_esperada', 0) else "Pago Regular"
+                                    st.markdown(f"""
+                                        <div style='display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;'>
+                                            <div>
+                                                <small style='color:gray;'>{str(p['fecha_pago'])[:10]}</small><br>
+                                                <b style='font-size:13px;'>{tipo_pago}</b>
+                                            </div>
+                                            <b style='color:#16a34a;'>+ RD$ {p.get('monto_pagado', 0):,}</b>
+                                        </div>
+                                    """, unsafe_allow_html=True)
+                            else:
+                                st.caption("No se han registrado abonos aún.")
 
-                # 3. Centro de Gestión (Editar y Eliminar)
-                with st.popover("⚙️ Ajustes", use_container_width=True):
+            if st.button("Cerrar Expediente", use_container_width=True):
+                st.rerun()
+
+        # --- GRID DE CLIENTES (CORREGIDO Y OPTIMIZADO) ---
+        if not clientes_f:
+            st.warning("No hay clientes que coincidan con la búsqueda o filtro.")
+        else:
+            grid = st.columns(3)
+            for idx, cl in enumerate(clientes_f):
+                with grid[idx % 3]:
+                    with st.container(border=True):
+                        # 1. Cabecera de Tarjeta
+                        st.markdown(f"**{cl['nombre']}**")
+                        st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
+                        
+                        # 2. Botones de Acción (Dentro del container para que se vea bien)
+                        b1, b2, b3 = st.columns(3)
+                        with b1:
+                            if st.button("📂", key=f"h_{cl['id']}", use_container_width=True, help="Ver Historial Completo"):
+                                modal_detalle(cl, cuentas_db, pagos_db)
+                        
+                        with b2:
+                            tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
+                            wa_url = f"https://wa.me/{tel}"
+                            st.markdown(f'''<a href="{wa_url}" target="_blank">
+                                <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
+                                </button></a>''', unsafe_allow_html=True)
+                        
+                        with b3:
+                            lat, lon = cl.get('latitud'), cl.get('longitud')
+                            if lat and str(lat) not in ["0", "0.0", "None"]:
+                                map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                                st.markdown(f'''<a href="{map_url}" target="_blank">
+                                    <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
+                                    </button></a>''', unsafe_allow_html=True)
+                            else:
+                                st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
+
+                        # 3. Centro de Gestión (Popover)
+                        with st.popover("⚙️ Ajustes", use_container_width=True):
+                            # ... (aquí mantienes tu lógica de edición y borrado que ya funciona)
+                            # [EL CÓDIGO DE EDICIÓN Y BORRADO SE MANTIENE IGUAL AL ANTERIOR]
                     g1, g2 = st.columns(2)
                     with g1:
                         if st.button("✏️ Editar", key=f"e_b_{cl['id']}", use_container_width=True):
