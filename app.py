@@ -722,11 +722,10 @@ elif menu == "👥 Todos mis Clientes":
         import folium
         from streamlit_folium import st_folium
         from streamlit_js_eval import streamlit_js_eval
-        from datetime import datetime
 
         hoy_dt = dt.date.today()
 
-        # 1. MEMORIA DE SESIÓN PARA REGISTRO
+        # 1. MEMORIA DE SESIÓN
         for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
             if k not in st.session_state: st.session_state[k] = ""
 
@@ -735,111 +734,68 @@ elif menu == "👥 Todos mis Clientes":
         # 2. REGISTRO DE NUEVO CLIENTE
         with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
             st.markdown("### 🛰️ Localización Satelital")
-            st.caption("⚠️ **Nota sobre precisión:** El GPS puede variar según el entorno.", 
-                       help="Enciende el Wi-Fi para mayor precisión.")
-            
             with st.container(border=True):
                 col_gps, col_map = st.columns([1, 1.5])
                 with col_gps:
                     pos = streamlit_js_eval(
-                        js_expressions="""
-                        new Promise((resolve) => {
-                            if (!navigator.geolocation) { resolve("NO_SOPORTADO"); }
-                            navigator.geolocation.getCurrentPosition(
-                                (p) => resolve(p.coords.latitude + "," + p.coords.longitude),
-                                (e) => resolve("ERROR_" + e.code),
-                                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-                            )
-                        })
-                        """,
-                        key="GPS_ENGINE_V6_FINAL"
+                        js_expressions='new Promise((res) => { navigator.geolocation.getCurrentPosition((p) => res(p.coords.latitude + "," + p.coords.longitude), (e) => res("ERROR"), {enableHighAccuracy:true}); })',
+                        key="GPS_FINAL_FIX"
                     )
-
-                    if st.button("🎯 CAPTURAR UBICACIÓN AHORA", use_container_width=True, type="primary"):
-                        if pos and not pos.startswith("ERROR") and pos != "NO_SOPORTADO":
+                    if st.button("🎯 CAPTURAR UBICACIÓN", use_container_width=True, type="primary"):
+                        if pos and "ERROR" not in pos:
                             st.session_state.reg_gps = pos
-                            st.success("✅ Ubicación capturada")
                             st.rerun()
-                    
-                    st.session_state.reg_gps = st.text_input("📍 Coordenadas", value=st.session_state.reg_gps, placeholder="Lat, Lon")
+                    st.session_state.reg_gps = st.text_input("📍 Coordenadas", value=st.session_state.reg_gps)
 
                 with col_map:
                     if st.session_state.reg_gps and "," in st.session_state.reg_gps:
                         try:
                             lat, lon = map(float, st.session_state.reg_gps.split(","))
                             m = folium.Map(location=[lat, lon], zoom_start=18)
-                            folium.Marker([lat, lon], icon=folium.Icon(color='red', icon='home')).add_to(m)
-                            st_folium(m, height=250, use_container_width=True, key=f"map_reg_{lat}")
-                        except: st.error("Formato inválido.")
-                    else:
-                        st.info("Captura ubicación para previsualizar.")
+                            folium.Marker([lat, lon]).add_to(m)
+                            st_folium(m, height=200, use_container_width=True, key=f"m_{lat}")
+                        except: st.error("GPS Inválido")
 
             st.markdown("### 📝 Datos del Cliente")
             c1, c2 = st.columns(2)
             with c1:
-                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="reg_n")
-                st.session_state.reg_ced = st.text_input("Cédula / ID *", value=st.session_state.reg_ced, key="reg_c")
+                st.session_state.reg_nombre = st.text_input("Nombre *", value=st.session_state.reg_nombre, key="n1")
+                st.session_state.reg_ced = st.text_input("Cédula *", value=st.session_state.reg_ced, key="c1")
             with c2:
-                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="reg_t")
-                st.session_state.reg_dir = st.text_area("Referencia de Dirección", value=st.session_state.reg_dir, height=68, key="reg_d")
+                st.session_state.reg_tel = st.text_input("WhatsApp *", value=st.session_state.reg_tel, key="t1")
+                st.session_state.reg_dir = st.text_area("Referencia", value=st.session_state.reg_dir, height=68, key="d1")
 
             if st.button("🚀 GUARDAR EN CARTERA", use_container_width=True, type="primary"):
-                if not st.session_state.reg_nombre or not st.session_state.reg_ced:
-                    st.error("❌ Nombre y Cédula son obligatorios.")
-                else:
-                    lat_final, lon_final = 0.0, 0.0
-                    if st.session_state.reg_gps and "," in st.session_state.reg_gps:
-                        try:
-                            l1, l2 = st.session_state.reg_gps.split(",")
-                            lat_final, lon_final = float(l1), float(l2)
+                if st.session_state.reg_nombre and st.session_state.reg_ced:
+                    lat_f, lon_f = 0.0, 0.0
+                    if st.session_state.reg_gps:
+                        try: lat_f, lon_f = map(float, st.session_state.reg_gps.split(","))
                         except: pass
-                    
                     conn.table("clientes").insert({
                         "nombre": st.session_state.reg_nombre, "telefono": st.session_state.reg_tel,
                         "cedula": st.session_state.reg_ced, "direccion": st.session_state.reg_dir,
-                        "latitud": lat_final, "longitud": lon_final, "user_id": u_id, "fecha_registro": str(hoy_dt)
+                        "latitud": lat_f, "longitud": lon_f, "user_id": u_id, "fecha_registro": str(hoy_dt)
                     }).execute()
-                    st.success("✅ Cliente guardado.")
+                    st.success("¡Cliente guardado!")
                     for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: st.session_state[k] = ""
                     time.sleep(1)
                     st.rerun()
 
         st.divider()
 
-        # 3. CARGA DE DATOS PARA LISTADO
+        # 3. LISTADO DE CLIENTES (TARJETAS)
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         clientes_db = res_cl.data if res_cl.data else []
-        res_cuentas = conn.table("cuentas").select("*").execute()
-        cuentas_db = res_cuentas.data if res_cuentas.data else []
-        res_pagos = conn.table("pagos").select("*").execute()
-        pagos_db = res_pagos.data if res_pagos.data else []
+        res_ct = conn.table("cuentas").select("*").execute()
+        cuentas_db = res_ct.data if res_ct.data else []
+        res_pg = conn.table("pagos").select("*").execute()
+        pagos_db = res_pg.data if res_pg.data else []
 
-        # BARRA DE BÚSQUEDA
-        col_s, col_f = st.columns([1.2, 2])
-        search_query = col_s.text_input("🔍", placeholder="Buscar cliente...", label_visibility="collapsed")
-        sel_filtro = col_f.pills("Filtro:", ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día"], default="🌍 Todos", label_visibility="collapsed")
+        search = st.text_input("🔍 Buscar cliente...")
+        clientes_f = [c for c in clientes_db if not search or search.lower() in c['nombre'].lower()]
 
-        # LÓGICA DE FILTRADO
-        clientes_f = []
-        for c in clientes_db:
-            cuenta = next((ct for ct in cuentas_db if ct['cliente_id'] == c['id']), None)
-            match_search = not search_query or (search_query.lower() in c['nombre'].lower() or search_query in str(c.get('cedula','')))
-            
-            match_estado = True
-            if sel_filtro != "🌍 Todos" and cuenta:
-                prox_p = pd.to_datetime(cuenta.get('proximo_pago')).date() if cuenta.get('proximo_pago') else None
-                bal = float(cuenta.get('balance_pendiente', 0))
-                if sel_filtro == "🔴 Atrasados":
-                    match_estado = prox_p and hoy_dt > prox_p and bal > 0
-                elif sel_filtro == "🟢 Al Día":
-                    match_estado = bal <= 0 or (prox_p and prox_p >= hoy_dt)
-
-            if match_search and match_estado:
-                clientes_f.append(c)
-
-        # 4. GRID DE TARJETAS
         if not clientes_f:
-            st.info("No hay clientes que mostrar.")
+            st.info("No hay clientes registrados.")
         else:
             grid = st.columns(3)
             for idx, cl in enumerate(clientes_f):
@@ -847,36 +803,19 @@ elif menu == "👥 Todos mis Clientes":
                     with st.container(border=True):
                         st.markdown(f"**{cl['nombre']}**")
                         st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
-                        
-                        b1, b2, b3 = st.columns(3)
-                        with b1:
-                            if st.button("📂", key=f"exp_{cl['id']}", use_container_width=True):
+                        colb1, colb2 = st.columns(2)
+                        with colb1:
+                            if st.button("📂 Ver", key=f"v_{cl['id']}", use_container_width=True):
                                 modal_detalle(cl, cuentas_db, pagos_db)
-                        with b2:
-                            clean_tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
-                            st.markdown(f'''<a href="https://wa.me/{clean_tel}" target="_blank">
-                                <button style="width:100%; background:#25D366; border:none; padding:5px; border-radius:8px; cursor:pointer;">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="16">
-                                </button></a>''', unsafe_allow_html=True)
-                        with b3:
-                            lat, lon = cl.get('latitud'), cl.get('longitud')
-                            if lat and float(lat) != 0:
-                                map_url = f"https://www.google.com/maps?q={lat},{lon}"
-                                st.markdown(f'''<a href="{map_url}" target="_blank">
-                                    <button style="width:100%; background:white; border:1px solid #ddd; padding:5px; border-radius:8px; cursor:pointer;">📍</button>
-                                </a>''', unsafe_allow_html=True)
-                            else:
-                                st.button("📵", disabled=True, key=f"nogps_{cl['id']}", use_container_width=True)
-
-                        with st.popover("⚙️ Ajustes", use_container_width=True):
-                            if st.button("🗑️ Eliminar", key=f"del_{cl['id']}", type="primary", use_container_width=True):
+                        with colb2:
+                            if st.button("🗑️", key=f"d_{cl['id']}", type="primary", use_container_width=True):
                                 conn.table("clientes").delete().eq("id", cl['id']).execute()
                                 st.rerun()
 
     elif menu == "Cuentas por Pagar":
         st.header("🏧 Movimientos de Efectivo")
         
-        # Recuperar datos financieros
+        # 4. LÓGICA FINANCIERA RESTAURADA
         res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
         res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
         
@@ -890,7 +829,7 @@ elif menu == "👥 Todos mis Clientes":
         c3.metric("Balance en Caja", f"RD$ {balance_caja:,.2f}")
         
         st.divider()
-        st.info("Aquí puedes registrar nuevos gastos o visualizar el flujo de caja detallado.")
+        st.info("Visualización de flujo de caja y egresos.")
         
 elif menu == "IA Predictiva":
     # ---------------------------------------------------------
