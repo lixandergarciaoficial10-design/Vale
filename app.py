@@ -1008,6 +1008,7 @@ def modal_detalle(cliente, cuentas, pagos):
         st.rerun()
 
 # --- GRID DE CLIENTES ---
+# --- GRID DE CLIENTES (EDICIÓN FINAL PROFESIONAL) ---
 if not clientes_f:
     st.warning("No hay resultados.")
 else:
@@ -1015,26 +1016,92 @@ else:
     for idx, cl in enumerate(clientes_f):
         with grid[idx % 3]:
             with st.container(border=True):
+                # 1. Identificación
                 st.markdown(f"**{cl['nombre']}**")
                 st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
                 
-                # Botón para abrir el expediente
-                if st.button("📂 Abrir Expediente", key=f"exp_{cl['id']}", use_container_width=True):
-                    modal_detalle(cl, cuentas_db, pagos_db)
+                # 2. Fila de Botones Rápidos (Diseño solicitado)
+                b1, b2, b3 = st.columns(3)
+                with b1:
+                    if st.button("📂", key=f"btn_h_{cl['id']}", use_container_width=True, help="Expediente"):
+                        modal_detalle(cl, cuentas_db, pagos_db)
                 
-                with st.popover("⚙️ Ajustes", use_container_width=True):
-                    if st.button("✏️ Editar", key=f"ed_{cl['id']}", use_container_width=True):
-                        st.session_state[f"editing_{cl['id']}"] = True
-                    # Lógica de edición simplificada...
-                    
-                    if st.session_state.get(f"editing_{cl['id']}"):
-                        with st.form(f"form_ed_{cl['id']}"):
-                            n_nom = st.text_input("Nombre", value=cl['nombre'])
-                            n_tel = st.text_input("Teléfono", value=cl.get('telefono',''))
-                            if st.form_submit_button("Guardar Cambios"):
-                                conn.table("clientes").update({"nombre": n_nom, "telefono": n_tel}).eq("id", cl['id']).execute()
-                                st.rerun()
+                with b2:
+                    tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
+                    st.markdown(f'''<a href="https://wa.me/{tel}" target="_blank">
+                        <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
+                        </button></a>''', unsafe_allow_html=True)
+                
+                with b3:
+                    lat, lon = cl.get('latitud'), cl.get('longitud')
+                    if lat and str(lat) not in ["0", "0.0", "None", ""]:
+                        map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                        st.markdown(f'''<a href="{map_url}" target="_blank">
+                            <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
+                            </button></a>''', unsafe_allow_html=True)
+                    else:
+                        st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
 
+                # 3. Centro de Gestión (Popover con Triple Seguridad)
+                with st.popover("⚙️ Ajustes", use_container_width=True):
+                    g1, g2 = st.columns(2)
+                    with g1:
+                        if st.button("✏️ Editar", key=f"e_b_{cl['id']}", use_container_width=True):
+                            st.session_state[f"editing_{cl['id']}"] = True
+                    with g2:
+                        if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", type="primary", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 1
+
+                    # --- LÓGICA DE EDICIÓN CON DESCARGO ---
+                    if st.session_state.get(f"editing_{cl['id']}"):
+                        st.markdown("---")
+                        st.info("⚠️ **DESCARGO DE RESPONSABILIDAD:** Al editar este perfil, los cambios se verán reflejados en todos los recibos y facturas generadas a partir de ahora.")
+                        with st.form(f"form_ed_{cl['id']}"):
+                            e_nom = st.text_input("Nombre Completo", value=cl['nombre'])
+                            e_ced = st.text_input("Cédula/ID", value=cl.get('cedula', ''))
+                            e_tel = st.text_input("Teléfono", value=cl.get('telefono', ''))
+                            
+                            c_la, c_lo = st.columns(2)
+                            e_lat = c_la.text_input("Latitud", value=str(cl.get('latitud', '0.0')))
+                            e_lon = c_lo.text_input("Longitud", value=str(cl.get('longitud', '0.0')))
+
+                            if st.form_submit_button("💾 Guardar Cambios"):
+                                try:
+                                    conn.table("clientes").update({
+                                        "nombre": e_nom, "cedula": e_ced, "telefono": e_tel,
+                                        "latitud": e_lat, "longitud": e_lon
+                                    }).eq("id", cl['id']).execute()
+                                    st.toast("✅ Datos actualizados")
+                                    del st.session_state[f"editing_{cl['id']}"]
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+
+                    # --- LÓGICA DE ELIMINAR (TRIPLE CONFIRMACIÓN) ---
+                    if st.session_state.get(f"del_step_{cl['id']}") == 1:
+                        st.error("⚠️ **AVISO:** Borrar este cliente eliminará también su historial de facturas. Esta acción es irreversible.")
+                        if st.button("PRIMERA CONFIRMACIÓN: ¿Continuar?", key=f"d1_{cl['id']}", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 2
+                            st.rerun()
+
+                    elif st.session_state.get(f"del_step_{cl['id']}") == 2:
+                        st.warning("❓ **SEGUNDA CONFIRMACIÓN:** ¿Estás absolutamente seguro de que quieres borrar a este cliente?")
+                        if st.button("SÍ, ESTOY SEGURO", key=f"d2_{cl['id']}", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 3
+                            st.rerun()
+
+                    elif st.session_state.get(f"del_step_{cl['id']}") == 3:
+                        st.markdown("🚨 **TERCERA CONFIRMACIÓN FINAL:**")
+                        if st.button("CONFIRMAR BORRADO DEFINITIVO", key=f"d3_{cl['id']}", type="primary", use_container_width=True):
+                            conn.table("clientes").delete().eq("id", cl['id']).execute()
+                            st.toast("🗑️ Cliente eliminado del sistema")
+                            del st.session_state[f"del_step_{cl['id']}"]
+                            st.rerun()
+                        if st.button("❌ Cancelar", key=f"can_d_{cl['id']}", use_container_width=True):
+                            del st.session_state[f"del_step_{cl['id']}"]
+                            st.rerun()
 
 # --- CAMBIO DE SECCIÓN (MOVIMIENTOS DE EFECTIVO) ---
 if menu == "Cuentas por Pagar":
