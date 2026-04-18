@@ -739,7 +739,7 @@ elif menu == "👥 Todos mis Clientes":
                 with col_gps:
                     pos = streamlit_js_eval(
                         js_expressions='new Promise((res) => { navigator.geolocation.getCurrentPosition((p) => res(p.coords.latitude + "," + p.coords.longitude), (e) => res("ERROR"), {enableHighAccuracy:true}); })',
-                        key="GPS_FINAL_FIX"
+                        key="GPS_FIX_FINAL"
                     )
                     if st.button("🎯 CAPTURAR UBICACIÓN", use_container_width=True, type="primary"):
                         if pos and "ERROR" not in pos:
@@ -759,11 +759,11 @@ elif menu == "👥 Todos mis Clientes":
             st.markdown("### 📝 Datos del Cliente")
             c1, c2 = st.columns(2)
             with c1:
-                st.session_state.reg_nombre = st.text_input("Nombre *", value=st.session_state.reg_nombre, key="n1")
-                st.session_state.reg_ced = st.text_input("Cédula *", value=st.session_state.reg_ced, key="c1")
+                st.session_state.reg_nombre = st.text_input("Nombre *", value=st.session_state.reg_nombre, key="n_cl")
+                st.session_state.reg_ced = st.text_input("Cédula *", value=st.session_state.reg_ced, key="c_cl")
             with c2:
-                st.session_state.reg_tel = st.text_input("WhatsApp *", value=st.session_state.reg_tel, key="t1")
-                st.session_state.reg_dir = st.text_area("Referencia", value=st.session_state.reg_dir, height=68, key="d1")
+                st.session_state.reg_tel = st.text_input("WhatsApp *", value=st.session_state.reg_tel, key="t_cl")
+                st.session_state.reg_dir = st.text_area("Referencia", value=st.session_state.reg_dir, height=68, key="d_cl")
 
             if st.button("🚀 GUARDAR EN CARTERA", use_container_width=True, type="primary"):
                 if st.session_state.reg_nombre and st.session_state.reg_ced:
@@ -812,24 +812,24 @@ elif menu == "👥 Todos mis Clientes":
                                 conn.table("clientes").delete().eq("id", cl['id']).execute()
                                 st.rerun()
 
-    elif menu == "Cuentas por Pagar":
-        st.header("🏧 Movimientos de Efectivo")
+elif menu == "Cuentas por Pagar":
+    st.header("🏧 Movimientos de Efectivo")
         
-        # 4. LÓGICA FINANCIERA RESTAURADA
-        res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
-        res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
+    # 4. LÓGICA FINANCIERA RESTAURADA
+    res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
+    res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
         
-        total_pagos = sum([float(p['monto_pagado']) for p in res_p.data]) if res_p.data else 0.0
-        total_gastos = sum([float(g['monto']) for g in res_g.data]) if res_g.data else 0.0
-        balance_caja = total_pagos - total_gastos
+    total_pagos = sum([float(p['monto_pagado']) for p in res_p.data]) if res_p.data else 0.0
+    total_gastos = sum([float(g['monto']) for g in res_g.data]) if res_g.data else 0.0
+    balance_caja = total_pagos - total_gastos
 
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Ingresos Totales", f"RD$ {total_pagos:,.2f}")
-        c2.metric("Gastos Totales", f"RD$ {total_gastos:,.2f}", delta_color="inverse")
-        c3.metric("Balance en Caja", f"RD$ {balance_caja:,.2f}")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Ingresos Totales", f"RD$ {total_pagos:,.2f}")
+    col2.metric("Gastos Totales", f"RD$ {total_gastos:,.2f}", delta_color="inverse")
+    col3.metric("Balance en Caja", f"RD$ {balance_caja:,.2f}")
         
-        st.divider()
-        st.info("Visualización de flujo de caja y egresos.")
+    st.divider()
+    st.info("Visualización de flujo de caja y egresos.")
         
 elif menu == "IA Predictiva":
     # ---------------------------------------------------------
