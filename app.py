@@ -939,163 +939,109 @@ elif menu == "👥 Todos mis Clientes":
             
             st.divider()
             
-            # --- LISTADO DE CUENTAS (Tu lógica original mejorada) ---
-            st.markdown("#### 📑 Historial de Cuentas")
-            mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
-            
-            if not mis_ctas:
-                st.info("Este cliente no tiene cuentas activas actualmente.")
-            else:
-                for ct in mis_ctas:
-                    with st.container(border=True):
-                        col_acc, col_met = st.columns([2,1])
-                        col_acc.markdown(f"**Factura ID: {str(ct['id'])[:8]}**")
-                        col_acc.write(f"📅 Próximo cobro: `{ct.get('proximo_pago')}`")
-                        col_met.metric("Pendiente", f"RD$ {ct.get('balance_pendiente', 0):,}")
-                        
-                        # LÓGICA DE ABONOS ESPECÍFICOS
-                        st.markdown("**💰 Desglose de Abonos:**")
-                        mis_p = [p for p in pagos if p.get('cuenta_id') == ct['id']]
-                        if mis_p:
-                            for p in mis_p:
-                                st.markdown(f"""
-                                <div style='display:flex; justify-content:space-between; background:#f9f9f9; padding:5px 10px; border: 1px solid #eee; border-radius:8px; margin-bottom:5px;'>
-                                    <span style='color:#2e7d32; font-weight:bold;'>✅ RD$ {p.get('monto_pagado', 0):,}</span>
-                                    <span style='color:gray; font-size:12px;'>{str(p.get('fecha_pago'))[:10]}</span>
-                                </div>
-                                """, unsafe_allow_html=True)
-                        else:
-                            st.caption("No hay abonos registrados en esta factura.")
-
-        # --- GRID DE CLIENTES ---
-    if not clientes_f:
-        st.warning("No hay clientes en esta categoría.")
+            # --- LISTADO DE CUENTAS (DENTRO DEL MODAL O SECCIÓN CORRESPONDIENTE) ---
+def mostrar_historial_cuentas(cliente, cuentas, pagos):
+    st.markdown("#### 📑 Historial de Cuentas")
+    mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
+    
+    if not mis_ctas:
+        st.info("Este cliente no tiene cuentas activas actualmente.")
     else:
-        grid = st.columns(3)
-        for idx, cl in enumerate(clientes_f):
-            with grid[idx % 3]:
-                with st.container(border=True):
-                    # 1. Cabecera Estética
-                    st.markdown(f"**{cl['nombre']}**")
-                    st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
-                    
-                    # 2. Botones de Acción (Historial, WhatsApp, Maps)
-                    b1, b2, b3 = st.columns(3)
-                    with b1:
-                        if st.button("📂", key=f"h_{cl['id']}", use_container_width=True, help="Ver historial"):
-                            modal_detalle(cl, cuentas_db, pagos_db)
-                    
-                    with b2:
-                        tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
-                        wa_url = f"https://wa.me/{tel}"
-                        st.markdown(f'''<a href="{wa_url}" target="_blank">
-                            <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
-                                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
+        for ct in mis_ctas:
+            with st.container(border=True):
+                col_acc, col_met = st.columns([2, 1])
+                col_acc.markdown(f"**Factura ID: {str(ct['id'])[:8]}**")
+                col_acc.write(f"📅 Próximo cobro: `{ct.get('proximo_pago')}`")
+                col_met.metric("Pendiente", f"RD$ {ct.get('balance_pendiente', 0):,}")
+                
+                st.markdown("**💰 Desglose de Abonos:**")
+                mis_p = [p for p in pagos if p.get('cuenta_id') == ct['id']]
+                if mis_p:
+                    for p in mis_p:
+                        st.markdown(f"""
+                        <div style='display:flex; justify-content:space-between; background:#f9f9f9; padding:5px 10px; border: 1px solid #eee; border-radius:8px; margin-bottom:5px;'>
+                            <span style='color:#2e7d32; font-weight:bold;'>✅ RD$ {p.get('monto_pagado', 0):,}</span>
+                            <span style='color:gray; font-size:12px;'>{str(p.get('fecha_pago'))[:10]}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    st.caption("No hay abonos registrados en esta factura.")
+
+# --- GRID DE CLIENTES (CORREGIDO) ---
+if not clientes_f:
+    st.warning("No hay clientes en esta categoría.")
+else:
+    grid = st.columns(3)
+    for idx, cl in enumerate(clientes_f):
+        with grid[idx % 3]:
+            with st.container(border=True):
+                # 1. Cabecera
+                st.markdown(f"**{cl['nombre']}**")
+                st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
+                
+                # 2. Botones de Acción
+                b1, b2, b3 = st.columns(3)
+                with b1: # HISTORIAL
+                    if st.button("📂", key=f"h_{cl['id']}", use_container_width=True):
+                        modal_detalle(cl, cuentas_db, pagos_db)
+                
+                with b2: # WHATSAPP
+                    tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
+                    wa_url = f"https://wa.me/{tel}"
+                    st.markdown(f'''<a href="{wa_url}" target="_blank">
+                        <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
+                        </button></a>''', unsafe_allow_html=True)
+                
+                with b3: # GOOGLE MAPS
+                    lat, lon = cl.get('latitud'), cl.get('longitud')
+                    if lat and str(lat) not in ["0", "0.0", "None"]:
+                        map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                        st.markdown(f'''<a href="{map_url}" target="_blank">
+                            <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
                             </button></a>''', unsafe_allow_html=True)
-                    
-                    with b3:
-                        lat, lon = cl.get('latitud'), cl.get('longitud')
-                        if lat and str(lat) not in ["0", "0.0", "None"]:
-                            map_url = f"https://www.google.com/maps?q={lat},{lon}"
-                            st.markdown(f'''<a href="{map_url}" target="_blank">
-                                <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
-                                </button></a>''', unsafe_allow_html=True)
-                        else:
-                            st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
+                    else:
+                        st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
 
-                    # 3. Gestión (Editar / Borrar)
-                    with st.popover("⚙️", use_container_width=True):
-                        st.write("### 🛠️ Gestión")
-                        g1, g2 = st.columns(2)
-                        with g1:
-                            if st.button("✏️", key=f"edit_{cl['id']}", use_container_width=True):
-                                st.session_state[f"editing_{cl['id']}"] = True
-                        with g2:
-                            if st.button("🗑️", key=f"del_{cl['id']}", type="primary", use_container_width=True):
-                                st.session_state[f"confirm_del_{cl['id']}"] = True
+                # 3. Configuración (Popover)
+                with st.popover("⚙️", use_container_width=True):
+                    st.write("### 🛠️ Gestión")
+                    g1, g2 = st.columns(2)
+                    with g1:
+                        if st.button("✏️", key=f"edit_btn_{cl['id']}", use_container_width=True):
+                            st.session_state[f"editing_{cl['id']}"] = True
+                    with g2:
+                        if st.button("🗑️", key=f"del_step1_{cl['id']}", type="primary", use_container_width=True):
+                            st.session_state[f"confirm_del_{cl['id']}"] = True
 
-                        # Lógica Edición
-                        if st.session_state.get(f"editing_{cl['id']}"):
-                            st.info("Modo Edición")
-                            new_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
-                            new_tel = st.text_input("Teléfono", value=cl.get('telefono',''), key=f"et_{cl['id']}")
-                            if st.button("💾 Guardar", key=f"sv_{cl['id']}", type="primary", use_container_width=True):
-                                conn.table("clientes").update({"nombre": new_nom, "telefono": new_tel}).eq("id", cl['id']).execute()
-                                del st.session_state[f"editing_{cl['id']}"]
-                                st.rerun()
-
-                        # Lógica Borrado
-                        if st.session_state.get(f"confirm_del_{cl['id']}"):
-                            st.error("¿Borrar?")
-                            if st.button("SÍ, BORRAR", key=f"fdel_{cl['id']}", type="primary", use_container_width=True):
-                                conn.table("clientes").delete().eq("id", cl['id']).execute()
-                                del st.session_state[f"confirm_del_{cl['id']}"]
-                                st.rerun()
+                    # Lógica de Edición
+                    if st.session_state.get(f"editing_{cl['id']}"):
+                        st.info("📝 Modo Edición")
+                        new_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
+                        new_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
                         
-                        with b2: # WHATSAPP
-                            tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
-                            wa_url = f"https://wa.me/{tel}"
-                            st.markdown(f'''<a href="{wa_url}" target="_blank">
-                                <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
-                                </button></a>''', unsafe_allow_html=True)
-                        
-                        with b3: # GOOGLE MAPS
-                            lat, lon = cl.get('latitud'), cl.get('longitud')
-                            if lat and str(lat) not in ["0", "0.0", "None"]:
-                                map_url = f"https://www.google.com/maps?q={lat},{lon}"
-                                st.markdown(f'''<a href="{map_url}" target="_blank">
-                                    <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
-                                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
-                                    </button></a>''', unsafe_allow_html=True)
-                            else:
-                                st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
+                        e1, e2 = st.columns(2)
+                        if e1.button("💾", key=f"save_{cl['id']}", type="primary", use_container_width=True):
+                            conn.table("clientes").update({"nombre": new_nom, "telefono": new_tel}).eq("id", cl['id']).execute()
+                            st.toast("✅ Actualizado")
+                            del st.session_state[f"editing_{cl['id']}"]
+                            st.rerun()
+                        if e2.button("❌", key=f"cancel_e_{cl['id']}", use_container_width=True):
+                            del st.session_state[f"editing_{cl['id']}"]
+                            st.rerun()
 
-                        # --- GESTIÓN DISCRETA (DENTRO DE LA TARJETA) ---
-                        with st.popover("⚙️", use_container_width=True):
-                            st.write("### 🛠️ Gestión")
-                            g1, g2 = st.columns(2)
-                            with g1:
-                                if st.button("✏️", key=f"edit_btn_{cl['id']}", use_container_width=True, help="Editar datos"):
-                                    st.session_state[f"editing_{cl['id']}"] = True
-                            with g2:
-                                if st.button("🗑️", key=f"del_step1_{cl['id']}", type="primary", use_container_width=True, help="Eliminar"):
-                                    st.session_state[f"confirm_del_{cl['id']}"] = True
-
-                            # Lógica de Edición
-                            if st.session_state.get(f"editing_{cl['id']}"):
-                                st.info("📝 **Modo Edición**")
-                                new_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
-                                new_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
-                                new_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
-                                new_not = st.text_area("Notas", value=cl.get('notas', ''), key=f"eno_{cl['id']}")
-                                
-                                e1, e2 = st.columns(2)
-                                if e1.button("💾", key=f"save_{cl['id']}", type="primary", use_container_width=True):
-                                    conn.table("clientes").update({
-                                        "nombre": new_nom, "cedula": new_ced, 
-                                        "telefono": new_tel, "notas": new_not
-                                    }).eq("id", cl['id']).execute()
-                                    st.toast("✅ Actualizado")
-                                    del st.session_state[f"editing_{cl['id']}"]
-                                    st.rerun()
-                                if e2.button("❌", key=f"cancel_e_{cl['id']}", use_container_width=True):
-                                    del st.session_state[f"editing_{cl['id']}"]
-                                    st.rerun()
-
-                            # Lógica de Eliminación
-                            if st.session_state.get(f"confirm_del_{cl['id']}"):
-                                st.error("¿Borrar todo?")
-                                c1, c2 = st.columns(2)
-                                if c1.button("SÍ", key=f"f_del_{cl['id']}", type="primary", use_container_width=True):
-                                    conn.table("clientes").delete().eq("id", cl['id']).execute()
-                                    del st.session_state[f"confirm_del_{cl['id']}"]
-                                    st.rerun()
-                                if c2.button("NO", key=f"c_del_{cl['id']}", use_container_width=True):
-                                    del st.session_state[f"confirm_del_{cl['id']}"]
-                                    st.rerun()
-
+                    # Lógica de Eliminación
+                    if st.session_state.get(f"confirm_del_{cl['id']}"):
+                        st.error("¿Borrar cliente?")
+                        c1, c2 = st.columns(2)
+                        if c1.button("SÍ", key=f"f_del_{cl['id']}", type="primary", use_container_width=True):
+                            conn.table("clientes").delete().eq("id", cl['id']).execute()
+                            del st.session_state[f"confirm_del_{cl['id']}"]
+                            st.rerun()
+                        if c2.button("NO", key=f"c_del_{cl['id']}", use_container_width=True):
+                            del st.session_state[f"confirm_del_{cl['id']}"]
+                            st.rerun()
 # --- SALIDA DEL CICLO Y SECCIÓN SIGUIENTE ---
 elif menu == "Cuentas por Pagar":
     st.header("🏧 Movimientos de Efectivo")
