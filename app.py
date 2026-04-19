@@ -914,25 +914,20 @@ def modal_detalle(cliente, cuentas, pagos):
     # --- CABECERA ---
     col_icon, col_data = st.columns([1, 4])
     with col_icon:
-        st.markdown("<h1 style='text-align:center; margin:0;'>👤</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align:center;'>👤</h1>", unsafe_allow_html=True)
     with col_data:
         st.markdown(f"### {cliente['nombre']}")
         st.caption(f"🆔 Cédula: {cliente.get('cedula', 'N/A')} | 📞 {cliente.get('telefono', 'N/A')}")
     
-    # --- INDICADORES RÁPIDOS CON ADAPTACIÓN PARA MILLONES ---
+    # --- INDICADORES RÁPIDOS ---
     mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
     total_deuda = sum(float(ct.get('balance_pendiente', 0)) for ct in mis_ctas)
     
-    # Lógica de visualización para montos grandes en el celular
-    if total_deuda >= 1000000:
-        deuda_format = f"RD$ {total_deuda/1000000:.2f}M"
-    else:
-        deuda_format = f"RD$ {total_deuda:,.2f}"
-    
     c1, c2, c3 = st.columns(3)
-    c1.metric("Deuda Total", deuda_format)
+    c1.metric("Deuda Total", f"RD$ {total_deuda:,.2f}")
     c2.metric("Cuentas Activas", len([c for c in mis_ctas if float(c.get('balance_pendiente', 0)) > 0]))
     
+    # Cálculo de salud financiera
     p_vencidos = 0
     for ct in mis_ctas:
         if ct.get('proximo_pago') and pd.to_datetime(ct['proximo_pago']).date() < hoy_dt and float(ct.get('balance_pendiente', 0)) > 0:
@@ -941,59 +936,68 @@ def modal_detalle(cliente, cuentas, pagos):
 
     st.divider()
     
-    # --- EXCEL EDITABLE DE ABONOS ---
-    st.markdown("#### 📑 Desglose de Abonos y Movimientos")
+    # --- LISTADO DE CUENTAS DETALLADO ---
+    st.markdown("#### 📑 Historial de Deudas y Abonos")
     
-    with st.expander("⚠️ DESCARGO DE RESPONSABILIDAD (LEER ANTES DE EDITAR)", expanded=False):
-        st.error("""
-            **AVISO IMPORTANTE:** Estás accediendo a la edición directa de movimientos. 
-            Cualquier modificación manual en los montos o fechas afectará directamente el balance del sistema. 
-            **CobroYa** no se hace responsable por descuadres o inconsistencias derivadas de cambios realizados por el usuario en esta sección.
-        """)
-        st.info("💡 **Instrucciones:** Haz **3 toques rápidos** (o doble clic) en una celda para modificarla. Al terminar, presiona 'Sincronizar y Ajustar'.")
-
-    ids_mis_ctas = [ct['id'] for ct in mis_ctas]
-    mis_p = [p for p in pagos if p.get('cuenta_id') in ids_mis_ctas]
-
-    if not mis_p:
-        st.info("No hay abonos registrados para este cliente.")
+    if not mis_ctas:
+        st.info("Este cliente no tiene registros financieros.")
     else:
-        df_p = pd.DataFrame(mis_p)
-        df_p['fecha_pago'] = pd.to_datetime(df_p['fecha_pago']).dt.date
-        
-        # El "Excel" editable
-        edited_p = st.data_editor(
-            df_p[['id', 'fecha_pago', 'monto_pagado', 'cuenta_id']],
-            column_config={
-                "id": None, # Ocultamos ID
-                "fecha_pago": st.column_config.DateColumn("Fecha Cobro", format="DD/MM/YYYY"),
-                "monto_pagado": st.column_config.NumberColumn("Monto Recibido", format="RD$ %d"),
-                "cuenta_id": st.column_config.SelectboxColumn("ID Factura", options=ids_mis_ctas, disabled=True)
-            },
-            hide_index=True,
-            use_container_width=True,
-            key=f"excel_{cliente['id']}"
-        )
-
-        if st.button("💾 Sincronizar y Ajustar Sistema", use_container_width=True, type="primary"):
-            try:
-                for i, row in edited_p.iterrows():
-                    conn.table("pagos").update({
-                        "monto_pagado": float(row['monto_pagado']),
-                        "fecha_pago": str(row['fecha_pago'])
-                    }).eq("id", row['id']).execute()
+        for ct in mis_ctas:
+            with st.container(border=True):
+                # Encabezado de la factura con Badge de estado
+                f_pago = pd.to_datetime(ct.get('proximo_pago')).date() if ct.get('proximo_pago') else None
+                balance = float(ct.get('balance_pendiente', 0))
+                atrasada = f_pago and f_pago < hoy_dt and balance > 0
                 
-                st.success("✅ ¡Movimientos actualizados correctamente!")
-                time.sleep(1)
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error al sincronizar: {e}")
+                est_color = "#ef4444" if atrasada else "#22c55e"
+                est_txt = "⚠️ ATRASADA" if atrasada else "✅ AL DÍA"
+                if balance <= 0:
+                    est_txt = "🏁 PAGADA"
+                    est_color = "#64748b"
 
-    st.divider()
+                st.markdown(f"""
+                    <div style='display:flex; justify-content:space-between; align-items:center;'>
+                        <b>Factura: #{str(ct['id'])[:6].upper()}</b>
+                        <span style='background:{est_color}; color:white; padding:2px 8px; border-radius:10px; font-size:11px;'>{est_txt}</span>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                col_info, col_monto = st.columns([2, 1])
+                with col_info:
+                    st.write(f"📅 **Vence:** {f_pago if f_pago else 'N/A'}")
+                    if atrasada:
+                        dias = (hoy_dt - f_pago).days
+                        st.markdown(f"<span style='color:#ef4444; font-size:12px;'>Mora de {dias} días</span>", unsafe_allow_html=True)
+                
+                with col_monto:
+                    st.markdown(f"<h4 style='margin:0; text-align:right;'>RD$ {balance:,.2f}</h4>", unsafe_allow_html=True)
+
+                # --- DESPLEGABLE DE ABONOS ---
+                with st.expander("🔍 Ver desglose de abonos y movimientos"):
+                    mis_p = [p for p in pagos if p.get('cuenta_id') == ct['id']]
+                    if mis_p:
+                        df_p = pd.DataFrame(mis_p).sort_values("fecha_pago", ascending=False)
+                        for _, p in df_p.iterrows():
+                            monto_p = float(p.get('monto_pagado', 0))
+                            cuota_e = float(ct.get('cuota_esperada', 0))
+                            tipo_pago = "Abono Extra" if monto_p > cuota_e else "Pago Regular"
+                            
+                            st.markdown(f"""
+                                <div style='display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;'>
+                                    <div>
+                                        <small style='color:gray;'>{str(p['fecha_pago'])[:10]}</small><br>
+                                        <b style='font-size:13px;'>{tipo_pago}</b>
+                                    </div>
+                                    <b style='color:#16a34a;'>+ RD$ {monto_p:,.2f}</b>
+                                </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.caption("No se han registrado abonos aún.")
+
     if st.button("Cerrar Expediente", use_container_width=True):
         st.rerun()
 
-# --- GRID DE CLIENTES (CORREGIDO CON GOOGLE MAPS DINÁMICO) ---
+# --- GRID DE CLIENTES (CORREGIDO) ---
 if not clientes_f:
     st.warning("No hay clientes que coincidan con la búsqueda o filtro.")
 else:
@@ -1005,7 +1009,7 @@ else:
                 st.markdown(f"**{cl['nombre']}**")
                 st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
                 
-                # 2. Botones de Acción (📂, WhatsApp, Maps)
+                # 2. Botones de Acción
                 b1, b2, b3 = st.columns(3)
                 with b1:
                     if st.button("📂", key=f"h_{cl['id']}", use_container_width=True):
@@ -1022,8 +1026,7 @@ else:
                 with b3:
                     lat, lon = cl.get('latitud'), cl.get('longitud')
                     if lat and str(lat) not in ["0", "0.0", "None"]:
-                        # URL corregida para abrir directamente en la App del móvil
-                        map_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+                        map_url = f"https://www.google.com/maps?q={lat},{lon}"
                         st.markdown(f'''<a href="{map_url}" target="_blank">
                             <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
                                 <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
@@ -1041,11 +1044,13 @@ else:
                         if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", type="primary", use_container_width=True):
                             st.session_state[f"del_step_{cl['id']}"] = 1
 
+                    # --- LÓGICA DE EDICIÓN ---
                     if st.session_state.get(f"editing_{cl['id']}"):
                         st.markdown("---")
                         e_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
                         e_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
                         e_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
+                        
                         c_la, c_lo = st.columns(2)
                         e_lat = c_la.text_input("Latitud", value=str(cl.get('latitud', '0.0')), key=f"elat_{cl['id']}")
                         e_lon = c_lo.text_input("Longitud", value=str(cl.get('longitud', '0.0')), key=f"elon_{cl['id']}")
@@ -1059,11 +1064,13 @@ else:
                             del st.session_state[f"editing_{cl['id']}"]
                             st.rerun()
 
+                    # --- LÓGICA DE ELIMINAR ---
                     if st.session_state.get(f"del_step_{cl['id']}") == 1:
                         st.warning("¿Seguro?")
                         if st.button("SÍ", key=f"d1_{cl['id']}", use_container_width=True):
                             st.session_state[f"del_step_{cl['id']}"] = 2
                             st.rerun()
+                    
                     elif st.session_state.get(f"del_step_{cl['id']}") == 2:
                         if st.button("CONFIRMAR BORRADO", key=f"d2_{cl['id']}", type="primary", use_container_width=True):
                             conn.table("clientes").delete().eq("id", cl['id']).execute()
@@ -1071,11 +1078,15 @@ else:
                             del st.session_state[f"del_step_{cl['id']}"]
                             st.rerun()
 
-# --- CAMBIO DE SECCIÓN (MOVIMIENTOS DE EFECTIVO) ---
+# --- CAMBIO DE SECCIÓN (CORREGIDO) ---
+# Este bloque debe estar alineado con el 'if menu == "..." ' inicial de tu aplicación
 if menu == "Cuentas por Pagar":
     st.header("🏧 Movimientos de Efectivo")
+    
+    # Lógica de la sección...
     res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
     res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
+    
     total_pagos = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
 
 
