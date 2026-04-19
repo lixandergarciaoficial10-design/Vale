@@ -128,6 +128,7 @@ if 'user' not in st.session_state:
     st.stop()
 
 u_id = st.session_state.user.id
+clientes_f = []
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
     try:
