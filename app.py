@@ -1109,7 +1109,6 @@ if menu == "Cuentas por Pagar":
     res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
     total_pagos = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
 
-
 elif menu == "IA Predictiva":
     # ---------------------------------------------------------
     # 1. CSS AVANZADO PARA ESTILO META AI (Tarjetas Flotantes)
