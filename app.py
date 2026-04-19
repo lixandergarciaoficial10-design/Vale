@@ -999,55 +999,65 @@ def modal_detalle(cliente, cuentas, pagos):
         st.rerun()
 
 # --- GRID DE CLIENTES (CORREGIDO) ---
-if not clientes_f:
-    st.warning("No hay clientes que coincidan con la búsqueda o filtro.")
-else:
-    grid = st.columns(3)
-    for idx, cl in enumerate(clientes_f):
-        with grid[idx % 3]:
-            with st.container(border=True):
-                # 1. Cabecera de Tarjeta
-                st.markdown(f"**{cl['nombre']}**")
-                st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
-                
-                # 2. Botones de Acción
-                b1, b2, b3 = st.columns(3)
-                with b1:
-                    if st.button("📂", key=f"h_{cl['id']}", use_container_width=True):
-                        modal_detalle(cl, cuentas_db, pagos_db)
-                
-                with b2:
-                    tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
-                    wa_url = f"https://wa.me/{tel}"
-                    st.markdown(f'''<a href="{wa_url}" target="_blank">
-                        <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
-                        </button></a>''', unsafe_allow_html=True)
-                
-                with b3:
-                    lat, lon = cl.get('latitud'), cl.get('longitud')
-                    if lat and str(lat) not in ["0", "0.0", "None"]:
-                        map_url = f"https://www.google.com/maps?q={lat},{lon}"
-                        st.markdown(f'''<a href="{map_url}" target="_blank">
-                            <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
-                                <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
+if menu == "👥 Todos mis Clientes":
+    if not clientes_f:
+        st.warning("No hay clientes que coincidan con la búsqueda o filtro.")
+    else:
+        grid = st.columns(3)
+        for idx, cl in enumerate(clientes_f):
+            with grid[idx % 3]:
+                with st.container(border=True):
+                    # 1. Cabecera de Tarjeta
+                    st.markdown(f"**{cl['nombre']}**")
+                    st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
+                    
+                    # 2. Botones de Acción
+                    b1, b2, b3 = st.columns(3)
+                    with b1:
+                        if st.button("📂", key=f"h_{cl['id']}", use_container_width=True):
+                            modal_detalle(cl, cuentas_db, pagos_db)
+                    
+                    with b2:
+                        tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
+                        wa_url = f"https://wa.me/{tel}"
+                        st.markdown(f'''<a href="{wa_url}" target="_blank">
+                            <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
                             </button></a>''', unsafe_allow_html=True)
-                    else:
-                        st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
+                    
+                    with b3:
+                        lat, lon = cl.get('latitud'), cl.get('longitud')
+                        if lat and str(lat) not in ["0", "0.0", "None"]:
+                            map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                            st.markdown(f'''<a href="{map_url}" target="_blank">
+                                <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                    <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
+                                </button></a>''', unsafe_allow_html=True)
+                        else:
+                            st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
 
-                # 3. Centro de Gestión (Popover)
-                with st.popover("⚙️ Ajustes", use_container_width=True):
-                    g1, g2 = st.columns(2)
-                    with g1:
-                        if st.button("✏️ Editar", key=f"e_b_{cl['id']}", use_container_width=True):
-                            st.session_state[f"editing_{cl['id']}"] = True
-                    with g2:
-                        if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", type="primary", use_container_width=True):
-                            st.session_state[f"del_step_{cl['id']}"] = 1
+                    # 3. Centro de Gestión (Popover)
+                    with st.popover("⚙️ Ajustes", use_container_width=True):
+                        g1, g2 = st.columns(2)
+                        with g1:
+                            if st.button("✏️ Editar", key=f"e_b_{cl['id']}", use_container_width=True):
+                                st.session_state[f"editing_{cl['id']}"] = True
+                        with g2:
+                            if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", type="primary", use_container_width=True):
+                                # Aquí puedes agregar la lógica de borrado directo o confirmación
+                                try:
+                                    conn.client.table("clientes").delete().eq("id", cl['id']).execute()
+                                    st.success("Cliente eliminado")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
 
                     # --- LÓGICA DE EDICIÓN ---
+# --- LÓGICA DE EDICIÓN ---
                     if st.session_state.get(f"editing_{cl['id']}"):
                         st.markdown("---")
+                        st.caption("⚠️ **DISCLAIMER:** La modificación de estos datos es irreversible y afectará los reportes de cobro y geolocalización.")
+                        
                         e_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
                         e_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
                         e_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
@@ -1056,29 +1066,59 @@ else:
                         e_lat = c_la.text_input("Latitud", value=str(cl.get('latitud', '0.0')), key=f"elat_{cl['id']}")
                         e_lon = c_lo.text_input("Longitud", value=str(cl.get('longitud', '0.0')), key=f"elon_{cl['id']}")
 
-                        if st.button("💾 Guardar", key=f"sv_{cl['id']}", type="primary", use_container_width=True):
-                            conn.table("clientes").update({
-                                "nombre": e_nom, "cedula": e_ced, "telefono": e_tel,
-                                "latitud": float(e_lat), "longitud": float(e_lon)
-                            }).eq("id", cl['id']).execute()
-                            st.toast("✅ ¡Datos actualizados!")
-                            del st.session_state[f"editing_{cl['id']}"]
-                            st.rerun()
+                        col_ed1, col_ed2 = st.columns(2)
+                        with col_ed1:
+                            if st.button("💾 Guardar", key=f"sv_{cl['id']}", type="primary", use_container_width=True):
+                                try:
+                                    conn.table("clientes").update({
+                                        "nombre": e_nom, "cedula": e_ced, "telefono": e_tel,
+                                        "latitud": float(e_lat), "longitud": float(e_lon)
+                                    }).eq("id", cl['id']).execute()
+                                    st.toast("✅ ¡Datos actualizados!")
+                                    del st.session_state[f"editing_{cl['id']}"]
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+                        with col_ed2:
+                            if st.button("Cancelar", key=f"can_ed_{cl['id']}", use_container_width=True):
+                                del st.session_state[f"editing_{cl['id']}"]
+                                st.rerun()
 
-                    # --- LÓGICA DE ELIMINAR ---
+                    # --- LÓGICA DE ELIMINAR (TRIPLE CONFIRMACIÓN) ---
                     if st.session_state.get(f"del_step_{cl['id']}") == 1:
-                        st.warning("¿Seguro?")
-                        if st.button("SÍ", key=f"d1_{cl['id']}", use_container_width=True):
+                        st.error("🚨 **ATENCIÓN:** Está a punto de eliminar un registro permanente.")
+                        st.info("Paso 1 de 3: ¿Realmente desea borrar este cliente?")
+                        if st.button("SÍ, ESTOY SEGURO", key=f"d1_{cl['id']}", use_container_width=True):
                             st.session_state[f"del_step_{cl['id']}"] = 2
+                            st.rerun()
+                        if st.button("CANCELAR", key=f"c1_{cl['id']}", use_container_width=True):
+                            del st.session_state[f"del_step_{cl['id']}"]
                             st.rerun()
                     
                     elif st.session_state.get(f"del_step_{cl['id']}") == 2:
-                        if st.button("CONFIRMAR BORRADO", key=f"d2_{cl['id']}", type="primary", use_container_width=True):
-                            conn.table("clientes").delete().eq("id", cl['id']).execute()
-                            st.toast("🗑️ Eliminado")
-                            del st.session_state[f"del_step_{cl['id']}"]
+                        st.warning("Paso 2 de 3: Se eliminarán también todos los históricos asociados.")
+                        st.write("¿Confirmar acción?")
+                        if st.button("SÍ, PROCEDER", key=f"d2_{cl['id']}", type="primary", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 3
+                            st.rerun()
+                        if st.button("VOLVER", key=f"c2_{cl['id']}", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 1
                             st.rerun()
 
+                    elif st.session_state.get(f"del_step_{cl['id']}") == 3:
+                        st.error("Paso 3 de 3: ESTA ES LA ÚLTIMA ADVERTENCIA.")
+                        if st.button("ELIMINAR DEFINITIVAMENTE", key=f"d3_{cl['id']}", type="primary", use_container_width=True):
+                            try:
+                                conn.table("clientes").delete().eq("id", cl['id']).execute()
+                                st.toast("🗑️ Registro borrado exitosamente")
+                                del st.session_state[f"del_step_{cl['id']}"]
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error al borrar: {e}")
+                        if st.button("ABORTAR", key=f"c3_{cl['id']}", use_container_width=True):
+                            del st.session_state[f"del_step_{cl['id']}"]
+                            st.rerun()
+                            
 # --- CAMBIO DE SECCIÓN (CORREGIDO) ---
 # Este bloque debe estar alineado con el 'if menu == "..." ' inicial de tu aplicación
 if menu == "Cuentas por Pagar":
