@@ -579,7 +579,43 @@ if menu == "Panel de Control":
 elif menu == "Gestión de Cobros":
     st.header("⚡ Centro de Recaudación")
     
-    # --- 1. FUNCIÓN DE CONFIRMACIÓN (PARA EVITAR ERRORES HUMANOS) ---
+    # --- 1. FUNCIÓN DE HISTORIAL (PLAN VS REAL) ---
+    @st.dialog("📜 ESTADO DE CUENTA DETALLADO")
+    def mostrar_historial_modal(item, u_id):
+        st.subheader(f"Análisis: {item['aux_nombre']}")
+        
+        # Consultamos el Plan (lo que se habló) y los Pagos (lo que ha pasado)
+        res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", item['id']).order("numero_cuota").execute()
+        res_pagos = conn.table("pagos").select("*").eq("cuenta_id", item['id']).execute()
+        
+        plan = res_plan.data if res_plan.data else []
+        pagos = res_pagos.data if res_pagos.data else []
+        
+        tab1, tab2 = st.tabs(["📅 Plan Original", "💵 Historial de Pagos"])
+        
+        with tab1:
+            if plan:
+                df_plan = pd.DataFrame(plan)
+                df_plan = df_plan[['numero_cuota', 'fecha_esperada', 'monto_cuota', 'estado']]
+                df_plan.columns = ['Cuota #', 'Fecha de Pago', 'Monto (RD$)', 'Estatus']
+                st.table(df_plan)
+            else:
+                st.warning("No hay un plan registrado para esta cuenta antigua.")
+        
+        with tab2:
+            if pagos:
+                df_pagos = pd.DataFrame(pagos)
+                df_pagos['fecha_real'] = pd.to_datetime(df_pagos['created_at']).dt.date
+                df_pagos = df_pagos[['fecha_real', 'monto_pagado', 'mora_pagada']]
+                df_pagos.columns = ['Fecha Cobro', 'Abono Capital', 'Mora Pagada']
+                st.table(df_pagos)
+                
+                total_pagado = sum(p['monto_pagado'] for p in pagos)
+                st.metric("Total Capital Recibido", f"RD$ {total_pagado:,.2f}")
+            else:
+                st.info("Aún no se han registrado pagos reales.")
+
+    # --- 2. FUNCIÓN DE CONFIRMACIÓN (PARA EVITAR ERRORES HUMANOS) ---
     @st.dialog("⚠️ VERIFICAR TRANSACCIÓN")
     def confirmar_cobro_modal(item, monto, fecha, mora, u_id):
         st.warning(f"¿Estás seguro de registrar este pago para **{item['aux_nombre']}**?")
@@ -624,7 +660,7 @@ elif menu == "Gestión de Cobros":
             if st.button("❌ CANCELAR", use_container_width=True):
                 st.rerun()
 
-    # --- 2. FUNCIÓN DE RECIBO FINAL (POST-COBRO) ---
+    # --- 3. FUNCIÓN DE RECIBO FINAL (POST-COBRO) ---
     @st.dialog("🎯 ¡COBRO REALIZADO CON ÉXITO!")
     def mostrar_recibo_modal(item, r, u_id):
         st.balloons()
@@ -662,14 +698,14 @@ elif menu == "Gestión de Cobros":
         if st.button("✅ FINALIZAR Y CERRAR", use_container_width=True):
             st.rerun()
 
-    # --- 3. CONTROLES SUPERIORES ---
+    # --- 4. CONTROLES SUPERIORES ---
     col_search, col_view = st.columns([2, 1])
     with col_search:
         search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre...").lower()
     with col_view:
         modo_analisis = st.toggle("📈 Modo Análisis", help="Ver cuentas saldadas")
 
-    # --- 4. CONSULTA DE DATOS ---
+    # --- 5. CONSULTA DE DATOS ---
     query = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("user_id", u_id)
     query = query.lte("balance_pendiente", 0) if modo_analisis else query.gt("balance_pendiente", 0)
     res = query.execute()
@@ -692,7 +728,6 @@ elif menu == "Gestión de Cobros":
             token = item['id']
             m_pend = float(item.get('balance_pendiente', 0))
             
-            # Verificamos si hay un recibo listo para mostrar
             if f"recibo_{token}" in st.session_state:
                 mostrar_recibo_modal(item, st.session_state[f"recibo_{token}"], u_id)
                 del st.session_state[f"recibo_{token}"]
@@ -703,6 +738,9 @@ elif menu == "Gestión de Cobros":
                 with c_nom:
                     st.markdown(f"**{item['aux_nombre']}**")
                     st.caption(f"Debe: RD$ {m_pend:,.2f}")
+                    # BOTÓN DE HISTORIAL JUSTO DEBAJO DE LO QUE DEBE
+                    if st.button("🔍 Ver Historial", key=f"hist_{token}", use_container_width=True):
+                        mostrar_historial_modal(item, u_id)
 
                 with c_status:
                     if modo_analisis: st.info("✅ SALDADO")
@@ -714,7 +752,7 @@ elif menu == "Gestión de Cobros":
                         cuota_base = float(item.get('cuota_esperada', 0)) or (float(item.get('monto_inicial', 0)) * 0.1)
                         valor_default = min(cuota_base, m_pend)
                         
-                        st.caption(f"Cuota: RD$ {cuota_base:,.2f}")
+                        st.caption(f"Cuota Sugerida: RD$ {cuota_base:,.2f}")
                         abono_input = st.number_input("Monto", min_value=0.0, value=float(valor_default), key=f"val_{token}", label_visibility="collapsed")
                         f_prox_input = st.date_input("Próxima", key=f"date_{token}", label_visibility="collapsed")
                     else:
@@ -723,7 +761,6 @@ elif menu == "Gestión de Cobros":
                 with c_btn:
                     if not modo_analisis:
                         st.write("")
-                        # AQUÍ DISPARAMOS LA CONFIRMACIÓN
                         if st.button("💵 COBRAR", key=f"reg_{token}", type="primary", use_container_width=True):
                             v_mora = st.session_state.get(f"mora_{token}", 0.0)
                             confirmar_cobro_modal(item, abono_input, f_prox_input, v_mora, u_id)
@@ -826,14 +863,32 @@ elif menu == "Nueva Cuenta por Cobrar":
                 total_f = df_e["Monto Cuota (RD$)"].sum()
 
                 if st.button("🚀 ACTIVAR PRÉSTAMO", use_container_width=True, disabled=not (capital > 0 and continuar)):
-                    # 1. Guardar en DB
-                    conn.table("cuentas").insert({
-                        "cliente_id": cliente_obj['id'], "monto_inicial": total_f,
-                        "balance_pendiente": total_f, "user_id": u_id,
-                        "estado": "Al Día", "proximo_pago": str(df_e.iloc[0]["Fecha"])
+                    # 1. Guardar Cuenta Principal
+                    res_c = conn.table("cuentas").insert({
+                        "cliente_id": cliente_obj['id'], 
+                        "monto_inicial": total_f,
+                        "balance_pendiente": total_f, 
+                        "user_id": u_id,
+                        "estado": "Al Día", 
+                        "proximo_pago": str(df_e.iloc[0]["Fecha"])
                     }).execute()
 
-                    # 2. PDF y WhatsApp
+                    # --- LÓGICA DE PERSISTENCIA DEL PLAN (NUEVO) ---
+                    if res_c.data:
+                        nueva_cuenta_id = res_c.data[0]['id']
+                        filas_plan = []
+                        for _, row in df_e.iterrows():
+                            filas_plan.append({
+                                "cuenta_id": nueva_cuenta_id,
+                                "numero_cuota": int(row["Nº"]),
+                                "fecha_esperada": str(row["Fecha"]),
+                                "monto_cuota": float(row["Monto Cuota (RD$)"]),
+                                "estado": "Pendiente",
+                                "user_id": u_id
+                            })
+                        conn.table("plan_cuotas").insert(filas_plan).execute()
+
+                    # 2. PDF y WhatsApp (Tu código original intacto)
                     pdf_out = generar_pdf_contrato_legal(
                         cliente_obj['nombre'], cliente_obj.get('cedula', 'S/N'), 
                         float(capital), float(total_f), df_e, freq_sel,
@@ -855,6 +910,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                     
                     st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(wa_msg)}"
                     st.rerun()
+                    
 # --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
 # --- SECCIÓN A: REGISTRO PREMIUM ---
 # --- SECCIÓN A: REGISTRO PREMIUM ---
