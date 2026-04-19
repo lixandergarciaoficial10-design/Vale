@@ -258,80 +258,77 @@ def calcular_resumen_real(cuentas_del_cliente):
     total_deuda = sum(float(c.get('balance_pendiente', 0)) for c in cuentas_del_cliente)
     return total_deuda
     
-def generar_pdf_recibo_pro(nombre_cliente, monto, balance, u_id, metodo="Efectivo"):
-    from fpdf import FPDF
-    from datetime import datetime
+def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
+    # 1. Limpieza de datos (Seguridad técnica)
+    try:
+        monto = float(monto)
+        balance = float(balance)
+        mora = float(mora)
+    except:
+        monto, balance, mora = 0.0, 0.0, 0.0
     
-    pdf = FPDF()
+    # 2. Configuración de Tamaño Ticket (80mm ancho x 150mm alto sugerido)
+    # El alto puede ser variable, pero 150mm da espacio de sobra para un recibo
+    pdf = FPDF(format=(80, 150)) 
     pdf.add_page()
-    
-    # 1. Recuperar datos de texto de la sesión
-    nombre_negocio = st.session_state.get("nombre_negocio", "CobroYa Pro")
-    rnc = st.session_state.get("rnc", "N/A")
-    direccion = st.session_state.get("direccion_negocio", "República Dominicana")
-    telefono = st.session_state.get("telefono_negocio", "")
+    pdf.set_margins(4, 4, 4) # Márgenes mínimos para papel térmico
+    pdf.set_auto_page_break(False)
 
-    # --- ENCABEZADO FORMAL ---
-    pdf.set_fill_color(240, 240, 240) # Gris claro profesional
-    pdf.rect(0, 0, 210, 45, 'F')
+    # Datos del Negocio (Desde session_state)
+    negocio = st.session_state.get("nombre_negocio", "MI NEGOCIO").upper()
+    tel = st.session_state.get("telefono_negocio", "")
+    rnc = st.session_state.get("rnc", "")
+
+    # --- ENCABEZADO TICKET ---
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(72, 6, negocio, ln=True, align='C')
     
-    pdf.set_text_color(0, 51, 102) # Azul marino
-    pdf.set_xy(15, 12)
-    pdf.set_font("Helvetica", "B", 20)
-    pdf.cell(150, 10, nombre_negocio.upper(), ln=True)
+    pdf.set_font("Helvetica", "", 8)
+    if rnc: pdf.cell(72, 4, f"RNC: {rnc}", ln=True, align='C')
+    if tel: pdf.cell(72, 4, f"TEL: {tel}", ln=True, align='C')
     
+    pdf.cell(72, 4, "-"*40, ln=True, align='C')
+    
+    # --- INFO TRANSACCIÓN ---
+    pdf.set_font("Helvetica", "B", 9)
+    pdf.cell(72, 6, "RECIBO DE PAGO", ln=True, align='C')
+    pdf.set_font("Helvetica", "", 8)
+    pdf.cell(72, 4, f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True)
+    pdf.cell(72, 4, f"Cliente: {nombre_cliente[:25]}", ln=True) # Truncar si es muy largo
+    pdf.cell(72, 4, "-"*40, ln=True, align='C')
+
+    # --- DETALLE DE VALORES (Lo más importante) ---
+    pdf.ln(2)
     pdf.set_font("Helvetica", "", 10)
-    pdf.set_x(15)
-    pdf.cell(150, 5, f"RNC/Cédula: {rnc}", ln=True)
-    pdf.set_x(15)
-    pdf.cell(150, 5, f"Dirección: {direccion}", ln=True)
-    pdf.set_x(15)
-    pdf.cell(150, 5, f"Teléfono: {telefono}", ln=True)
-
-    # --- CUERPO DEL RECIBO ---
-    pdf.ln(25)
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Helvetica", "B", 14)
-    recibo_id = f"REC-{datetime.now().strftime('%y%m%d%H%M')}"
-    pdf.cell(100, 10, f"COMPROBANTE DE PAGO: {recibo_id}")
-    pdf.set_font("Helvetica", "", 12)
-    pdf.cell(90, 10, f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='R')
-    
-    pdf.line(15, 60, 195, 60)
-    pdf.ln(10)
-
-    # Detalle de la Transacción
-    detalles = [
-        ("EMISOR", nombre_negocio),
-        ("CLIENTE (DEUDOR)", nombre_cliente),
-        ("CONCEPTO", "Abono a préstamo / Cuota de pago"),
-        ("MONTO RECIBIDO", f"RD$ {monto:,.2f}"),
-        ("MÉTODO DE PAGO", metodo),
-        ("BALANCE PENDIENTE", f"RD$ {balance:,.2f}")
-    ]
-    
-    for concepto, valor in detalles:
-        pdf.set_font("Helvetica", "B", 11)
-        pdf.cell(60, 12, f" {concepto}", border=1, fill=True)
-        pdf.set_font("Helvetica", "", 11)
-        pdf.cell(120, 12, f" {valor}", border=1, ln=True)
-
-    # --- ESPACIO PARA FIRMAS (Crucial para legalidad) ---
-    pdf.ln(30)
+    pdf.cell(40, 6, "MONTO RECIBIDO:")
     pdf.set_font("Helvetica", "B", 10)
-    
-    # Firma del Cliente
-    pdf.line(20, pdf.get_y(), 80, pdf.get_y())
-    pdf.set_xy(20, pdf.get_y() + 2)
-    pdf.cell(60, 5, "FIRMA DEL CLIENTE", align='C')
-    
-    # Firma del Emisor
-    pdf.set_xy(120, pdf.get_y() - 2)
-    pdf.line(120, pdf.get_y(), 180, pdf.get_y())
-    pdf.set_xy(120, pdf.get_y() + 2)
-    pdf.cell(60, 5, "RECIBIDO POR (EMISOR)", align='C')
+    pdf.cell(32, 6, f"RD$ {monto:,.2f}", ln=True, align='R')
 
-    return bytes(pdf.output())
+    if mora > 0:
+        pdf.set_font("Helvetica", "", 10)
+        pdf.cell(40, 6, "MORA COBRADA:")
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(32, 6, f"RD$ {mora:,.2f}", ln=True, align='R')
+
+    pdf.ln(2)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.cell(40, 8, " PENDIENTE:", fill=True)
+    pdf.cell(32, 8, f"RD$ {balance:,.2f} ", ln=True, align='R', fill=True)
+    
+    # --- PIE DE PÁGINA ---
+    pdf.ln(10)
+    pdf.set_font("Helvetica", "", 7)
+    pdf.cell(72, 4, "_______________________", ln=True, align='C')
+    pdf.cell(72, 4, "FIRMA DEL CLIENTE", ln=True, align='C')
+    
+    pdf.ln(5)
+    pdf.set_font("Helvetica", "I", 8)
+    pdf.cell(72, 4, "¡Gracias por su puntualidad!", ln=True, align='C')
+    pdf.cell(72, 4, "CobroYa System", ln=True, align='C')
+
+    # Retorno compatible con Streamlit download_button
+    return pdf.output(dest='S').encode('latin-1')
 
 # =========================================================
 # 🧾 RECIBO DE PAGO (SIMPLE Y LIMPIO)
@@ -590,7 +587,7 @@ elif menu == "Gestión de Cobros":
     with col_search:
         search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre...").lower()
     with col_view:
-        modo_analisis = st.toggle("📈 Modo Análisis", help="Ver saldados")
+        modo_analisis = st.toggle("📈 Modo Análisis", help="Ver cuentas saldadas")
 
     # --- 2. CONSULTA DE DATOS ---
     query = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("user_id", u_id)
@@ -609,127 +606,123 @@ elif menu == "Gestión de Cobros":
                 c['aux_prioridad'] = obtener_prioridad(dias_num, float(c.get('balance_pendiente', 0)))
                 datos_procesados.append(c)
 
+        # Ordenar por prioridad de atraso
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
 
         for item in datos_procesados:
             token = item['id']
-            m_ini = float(item.get('monto_inicial', 1))
             m_pend = float(item.get('balance_pendiente', 0))
-            cuota_contrato = float(item.get('cuota_esperada', 0))
             tel_cliente = item['clientes']['telefono']
             
+            # Lógica de Cuota Predeterminada (Leída de la base de datos)
+            cuota_base = float(item.get('cuota_esperada', 0))
+            if cuota_base <= 0:
+                cuota_base = float(item.get('monto_inicial', 0)) * 0.1 # Fallback
+            
+            valor_default = min(cuota_base, m_pend)
+
             with st.container(border=True):
-                # Diseño compacto de 4 columnas
+                # Layout Compacto
                 c_nom, c_status, c_inputs, c_btn = st.columns([1.2, 1, 1.2, 0.8])
                 
                 with c_nom:
                     st.markdown(f"**{item['aux_nombre']}**")
-                    st.caption(f"Pendiente: RD$ {m_pend:,.2f}")
-                    if item.get('mora_acumulada', 0) > 0:
-                        st.caption(f"⚠️ Mora Pendiente: :orange[RD$ {item['mora_acumulada']:,.2f}]")
+                    st.caption(f"Debe: RD$ {m_pend:,.2f}")
 
                 with c_status:
                     if modo_analisis:
                         st.info("✅ SALDADO")
                     else:
                         if item['aux_dias_num'] > 0:
-                            st.error(f"Atraso: {item['aux_atraso_txt']}")
-                        elif item['aux_dias_num'] == 0:
-                            st.warning("Debe pagar hoy")
+                            st.error(f"⚠️ {item['aux_atraso_txt']}")
                         else:
-                            st.success("Al día")
-                        prog = max(0.0, min(1.0, (m_ini - m_pend) / m_ini))
-                        st.progress(prog)
-
+                            st.success("🟢 Al día")
+                        
                 with c_inputs:
                     if not modo_analisis:
-                        # Cuota predeterminada como valor inicial
-                        st.caption(f"Cuota: RD$ {cuota_contrato:,.2f}")
-                        abono = st.number_input("Monto Recibido", min_value=0.0, max_value=m_pend, 
-                                               value=cuota_contrato if cuota_contrato > 0 else 0.0, 
+                        st.caption(f"Cuota: RD$ {cuota_base:,.2f}")
+                        # El monto ya aparece escrito (valor_default). Doble clic para editar.
+                        abono = st.number_input("Monto", min_value=0.0, value=float(valor_default), 
                                                key=f"val_{token}", label_visibility="collapsed")
-                        
-                        f_prox = st.date_input("Próxima Visita", key=f"date_{token}", label_visibility="collapsed")
-                        
-                        # Blindaje Legal de Mora (Expander)
-                        with st.expander("⚠️ Mora / Penalidad"):
-                            mora = st.number_input("RD$ adicionales", min_value=0.0, key=f"mora_{token}")
+                        f_prox = st.date_input("Próxima", key=f"date_{token}", label_visibility="collapsed")
                     else:
-                        st.write(f"Finalizado: {item['proximo_pago']}")
-                        mora = 0
+                        st.write(f"Saldó: {item.get('proximo_pago')}")
 
                 with c_btn:
                     if not modo_analisis:
-                        st.write("") 
+                        st.write("")
                         if st.button("✅ Cobrar", key=f"reg_{token}", type="primary", use_container_width=True):
-                            if abono > 0 or mora > 0:
-                                try:
-                                    # 1. Registrar Pago
-                                    conn.table("pagos").insert({
-                                        "cuenta_id": str(token), "monto_pagado": float(abono),
-                                        "mora_pagada": float(mora), "user_id": str(u_id)
-                                    }).execute()
-                                    
-                                    # 2. Actualizar Cuenta
-                                    n_bal = m_pend - abono
-                                    conn.table("cuentas").update({
-                                        "balance_pendiente": n_bal,
-                                        "estado": "Saldado" if n_bal <= 0 else "Activo",
-                                        "proximo_pago": str(f_prox),
-                                        "mora_acumulada": 0 
-                                    }).eq("id", token).execute()
-                                    
-                                    # 3. Guardar datos para recibo inmediato
-                                    st.session_state[f"recibo_{token}"] = {
-                                        "monto": abono, "mora": mora, "pend": n_bal, "fecha": str(f_prox)
-                                    }
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Error: {e}")
+                            try:
+                                # 1. Registrar el Pago con Mora
+                                # Asegúrate de que 'mora' esté definida (la tomamos del expander de abajo)
+                                valor_mora = st.session_state.get(f"mora_{token}", 0.0)
+                                
+                                conn.table("pagos").insert({
+                                    "cuenta_id": str(token),
+                                    "monto_pagado": float(abono),
+                                    "mora_pagada": float(valor_mora),
+                                    "user_id": str(u_id)
+                                }).execute()
+                                
+                                # 2. Actualizar Cuenta
+                                n_bal = m_pend - abono
+                                conn.table("cuentas").update({
+                                    "balance_pendiente": n_bal,
+                                    "estado": "Saldado" if n_bal <= 0 else "Activo",
+                                    "proximo_pago": str(f_prox),
+                                    "mora_acumulada": 0
+                                }).eq("id", token).execute()
+                                
+                                # 3. Activar Recibo
+                                st.session_state[f"recibo_{token}"] = {
+                                    "monto": abono, "mora": valor_mora, "pend": n_bal, "fecha": str(f_prox)
+                                }
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error: {e}")
                     else:
-                        if st.button("📄 Historial", key=f"hist_{token}", use_container_width=True):
+                        if st.button("📄 Info", key=f"hist_{token}", use_container_width=True):
                             st.session_state["cuenta_auditada"] = token
 
-                # --- ZONA DE RECIBO, PDF Y WHATSAPP (REINSTALADO) ---
+                # --- 3. BLINDAJE LEGAL: MORA ABAJO ---
+                if not modo_analisis:
+                    with st.expander("⚖️ Cobrar Penalidad (Mora)"):
+                        st.warning("La mora no disminuye la deuda principal.")
+                        # Usamos session_state para que el botón de arriba pueda leer este valor
+                        st.number_input("Monto de Mora", min_value=0.0, key=f"mora_{token}")
+
+                # --- 4. ZONA DE POST-COBRO (PDF y WhatsApp) ---
                 if f"recibo_{token}" in st.session_state:
-                    r_data = st.session_state[f"recibo_{token}"]
+                    r = st.session_state[f"recibo_{token}"]
                     st.divider()
-                    col_pdf, col_wa, col_close = st.columns(3)
+                    col_p, col_w, col_x = st.columns(3)
                     
-                    with col_pdf:
-                        # Generación de PDF (Usando tu función existente)
-                        pdf_bin = generar_pdf_recibo_pro(
-                            item['aux_nombre'], r_data['monto'], r_data['pend'], u_id, mora=r_data['mora']
-                        )
-                        st.download_button(
-                            "📥 Descargar PDF", data=pdf_bin, 
-                            file_name=f"Recibo_{item['aux_nombre']}.pdf", mime="application/pdf", key=f"dl_{token}"
-                        )
+                    with col_p:
+                        # PDF en formato ticket
+                        pdf_bytes = generar_pdf_recibo_pro(item['aux_nombre'], r['monto'], r['pend'], u_id, mora=r['mora'])
+                        st.download_button("📥 Bajar PDF", pdf_bytes, f"Recibo_{token}.pdf", "application/pdf", key=f"dl_{token}")
                     
-                    with col_wa:
-                        # Lógica de WhatsApp
+                    with col_w:
+                        # WhatsApp con formato dominicano
                         import urllib.parse
-                        tel = "".join(filter(str.isdigit, str(tel_cliente)))
-                        mora_txt = f"\nMora aplicada: *RD$ {r_data['mora']:,.2f}*" if r_data['mora'] > 0 else ""
+                        clean_tel = "".join(filter(str.isdigit, str(tel_cliente)))
+                        mora_msg = f"\nMora: *RD$ {r['mora']:,.2f}*" if r['mora'] > 0 else ""
                         msg = (f"✅ *RECIBO DE PAGO*\n\n"
-                               f"Hola *{item['aux_nombre']}*,\n"
-                               f"Recibimos: *RD$ {r_data['monto']:,.2f}*{mora_txt}\n"
-                               f"Balance restante: *RD$ {r_data['pend']:,.2f}*\n"
-                               f"Próxima visita: {r_data['fecha']}\n\n"
-                               f"¡Gracias por su pago!")
-                        wa_url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
-                        st.markdown(f'''<a href="{wa_url}" target="_blank">
-                            <button style="width:100%; background:#25D366; color:white; border:none; padding:8px; border-radius:10px; cursor:pointer; font-weight:bold;">
-                                Enviar WhatsApp 💬
-                            </button></a>''', unsafe_allow_html=True)
+                               f"Cliente: *{item['aux_nombre']}*\n"
+                               f"Recibido: *RD$ {r['monto']:,.2f}*{mora_msg}\n"
+                               f"Balance: *RD$ {r['pend']:,.2f}*\n"
+                               f"Próxima visita: {r['fecha']}\n\n"
+                               f"¡Gracias!")
+                        url = f"https://wa.me/{clean_tel}?text={urllib.parse.quote(msg)}"
+                        st.markdown(f'''<a href="{url}" target="_blank"><button style="width:100%;background:#25D366;color:white;border:none;padding:10px;border-radius:10px;font-weight:bold;">WhatsApp 💬</button></a>''', unsafe_allow_html=True)
                     
-                    with col_close:
-                        if st.button("Finalizar ➡️", key=f"fin_{token}", use_container_width=True):
+                    with col_x:
+                        if st.button("Finalizar", key=f"clear_{token}", use_container_width=True):
                             del st.session_state[f"recibo_{token}"]
                             st.rerun()
     else:
-        st.info("No hay registros que coincidan.")
-
+        st.info("No hay cobros pendientes.")
+        
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
     
