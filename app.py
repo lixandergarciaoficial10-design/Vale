@@ -1008,10 +1008,6 @@ def modal_detalle(cliente, cuentas, pagos):
         st.rerun()
 
 # --- GRID DE CLIENTES ---
-# --- GRID DE CLIENTES (EDICIÓN FINAL PROFESIONAL) ---
-# 1. Buscamos los clientes de nuevo para esta sección
-res_cl = conn.table("clientes").select("*").eq("user_id", u_id).execute()
-clientes_f = res_cl.data if res_cl.data else []
 if not clientes_f:
     st.warning("No hay resultados.")
 else:
