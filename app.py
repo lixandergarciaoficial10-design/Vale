@@ -648,10 +648,9 @@ elif menu == "Gestión de Cobros":
                         st.write("")
                         if st.button("✅ Cobrar", key=f"reg_{token}", type="primary", use_container_width=True):
                             try:
-                                # Recuperamos la mora del expander (ver abajo)
                                 valor_mora = st.session_state.get(f"mora_{token}", 0.0)
                                 
-                                # 1. Insertar Pago
+                                # 1. Registrar Pago
                                 conn.table("pagos").insert({
                                     "cuenta_id": str(token),
                                     "monto_pagado": float(abono),
@@ -667,7 +666,7 @@ elif menu == "Gestión de Cobros":
                                     "proximo_pago": str(f_prox)
                                 }).eq("id", token).execute()
                                 
-                                # 3. Guardar en session_state para recibo
+                                # 3. Preparar Recibo
                                 st.session_state[f"recibo_{token}"] = {
                                     "monto": abono, "mora": valor_mora, "pend": n_bal, "fecha": str(f_prox)
                                 }
@@ -677,10 +676,10 @@ elif menu == "Gestión de Cobros":
                     else:
                         st.button("📄 Detalles", key=f"info_{token}", use_container_width=True)
 
-                # --- 3. SECCIÓN DE MORA (EXCELENTE PARA EL NEGOCIO) ---
+                # --- 3. SECCIÓN DE MORA (DENTRO DEL CONTAINER) ---
                 if not modo_analisis:
                     with st.expander("⚖️ Cobrar Penalidad (Mora)"):
-                        st.caption("Este monto NO resta capital, es una penalidad.")
+                        st.caption("La mora no disminuye la deuda principal.")
                         st.number_input("Monto de Mora", min_value=0.0, key=f"mora_{token}")
 
                 # --- 4. ACCIONES POST-PAGO (RECIBO Y WHATSAPP) ---
@@ -695,55 +694,22 @@ elif menu == "Gestión de Cobros":
                     
                     with col_wa:
                         import urllib.parse
-                        msg = f"✅ *RECIBO DE PAGO*\n\nCliente: {item['aux_nombre']}\nRecibido: RD$ {r['monto']}\nMora: RD$ {r['mora']}\n*Balance: RD$ {r['pend']}*\nProx. Pago: {r['fecha']}"
-                        wa_url = f"https://wa.me/1{tel_cliente}?text={urllib.parse.quote(msg)}"
-                        st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%;background-color:#25D366;border:none;color:white;padding:8px;border-radius:10px;font-weight:bold;">WhatsApp 💬</button></a>', unsafe_allow_html=True)
+                        clean_tel = "".join(filter(str.isdigit, str(tel_cliente)))
+                        mora_txt = f"\nMora: *RD$ {r['mora']:,.2f}*" if r['mora'] > 0 else ""
+                        msg = (f"✅ *RECIBO DE PAGO*\n\n"
+                               f"Cliente: *{item['aux_nombre']}*\n"
+                               f"Recibido: *RD$ {r['monto']:,.2f}*{mora_txt}\n"
+                               f"Balance: *RD$ {r['pend']:,.2f}*\n"
+                               f"Próxima: {r['fecha']}")
+                        wa_url = f"https://wa.me/{clean_tel}?text={urllib.parse.quote(msg)}"
+                        st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%;background-color:#25D366;border:none;color:white;padding:10px;border-radius:10px;font-weight:bold;cursor:pointer;">WhatsApp 💬</button></a>', unsafe_allow_html=True)
                     
                     with col_fin:
                         if st.button("Finalizar", key=f"fin_{token}", use_container_width=True):
                             del st.session_state[f"recibo_{token}"]
                             st.rerun()
     else:
-        st.info("No se encontraron clientes con cuentas activas.")
-
-                # --- 3. BLINDAJE LEGAL: MORA ABAJO ---
-                if not modo_analisis:
-                    with st.expander("⚖️ Cobrar Penalidad (Mora)"):
-                        st.warning("La mora no disminuye la deuda principal.")
-                        # Usamos session_state para que el botón de arriba pueda leer este valor
-                        st.number_input("Monto de Mora", min_value=0.0, key=f"mora_{token}")
-
-                # --- 4. ZONA DE POST-COBRO (PDF y WhatsApp) ---
-                if f"recibo_{token}" in st.session_state:
-                    r = st.session_state[f"recibo_{token}"]
-                    st.divider()
-                    col_p, col_w, col_x = st.columns(3)
-                    
-                    with col_p:
-                        # PDF en formato ticket
-                        pdf_bytes = generar_pdf_recibo_pro(item['aux_nombre'], r['monto'], r['pend'], u_id, mora=r['mora'])
-                        st.download_button("📥 Bajar PDF", pdf_bytes, f"Recibo_{token}.pdf", "application/pdf", key=f"dl_{token}")
-                    
-                    with col_w:
-                        # WhatsApp con formato dominicano
-                        import urllib.parse
-                        clean_tel = "".join(filter(str.isdigit, str(tel_cliente)))
-                        mora_msg = f"\nMora: *RD$ {r['mora']:,.2f}*" if r['mora'] > 0 else ""
-                        msg = (f"✅ *RECIBO DE PAGO*\n\n"
-                               f"Cliente: *{item['aux_nombre']}*\n"
-                               f"Recibido: *RD$ {r['monto']:,.2f}*{mora_msg}\n"
-                               f"Balance: *RD$ {r['pend']:,.2f}*\n"
-                               f"Próxima visita: {r['fecha']}\n\n"
-                               f"¡Gracias!")
-                        url = f"https://wa.me/{clean_tel}?text={urllib.parse.quote(msg)}"
-                        st.markdown(f'''<a href="{url}" target="_blank"><button style="width:100%;background:#25D366;color:white;border:none;padding:10px;border-radius:10px;font-weight:bold;">WhatsApp 💬</button></a>''', unsafe_allow_html=True)
-                    
-                    with col_x:
-                        if st.button("Finalizar", key=f"clear_{token}", use_container_width=True):
-                            del st.session_state[f"recibo_{token}"]
-                            st.rerun()
-    else:
-        st.info("No hay cobros pendientes.")
+        st.info("No hay clientes con cuentas activas.")
         
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
