@@ -259,48 +259,47 @@ def calcular_resumen_real(cuentas_del_cliente):
     return total_deuda
     
 def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
-    # 1. Limpieza de datos (Seguridad técnica)
     try:
-        monto = float(monto)
-        balance = float(balance)
-        mora = float(mora)
+        monto, balance, mora = float(monto), float(balance), float(mora)
     except:
         monto, balance, mora = 0.0, 0.0, 0.0
     
-    # 2. Configuración de Tamaño Ticket (80mm ancho x 150mm alto sugerido)
-    # El alto puede ser variable, pero 150mm da espacio de sobra para un recibo
-    pdf = FPDF(format=(80, 150)) 
+    # Tamaño estándar ticket 80mm
+    pdf = FPDF(format=(80, 160)) 
     pdf.add_page()
-    pdf.set_margins(4, 4, 4) # Márgenes mínimos para papel térmico
+    pdf.set_margins(4, 4, 4)
     pdf.set_auto_page_break(False)
 
-    # Datos del Negocio (Desde session_state)
-    negocio = st.session_state.get("nombre_negocio", "MI NEGOCIO").upper()
-    tel = st.session_state.get("telefono_negocio", "")
+    # 1. Recuperar info del negocio (Lo que sentías que faltaba)
+    nombre_negocio = st.session_state.get("nombre_negocio", "COBROYA PRO").upper()
     rnc = st.session_state.get("rnc", "")
+    direccion = st.session_state.get("direccion_negocio", "Rep. Dominicana")
+    telefono = st.session_state.get("telefono_negocio", "")
 
-    # --- ENCABEZADO TICKET ---
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(72, 6, negocio, ln=True, align='C')
+    # --- ENCABEZADO ---
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(72, 7, nombre_negocio, ln=True, align='C')
     
     pdf.set_font("Helvetica", "", 8)
     if rnc: pdf.cell(72, 4, f"RNC: {rnc}", ln=True, align='C')
-    if tel: pdf.cell(72, 4, f"TEL: {tel}", ln=True, align='C')
+    pdf.cell(72, 4, direccion[:40], ln=True, align='C') # Truncamos para que no desborde
+    if telefono: pdf.cell(72, 4, f"TEL: {telefono}", ln=True, align='C')
     
-    pdf.cell(72, 4, "-"*40, ln=True, align='C')
+    pdf.cell(72, 4, "="*35, ln=True, align='C')
     
-    # --- INFO TRANSACCIÓN ---
+    # --- CUERPO DEL TICKET ---
     pdf.set_font("Helvetica", "B", 9)
-    pdf.cell(72, 6, "RECIBO DE PAGO", ln=True, align='C')
+    pdf.cell(72, 6, "COMPROBANTE DE COBRO", ln=True, align='C')
     pdf.set_font("Helvetica", "", 8)
     pdf.cell(72, 4, f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True)
-    pdf.cell(72, 4, f"Cliente: {nombre_cliente[:25]}", ln=True) # Truncar si es muy largo
+    pdf.cell(72, 4, f"No. Trans: {int(datetime.now().timestamp())}", ln=True)
+    pdf.cell(72, 4, f"Cliente: {nombre_cliente.upper()}", ln=True)
     pdf.cell(72, 4, "-"*40, ln=True, align='C')
 
-    # --- DETALLE DE VALORES (Lo más importante) ---
+    # --- VALORES ---
     pdf.ln(2)
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(40, 6, "MONTO RECIBIDO:")
+    pdf.cell(40, 6, "ABONO RECIBIDO:")
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(32, 6, f"RD$ {monto:,.2f}", ln=True, align='R')
 
@@ -311,12 +310,12 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
         pdf.cell(32, 6, f"RD$ {mora:,.2f}", ln=True, align='R')
 
     pdf.ln(2)
+    pdf.set_fill_color(245, 245, 245) # Gris muy suave
     pdf.set_font("Helvetica", "B", 11)
-    pdf.set_fill_color(240, 240, 240)
     pdf.cell(40, 8, " PENDIENTE:", fill=True)
     pdf.cell(32, 8, f"RD$ {balance:,.2f} ", ln=True, align='R', fill=True)
     
-    # --- PIE DE PÁGINA ---
+    # --- PIE ---
     pdf.ln(10)
     pdf.set_font("Helvetica", "", 7)
     pdf.cell(72, 4, "_______________________", ln=True, align='C')
@@ -324,11 +323,9 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
     
     pdf.ln(5)
     pdf.set_font("Helvetica", "I", 8)
-    pdf.cell(72, 4, "¡Gracias por su puntualidad!", ln=True, align='C')
-    pdf.cell(72, 4, "CobroYa System", ln=True, align='C')
+    pdf.cell(72, 4, "¡Gracias por su pago!", ln=True, align='C')
 
-    # Retorno compatible con Streamlit download_button
-    return pdf.output(dest='S').encode('latin-1')
+    return bytes(pdf.output())
 
 # =========================================================
 # 🧾 RECIBO DE PAGO (SIMPLE Y LIMPIO)
@@ -614,15 +611,14 @@ elif menu == "Gestión de Cobros":
             m_pend = float(item.get('balance_pendiente', 0))
             tel_cliente = item['clientes']['telefono']
             
-            # Lógica de Cuota Predeterminada (Leída de la base de datos)
+            # Lógica de Cuota Predeterminada
             cuota_base = float(item.get('cuota_esperada', 0))
             if cuota_base <= 0:
-                cuota_base = float(item.get('monto_inicial', 0)) * 0.1 # Fallback
+                cuota_base = float(item.get('monto_inicial', 0)) * 0.1 
             
             valor_default = min(cuota_base, m_pend)
 
             with st.container(border=True):
-                # Layout Compacto
                 c_nom, c_status, c_inputs, c_btn = st.columns([1.2, 1, 1.2, 0.8])
                 
                 with c_nom:
@@ -640,8 +636,7 @@ elif menu == "Gestión de Cobros":
                         
                 with c_inputs:
                     if not modo_analisis:
-                        st.caption(f"Cuota: RD$ {cuota_base:,.2f}")
-                        # El monto ya aparece escrito (valor_default). Doble clic para editar.
+                        st.caption(f"Cuota Sugerida: RD$ {cuota_base:,.2f}")
                         abono = st.number_input("Monto", min_value=0.0, value=float(valor_default), 
                                                key=f"val_{token}", label_visibility="collapsed")
                         f_prox = st.date_input("Próxima", key=f"date_{token}", label_visibility="collapsed")
@@ -653,10 +648,10 @@ elif menu == "Gestión de Cobros":
                         st.write("")
                         if st.button("✅ Cobrar", key=f"reg_{token}", type="primary", use_container_width=True):
                             try:
-                                # 1. Registrar el Pago con Mora
-                                # Asegúrate de que 'mora' esté definida (la tomamos del expander de abajo)
+                                # Recuperamos la mora del expander (ver abajo)
                                 valor_mora = st.session_state.get(f"mora_{token}", 0.0)
                                 
+                                # 1. Insertar Pago
                                 conn.table("pagos").insert({
                                     "cuenta_id": str(token),
                                     "monto_pagado": float(abono),
@@ -669,11 +664,10 @@ elif menu == "Gestión de Cobros":
                                 conn.table("cuentas").update({
                                     "balance_pendiente": n_bal,
                                     "estado": "Saldado" if n_bal <= 0 else "Activo",
-                                    "proximo_pago": str(f_prox),
-                                    "mora_acumulada": 0
+                                    "proximo_pago": str(f_prox)
                                 }).eq("id", token).execute()
                                 
-                                # 3. Activar Recibo
+                                # 3. Guardar en session_state para recibo
                                 st.session_state[f"recibo_{token}"] = {
                                     "monto": abono, "mora": valor_mora, "pend": n_bal, "fecha": str(f_prox)
                                 }
@@ -681,8 +675,36 @@ elif menu == "Gestión de Cobros":
                             except Exception as e:
                                 st.error(f"Error: {e}")
                     else:
-                        if st.button("📄 Info", key=f"hist_{token}", use_container_width=True):
-                            st.session_state["cuenta_auditada"] = token
+                        st.button("📄 Detalles", key=f"info_{token}", use_container_width=True)
+
+                # --- 3. SECCIÓN DE MORA (EXCELENTE PARA EL NEGOCIO) ---
+                if not modo_analisis:
+                    with st.expander("⚖️ Cobrar Penalidad (Mora)"):
+                        st.caption("Este monto NO resta capital, es una penalidad.")
+                        st.number_input("Monto de Mora", min_value=0.0, key=f"mora_{token}")
+
+                # --- 4. ACCIONES POST-PAGO (RECIBO Y WHATSAPP) ---
+                if f"recibo_{token}" in st.session_state:
+                    r = st.session_state[f"recibo_{token}"]
+                    st.divider()
+                    col_pdf, col_wa, col_fin = st.columns(3)
+                    
+                    with col_pdf:
+                        pdf_data = generar_pdf_recibo_pro(item['aux_nombre'], r['monto'], r['pend'], u_id, mora=r['mora'])
+                        st.download_button("📥 PDF Térmico", pdf_data, f"Ticket_{token}.pdf", "application/pdf", key=f"dl_{token}")
+                    
+                    with col_wa:
+                        import urllib.parse
+                        msg = f"✅ *RECIBO DE PAGO*\n\nCliente: {item['aux_nombre']}\nRecibido: RD$ {r['monto']}\nMora: RD$ {r['mora']}\n*Balance: RD$ {r['pend']}*\nProx. Pago: {r['fecha']}"
+                        wa_url = f"https://wa.me/1{tel_cliente}?text={urllib.parse.quote(msg)}"
+                        st.markdown(f'<a href="{wa_url}" target="_blank"><button style="width:100%;background-color:#25D366;border:none;color:white;padding:8px;border-radius:10px;font-weight:bold;">WhatsApp 💬</button></a>', unsafe_allow_html=True)
+                    
+                    with col_fin:
+                        if st.button("Finalizar", key=f"fin_{token}", use_container_width=True):
+                            del st.session_state[f"recibo_{token}"]
+                            st.rerun()
+    else:
+        st.info("No se encontraron clientes con cuentas activas.")
 
                 # --- 3. BLINDAJE LEGAL: MORA ABAJO ---
                 if not modo_analisis:
