@@ -1052,11 +1052,10 @@ if menu == "👥 Todos mis Clientes":
                                 except Exception as e:
                                     st.error(f"Error: {e}")
 
-                    # --- LÓGICA DE EDICIÓN ---
 # --- LÓGICA DE EDICIÓN ---
                     if st.session_state.get(f"editing_{cl['id']}"):
                         st.markdown("---")
-                        st.caption("⚠️ **DISCLAIMER:** La modificación de estos datos es irreversible y afectará los reportes de cobro y geolocalización.")
+                        st.caption("⚠️ **DISCLAIMER:** La modificación de estos datos es irreversible y afectará los reportes.")
                         
                         e_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
                         e_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
@@ -1085,50 +1084,54 @@ if menu == "👥 Todos mis Clientes":
                                 st.rerun()
 
                     # --- LÓGICA DE ELIMINAR (TRIPLE CONFIRMACIÓN) ---
-                    if st.session_state.get(f"del_step_{cl['id']}") == 1:
-                        st.error("🚨 **ATENCIÓN:** Está a punto de eliminar un registro permanente.")
-                        st.info("Paso 1 de 3: ¿Realmente desea borrar este cliente?")
-                        if st.button("SÍ, ESTOY SEGURO", key=f"d1_{cl['id']}", use_container_width=True):
-                            st.session_state[f"del_step_{cl['id']}"] = 2
+                    step_key = f"del_step_{cl['id']}"
+                    actual_step = st.session_state.get(step_key, 0)
+
+                    if actual_step == 1:
+                        st.error("🚨 **PASO 1:** ¿Desea borrar este cliente?")
+                        if st.button("SÍ, CONTINUAR", key=f"d1_{cl['id']}", use_container_width=True):
+                            st.session_state[step_key] = 2
                             st.rerun()
                         if st.button("CANCELAR", key=f"c1_{cl['id']}", use_container_width=True):
-                            del st.session_state[f"del_step_{cl['id']}"]
+                            st.session_state[step_key] = 0
                             st.rerun()
                     
-                    elif st.session_state.get(f"del_step_{cl['id']}") == 2:
-                        st.warning("Paso 2 de 3: Se eliminarán también todos los históricos asociados.")
-                        st.write("¿Confirmar acción?")
-                        if st.button("SÍ, PROCEDER", key=f"d2_{cl['id']}", type="primary", use_container_width=True):
-                            st.session_state[f"del_step_{cl['id']}"] = 3
+                    elif actual_step == 2:
+                        st.warning("⚠️ **PASO 2:** Se perderán los históricos.")
+                        if st.button("SÍ, ESTOY SEGURO", key=f"d2_{cl['id']}", type="primary", use_container_width=True):
+                            st.session_state[step_key] = 3
                             st.rerun()
                         if st.button("VOLVER", key=f"c2_{cl['id']}", use_container_width=True):
-                            st.session_state[f"del_step_{cl['id']}"] = 1
+                            st.session_state[step_key] = 1
                             st.rerun()
 
-                    elif st.session_state.get(f"del_step_{cl['id']}") == 3:
-                        st.error("Paso 3 de 3: ESTA ES LA ÚLTIMA ADVERTENCIA.")
-                        if st.button("ELIMINAR DEFINITIVAMENTE", key=f"d3_{cl['id']}", type="primary", use_container_width=True):
+                    elif actual_step == 3:
+                        st.error("❗ **PASO 3:** ÚLTIMA ADVERTENCIA.")
+                        if st.button("BORRAR DEFINITIVAMENTE", key=f"d3_{cl['id']}", type="primary", use_container_width=True):
                             try:
                                 conn.table("clientes").delete().eq("id", cl['id']).execute()
-                                st.toast("🗑️ Registro borrado exitosamente")
-                                del st.session_state[f"del_step_{cl['id']}"]
+                                st.toast("🗑️ Cliente eliminado")
+                                st.session_state[step_key] = 0
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"Error al borrar: {e}")
+                                st.error(f"Error: {e}")
                         if st.button("ABORTAR", key=f"c3_{cl['id']}", use_container_width=True):
-                            del st.session_state[f"del_step_{cl['id']}"]
+                            st.session_state[step_key] = 0
                             st.rerun()
-                            
-# --- CAMBIO DE SECCIÓN (CORREGIDO) ---
-# Este bloque debe estar alineado con el 'if menu == "..." ' inicial de tu aplicación
-if menu == "Cuentas por Pagar":
+
+# --- CAMBIO DE SECCIÓN (FUERA DEL BUCLE) ---
+# Asegúrate de que este 'elif' esté al mismo nivel de indentación que el 'if menu == "👥 Todos mis Clientes":'
+elif menu == "Cuentas por Pagar":
     st.header("🏧 Movimientos de Efectivo")
     
-    # Lógica de la sección...
+    # Obtener datos de Supabase
     res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
     res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
     
     total_pagos = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
+    total_gastos = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
+    
+    st.metric("Total Recaudado", f"${total_pagos:,.2f}")
 
 
 elif menu == "IA Predictiva":
