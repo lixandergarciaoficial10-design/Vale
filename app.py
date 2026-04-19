@@ -541,59 +541,111 @@ if menu == "Panel de Control":
     c3.markdown(f"<div class='metric-card'><small>GASTOS TOTALES</small><h2 style='color:#FF3B30;'>RD$ {total_gastado:,.0f}</h2></div>", unsafe_allow_html=True)
 
 elif menu == "Gestión de Cobros":
-    st.header("Lista de Cobros del Día")
-    # Solo clientes con balance > 0
+    st.header("⚡ Centro de Recaudación")
+    
+    # Buscador inteligente arriba para no perder tiempo
+    search_term = st.text_input("🔍 Buscar cliente por nombre...", placeholder="Ej: Juan Pérez").lower()
+
+    # Traemos solo lo necesario: Cuentas con deuda > 0
     query = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("user_id", u_id).gt("balance_pendiente", 0).execute()
     
     if query.data:
-        for item in query.data:
+        # Filtrar en memoria para que sea instantáneo
+        clientes_cobro = [c for c in query.data if search_term in c['clientes']['nombre'].lower()]
+        
+        if not clientes_cobro:
+            st.info("No se encontraron clientes con ese nombre.")
+        
+        for item in clientes_cobro:
             with st.container(border=True):
-                col1, col2, col3 = st.columns([2, 1, 1])
+                # Layout de 3 columnas optimizado
+                c_info, c_pago, c_accion = st.columns([1.5, 1, 1])
                 
-                with col1:
-                    st.subheader(item['clientes']['nombre'])
+                with c_info:
+                    st.markdown(f"### {item['clientes']['nombre']}")
+                    # Innovación: Barra de progreso de pago
+                    pagado = float(item['monto_inicial'] - item['balance_pendiente'])
+                    porcentaje = pagado / float(item['monto_inicial'])
+                    st.progress(min(porcentaje, 1.0), text=f"Progreso: {porcentaje:.0%}")
                     st.write(f"Deuda Total: **RD$ {item['monto_inicial']:,.2f}**")
-                    st.write(f"Pendiente: `RD$ {item['balance_pendiente']:,.2f}`")
-                
-                with col2:
-                    abono = st.number_input("Monto Cobrado", min_value=0.0, step=50.0, key=f"pay_{item['id']}")
-                    f_prox = st.date_input("Próximo Cobro", key=f"date_{item['id']}")
-                
-                with col3:
-                    st.write("") # Espaciador
-                    if st.button("Registrar Recibo", key=f"btn_{item['id']}"):
-                        if abono > 0:
-                            # 1. Registrar el dinero
-                            conn.table("pagos").insert({"cuenta_id": item['id'], "monto_pagado": abono, "user_id": u_id}).execute()
-                            
-                            # 2. Bajar la deuda
-                            n_bal = float(item['balance_pendiente']) - abono
-                            conn.table("cuentas").update({
-                                "balance_pendiente": n_bal, 
-                                "estado": "Pagado" if n_bal <= 0 else "Activo",
-                                "proximo_pago": str(f_prox)
-                            }).eq("id", item['id']).execute()
-                            
-                            st.success(f"Cobro de RD$ {abono} guardado")
+                    st.write(f"Pendiente: :red[**RD$ {item['balance_pendiente']:,.2f}**]")
 
-                            # --- ESTA ES LA PARTE NUEVA PARA EL PDF ---
-                            # Generamos el PDF usando el u_id para que jale tu logo
-                            pdf_bin = generar_pdf_recibo_pro(
-                                item['clientes']['nombre'], 
-                                abono, 
-                                n_bal, 
-                                u_id, # <--- Aquí le pasamos tu ID de usuario
-                                metodo="Efectivo"
-                            )
-                            
-                            st.download_button(
-                                label="📥 Descargar Recibo PDF",
-                                data=pdf_bin,
-                                file_name=f"Recibo_{item['clientes']['nombre']}.pdf",
-                                mime="application/pdf",
-                                key=f"dl_{item['id']}"
-                            )
-                            # Quitamos el st.rerun() de aquí arriba para que el usuario pueda darle al botón de descargar antes de que la página se refresque.
+                with c_pago:
+                    # Input de monto con valor máximo bloqueado para evitar errores
+                    monto_max = float(item['balance_pendiente'])
+                    abono = st.number_input("Monto Recibido", min_value=0.0, max_value=monto_max, step=100.0, key=f"v_{item['id']}")
+                    
+                    # Botón de "Cobro Total" (Innovación: Ahorra tiempo al cobrador)
+                    if st.button("💰 Cobro Total", key=f"full_{item['id']}", use_container_width=True):
+                        st.info(f"Presiona 'Registrar' para liquidar los {monto_max}")
+                        # Nota: Esto es visual, el usuario luego da clic en Registrar
+                    
+                    f_prox = st.date_input("Próxima Visita", key=f"d_{item['id']}")
+
+                with c_accion:
+                    st.write("") # Espaciador
+                    st.write("") 
+                    
+                    # Botón principal de acción
+                    if st.button("✅ Registrar Recibo", key=f"r_{item['id']}", type="primary", use_container_width=True):
+                        if abono > 0:
+                            try:
+                                # 1. Insertar Pago (Aseguramos tipos de datos)
+                                payload_pago = {
+                                    "cuenta_id": str(item['id']), 
+                                    "monto_pagado": float(abono), 
+                                    "user_id": str(u_id)
+                                }
+                                conn.table("pagos").insert(payload_pago).execute()
+                                
+                                # 2. Actualizar Cuenta
+                                n_bal = float(item['balance_pendiente']) - float(abono)
+                                conn.table("cuentas").update({
+                                    "balance_pendiente": n_bal,
+                                    "estado": "Pagado" if n_bal <= 0 else "Activo",
+                                    "proximo_pago": str(f_prox)
+                                }).eq("id", item['id']).execute()
+                                
+                                # Guardamos éxito en session_state para mostrar el PDF/WhatsApp
+                                st.session_state[f"success_{item['id']}"] = {"monto": abono, "balance": n_bal, "fecha": f_prox}
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error técnico: {e}")
+
+                    # --- Lógica Post-Cobro (Lo que hace que paguen por tu app) ---
+                    if f"success_{item['id']}" in st.session_state:
+                        datos_p = st.session_state[f"success_{item['id']}"]
+                        
+                        # Generar PDF
+                        pdf_bin = generar_pdf_recibo_pro(
+                            item['clientes']['nombre'], datos_p['monto'], datos_p['balance'], u_id, metodo="Efectivo"
+                        )
+                        
+                        st.download_button(
+                            label="📥 Descargar PDF",
+                            data=pdf_bin,
+                            file_name=f"Recibo_{item['clientes']['nombre']}.pdf",
+                            mime="application/pdf",
+                            key=f"dl_{item['id']}",
+                            use_container_width=True
+                        )
+                        
+                        # Botón Mágico de WhatsApp
+                        tel = "".join(filter(str.isdigit, str(item['clientes']['telefono'])))
+                        msg = f"✅ *RECIBO DE PAGO*\n\nHola *{item['clientes']['nombre']}*,\n\nRecibimos su pago de: *RD$ {datos_p['monto']:,.2f}*.\nBalance restante: *RD$ {datos_p['balance']:,.2f}*.\nPróximo cobro: {datos_p['fecha']}.\n\n¡Gracias por su puntualidad! 🙏"
+                        import urllib.parse
+                        wa_url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
+                        
+                        st.markdown(f'''<a href="{wa_url}" target="_blank">
+                            <button style="width:100%; background:#25D366; color:white; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold;">
+                                Enviar por WhatsApp 💬
+                            </button></a>''', unsafe_allow_html=True)
+                        
+                        if st.button("Siguiente Cobro ➡️", key=f"next_{item['id']}"):
+                            del st.session_state[f"success_{item['id']}"]
+                            st.rerun()
+    else:
+        st.success("🎉 ¡Felicidades! No hay cobros pendientes por ahora.")
 
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
