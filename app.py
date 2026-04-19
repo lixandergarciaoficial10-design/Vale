@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from st_supabase_connection import SupabaseConnection
-from datetime import datetime, date, timedelta
+from datetime import datetime
 import requests
 import base64
 from PIL import Image
@@ -12,677 +12,1359 @@ import time
 from fpdf import FPDF
 from groq import Groq
 from io import BytesIO
-import qrcode
-import datetime as dt
+import qrcode # Asegúrate de tener: pip install qrcode
+import base64
+from fpdf import FPDF
+from datetime import datetime
 
-# =========================================================
-# 1. CONFIGURACIÓN DE PÁGINA Y UX/UI DE ALTO NIVEL
-# =========================================================
-st.set_page_config(
-    page_title="CobroYa Pro | Financial Data Intelligence", 
-    layout="wide", 
-    page_icon="📈",
-    initial_sidebar_state="expanded"
-)
+# 1. CONFIGURACIÓN Y ESTILO APPLE-ENTERPRISE
+st.set_page_config(page_title="CobroYa Pro", layout="wide", page_icon="📈")
 
-# Diseño de Interfaz Estilo SaaS Moderno (Apple/Stripe Design)
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
-    
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; background-color: #FBFBFD; }
-    
-    /* Contenedores principales */
-    .main { background-color: #FBFBFD; }
-    
-    /* Tarjetas de Métricas */
-    .metric-card {
-        background-color: white; 
-        padding: 24px; 
-        border-radius: 16px;
-        border: 1px solid #F0F0F2; 
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-    }
-    
-    /* Botones Profesionales */
-    div.stButton > button:first-child {
-        background-color: #007AFF; 
-        color: white; 
-        border-radius: 10px; 
-        border: none;
-        padding: 0.6rem 1.5rem; 
-        font-weight: 600; 
-        width: 100%;
-        transition: all 0.2s ease;
-    }
-    div.stButton > button:first-child:hover {
-        background-color: #0063CC;
-        box-shadow: 0 4px 12px rgba(0, 122, 255, 0.3);
-    }
-    
-    /* Inputs Estilizados */
-    .stTextInput > div > div > input, .stNumberInput > div > div > input {
-        border-radius: 10px !important;
-    }
-
-    /* Card de Autenticación */
+    .main { background-color: #F8F9FA; }
+    .stTextInput > div > div > input { border-radius: 12px; }
     .auth-card {
-        background-color: white; 
-        padding: 48px; 
-        border-radius: 28px;
-        box-shadow: 0 25px 50px -12px rgba(0,0,0,0.1);
-        text-align: center; 
-        max-width: 440px; 
-        margin: auto; 
-        border: 1px solid #E5E7EB;
+        background-color: white; padding: 40px; border-radius: 24px;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        text-align: center; max-width: 450px; margin: auto; border: 1px solid #F0F0F0;
+    }
+    .metric-card {
+        background-color: white; padding: 25px; border-radius: 20px;
+        border: 1px solid #E5E7EB; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
+    div.stButton > button:first-child {
+        background-color: #007AFF; color: white; border-radius: 12px; border: none;
+        padding: 0.7rem 2rem; font-weight: bold; width: 100%;
+    }
+    .status-badge {
+        padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# =========================================================
-# 2. CONEXIÓN Y PERSISTENCIA DE DATOS (SUPABASE)
-# =========================================================
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# --- SISTEMA DE AUTENTICACIÓN ---
+# --- 2. SISTEMA DE ACCESO Y RECUPERACIÓN (SaaS) ---
+
 def login_ui():
-    col1, col2, col3 = st.columns([1, 1.8, 1])
+    if 'auth_mode' not in st.session_state:
+        st.session_state.auth_mode = "login"
+
+    # CAPTURA DE TOKENS DE RECUPERACIÓN (URL PARAMS)
+    params = st.query_params
+    if "type" in params and params["type"] == "recovery":
+        st.session_state.auth_mode = "reset_password"
+
+    col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
-        st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=70)
-        st.markdown("<h2 style='color: #1D1D1F; font-weight: 700;'>CobroYa Pro</h2>", unsafe_allow_html=True)
-        st.markdown("<p style='color: #86868B;'>Ingeniería de Datos aplicada a Préstamos</p>", unsafe_allow_html=True)
-        
-        email = st.text_input("Usuario (Email)", placeholder="tu@empresa.com")
-        pwd = st.text_input("Contraseña", type="password", placeholder="••••••••")
-        
-        if st.button("Acceder al Panel"):
-            try:
-                res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                if res.user:
-                    st.session_state.user = res.user
+        st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
+        st.markdown("<h2 style='color: #1D1D1F;'>CobroYa Global</h2>", unsafe_allow_html=True)
+        if st.session_state.auth_mode == "login":
+            email = st.text_input("Correo Electrónico")
+            pwd = st.text_input("Contraseña", type="password")
+            if st.button("Iniciar Sesión"):
+                try:
+                    res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
+                    # Verificamos si el usuario realmente entró
+                    if res.user:
+                        st.session_state.user = res.user
+                        st.success("¡Bienvenido!")
+                        st.rerun()
+                except Exception as e:
+                    # Si el error es por falta de confirmación, Supabase lo avisa
+                    error_msg = str(e).lower()
+                    if "email not confirmed" in error_msg:
+                        st.warning("⚠️ Debes confirmar tu correo antes de entrar. Revisa tu bandeja de entrada.")
+                    else:
+                        st.error("❌ Correo o contraseña incorrectos.")
+            
+            st.markdown("---")
+            c1, c2 = st.columns(2)
+            if c1.button("Olvidé mi contraseña"):
+                st.session_state.auth_mode = "forgot"
+                st.rerun()
+            if c2.button("Registrarme"):
+                st.session_state.auth_mode = "signup"
+                st.rerun()
+
+        elif st.session_state.auth_mode == "forgot":
+            st.subheader("Recuperar Cuenta")
+            f_email = st.text_input("Email de tu cuenta")
+            if st.button("Enviar enlace de restauración"):
+                try:
+                    conn.client.auth.reset_password_for_email(f_email)
+                    st.success("Enlace enviado. Revisa tu email.")
+                except: st.error("Error al procesar solicitud.")
+            st.button("Regresar", on_click=lambda: st.session_state.update({"auth_mode": "login"}))
+
+        elif st.session_state.auth_mode == "reset_password":
+            st.subheader("Nueva Contraseña")
+            new_p = st.text_input("Escribe tu nueva clave", type="password")
+            if st.button("Actualizar y Entrar"):
+                try:
+                    conn.client.auth.update_user({"password": new_p})
+                    st.success("Clave cambiada con éxito.")
+                    st.session_state.auth_mode = "login"
                     st.rerun()
-            except Exception as e:
-                st.error("Credenciales incorrectas o cuenta no verificada.")
-        
-        st.markdown("<hr style='margin: 20px 0;'>", unsafe_allow_html=True)
-        if st.button("¿Olvidaste tu contraseña?"):
-            st.info("Contacta al administrador del sistema.")
+                except: st.error("El enlace ha expirado.")
+
+        elif st.session_state.auth_mode == "signup":
+            st.subheader("Registro SaaS")
+            reg_email = st.text_input("Email")
+            reg_pass = st.text_input("Contraseña", type="password")
+            if st.button("Crear mi Empresa"):
+                try:
+                    conn.client.auth.sign_up({"email": reg_email, "password": reg_pass})
+                    st.info("Revisa tu email para confirmar tu cuenta.")
+                except Exception as e: st.error(f"Error: {e}")
+            st.button("Regresar", on_click=lambda: st.session_state.update({"auth_mode": "login"}))
         st.markdown("</div>", unsafe_allow_html=True)
 
+# Bloqueo de seguridad
 if 'user' not in st.session_state:
     login_ui()
     st.stop()
 
-# ID Único del usuario para todas las consultas
 u_id = st.session_state.user.id
-
-# =========================================================
-# 3. CARGA DE CONFIGURACIÓN DE NEGOCIO (SINGLETON)
-# =========================================================
-if "config_cargada" not in st.session_state or not st.session_state["config_cargada"]:
+# --- CARGA INICIAL DE CONFIGURACIÓN ---
+if "config_cargada" not in st.session_state:
     try:
         res_c = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
         if res_c.data:
             conf = res_c.data[0]
-            st.session_state["mis_clausulas"] = conf.get("clausulas", "Sujeto a términos y condiciones.")
+            st.session_state["mis_clausulas"] = conf.get("clausulas", "Sujeto a términos legales.")
+            # IMPORTANTE: Guardamos el logo en la sesión para el PDF
             st.session_state["mi_logo"] = conf.get("logo_base64", None)
-            st.session_state["nombre_negocio"] = conf.get("nombre_negocio", "Mi Negocio")
-            st.session_state["direccion_negocio"] = conf.get("direccion_negocio", "N/A")
-            st.session_state["telefono_negocio"] = conf.get("telefono_negocio", "N/A")
-            st.session_state["rnc"] = conf.get("rnc", "N/A")
+            st.session_state["nombre_negocio"] = conf.get("nombre_negocio", "CobroYa Pro")
+            st.session_state["direccion_negocio"] = conf.get("direccion_negocio", "Villa Altagracia, RD")
+            st.session_state["telefono_negocio"] = conf.get("telefono_negocio", "829-000-0000")
             st.session_state["config_cargada"] = True
         else:
-            # Valores por defecto para nuevos usuarios
+            # Valores por defecto si el usuario es nuevo
+            st.session_state["mi_logo"] = None
             st.session_state["nombre_negocio"] = "CobroYa Pro"
-            st.session_state["config_cargada"] = True
     except Exception as e:
-        st.warning(f"Sincronizando configuración... {e}")
+        st.error(f"Error cargando config: {e}")
 
-# =========================================================
-# 4. MOTOR DE DATOS (FETCHING)
-# =========================================================
-@st.cache_data(ttl=300)
-def load_all_data(user_id):
-    """Obtiene todas las tablas de golpe para reducir latencia."""
-    clientes = conn.table("clientes").select("*").eq("user_id", user_id).execute()
-    prestamos = conn.table("prestamos").select("*, clientes(nombre)").eq("user_id", user_id).execute()
-    pagos = conn.table("pagos").select("*").eq("user_id", user_id).execute()
-    gastos = conn.table("gastos").select("*").eq("user_id", user_id).execute()
+# --- 3. FUNCIONES AUXILIARES (CORREGIDAS) ---
+
+# --- FUNCIONES AUXILIARES ---
+# --- COLOCA ESTO ARRIBA, CERCA DE TUS OTROS IMPORTS ---
+def asistente_ia_cobroya(datos_negocio, pregunta_usuario):
+    # 1. Configuración del cliente
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"]) 
     
-    return (
-        pd.DataFrame(clientes.data), 
-        pd.DataFrame(prestamos.data), 
-        pd.DataFrame(pagos.data),
-        pd.DataFrame(gastos.data)
+    # 2. El mensaje del sistema
+    system_prompt = f"""
+    Eres el Asistente Senior de Riesgos de 'CobroYa Pro'. 
+    Tu objetivo es ayudar al dueño del negocio a tomar decisiones financieras.
+    REGLAS: Solo usa estos datos: {datos_negocio}. Habla profesional.
+    """
+
+    # 3. Llamada al modelo (Actualizado a llama-3.3-70b-versatile)
+    completion = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": pregunta_usuario}
+        ]
     )
-
-df_clientes, df_prestamos, df_pagos, df_gastos = load_all_data(u_id)
-
-# =========================================================
-# 5. UTILIDADES DE FORMATO Y CONVERSIÓN
-# =========================================================
-def get_image_download_link(img, filename="foto.png"):
-    """Convierte imagen PIL a link de descarga."""
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    img_str = base64.b64encode(buffered.getvalue()).decode()
-    href = f'<a href="data:image/png;base64,{img_str}" download="{filename}">Descargar Foto</a>'
-    return href
-
-# =========================================================
-# 6. MOTOR FINANCIERO: AMORTIZACIÓN Y CÁLCULOS
-# =========================================================
-
-def calcular_tabla_amortizacion(monto, tasa_anual, cuotas, frecuencia, fecha_inicio=None):
-    """
-    Genera la proyección de pagos detallada.
-    Soporta: Semanal, Quincenal, Mensual.
-    """
-    if fecha_inicio is None:
-        fecha_pago = datetime.now()
-    else:
-        fecha_pago = datetime.combine(fecha_inicio, datetime.min.time())
-
-    tasa_decimal = tasa_anual / 100
     
-    # Ajuste de tasa y saltos según frecuencia
-    if frecuencia == "Mensual":
-        tasa_periodo = tasa_decimal / 12
-        dias_salto = 30
-    elif frecuencia == "Quincenal":
-        tasa_periodo = tasa_decimal / 24
-        dias_salto = 15
-    else: # Semanal
-        tasa_periodo = tasa_decimal / 52
-        dias_salto = 7
+    # 4. El retorno (Asegúrate de que esta línea esté alineada con 'completion')
+    return completion.choices[0].message.content
+
+def obtener_contexto_privado_ia(u_id_actual):
+    """Filtra los datos para que la IA solo vea lo que le toca al usuario logueado"""
+    try:
+        # Traemos solo préstamos del usuario actual con el nombre del cliente
+        res = conn.table("prestamos").select("*, clientes(nombre)").eq("user_id", u_id_actual).execute()
+        datos = res.data if res.data else []
         
-    # Cálculo de Cuota Fija (Método Francés)
-    # Formula: R = P [ i(1 + i)^n ] / [ (1 + i)^n – 1 ]
-    if tasa_periodo > 0:
-        cuota_fija = (monto * tasa_periodo) / (1 - (1 + tasa_periodo)**-cuotas)
-    else:
-        cuota_fija = monto / cuotas
-    
-    tabla = []
-    saldo_restante = monto
-    
-    for i in range(1, cuotas + 1):
-        interes_cuota = saldo_restante * tasa_periodo
-        capital_cuota = cuota_fija - interes_cuota
-        saldo_restante -= capital_cuota
-        fecha_pago += timedelta(days=dias_salto)
+        if not datos:
+            return "No hay préstamos registrados para analizar."
+
+        # Construimos el 'libro de datos' exclusivo
+        contexto = "DATOS PRIVADOS DE TU CARTERA (SOLO PARA TUS OJOS):\n"
+        for p in datos:
+            nombre = p.get('clientes', {}).get('nombre', 'Cliente sin nombre')
+            contexto += f"- {nombre}: Debe RD$ {p['balance']:,.2f} | Estado: {p['estado']} | Próximo Pago: {p['proximo_pago']}\n"
         
-        tabla.append({
-            "No.": i,
-            "Fecha de Pago": fecha_pago.strftime('%d/%m/%Y'),
-            "Cuota": round(cuota_fija, 2),
-            "Capital": round(capital_cuota, 2),
-            "Interés": round(interes_cuota, 2),
-            "Balance": round(max(0, saldo_restante), 2)
-        })
-    return pd.DataFrame(tabla)
+        return contexto
+    except Exception as e:
+        return f"Error de seguridad al recuperar datos: {e}"
 
-# =========================================================
-# 7. GENERACIÓN DE DOCUMENTOS (PDF Y QR)
-# =========================================================
+# --- FUNCIONES DE LÓGICA (Ajustadas para evitar el AttributeError) ---
+def obtener_estado_cliente_real(cuentas_del_cliente):
+    import datetime as dt # Importación interna para forzar que funcione
+    
+    if not cuentas_del_cliente:
+        return "🟢 Al día", "#22c55e"
+    
+    hoy = dt.date.today()
+    proximos_dias = hoy + dt.timedelta(days=3)
+    
+    atrasado = False
+    pago_incompleto = False
+    por_vencer = False
+    
+    for cuenta in cuentas_del_cliente:
+        # Aseguramos que el balance sea numérico
+        pendiente = float(cuenta.get('balance_pendiente') or 0)
+        fecha_v_str = cuenta.get('proximo_pago')
+        
+        if pendiente > 0:
+            if fecha_v_str:
+                # Convertimos el texto de la base de datos a fecha real
+                try:
+                    fecha_v = dt.datetime.strptime(str(fecha_v_str), '%Y-%m-%d').date()
+                    if fecha_v < hoy:
+                        atrasado = True
+                    elif hoy <= fecha_v <= proximos_dias:
+                        por_vencer = True
+                    else:
+                        pago_incompleto = True
+                except:
+                    pago_incompleto = True # Si la fecha está mal, asumimos pendiente
+            else:
+                pago_incompleto = True
+                
+    if atrasado: return "🔴 Atrasado", "#ef4444"
+    if por_vencer: return "🟡 Por Vencer", "#eab308"
+    if pago_incompleto: return "🟠 Pago Incompleto", "#f97316"
+    
+    return "🟢 Al día", "#22c55e"
 
-def generar_recibo_pdf(datos_pago, cliente_nombre):
-    """Crea un recibo con estándares bancarios."""
+def calcular_resumen_real(cuentas_del_cliente):
+    # Suma simple del balance pendiente
+    return sum(float(c.get('balance_pendiente') or 0) for c in cuentas_del_cliente)
+
+def calcular_resumen_real(cuentas_del_cliente):
+    """
+    Suma el balance pendiente de todas las cuentas del cliente.
+    """
+    total_deuda = sum(float(c.get('balance_pendiente', 0)) for c in cuentas_del_cliente)
+    return total_deuda
+    
+def generar_pdf_recibo_pro(nombre_cliente, monto, balance, u_id, metodo="Efectivo"):
+    from fpdf import FPDF
+    from datetime import datetime
+    
     pdf = FPDF()
     pdf.add_page()
     
-    # --- Encabezado ---
-    if st.session_state.get("mi_logo"):
-        try:
-            logo_data = base64.b64decode(st.session_state["mi_logo"])
-            logo_img = Image.open(io.BytesIO(logo_data))
-            # Guardar temporalmente para FPDF
-            logo_img.save("temp_logo.png")
-            pdf.image("temp_logo.png", 10, 8, 33)
-        except: pass
+    # 1. Recuperar datos de texto de la sesión
+    nombre_negocio = st.session_state.get("nombre_negocio", "CobroYa Pro")
+    rnc = st.session_state.get("rnc", "N/A")
+    direccion = st.session_state.get("direccion_negocio", "República Dominicana")
+    telefono = st.session_state.get("telefono_negocio", "")
 
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(80)
-    pdf.cell(30, 10, st.session_state.get("nombre_negocio", "CobroYa Pro").upper(), 0, 1, 'C')
+    # --- ENCABEZADO FORMAL ---
+    pdf.set_fill_color(240, 240, 240) # Gris claro profesional
+    pdf.rect(0, 0, 210, 45, 'F')
     
-    pdf.set_font("Arial", '', 9)
-    pdf.cell(80)
-    info_empresa = f"RNC: {st.session_state.get('rnc', '---')} | Tel: {st.session_state.get('telefono_negocio', '---')}"
-    pdf.cell(30, 5, info_empresa, 0, 1, 'C')
-    pdf.cell(80)
-    pdf.cell(30, 5, st.session_state.get("direccion_negocio", "---"), 0, 1, 'C')
+    pdf.set_text_color(0, 51, 102) # Azul marino
+    pdf.set_xy(15, 12)
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.cell(150, 10, nombre_negocio.upper(), ln=True)
     
-    pdf.ln(20)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.set_x(15)
+    pdf.cell(150, 5, f"RNC/Cédula: {rnc}", ln=True)
+    pdf.set_x(15)
+    pdf.cell(150, 5, f"Dirección: {direccion}", ln=True)
+    pdf.set_x(15)
+    pdf.cell(150, 5, f"Teléfono: {telefono}", ln=True)
+
+    # --- CUERPO DEL RECIBO ---
+    pdf.ln(25)
+    pdf.set_text_color(0, 0, 0)
+    pdf.set_font("Helvetica", "B", 14)
+    recibo_id = f"REC-{datetime.now().strftime('%y%m%d%H%M')}"
+    pdf.cell(100, 10, f"COMPROBANTE DE PAGO: {recibo_id}")
+    pdf.set_font("Helvetica", "", 12)
+    pdf.cell(90, 10, f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='R')
     
-    # --- Título del Documento ---
-    pdf.set_fill_color(240, 240, 240)
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, f" RECIBO DE PAGO # {datos_pago['id']}", 1, 1, 'L', fill=True)
-    pdf.ln(5)
-    
-    # --- Datos de la Transacción ---
-    pdf.set_font("Arial", '', 11)
-    col_width = 45
-    
-    data_grid = [
-        ("Cliente:", cliente_nombre),
-        ("Monto Recibido:", f"${datos_pago['monto']:,.2f}"),
-        ("Fecha:", datetime.now().strftime("%d/%m/%Y %H:%M")),
-        ("Método de Pago:", datos_pago.get('metodo_pago', 'Efectivo')),
-        ("Referencia:", datos_pago.get('referencia', 'N/A'))
+    pdf.line(15, 60, 195, 60)
+    pdf.ln(10)
+
+    # Detalle de la Transacción
+    detalles = [
+        ("EMISOR", nombre_negocio),
+        ("CLIENTE (DEUDOR)", nombre_cliente),
+        ("CONCEPTO", "Abono a préstamo / Cuota de pago"),
+        ("MONTO RECIBIDO", f"RD$ {monto:,.2f}"),
+        ("MÉTODO DE PAGO", metodo),
+        ("BALANCE PENDIENTE", f"RD$ {balance:,.2f}")
     ]
     
-    for label, val in data_grid:
-        pdf.set_font("Arial", 'B', 11)
-        pdf.cell(col_width, 8, label, 0)
-        pdf.set_font("Arial", '', 11)
-        pdf.cell(0, 8, str(val), 0, 1)
-    
-    # --- Código QR de Verificación ---
-    qr_data = f"PAGO_ID:{datos_pago['id']}|CLI:{cliente_nombre}|MONTO:{datos_pago['monto']}"
-    qr = qrcode.QRCode(box_size=10, border=2)
-    qr.add_data(qr_data)
-    qr.make(fit=True)
-    img_qr = qr.make_image(fill_color="black", back_color="white")
-    
-    qr_buf = io.BytesIO()
-    img_qr.save(qr_buf, format='PNG')
-    pdf.image(qr_buf, 150, 65, 40, 40)
-    
-    # --- Pie de Página / Cláusulas ---
+    for concepto, valor in detalles:
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.cell(60, 12, f" {concepto}", border=1, fill=True)
+        pdf.set_font("Helvetica", "", 11)
+        pdf.cell(120, 12, f" {valor}", border=1, ln=True)
+
+    # --- ESPACIO PARA FIRMAS (Crucial para legalidad) ---
     pdf.ln(30)
-    pdf.set_font("Arial", 'I', 8)
-    pdf.set_text_color(100, 100, 100)
-    pdf.multi_cell(0, 4, st.session_state.get("mis_clausulas", ""))
+    pdf.set_font("Helvetica", "B", 10)
     
-    return pdf.output(dest='S').encode('latin-1')
+    # Firma del Cliente
+    pdf.line(20, pdf.get_y(), 80, pdf.get_y())
+    pdf.set_xy(20, pdf.get_y() + 2)
+    pdf.cell(60, 5, "FIRMA DEL CLIENTE", align='C')
+    
+    # Firma del Emisor
+    pdf.set_xy(120, pdf.get_y() - 2)
+    pdf.line(120, pdf.get_y(), 180, pdf.get_y())
+    pdf.set_xy(120, pdf.get_y() + 2)
+    pdf.cell(60, 5, "RECIBIDO POR (EMISOR)", align='C')
+
+    return bytes(pdf.output())
 
 # =========================================================
-# 8. MÓDULO DE INTELIGENCIA ARTIFICIAL (RISK ENGINE)
+# 🧾 RECIBO DE PAGO (SIMPLE Y LIMPIO)
 # =========================================================
+def generar_recibo_pago_pro(nombre, monto, balance, metodo="Efectivo"):
+    pdf = FPDF()
+    pdf.add_page()
 
-def analizar_perfil_con_ia(cliente_info, historial_pagos):
-    """
-    Analiza la salud financiera usando Llama-3 de Groq.
-    """
-    api_key = st.secrets.get("GROQ_API_KEY")
-    if not api_key:
-        return "⚠️ Configure su GROQ_API_KEY para habilitar el análisis de IA."
+    fecha = datetime.now().strftime('%d/%m/%Y')
+    recibo_id = f"REC-{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-    try:
-        client = Groq(api_key=api_key)
-        prompt = f"""
-        Como experto analista financiero de Silicon Valley, evalúa este cliente:
-        Nombre: {cliente_info['nombre']}
-        Balance Actual: {cliente_info.get('balance_deuda', 0)}
-        Historial de pagos: {historial_pagos}
+    pdf.set_font("Helvetica", "B", 14)
+    pdf.cell(190, 10, "RECIBO DE PAGO", ln=True, align="C")
+
+    pdf.ln(5)
+
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(100, 6, f"No: {recibo_id}")
+    pdf.cell(90, 6, f"Fecha: {fecha}", ln=True, align="R")
+
+    pdf.ln(8)
+
+    pdf.cell(190, 6, f"Recibimos de: {nombre}", ln=True)
+    pdf.cell(190, 6, f"Monto: RD$ {monto:,.2f}", ln=True)
+    pdf.cell(190, 6, f"Método de pago: {metodo}", ln=True)
+    pdf.cell(190, 6, f"Balance restante: RD$ {balance:,.2f}", ln=True)
+
+    pdf.ln(20)
+
+    pdf.line(60, pdf.get_y(), 150, pdf.get_y())
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(190, 6, "Firma autorizada", align="C")
+
+    return bytes(pdf.output())
+    
+def generar_pdf_contrato_legal(nombre_cli, cedula_cli, capital, total, cuotas_df, freq, clausulas_texto):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Encabezado
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(190, 10, "CONTRATO DE PRESTAMO Y COMPROMISO DE PAGO", ln=True, align='C')
+    pdf.line(10, 22, 200, 22)
+    pdf.ln(10)
+    
+    # Declaración
+    pdf.set_font("Helvetica", "", 11)
+    nombre_clean = nombre_cli.encode('latin-1', 'replace').decode('latin-1')
+    texto_declaracion = (f"Yo, {nombre_clean.upper()}, portador de la cedula {cedula_cli}, declaro haber recibido "
+                         f"la suma de RD$ {capital:,.2f} en calidad de prestamo, comprometiendome a pagar "
+                         f"un total de RD$ {total:,.2f} bajo los terminos acordados.")
+    pdf.multi_cell(190, 7, texto_declaracion)
+    pdf.ln(5)
+    
+    # Cláusulas
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(190, 10, "CLAUSULAS DEL COMPROMISO:", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.multi_cell(190, 6, clausulas_texto.encode('latin-1', 'replace').decode('latin-1'))
+    pdf.ln(10)
+    
+    # Tabla
+    pdf.set_fill_color(0, 51, 102)
+    pdf.set_text_color(255, 255, 255)
+    pdf.cell(30, 8, "Cuota", border=1, align='C', fill=True)
+    pdf.cell(80, 8, "Fecha Vencimiento", border=1, align='C', fill=True)
+    pdf.cell(80, 8, "Monto Cuota", border=1, align='C', fill=True, ln=True)
+    
+    pdf.set_text_color(0, 0, 0)
+    for i, row in cuotas_df.iterrows():
+        if pdf.get_y() > 250:
+            pdf.add_page()
+        pdf.cell(30, 7, str(int(row['Nº'])), border=1, align='C')
+        pdf.cell(80, 7, str(row['Fecha']), border=1, align='C')
+        pdf.cell(80, 7, f"RD$ {row['Monto Cuota (RD$)']:,.2f}", border=1, align='C', ln=True)
+    
+    # Firmas
+    pdf.set_y(-40)
+    pdf.line(20, pdf.get_y(), 90, pdf.get_y()) 
+    pdf.line(120, pdf.get_y(), 190, pdf.get_y()) 
+    pdf.set_font("Helvetica", "B", 10)
+    pdf.text(35, pdf.get_y() + 5, "FIRMA DEUDOR")
+    pdf.text(135, pdf.get_y() + 5, "FIRMA ACREEDOR")
+    
+    return bytes(pdf.output())
+def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_pagos):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(190, 15, "ESTADO DE CUENTA CONSOLIDADO", ln=True, align='C')
+    pdf.ln(5)
+    
+    pdf.set_fill_color(230, 240, 255)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(63, 20, f"PRESTADO: RD$ {total_prestado:,.0f}", border=1, align='C', fill=True)
+    pdf.cell(63, 20, f"PAGADO: RD$ {pagado:,.0f}", border=1, align='C', fill=True)
+    pdf.cell(64, 20, f"RESTANTE: RD$ {pendiente:,.0f}", border=1, align='C', fill=True, ln=True)
+    
+    pdf.ln(10)
+    pdf.set_font("Helvetica", "B", 11)
+    pdf.cell(190, 8, "HISTORIAL DE ABONOS RECIBIDOS:", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    
+    pdf.cell(60, 8, "Fecha de Pago", border=1)
+    pdf.cell(130, 8, "Monto Abonado", border=1, ln=True)
+    
+    for pago in historial_pagos:
+        pdf.cell(60, 7, str(pago['fecha_pago']), border=1)
+        pdf.cell(130, 7, f"RD$ {pago['monto_pagado']:,.2f}", border=1, ln=True)
         
-        Responde en formato ejecutivo:
-        1. Score de Riesgo (1-100).
-        2. Probabilidad de impago.
-        3. Estrategia de cobro sugerida.
-        """
-        
-        completion = client.chat.completions.create(
-            messages=[{"role": "user", "content": prompt}],
-            model="llama3-70b-8192",
-            temperature=0.3
-        )
-        return completion.choices[0].message.content
-    except Exception as e:
-        return f"Error en motor de IA: {str(e)}"
+    return bytes(pdf.output())
 
-# =========================================================
-# 9. NAVEGACIÓN Y ESTRUCTURA (SIDEBAR PREMIUM)
-# =========================================================
-
-with st.sidebar:
-    if st.session_state.get("mi_logo"):
+# --- 4. NAVEGACIÓN ---
+# --- 1. CARGA DE DATOS DESDE SUPABASE (Nombres Reales) ---
+if "user" in st.session_state and st.session_state.user:
+    if "datos_validados" not in st.session_state:
         try:
-            st.image(base64.b64decode(st.session_state["mi_logo"]), width=200)
-        except:
-            st.title(f"🏢 {st.session_state.get('nombre_negocio', 'CobroYa')}")
-    else:
-        st.title(f"🏢 {st.session_state.get('nombre_negocio', 'CobroYa')}")
+            # Según tu imagen, la columna es 'user_id'
+            res = conn.table("configuracion").select("*").eq("user_id", st.session_state.user.id).execute()
+            
+            if res.data:
+                conf = res.data[0]
+                # Ajustamos los nombres exactos de tu Table Editor
+                st.session_state["nombre_negocio"] = conf.get("nombre_negocio", "Mi Negocio")
+                st.session_state["rnc"] = conf.get("rnc", "---")
+                st.session_state["telefono_negocio"] = conf.get("telefono", "---")
+                st.session_state["direccion_negocio"] = conf.get("direccion", "---")
+                st.session_state["mi_logo"] = conf.get("logo_base64") # Asegúrate que esta columna exista o ignórala
+                
+                st.session_state["datos_validados"] = True
+                st.rerun()
+        except Exception as e:
+            st.error(f"Error técnico: {e}")
+            
+# --- 2. SIDEBAR ULTRA-PROFESIONAL (UNIFICADO) ---
+with st.sidebar:
+    # Recuperamos los datos que acabamos de cargar de Supabase
+    # Si no hay nada, ponemos "---" por seguridad
+    biz_name = st.session_state.get("nombre_negocio", "SIN NOMBRE").upper()
+    biz_rnc  = st.session_state.get("rnc", "---")
+    biz_dir  = st.session_state.get("direccion_negocio", "---")
+    biz_tel  = st.session_state.get("telefono_negocio", "---")
+    logo_b64 = st.session_state.get("mi_logo")
+
+    # --- IDENTIDAD VISUAL ---
+    if logo_b64:
+        if "," in str(logo_b64): logo_b64 = logo_b64.split(",")[1]
+        st.markdown(f"""
+            <div style='display: flex; justify-content: center; padding-top: 10px;'>
+                <img src='data:image/png;base64,{logo_b64}' 
+                     style='width: 65px; height: 65px; object-fit: cover; border-radius: 8px;'>
+            </div>
+        """, unsafe_allow_html=True)
     
-    st.markdown("---")
-    menu = st.radio(
-        "MENÚ PRINCIPAL",
-        ["📊 Panel de Control", "👥 Clientes", "🏦 Préstamos", "💸 Cobros y Pagos", "📉 Gastos", "🤖 IA Risk Advisor", "⚙️ Configuración"],
-        index=0
-    )
-    st.markdown("---")
-    
-    # Widget de cierre de sesión
-    st.caption(f"Usuario: {st.session_state.user.email}")
-    if st.button("🚪 Cerrar Sesión Segura"):
-        conn.client.auth.sign_out()
+    st.markdown(f"""
+        <div style='text-align: center; margin-top: 8px; font-family: "Inter", sans-serif;'>
+            <h3 style='margin: 0; color: #1e293b; font-size: 0.95rem; font-weight: 700;'>{biz_name}</h3>
+            <div style='margin-top: 4px; line-height: 1.2;'>
+                <p style='margin: 0; font-size: 0.7rem; color: #64748b;'>RNC: {biz_rnc}</p>
+                <p style='margin: 0; font-size: 0.7rem; color: #64748b;'>📍 {biz_dir}</p>
+                <p style='margin: 0; font-size: 0.7rem; color: #64748b;'>📞 {biz_tel}</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("<div style='margin: 15px 0;'></div>", unsafe_allow_html=True)
+
+    # Sesión del Operador
+    u_email = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
+    st.markdown(f"""
+        <div style='padding: 8px 12px; background-color: #f1f5f9; border-radius: 6px; border-left: 2px solid #0284c7;'>
+            <p style='font-size: 0.6rem; color: #94a3b8; margin: 0; text-transform: uppercase; font-weight: 600;'>Sesión iniciada como</p>
+            <p style='font-size: 0.75rem; font-weight: 500; color: #334155; margin: 0;'>{u_email}</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # Menú
+    menu = st.radio("NAVEGACIÓN", ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"], label_visibility="collapsed")
+
+    if st.button("🚪 Salir del Sistema", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
-# =========================================================
-# 10. VISTA: PANEL DE CONTROL (DASHBOARD)
-# =========================================================
-
-if menu == "📊 Panel de Control":
-    st.markdown("<h1 style='color: #1D1D1F;'>Dashboard Ejecutivo</h1>", unsafe_allow_html=True)
+    # Footer Branding
+    st.markdown("""
+        <style>
+            [data-testid="stSidebarContent"] { display: flex; flex-direction: column; }
+            .sidebar-footer { margin-top: auto; text-align: center; padding: 20px 0; border-top: 1px solid #f1f5f9; }
+        </style>
+        <div class='sidebar-footer'>
+            <p style='font-size: 0.65rem; color: #94a3b8; margin: 0;'>POWERED BY LIXANDER GARCIA</p>
+            <p style='font-size: 0.85rem; font-weight: 800; color: #0284c7; margin: 0;'>CobroYa</p>
+        </div>
+    """, unsafe_allow_html=True)
     
-    if not df_prestamos.empty:
-        # Cálculos de Cartera
-        activos = df_prestamos[df_prestamos['estado'] == 'Activo']
-        total_invertido = df_prestamos['monto_prestado'].sum()
-        total_pagado = df_pagos['monto'].sum() if not df_pagos.empty else 0
-        balance_cartera = total_invertido - total_pagado
-        
-        # Fila de Métricas
-        m1, m2, m3, m4 = st.columns(4)
-        with m1:
-            st.markdown(f"<div class='metric-card'><p style='color: #86868B; font-size: 0.8rem; font-weight: 700;'>CAPITAL EN CALLE</p><h2 style='color: #1D1D1F;'>${balance_cartera:,.2f}</h2></div>", unsafe_allow_html=True)
-        with m2:
-            st.markdown(f"<div class='metric-card'><p style='color: #86868B; font-size: 0.8rem; font-weight: 700;'>TOTAL RECAUDADO</p><h2 style='color: #34C759;'>${total_pagado:,.2f}</h2></div>", unsafe_allow_html=True)
-        with m3:
-            st.markdown(f"<div class='metric-card'><p style='color: #86868B; font-size: 0.8rem; font-weight: 700;'>PRÉSTAMOS ACTIVOS</p><h2 style='color: #007AFF;'>{len(activos)}</h2></div>", unsafe_allow_html=True)
-        with m4:
-            g_total = df_gastos['monto'].sum() if not df_gastos.empty else 0
-            st.markdown(f"<div class='metric-card'><p style='color: #86868B; font-size: 0.8rem; font-weight: 700;'>GASTOS MES</p><h2 style='color: #FF3B30;'>${g_total:,.2f}</h2></div>", unsafe_allow_html=True)
+# --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # Gráficos de Análisis de Datos
-        c1, c2 = st.columns([1.5, 1])
-        with c1:
-            if not df_pagos.empty:
-                df_pagos['fecha_pago'] = pd.to_datetime(df_pagos['fecha_pago'])
-                fig_trend = px.line(df_pagos.sort_values('fecha_pago'), x='fecha_pago', y='monto', 
-                                   title="Tendencia de Recaudación (Cash Flow)",
-                                   line_shape='spline', render_mode='svg')
-                fig_trend.update_traces(line_color='#007AFF', fill='tozeroy')
-                st.plotly_chart(fig_trend, use_container_width=True)
-        with c2:
-            fig_pie = px.pie(df_prestamos, names='estado', hole=0.6, title="Salud de la Cartera",
-                             color_discrete_sequence=['#34C759', '#FF9500', '#FF3B30', '#8E8E93'])
-            st.plotly_chart(fig_pie, use_container_width=True)
-    else:
-        st.info("Aún no hay datos para mostrar. Comienza registrando un préstamo.")
+if menu == "Panel de Control":
+    st.title("Business Intelligence Dashboard")
+    # Consolidado de datos
+    res_c = conn.table("cuentas").select("balance_pendiente, monto_inicial, estado").eq("user_id", u_id).execute()
+    res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
+    res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
 
-# =========================================================
-# 11. VISTA: GESTIÓN DE CLIENTES
-# =========================================================
-
-elif menu == "👥 Clientes":
-    st.markdown("<h2 style='color: #1D1D1F;'>Directorio de Clientes</h2>", unsafe_allow_html=True)
-    t1, t2 = st.tabs(["📋 Listado", "➕ Nuevo Registro"])
+    total_cobrado = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
+    total_gastado = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
+    capital_en_calle = sum([c['balance_pendiente'] for c in res_c.data if c['estado'] == 'Activo']) if res_c.data else 0
     
-    with t1:
-        if not df_clientes.empty:
-            st.dataframe(df_clientes[['nombre', 'cedula', 'telefono', 'direccion', 'id']], 
-                         use_container_width=True, hide_index=True)
-        else:
-            st.write("No hay clientes registrados.")
-            
-    with t2:
-        with st.form("registro_cliente", clear_on_submit=True):
-            col1, col2 = st.columns(2)
-            nom = col1.text_input("Nombre Completo")
-            ced = col2.text_input("Cédula / ID")
-            tel = col1.text_input("Teléfono / WhatsApp")
-            dir_c = col2.text_input("Dirección de Residencia")
-            
-            if st.form_submit_button("Guardar Cliente"):
-                if nom and ced:
-                    conn.table("clientes").insert({
-                        "nombre": nom, "cedula": ced, "telefono": tel, 
-                        "direccion": dir_c, "user_id": u_id
-                    }).execute()
-                    st.success("Cliente guardado correctamente.")
-                    st.cache_data.clear()
-                    st.rerun()
-                else:
-                    st.error("Nombre y Cédula son obligatorios.")
+    # LA CAJA REAL: Lo que tienes en el bolsillo ahora mismo
+    caja_actual = total_cobrado - total_gastado
 
-# =========================================================
-# 12. VISTA: GESTIÓN DE PRÉSTAMOS
-# =========================================================
+    c1, c2, c3 = st.columns(3)
+    c1.markdown(f"<div class='metric-card'><small>DINERO EN CALLE</small><h2>RD$ {capital_en_calle:,.0f}</h2></div>", unsafe_allow_html=True)
+    c2.markdown(f"<div class='metric-card'><small>EFECTIVO EN CAJA</small><h2 style='color:#34C759;'>RD$ {caja_actual:,.0f}</h2></div>", unsafe_allow_html=True)
+    c3.markdown(f"<div class='metric-card'><small>GASTOS TOTALES</small><h2 style='color:#FF3B30;'>RD$ {total_gastado:,.0f}</h2></div>", unsafe_allow_html=True)
 
-elif menu == "🏦 Préstamos":
-    st.markdown("<h2 style='color: #1D1D1F;'>Gestión de Créditos</h2>", unsafe_allow_html=True)
-    tab_p1, tab_p2 = st.tabs(["🔍 Ver Préstamos", "🚀 Nuevo Préstamo"])
+elif menu == "Gestión de Cobros":
+    st.header("Lista de Cobros del Día")
+    # Solo clientes con balance > 0
+    query = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("user_id", u_id).gt("balance_pendiente", 0).execute()
     
-    with tab_p1:
-        if not df_prestamos.empty:
-            # Procesar datos para visualización
-            df_p_view = df_prestamos.copy()
-            df_p_view['Cliente'] = df_p_view['clientes'].apply(lambda x: x['nombre'] if isinstance(x, dict) else 'N/A')
-            
-            st.dataframe(
-                df_p_view[['id', 'Cliente', 'monto_prestado', 'tasa_interes', 'frecuencia', 'estado']],
-                column_config={
-                    "monto_prestado": st.column_config.NumberColumn("Principal", format="$ %.2f"),
-                    "tasa_interes": st.column_config.NumberColumn("Tasa (%)"),
-                },
-                use_container_width=True, hide_index=True
-            )
-        else:
-            st.info("No hay préstamos activos.")
-
-    with tab_p2:
-        if df_clientes.empty:
-            st.warning("Debes registrar al menos un cliente antes de crear un préstamo.")
-        else:
-            with st.form("nuevo_prestamo"):
-                c1, c2 = st.columns(2)
-                cli_nombre = c1.selectbox("Seleccionar Cliente", df_clientes['nombre'].unique())
-                monto_p = c2.number_input("Monto a Prestar ($)", min_value=100.0, step=500.0)
-                
-                c3, c4, c5 = st.columns(3)
-                tasa_p = c3.number_input("Tasa Anual (%)", value=20.0)
-                cuotas_p = c4.number_input("Número de Cuotas", min_value=1, value=12)
-                frec_p = c5.selectbox("Frecuencia", ["Mensual", "Quincenal", "Semanal"])
-                
-                fecha_in = st.date_input("Fecha de Inicio")
-                garantia_p = st.text_input("Garantía / Aval")
-                
-                if st.form_submit_button("Aprobar y Desembolsar"):
-                    c_id = int(df_clientes[df_clientes['nombre'] == cli_nombre]['id'].values[0])
-                    
-                    p_data = {
-                        "cliente_id": c_id,
-                        "monto_prestado": monto_p,
-                        "tasa_interes": tasa_p,
-                        "cuotas": cuotas_p,
-                        "frecuencia": frec_p,
-                        "fecha_inicio": fecha_in.isoformat(),
-                        "garantia": garantia_p,
-                        "estado": "Activo",
-                        "user_id": u_id
-                    }
-                    
-                    conn.table("prestamos").insert(p_data).execute()
-                    st.balloons()
-                    st.success(f"Préstamo registrado para {cli_nombre}")
-                    st.cache_data.clear()
-                    st.rerun()
-
-# =========================================================
-# 13. VISTA: CENTRO DE COBROS Y PAGOS
-# =========================================================
-
-elif menu == "💸 Cobros y Pagos":
-    st.markdown("<h2 style='color: #1D1D1F;'>Gestión de Recaudación</h2>", unsafe_allow_html=True)
-    
-    col_sel, col_pay = st.columns([1, 1.2])
-    
-    with col_sel:
-        st.markdown("### 🔍 Localizar Deuda")
-        if not df_clientes.empty:
-            c_pago = st.selectbox("Seleccionar Cliente", df_clientes['nombre'].unique())
-            id_c_pago = df_clientes[df_clientes['nombre'] == c_pago]['id'].values[0]
-            
-            # Filtrar préstamos pendientes de este cliente
-            pr_pendientes = df_prestamos[(df_prestamos['cliente_id'] == id_c_pago) & (df_prestamos['estado'] != 'Pagado')]
-            
-            if not pr_pendientes.empty:
-                p_id_sel = st.selectbox("ID del Préstamo", pr_pendientes['id'].unique())
-                p_info = pr_pendientes[pr_pendientes['id'] == p_id_sel].iloc[0]
-                
-                # CÁLCULO DE BALANCE EN TIEMPO REAL
-                monto_original = p_info['monto_prestado']
-                total_abonado = df_pagos[df_pagos['prestamo_id'] == p_id_sel]['monto'].sum() if not df_pagos.empty else 0
-                balance_actual = monto_original - total_abonado
-                
-                st.metric("Balance Pendiente", f"${balance_actual:,.2f}", delta=f"-${total_abonado:,.2f} cobrados", delta_color="normal")
-                
-                with st.expander("Ver detalle de cuotas"):
-                    tab_amort = calcular_tabla_amortizacion(
-                        p_info['monto_prestado'], p_info['tasa_interes'], 
-                        p_info['cuotas'], p_info['frecuencia']
-                    )
-                    st.table(tab_amort)
-            else:
-                st.success("🎉 Este cliente no tiene deudas pendientes.")
-        else:
-            st.info("No hay clientes registrados.")
-
-    with col_pay:
-        if not pr_pendientes.empty:
-            st.markdown("### 💵 Registrar Abono")
+    if query.data:
+        for item in query.data:
             with st.container(border=True):
-                monto_recibir = st.number_input("Monto a cobrar ($)", min_value=1.0, max_value=float(balance_actual), step=100.0)
-                metodo_p = st.selectbox("Método", ["Efectivo", "Transferencia", "Depósito", "Tarjeta"])
-                ref_p = st.text_input("Referencia / NAF")
+                col1, col2, col3 = st.columns([2, 1, 1])
                 
-                if st.button("🚀 Procesar Pago y Generar Recibo"):
-                    nuevo_pago = {
-                        "prestamo_id": int(p_id_sel),
-                        "monto": monto_recibir,
-                        "metodo_pago": metodo_p,
-                        "referencia": ref_p,
-                        "fecha_pago": datetime.now().isoformat(),
-                        "user_id": u_id
-                    }
-                    
-                    # 1. Insertar pago
-                    res_pago = conn.table("pagos").insert(nuevo_pago).execute()
-                    
-                    # 2. Verificar si liquidó la deuda para cerrar préstamo
-                    if (balance_actual - monto_recibir) <= 0.01:
-                        conn.table("prestamos").update({"estado": "Pagado"}).eq("id", p_id_sel).execute()
-                    
-                    if res_pago.data:
-                        st.success("✅ Pago registrado exitosamente.")
-                        # Generar y descargar PDF automáticamente
-                        pdf_data = generar_recibo_pdf(res_pago.data[0], c_pago)
-                        st.download_button(
-                            label="📥 Descargar Recibo Oficial (PDF)",
-                            data=pdf_data,
-                            file_name=f"Recibo_{c_pago}_{p_id_sel}.pdf",
-                            mime="application/pdf"
-                        )
-                        st.cache_data.clear()
-                        time.sleep(2)
-                        st.rerun()
+                with col1:
+                    st.subheader(item['clientes']['nombre'])
+                    st.write(f"Deuda Total: **RD$ {item['monto_inicial']:,.2f}**")
+                    st.write(f"Pendiente: `RD$ {item['balance_pendiente']:,.2f}`")
+                
+                with col2:
+                    abono = st.number_input("Monto Cobrado", min_value=0.0, step=50.0, key=f"pay_{item['id']}")
+                    f_prox = st.date_input("Próximo Cobro", key=f"date_{item['id']}")
+                
+                with col3:
+                    st.write("") # Espaciador
+                    if st.button("Registrar Recibo", key=f"btn_{item['id']}"):
+                        if abono > 0:
+                            # 1. Registrar el dinero
+                            conn.table("pagos").insert({"cuenta_id": item['id'], "monto_pagado": abono, "user_id": u_id}).execute()
+                            
+                            # 2. Bajar la deuda
+                            n_bal = float(item['balance_pendiente']) - abono
+                            conn.table("cuentas").update({
+                                "balance_pendiente": n_bal, 
+                                "estado": "Pagado" if n_bal <= 0 else "Activo",
+                                "proximo_pago": str(f_prox)
+                            }).eq("id", item['id']).execute()
+                            
+                            st.success(f"Cobro de RD$ {abono} guardado")
 
-# =========================================================
-# 14. VISTA: GESTIÓN DE GASTOS
-# =========================================================
+                            # --- ESTA ES LA PARTE NUEVA PARA EL PDF ---
+                            # Generamos el PDF usando el u_id para que jale tu logo
+                            pdf_bin = generar_pdf_recibo_pro(
+                                item['clientes']['nombre'], 
+                                abono, 
+                                n_bal, 
+                                u_id, # <--- Aquí le pasamos tu ID de usuario
+                                metodo="Efectivo"
+                            )
+                            
+                            st.download_button(
+                                label="📥 Descargar Recibo PDF",
+                                data=pdf_bin,
+                                file_name=f"Recibo_{item['clientes']['nombre']}.pdf",
+                                mime="application/pdf",
+                                key=f"dl_{item['id']}"
+                            )
+                            # Quitamos el st.rerun() de aquí arriba para que el usuario pueda darle al botón de descargar antes de que la página se refresque.
 
-elif menu == "📉 Gastos":
-    st.markdown("<h2 style='color: #1D1D1F;'>Control de Egresos</h2>", unsafe_allow_html=True)
-    col_g1, col_g2 = st.columns([1, 2])
+elif menu == "Nueva Cuenta por Cobrar":
+    st.header("🏢 Registro de Nueva Factura")
     
-    with col_g1:
-        with st.form("form_gastos", clear_on_submit=True):
-            st.markdown("### Registrar Salida")
-            g_desc = st.text_input("Concepto / Descripción")
-            g_monto = st.number_input("Monto ($)", min_value=1.0)
-            g_cat = st.selectbox("Categoría", ["Nómina", "Oficina", "Marketing", "Servicios", "Otros"])
+    # Contenedor principal para poder limpiar la pantalla
+    contenedor_formulario = st.empty()
+
+    # 0. AUDITORÍA DE DEUDAS
+    res_cli = conn.table("clientes").select("id, nombre, cedula, telefono").eq("user_id", u_id).execute()
+    res_activas = conn.table("cuentas").select("cliente_id, balance_pendiente").eq("user_id", u_id).gt("balance_pendiente", 0).execute()
+    
+    resumen_deudas = {}
+    if res_activas.data:
+        for d in res_activas.data:
+            c_id = d['cliente_id']
+            resumen_deudas[c_id] = resumen_deudas.get(c_id, {'cantidad': 0, 'total': 0})
+            resumen_deudas[c_id]['cantidad'] += 1
+            resumen_deudas[c_id]['total'] += float(d['balance_pendiente'])
+
+    # --- LÓGICA DE MOSTRAR ÉXITO O FORMULARIO ---
+    if "prestamo_exitoso" in st.session_state:
+        # Esto es lo que aparece DESPUÉS de confirmar
+        with st.container(border=True):
+            st.balloons()
+            st.success(f"### ✅ ¡Préstamo Activado para {st.session_state.last_name}!")
+            st.write("La cuenta se registró correctamente. Ahora puedes descargar el contrato y enviarlo.")
             
-            if st.form_submit_button("Guardar Gasto"):
-                conn.table("gastos").insert({
-                    "descripcion": g_desc, "monto": g_monto, 
-                    "categoria": g_cat, "user_id": u_id,
-                    "fecha": datetime.now().isoformat()
-                }).execute()
-                st.cache_data.clear()
-                st.rerun()
-                
-    with col_g2:
-        st.markdown("### Historial de Gastos")
-        if not df_gastos.empty:
-            st.dataframe(df_gastos[['fecha', 'descripcion', 'categoria', 'monto']], use_container_width=True)
-        else:
-            st.write("No hay gastos registrados este mes.")
-
-# =========================================================
-# 15. VISTA: IA RISK ADVISOR
-# =========================================================
-
-elif menu == "🤖 IA Risk Advisor":
-    st.markdown("<h2 style='color: #1D1D1F;'>Análisis Predictivo</h2>", unsafe_allow_html=True)
-    if not df_prestamos.empty:
-        c_ia = st.selectbox("Seleccionar Cliente para Auditoría", df_clientes['nombre'].unique())
-        if st.button("Ejecutar Análisis de Riesgo"):
-            with st.spinner("La IA está analizando comportamientos de pago..."):
-                cli_data = df_clientes[df_clientes['nombre'] == c_ia].iloc[0]
-                # Obtener historial de pagos simplificado para la IA
-                id_c = cli_data['id']
-                pagos_cli = df_pagos[df_pagos['prestamo_id'].isin(df_prestamos[df_prestamos['cliente_id']==id_c]['id'])]
-                historial_texto = pagos_cli[['fecha_pago', 'monto']].to_string() if not pagos_cli.empty else "Sin pagos realizados"
-                
-                resultado = analizar_perfil_con_ia(cli_data, historial_texto)
-                st.markdown(f"<div style='background-color: white; padding: 25px; border-radius: 15px; border-left: 5px solid #007AFF;'>{resultado}</div>", unsafe_allow_html=True)
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.download_button("📥 Descargar Contrato PDF", 
+                                 data=st.session_state.pdf_ready, 
+                                 file_name=f"Factura_{st.session_state.last_name}.pdf", 
+                                 use_container_width=True)
+            with c2:
+                # El link de WhatsApp ya lleva el mensaje profesional
+                st.markdown(f'''<a href="{st.session_state.wa_link}" target="_blank">
+                    <button style="width:100%; background:#25D366; color:white; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold; height:45px;">
+                        💬 Enviar por WhatsApp
+                    </button></a>''', unsafe_allow_html=True)
+            with c3:
+                if st.button("🔄 Crear otra factura", use_container_width=True):
+                    for k in ["prestamo_exitoso", "pdf_ready", "wa_link", "last_name"]:
+                        if k in st.session_state: del st.session_state[k]
+                    st.rerun()
     else:
-        st.info("Se requiere historial de préstamos para realizar análisis.")
+        # FORMULARIO ORIGINAL (Dentro del contenedor vacío)
+        with contenedor_formulario.container():
+            if res_cli.data:
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    cliente_obj = st.selectbox("Seleccionar Cliente", options=res_cli.data, format_func=lambda x: x['nombre'])
+                    capital = st.number_input("Capital Prestado (RD$)", min_value=0.0, step=100.0)
+                    
+                    if cliente_obj['id'] in resumen_deudas:
+                        info = resumen_deudas[cliente_obj['id']]
+                        st.error(f"⚠️ YA DEBE: RD$ {info['total']:,.2f} en {info['cantidad']} factura(s)")
+                        continuar = st.checkbox("Autorizar nueva deuda")
+                    else:
+                        st.success("✅ Cliente al día")
+                        continuar = True
+                
+                with col2:
+                    porcentaje = st.number_input("Interés (%)", min_value=0, value=20)
+                    freq_sel = st.selectbox("Frecuencia", ["Semanal", "Quincenal", "Mensual"], index=2)
+                
+                with col3:
+                    cuotas_n = st.number_input("Cuotas", min_value=1, value=4)
+                    fecha_inicio = st.date_input("Fecha Inicio", value=datetime.now().date())
 
-# =========================================================
-# 16. VISTA: CONFIGURACIÓN E IDENTIDAD
-# =========================================================
+                total_esp = capital * (1 + (porcentaje / 100))
+                ganancia = total_esp - capital
+                monto_c = total_esp / cuotas_n if cuotas_n > 0 else 0
 
-elif menu == "⚙️ Configuración":
-    st.markdown("<h2 style='color: #1D1D1F;'>Configuración Corporativa</h2>", unsafe_allow_html=True)
-    
-    with st.form("form_config"):
-        st.markdown("### 🏢 Datos del Negocio")
-        c1, c2 = st.columns(2)
-        n_neg = c1.text_input("Nombre de la Empresa", value=st.session_state.get("nombre_negocio", ""))
-        rnc_neg = c2.text_input("RNC / Cédula Jurídica", value=st.session_state.get("rnc", ""))
-        tel_neg = c1.text_input("Teléfono de contacto", value=st.session_state.get("telefono_negocio", ""))
-        dir_neg = c2.text_input("Dirección Física", value=st.session_state.get("direccion_negocio", ""))
-        
-        st.markdown("### 📄 Términos Legales (Contratos y Recibos)")
-        claus = st.text_area("Cláusulas de pago y morosidad", value=st.session_state.get("mis_clausulas", ""), height=150)
-        
-        st.markdown("### 🖼️ Identidad Visual")
-        upload_logo = st.file_uploader("Subir Logo (PNG recomendado)", type=["png", "jpg", "jpeg"])
-        
-        if st.form_submit_button("💾 Guardar Cambios Globales"):
-            logo_b64 = st.session_state.get("mi_logo")
-            if upload_logo:
-                logo_b64 = base64.b64encode(upload_logo.read()).decode()
+                # Métricas de ganancia real
+                st.markdown("#### 📊 Proyección de Rentabilidad")
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Inversión", f"RD$ {capital:,.2f}")
+                m2.metric("Ganancia Neta", f"RD$ {ganancia:,.2f}", delta=f"{porcentaje}%")
+                m3.metric("Total a Cobrar", f"RD$ {total_esp:,.2f}")
+
+                df_p = pd.DataFrame([{
+                    "Nº": i + 1,
+                    "Fecha": (fecha_inicio + pd.DateOffset(days=i*7 if freq_sel=="Semanal" else i*14 if freq_sel=="Quincenal" else i*30)).date(),
+                    "Monto Cuota (RD$)": round(monto_c, 2)
+                } for i in range(cuotas_n)])
+                
+                df_e = st.data_editor(df_p, use_container_width=True, key="editor_p")
+                total_f = df_e["Monto Cuota (RD$)"].sum()
+
+                if st.button("🚀 ACTIVAR PRÉSTAMO", use_container_width=True, disabled=not (capital > 0 and continuar)):
+                    # 1. Guardar en DB
+                    conn.table("cuentas").insert({
+                        "cliente_id": cliente_obj['id'], "monto_inicial": total_f,
+                        "balance_pendiente": total_f, "user_id": u_id,
+                        "estado": "Al Día", "proximo_pago": str(df_e.iloc[0]["Fecha"])
+                    }).execute()
+
+                    # 2. PDF y WhatsApp
+                    pdf_out = generar_pdf_contrato_legal(
+                        cliente_obj['nombre'], cliente_obj.get('cedula', 'S/N'), 
+                        float(capital), float(total_f), df_e, freq_sel,
+                        st.session_state.get("mis_clausulas", "Sujeto a términos.")
+                    )
+
+                    # Guardar info en estado y limpiar pantalla
+                    st.session_state.pdf_ready = pdf_out
+                    st.session_state.last_name = cliente_obj['nombre']
+                    st.session_state.prestamo_exitoso = True
+                    
+                    wa_msg = f"✅ *NUEVA FACTURA DISPONIBLE*\n\n" \
+                             f"Hola {cliente_obj['nombre']},\n" \
+                             f"Se ha generado tu plan de pagos:\n" \
+                             f"💰 *Total:* RD$ {total_f:,.2f}\n" \
+                             f"🗓️ *{cuotas_n} cuotas* de RD$ {monto_c:,.2f}\n" \
+                             f"📅 *Primer pago:* {df_e.iloc[0]['Fecha']}\n\n" \
+                             "Te envío el contrato legal adjunto."
+                    
+                    st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(wa_msg)}"
+                    st.rerun()
+# --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
+# --- SECCIÓN A: REGISTRO PREMIUM ---
+# --- SECCIÓN A: REGISTRO PREMIUM ---
+elif menu == "👥 Todos mis Clientes":
+        import datetime as dt
+        import time
+        import pandas as pd
+        import folium
+        from streamlit_folium import st_folium
+        from streamlit_js_eval import streamlit_js_eval
+
+        hoy_dt = dt.date.today()
+
+        # 1. MEMORIA DE SESIÓN
+        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
+            if k not in st.session_state: st.session_state[k] = ""
+
+        st.markdown("<h1 style='color: #1e293b; font-size: 1.6rem;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
+
+        # 2. REGISTRO DESPLEGABLE
+        with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
             
-            config_data = {
-                "nombre_negocio": n_neg, "rnc": rnc_neg,
-                "telefono_negocio": tel_neg, "direccion_negocio": dir_neg,
-                "clausulas": claus, "logo_base64": logo_b64,
+            st.markdown("### 🛰️ Localización Satelital")
+            
+            # NOTA CON SIGNO DE PREGUNTA (HELP)
+            st.caption("⚠️ **Nota sobre precisión:** El GPS puede tener un margen de error de 5 a 50 metros.", 
+                       help="Consejo para mayor precisión: Cuando estés en el terreno, asegúrate de que el celular tenga el Wi-Fi encendido (aunque no estés conectado a una red), ya que Google utiliza las redes cercanas para triangular mejor la posición que el puro satélite.")
+            
+            with st.container(border=True):
+                col_gps, col_map = st.columns([1, 1.5])
+                
+                with col_gps:
+                    # Motor de captura con máxima precisión
+                    pos = streamlit_js_eval(
+                        js_expressions="""
+                        new Promise((resolve) => {
+                            if (!navigator.geolocation) { resolve("NO_SOPORTADO"); }
+                            navigator.geolocation.getCurrentPosition(
+                                (p) => resolve(p.coords.latitude + "," + p.coords.longitude),
+                                (e) => resolve("ERROR_" + e.code),
+                                { 
+                                    enableHighAccuracy: true, 
+                                    timeout: 15000, 
+                                    maximumAge: 0 
+                                }
+                            )
+                        })
+                        """,
+                        key="GPS_ENGINE_V6_FINAL"
+                    )
+
+                    if st.button("🎯 CAPTURAR UBICACIÓN AHORA", use_container_width=True, type="primary"):
+                        if pos and not pos.startswith("ERROR") and pos != "NO_SOPORTADO":
+                            st.session_state.reg_gps = pos
+                            st.success("✅ Ubicación capturada")
+                            st.rerun()
+                        elif pos and pos.startswith("ERROR"):
+                            st.error("🚫 Error de señal. Revisa tus permisos de GPS.")
+                    
+                    st.session_state.reg_gps = st.text_input("📍 Coordenadas (Ajuste manual)", 
+                                                            value=st.session_state.reg_gps,
+                                                            placeholder="Lat, Lon")
+
+                with col_map:
+                    if st.session_state.reg_gps and "," in st.session_state.reg_gps:
+                        try:
+                            lat, lon = map(float, st.session_state.reg_gps.split(","))
+                            m = folium.Map(location=[lat, lon], zoom_start=19)
+                            folium.Marker([lat, lon], icon=folium.Icon(color='red', icon='home')).add_to(m)
+                            st_folium(m, height=250, use_container_width=True, key=f"map_p_{lat}_{lon}")
+                        except:
+                            st.error("Formato inválido.")
+                    else:
+                        st.info("Captura ubicación para ver el mapa.")
+
+            st.markdown("### 📝 Datos del Cliente")
+            c1, c2 = st.columns(2)
+            with c1:
+                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="f_n")
+                st.session_state.reg_ced = st.text_input("Cédula / ID *", value=st.session_state.reg_ced, key="f_c")
+            with c2:
+                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="f_t")
+                st.session_state.reg_dir = st.text_area("Referencia (Color de casa, etc.)", value=st.session_state.reg_dir, height=68, key="f_d")
+
+            # --- BOTONES DE ACCIÓN (LIMPIAR Y GUARDAR) ---
+            col_b1, col_b2 = st.columns(2)
+            
+            with col_b1:
+                if st.button("🧹 LIMPIAR CAMPOS", use_container_width=True):
+                    for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
+                        st.session_state[k] = ""
+                    st.rerun()
+
+            with col_b2:
+                btn_guardar = st.button("🚀 GUARDAR EN CARTERA", use_container_width=True, type="primary")
+
+            if btn_guardar:
+                # 1. BLOQUEO TOTAL: Solo Nombre y Cédula
+                if not st.session_state.reg_nombre or not st.session_state.reg_ced:
+                    st.error("❌ El **Nombre** y la **Cédula** son obligatorios.")
+                
+                else:
+                    # 2. MANEJO DE GPS OPCIONAL
+                    lat_final, lon_final = 0.0, 0.0
+                    if not st.session_state.reg_gps:
+                        st.warning("⚠️ **Aviso:** Guardando cliente sin ubicación exacta.")
+                    else:
+                        try:
+                            lat_v, lon_v = st.session_state.reg_gps.split(",")
+                            lat_final, lon_final = float(lat_v), float(lon_v)
+                        except:
+                            pass
+
+                    # 3. EJECUCIÓN DEL GUARDADO
+                    try:
+                        conn.table("clientes").insert({
+                            "nombre": st.session_state.reg_nombre,
+                            "telefono": st.session_state.reg_tel,
+                            "cedula": st.session_state.reg_ced,
+                            "direccion": st.session_state.reg_dir,
+                            "latitud": lat_final,
+                            "longitud": lon_final,
+                            "user_id": u_id,
+                            "fecha_registro": str(hoy_dt)
+                        }).execute()
+                        
+                        st.success(f"✅ ¡Cliente {st.session_state.reg_nombre} registrado!")
+                        for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: 
+                            st.session_state[k] = ""
+                        time.sleep(1)
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+
+        st.divider()
+    
+        # --- 4. CENTRO DE CONTROL DE CLIENTES (Lógica Avanzada y Diseño Premium) ---
+    
+        # 1. CARGA DE DATOS Y ESTADOS (Usando tus columnas reales del CSV)
+        res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
+        clientes_db = res_cl.data if res_cl.data else []
+        res_cuentas = conn.table("cuentas").select("*").execute()
+        cuentas_db = res_cuentas.data if res_cuentas.data else []
+        res_pagos = conn.table("pagos").select("*").execute()
+        pagos_db = res_pagos.data if res_pagos.data else []
+
+        hoy = datetime.now().date()
+
+        # --- BARRA DE COMANDO: BUSCADOR + PILLS ---
+        col_search, col_filter = st.columns([1.2, 2])
+        with col_search:
+            search_query = st.text_input("🔍", placeholder="Buscar cliente...", label_visibility="collapsed")
+        
+        with col_filter:
+            opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟡 Próximos/Hoy"]
+            sel_filtro = st.pills("Filtro Inteligente:", opciones, selection_mode="single", default="🌍 Todos", label_visibility="collapsed")
+
+        # --- LÓGICA DE FILTRADO "GENIO" ---
+        clientes_f = []
+        for c in clientes_db:
+            # Buscamos la cuenta principal (o la más reciente)
+            cuenta = next((d for d in cuentas_db if d['cliente_id'] == c['id']), None)
+            
+            # Si no hay cuenta, solo aparece en "Todos"
+            match_estado = False
+            if sel_filtro == "🌍 Todos":
+                match_estado = True
+            elif cuenta:
+                prox_pago = pd.to_datetime(cuenta.get('proximo_pago')).date() if cuenta.get('proximo_pago') else None
+                balance = cuenta.get('balance_pendiente', 0)
+                
+                # Atrasado: Si hoy es después de la fecha y tiene deuda
+                if sel_filtro == "🔴 Atrasados":
+                    if prox_pago and hoy > prox_pago and balance > 0:
+                        match_estado = True
+                
+                # Al Día: Balance 0 O la fecha es futura y no hay retrasos previos
+                elif sel_filtro == "🟢 Al Día":
+                    if balance <= 0 or (prox_pago and prox_pago > hoy):
+                        # Nota: Si estaba atrasado no entra aquí
+                        if not (prox_pago and hoy > prox_pago and balance > 0):
+                            match_estado = True
+                
+                # Próximos/Hoy: Falta 1 día o es hoy mismo
+                elif sel_filtro == "🟡 Próximos/Hoy":
+                    if prox_pago:
+                        dias_dif = (prox_pago - hoy).days
+                        if dias_dif == 0 or dias_dif == 1:
+                            match_estado = True
+
+            # Match de búsqueda por texto
+            match_search = not search_query or (search_query.lower() in c['nombre'].lower() or search_query in str(c.get('cedula', '')))
+            
+            if match_search and match_estado:
+                clientes_f.append(c)
+
+        # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
+@st.dialog("📄 Expediente de Facturación")
+def modal_detalle(cliente, cuentas, pagos):
+    # --- CABECERA ---
+    col_icon, col_data = st.columns([1, 4])
+    with col_icon:
+        st.markdown("<h1 style='text-align:center;'>👤</h1>", unsafe_allow_html=True)
+    with col_data:
+        st.markdown(f"### {cliente['nombre']}")
+        st.caption(f"🆔 Cédula: {cliente.get('cedula', 'N/A')} | 📞 {cliente.get('telefono', 'N/A')}")
+    
+    # --- INDICADORES RÁPIDOS ---
+    mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
+    total_deuda = sum(float(ct.get('balance_pendiente', 0)) for ct in mis_ctas)
+    
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Deuda Total", f"RD$ {total_deuda:,.2f}")
+    c2.metric("Cuentas Activas", len([c for c in mis_ctas if float(c.get('balance_pendiente', 0)) > 0]))
+    
+    # Cálculo de salud financiera
+    p_vencidos = 0
+    for ct in mis_ctas:
+        if ct.get('proximo_pago') and pd.to_datetime(ct['proximo_pago']).date() < hoy_dt and float(ct.get('balance_pendiente', 0)) > 0:
+            p_vencidos += 1
+    c3.metric("Atrasos", p_vencidos, delta_color="inverse")
+
+    st.divider()
+    
+    # --- LISTADO DE CUENTAS DETALLADO ---
+    st.markdown("#### 📑 Historial de Deudas y Abonos")
+    
+    if not mis_ctas:
+        st.info("Este cliente no tiene registros financieros.")
+    else:
+        for ct in mis_ctas:
+            with st.container(border=True):
+                # Encabezado de la factura con Badge de estado
+                f_pago = pd.to_datetime(ct.get('proximo_pago')).date() if ct.get('proximo_pago') else None
+                balance = float(ct.get('balance_pendiente', 0))
+                atrasada = f_pago and f_pago < hoy_dt and balance > 0
+                
+                est_color = "#ef4444" if atrasada else "#22c55e"
+                est_txt = "⚠️ ATRASADA" if atrasada else "✅ AL DÍA"
+                if balance <= 0:
+                    est_txt = "🏁 PAGADA"
+                    est_color = "#64748b"
+
+                st.markdown(f"""
+                    <div style='display:flex; justify-content:space-between; align-items:center;'>
+                        <b>Factura: #{str(ct['id'])[:6].upper()}</b>
+                        <span style='background:{est_color}; color:white; padding:2px 8px; border-radius:10px; font-size:11px;'>{est_txt}</span>
+                    </div>
+                """, unsafe_allow_html=True)
+                
+                col_info, col_monto = st.columns([2, 1])
+                with col_info:
+                    st.write(f"📅 **Vence:** {f_pago if f_pago else 'N/A'}")
+                    if atrasada:
+                        dias = (hoy_dt - f_pago).days
+                        st.markdown(f"<span style='color:#ef4444; font-size:12px;'>Mora de {dias} días</span>", unsafe_allow_html=True)
+                
+                with col_monto:
+                    st.markdown(f"<h4 style='margin:0; text-align:right;'>RD$ {balance:,.2f}</h4>", unsafe_allow_html=True)
+
+                # --- DESPLEGABLE DE ABONOS ---
+                with st.expander("🔍 Ver desglose de abonos y movimientos"):
+                    mis_p = [p for p in pagos if p.get('cuenta_id') == ct['id']]
+                    if mis_p:
+                        df_p = pd.DataFrame(mis_p).sort_values("fecha_pago", ascending=False)
+                        for _, p in df_p.iterrows():
+                            monto_p = float(p.get('monto_pagado', 0))
+                            cuota_e = float(ct.get('cuota_esperada', 0))
+                            tipo_pago = "Abono Extra" if monto_p > cuota_e else "Pago Regular"
+                            
+                            st.markdown(f"""
+                                <div style='display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;'>
+                                    <div>
+                                        <small style='color:gray;'>{str(p['fecha_pago'])[:10]}</small><br>
+                                        <b style='font-size:13px;'>{tipo_pago}</b>
+                                    </div>
+                                    <b style='color:#16a34a;'>+ RD$ {monto_p:,.2f}</b>
+                                </div>
+                            """, unsafe_allow_html=True)
+                    else:
+                        st.caption("No se han registrado abonos aún.")
+
+    if st.button("Cerrar Expediente", use_container_width=True):
+        st.rerun()
+
+# --- GRID DE CLIENTES (CORREGIDO) ---
+if not clientes_f:
+    st.warning("No hay clientes que coincidan con la búsqueda o filtro.")
+else:
+    grid = st.columns(3)
+    for idx, cl in enumerate(clientes_f):
+        with grid[idx % 3]:
+            with st.container(border=True):
+                # 1. Cabecera de Tarjeta
+                st.markdown(f"**{cl['nombre']}**")
+                st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
+                
+                # 2. Botones de Acción
+                b1, b2, b3 = st.columns(3)
+                with b1:
+                    if st.button("📂", key=f"h_{cl['id']}", use_container_width=True):
+                        modal_detalle(cl, cuentas_db, pagos_db)
+                
+                with b2:
+                    tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
+                    wa_url = f"https://wa.me/{tel}"
+                    st.markdown(f'''<a href="{wa_url}" target="_blank">
+                        <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
+                        </button></a>''', unsafe_allow_html=True)
+                
+                with b3:
+                    lat, lon = cl.get('latitud'), cl.get('longitud')
+                    if lat and str(lat) not in ["0", "0.0", "None"]:
+                        map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                        st.markdown(f'''<a href="{map_url}" target="_blank">
+                            <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
+                            </button></a>''', unsafe_allow_html=True)
+                    else:
+                        st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
+
+                # 3. Centro de Gestión (Popover)
+                with st.popover("⚙️ Ajustes", use_container_width=True):
+                    g1, g2 = st.columns(2)
+                    with g1:
+                        if st.button("✏️ Editar", key=f"e_b_{cl['id']}", use_container_width=True):
+                            st.session_state[f"editing_{cl['id']}"] = True
+                    with g2:
+                        if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", type="primary", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 1
+
+                    # --- LÓGICA DE EDICIÓN ---
+                    if st.session_state.get(f"editing_{cl['id']}"):
+                        st.markdown("---")
+                        e_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
+                        e_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
+                        e_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
+                        
+                        c_la, c_lo = st.columns(2)
+                        e_lat = c_la.text_input("Latitud", value=str(cl.get('latitud', '0.0')), key=f"elat_{cl['id']}")
+                        e_lon = c_lo.text_input("Longitud", value=str(cl.get('longitud', '0.0')), key=f"elon_{cl['id']}")
+
+                        if st.button("💾 Guardar", key=f"sv_{cl['id']}", type="primary", use_container_width=True):
+                            conn.table("clientes").update({
+                                "nombre": e_nom, "cedula": e_ced, "telefono": e_tel,
+                                "latitud": float(e_lat), "longitud": float(e_lon)
+                            }).eq("id", cl['id']).execute()
+                            st.toast("✅ ¡Datos actualizados!")
+                            del st.session_state[f"editing_{cl['id']}"]
+                            st.rerun()
+
+                    # --- LÓGICA DE ELIMINAR ---
+                    if st.session_state.get(f"del_step_{cl['id']}") == 1:
+                        st.warning("¿Seguro?")
+                        if st.button("SÍ", key=f"d1_{cl['id']}", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 2
+                            st.rerun()
+                    
+                    elif st.session_state.get(f"del_step_{cl['id']}") == 2:
+                        if st.button("CONFIRMAR BORRADO", key=f"d2_{cl['id']}", type="primary", use_container_width=True):
+                            conn.table("clientes").delete().eq("id", cl['id']).execute()
+                            st.toast("🗑️ Eliminado")
+                            del st.session_state[f"del_step_{cl['id']}"]
+                            st.rerun()
+
+# --- CAMBIO DE SECCIÓN (CORREGIDO) ---
+# Este bloque debe estar alineado con el 'if menu == "..." ' inicial de tu aplicación
+if menu == "Cuentas por Pagar":
+    st.header("🏧 Movimientos de Efectivo")
+    
+    # Lógica de la sección...
+    res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
+    res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
+    
+    total_pagos = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
+
+
+elif menu == "IA Predictiva":
+    # ---------------------------------------------------------
+    # 1. CSS AVANZADO PARA ESTILO META AI (Tarjetas Flotantes)
+    # ---------------------------------------------------------
+    st.markdown("""
+        <style>
+            /* Contenedor principal centrado */
+            .main .block-container { max-width: 850px; padding-top: 3rem; }
+            [data-testid="stHeader"] { display: none; }
+            
+            /* Título estilo Meta */
+            .titulo-meta {
+                text-align: center;
+                font-size: 42px;
+                font-weight: 700;
+                margin-bottom: 10px;
+                color: #1c1e21;
+            }
+            .subtitulo-meta {
+                text-align: center;
+                color: #65676b;
+                font-size: 18px;
+                margin-bottom: 40px;
+            }
+
+            /* Estilo de las Sugerencias Flotantes */
+            .sugerencia-card {
+                background: white;
+                border: 1px solid #e4e6eb;
+                border-radius: 12px;
+                padding: 15px;
+                margin-bottom: 12px;
+                transition: all 0.3s ease;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            }
+            .sugerencia-card:hover {
+                background-color: #f0f2f5;
+                border-color: #0084ff;
+                transform: translateY(-2px);
+            }
+        </style>
+        <h1 class="titulo-meta">¿En qué puedo ayudarte?</h1>
+        <p class="subtitulo-meta">Analiza tu cartera de cobros y riesgos con IA avanzada.</p>
+    """, unsafe_allow_html=True)
+
+    # ---------------------------------------------------------
+    # 2. SISTEMA DE MENSAJES
+    # ---------------------------------------------------------
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # 3. MOSTRAR HISTORIAL (Si ya hay chat)
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # ---------------------------------------------------------
+    # 4. PREGUNTAS SUGERIDAS (Solo si el chat está vacío)
+    # ---------------------------------------------------------
+    if not st.session_state.messages:
+        col1, col2 = st.columns(2)
+        
+        # Estas son las "preguntas flotantes" que querías
+        with col1:
+            if st.button("📈 Simular análisis de riesgo actual", use_container_width=True):
+                st.session_state.prompt_temporal = "¿Cuál es el riesgo de mi cartera hoy?"
+            if st.button("💸 Calcular efectivo real neto", use_container_width=True):
+                st.session_state.prompt_temporal = "¿Cuánto dinero real tengo restando los gastos?"
+        
+        with col2:
+            if st.button("🚀 Proyectar ganancias del mes", use_container_width=True):
+                st.session_state.prompt_temporal = "¿Qué proyección de ganancias tengo este mes?"
+            if st.button("📊 Informe de rentabilidad global", use_container_width=True):
+                st.session_state.prompt_temporal = "Hazme un resumen de la rentabilidad de mi negocio."
+
+    # ---------------------------------------------------------
+    # 5. INPUT DE CHAT (Estilo Global)
+    # ---------------------------------------------------------
+    prompt = st.chat_input("Pregunta a la IA de CobroYa...")
+
+    # Si se usó un botón sugerido, lo capturamos
+    if "prompt_temporal" in st.session_state and st.session_state.prompt_temporal:
+        prompt = st.session_state.prompt_temporal
+        del st.session_state.prompt_temporal
+
+    if prompt:
+        # Añadir pregunta del usuario
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
+
+        # Lógica de respuesta (Groq)
+        with st.chat_message("assistant"):
+            with st.spinner("Procesando datos del negocio..."):
+                # Recopilar datos reales
+                p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
+                g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
+                c = conn.table("cuentas").select("balance_pendiente").eq("user_id", u_id).eq("estado", "Activo").execute()
+                
+                cobrado = sum([i['monto_pagado'] for i in p.data]) if p.data else 0
+                gastado = sum([i['monto'] for i in g.data]) if g.data else 0
+                riesgo = sum([i['balance_pendiente'] for i in c.data]) if c.data else 0
+                
+                contexto = f"Cobrado: {cobrado}, Gastado: {gastado}, Riesgo: {riesgo}. Responde como un analista bancario profesional."
+                
+                try:
+                    respuesta = asistente_ia_cobroya(contexto, prompt)
+                    st.markdown(respuesta)
+                    st.session_state.messages.append({"role": "assistant", "content": respuesta})
+                    
+                except Exception as e:
+                    # Esto nos dirá el error de verdad (ej. "Connection error" o "Rate limit")
+                    st.error(f"Error real de la IA: {e}") 
+
+# --- DENTRO DE LA SECCIÓN DEL CHAT DE IA ---
+if menu == "IA Analista":
+    with st.container():
+        # Paso 1: Generar el contexto privado ANTES de que el usuario pregunte
+        contexto_seguro = obtener_contexto_privado_ia(u_id) # u_id es el id del usuario logueado
+
+        # Paso 2: Configurar las instrucciones para Gemini
+        instrucciones_ia = f"""
+        Eres VALE AI, un analista financiero privado y seguro. 
+        Tu conocimiento se limita ESTRICTAMENTE a estos datos:
+        
+        {contexto_seguro}
+        
+        REGLAS DE ORO:
+        - No inventes datos que no estén arriba.
+        - No menciones que tienes un archivo de contexto, actúa con naturalidad.
+        - Si te preguntan por riesgo, analiza quién debe más y quién tiene pagos cerca.
+        - Tu objetivo es ayudar al dueño del negocio a cobrar mejor.
+        """
+
+        # Aquí es donde llamas a tu función de chat de Gemini
+        st.title("🤖 Tu Analista Senior Privado")
+        st.info("Estoy analizando tus datos en tiempo real para darte recomendaciones de cobro.")
+        
+        prompt = st.chat_input("Pregúntame sobre tus cobros o riesgos...")
+        if prompt:
+            st.write(f"Analizando tu cartera para responder: '{prompt}'...")
+
+elif menu == "Configuración":
+    st.header("⚙️ Configuración del Sistema")
+    st.caption("Administra las cláusulas legales de tus contratos y la seguridad de tu cuenta.")
+
+    # 1. Recuperar configuración actual de Supabase
+    res_conf = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
+    
+    clausulas_default = """1. EL DEUDOR se compromete a pagar la suma acordada en las fechas establecidas.
+2. El incumplimiento de dos cuotas consecutivas autoriza al ACREEDOR a ejecutar el cobro total.
+3. Este contrato tiene fuerza legal y ejecutiva."""
+    
+    if res_conf.data:
+        texto_actual = res_conf.data[0].get("clausulas", clausulas_default)
+    else:
+        texto_actual = clausulas_default
+
+    # --- SECCIÓN DE CLÁUSULAS LEGALES ---
+    with st.expander("📝 Editar Cláusulas del Contrato PDF", expanded=True):
+        st.write("Estas cláusulas aparecerán automáticamente en todos los contratos PDF que generes.")
+        clausulas_editadas = st.text_area(
+            "Texto legal del contrato:", 
+            value=texto_actual, 
+            height=250,
+            help="Escribe aquí las condiciones que tus clientes deben firmar."
+        )
+        
+        if st.button("💾 Guardar Configuración Legal", use_container_width=True):
+            with st.spinner("Sincronizando con la base de datos..."):
+                try:
+                    if res_conf.data:
+                        conn.table("configuracion").update({"clausulas": clausulas_editadas}).eq("user_id", u_id).execute()
+                    else:
+                        conn.table("configuracion").insert({"clausulas": clausulas_editadas, "user_id": u_id}).execute()
+                    
+                    st.session_state["mis_clausulas"] = clausulas_editadas
+                    st.success("✅ Cláusulas actualizadas correctamente.")
+                    import time
+                    time.sleep(1)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al guardar: {e}")
+
+    # --- SECCIÓN DE DATOS DE EMPRESA ---
+    with st.expander("🏢 Perfil del Negocio & Facturación", expanded=False):
+        st.markdown("### Configura la identidad de tu empresa")
+        
+        # 1. Recuperar datos actuales
+        biz_data = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
+        current_biz = biz_data.data[0] if biz_data.data else {}
+
+        col_logo, col_info = st.columns([1, 2])
+        
+        with col_logo:
+            logo_file = st.file_uploader("Cargar Logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
+            
+            if logo_file:
+                # Caso A: El usuario sube un archivo nuevo
+                bytes_data = logo_file.getvalue()
+                base64_logo = base64.b64encode(bytes_data).decode()
+                st.image(bytes_data, width=150, caption="Nuevo Logo")
+            else:
+                # Caso B: No hay archivo nuevo, usamos el de la base de datos
+                base64_logo = current_biz.get("logo_base64", "")
+                if base64_logo:
+                    try:
+                        # Limpiamos el prefijo base64 si existe para mostrarlo en Streamlit
+                        clean_view = base64_logo.split("base64,")[1] if "base64," in base64_logo else base64_logo
+                        st.image(base64.b64decode(clean_view), width=150, caption="Logo Actual")
+                    except:
+                        st.warning("Error al previsualizar el logo guardado")
+
+        with col_info:
+            biz_name = st.text_input("Nombre Comercial", value=current_biz.get("nombre_negocio", "CobroYa Pro"))
+            biz_id = st.text_input("RNC / Cédula Fiscal", value=current_biz.get("rnc", ""))
+            biz_phone = st.text_input("Teléfono de Contacto", value=current_biz.get("telefono", ""))
+            biz_addr = st.text_area("Dirección Física", value=current_biz.get("direccion", ""))
+
+        # 2. Botón de Guardado con Sincronización Total
+        if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
+            # Aseguramos que el logo guardado sea el "string" limpio
+            payload = {
+                "nombre_negocio": biz_name,
+                "rnc": biz_id,
+                "telefono": biz_phone,
+                "direccion": biz_addr,
+                "logo_base64": base64_logo,
                 "user_id": u_id
             }
             
-            conn.table("configuracion").upsert(config_data).execute()
-            st.session_state.clear() # Limpiar para forzar recarga de config
-            st.success("Configuración actualizada. Reiniciando panel...")
-            time.sleep(1.5)
-            st.rerun()
+            try:
+                if current_biz:
+                    conn.table("configuracion").update(payload).eq("user_id", u_id).execute()
+                else:
+                    conn.table("configuracion").insert(payload).execute()
 
-    # --- CAMBIO DE CONTRASEÑA ---
-    with st.expander("🔐 Seguridad de la Cuenta"):
-        nueva_p = st.text_input("Nueva Contraseña", type="password")
-        if st.button("Actualizar Credenciales"):
-            if len(nueva_p) >= 6:
-                conn.client.auth.update_user({"password": nueva_p})
-                st.success("Contraseña actualizada.")
-            else:
-                st.error("Mínimo 6 caracteres.")
-
-# --- PIE DE PÁGINA ---
-st.markdown("<br><hr><center><p style='color: #8E8E93; font-size: 0.8rem;'>CobroYa Pro © 2026 | Financial Engineering Platform</p></center>", unsafe_allow_html=True)
+                # ACTUALIZACIÓN CRÍTICA DEL SESSION_STATE (Para que el PDF lo vea sin refrescar manual)
+                st.session_state["nombre_negocio"] = biz_name
+                st.session_state["mi_logo"] = base64_logo
+                st.session_state["direccion_negocio"] = biz_addr
+                st.session_state["telefono_negocio"] = biz_phone
+                st.session_state["config_cargada"] = True # Marcamos como cargado
+                
+                st.success("✅ ¡Identidad corporativa actualizada!")
+                time.sleep(1)
+                st.rerun()
+                
+            except Exception as e:
+                st.error(f"❌ Error al guardar en base de datos: {e}")
+                
+    # --- SECCIÓN DE SEGURIDAD ---
+    with st.container(border=True):
+        st.subheader("🔐 Seguridad de la Cuenta")
+        st.write("Cambia tu contraseña de acceso directamente.")
+        
+        with st.form("cambio_clave_directo"):
+            nueva_p = st.text_input("Nueva Contraseña", type="password", help="Mínimo 6 caracteres")
+            confirma_p = st.text_input("Confirmar Nueva Contraseña", type="password")
+            
+            submit_pass = st.form_submit_button("Actualizar Contraseña Ahora")
+            
+            if submit_pass:
+                if len(nueva_p) < 6:
+                    st.error("La contraseña es muy corta.")
+                elif nueva_p != confirma_p:
+                    st.error("Las contraseñas no coinciden.")
+                else:
+                    try:
+                        conn.client.auth.update_user({"password": nueva_p})
+                        st.success("✅ ¡Contraseña actualizada con éxito!")
+                        import time
+                        time.sleep(2)
+                    except Exception as e:
+                        st.error(f"Error al actualizar: {e}")
