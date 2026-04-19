@@ -16,6 +16,8 @@ import qrcode # Asegúrate de tener: pip install qrcode
 import base64
 from fpdf import FPDF
 from datetime import datetime
+@st.dialog("📄 Expediente de Facturación")
+def modal_detalle(cliente, cuentas, pagos):
 
 # 1. CONFIGURACIÓN Y ESTILO APPLE-ENTERPRISE
 st.set_page_config(page_title="CobroYa Pro", layout="wide", page_icon="📈")
@@ -909,9 +911,6 @@ elif menu == "👥 Todos mis Clientes":
                 clientes_f.append(c)
 
         # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
-@st.dialog("📄 Expediente de Facturación")
-def modal_detalle(cliente, cuentas, pagos):
-    # --- CABECERA ---
     col_icon, col_data = st.columns([1, 4])
     with col_icon:
         st.markdown("<h1 style='text-align:center; margin:0;'>👤</h1>", unsafe_allow_html=True)
