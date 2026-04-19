@@ -1042,17 +1042,14 @@ if menu == "👥 Todos mis Clientes":
                         with g1:
                             if st.button("✏️ Editar", key=f"e_b_{cl['id']}", use_container_width=True):
                                 st.session_state[f"editing_{cl['id']}"] = True
+                                st.rerun()
                         with g2:
+                            # CORRECCIÓN: Este botón ya NO borra, solo activa el Paso 1
                             if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", type="primary", use_container_width=True):
-                                # Aquí puedes agregar la lógica de borrado directo o confirmación
-                                try:
-                                    conn.client.table("clientes").delete().eq("id", cl['id']).execute()
-                                    st.success("Cliente eliminado")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"Error: {e}")
+                                st.session_state[f"del_step_{cl['id']}"] = 1
+                                st.rerun()
 
-# --- LÓGICA DE EDICIÓN ---
+                    # --- LÓGICA DE EDICIÓN ---
                     if st.session_state.get(f"editing_{cl['id']}"):
                         st.markdown("---")
                         st.caption("⚠️ **DISCLAIMER:** La modificación de estos datos es irreversible y afectará los reportes.")
@@ -1083,7 +1080,7 @@ if menu == "👥 Todos mis Clientes":
                                 del st.session_state[f"editing_{cl['id']}"]
                                 st.rerun()
 
-                    # --- LÓGICA DE ELIMINAR (TRIPLE CONFIRMACIÓN) ---
+                    # --- LÓGICA DE ELIMINAR (TRIPLE CONFIRMACIÓN REAL) ---
                     step_key = f"del_step_{cl['id']}"
                     actual_step = st.session_state.get(step_key, 0)
 
@@ -1107,24 +1104,23 @@ if menu == "👥 Todos mis Clientes":
 
                     elif actual_step == 3:
                         st.error("❗ **PASO 3:** ÚLTIMA ADVERTENCIA.")
+                        # AQUÍ ES EL ÚNICO LUGAR DONDE SE BORRA DE LA BASE DE DATOS
                         if st.button("BORRAR DEFINITIVAMENTE", key=f"d3_{cl['id']}", type="primary", use_container_width=True):
                             try:
                                 conn.table("clientes").delete().eq("id", cl['id']).execute()
-                                st.toast("🗑️ Cliente eliminado")
+                                st.toast("🗑️ Registro eliminado exitosamente")
                                 st.session_state[step_key] = 0
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"Error: {e}")
+                                st.error(f"Error al borrar: {e}")
                         if st.button("ABORTAR", key=f"c3_{cl['id']}", use_container_width=True):
                             st.session_state[step_key] = 0
                             st.rerun()
 
 # --- CAMBIO DE SECCIÓN (FUERA DEL BUCLE) ---
-# Asegúrate de que este 'elif' esté al mismo nivel de indentación que el 'if menu == "👥 Todos mis Clientes":'
 elif menu == "Cuentas por Pagar":
     st.header("🏧 Movimientos de Efectivo")
     
-    # Obtener datos de Supabase
     res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
     res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
     
