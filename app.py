@@ -585,126 +585,147 @@ if menu == "Panel de Control":
 elif menu == "Gestión de Cobros":
     st.header("⚡ Centro de Recaudación Inteligente")
     
-    # --- 1. FILTROS Y VISTA (DATA MINING) ---
+    # --- 1. CONTROLES SUPERIORES ---
     col_search, col_view = st.columns([2, 1])
     with col_search:
-        search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre del cliente").lower()
+        search_term = st.text_input("🔍 Buscar cliente...", placeholder="Escribe el nombre...").lower()
     with col_view:
-        modo_analisis = st.toggle("📈 Modo Análisis (Ver Saldados)", help="Muestra clientes que ya pagaron")
+        modo_analisis = st.toggle("📈 Modo Análisis", help="Ver solo cuentas saldadas (Balance 0)")
 
-    # --- 2. QUERY OPTIMIZADA ---
-    # Traemos todos los campos nuevos (cuota_esperada, mora_acumulada)
+    # --- 2. CONSULTA DE DATOS ---
+    # Traemos las cuentas y unimos con clientes
     query = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("user_id", u_id)
     
-    if not modo_analisis:
-        query = query.gt("balance_pendiente", 0) # Solo deudores
-    
+    # Filtro estricto por estado de deuda
+    if modo_analisis:
+        query = query.lte("balance_pendiente", 0)
+    else:
+        query = query.gt("balance_pendiente", 0)
+        
     res = query.execute()
     
     if res.data:
-        # --- 3. CÁLCULO DINÁMICO DE PRIORIDAD (ORG. POR CLIENTE) ---
-        datos_enriquecidos = []
+        # --- 3. PROCESAMIENTO Y PRIORIZACIÓN (Evita errores de indexación) ---
+        datos_procesados = []
         for c in res.data:
-            txt_atraso, dias_num = calcular_atraso_dinamico(c['proximo_pago'])
-            # Asumimos frecuencia_impago = 0 si no existe el campo aún en el registro
-            prioridad = obtener_prioridad(dias_num, float(c['balance_pendiente']))
+            # Validamos que el cliente exista para evitar KeyError
+            nombre_cliente = c.get('clientes', {}).get('nombre', 'Cliente Desconocido')
             
-            c['atraso_texto'] = txt_atraso
-            c['dias_atraso'] = dias_num
-            c['prioridad_score'] = prioridad
-            
-            if search_term in c['clientes']['nombre'].lower():
-                datos_enriquecidos.append(c)
+            if search_term in nombre_cliente.lower():
+                # Cálculo de tiempos y prioridad
+                txt_atraso, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
+                score = obtener_prioridad(dias_num, float(c.get('balance_pendiente', 0)))
+                
+                # Inyectamos los cálculos en el diccionario
+                c['aux_nombre'] = nombre_cliente
+                c['aux_atraso_txt'] = txt_atraso
+                c['aux_dias_num'] = dias_num
+                c['aux_prioridad'] = score
+                datos_procesados.append(c)
 
-        # ORDEN INTELIGENTE: Más prioritarios arriba
-        datos_enriquecidos = sorted(datos_enriquecidos, key=lambda x: x['prioridad_score'], reverse=True)
+        # Orden inteligente (Solo si hay deuda, sino por nombre)
+        if not modo_analisis:
+            datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
+        else:
+            datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_nombre'])
 
-        for item in datos_enriquecidos:
-            # Color de alerta basado en atraso
-            borde_color = "red" if item['dias_atraso'] > 0 else "green"
+        # --- 4. RENDERIZADO DE INTERFAZ ---
+        for item in datos_procesados:
+            token = item['id'] # ID único para los keys de Streamlit
             
             with st.container(border=True):
                 c_info, c_pago, c_accion = st.columns([1.5, 1, 1])
                 
                 with c_info:
-                    st.markdown(f"### {item['clientes']['nombre']}")
+                    st.markdown(f"### {item['aux_nombre']}")
                     
-                    # ALERTAS INTELIGENTES
-                    if item['dias_atraso'] > 0:
-                        st.error(f"🔴 Atraso: {item['atraso_texto']}")
-                    elif item['balance_pendiente'] > 0:
-                        st.warning("🟡 Debe pagar hoy") if item['dias_atraso'] == 0 else st.success("🟢 Buen comportamiento")
+                    # Semáforo de Alertas
+                    if modo_analisis:
+                        st.info("✅ CUENTA SALDADA")
+                    else:
+                        if item['aux_dias_num'] > 0:
+                            st.error(f"🔴 Atraso: {item['aux_atraso_txt']}")
+                        elif item['aux_dias_num'] == 0:
+                            st.warning("🟡 Debe pagar hoy")
+                        else:
+                            st.success("🟢 Al día")
                     
-                    pagado = float(item['monto_inicial'] - item['balance_pendiente'])
-                    porcentaje = pagado / float(item['monto_inicial'])
-                    st.progress(min(porcentaje, 1.0), text=f"Recuperado: {porcentaje:.0%}")
+                    # Barra de Progreso Segura
+                    m_ini = float(item.get('monto_inicial', 1))
+                    m_pend = float(item.get('balance_pendiente', 0))
+                    progreso = max(0.0, min(1.0, (m_ini - m_pend) / m_ini))
+                    st.progress(progreso, text=f"Recuperado: {progreso:.0%}")
                     
-                    st.write(f"Pendiente: **RD$ {item['balance_pendiente']:,.2f}**")
+                    st.write(f"Pendiente: **RD$ {m_pend:,.2f}**")
                     if item.get('mora_acumulada', 0) > 0:
-                        st.write(f"⚠️ Mora pendiente: :orange[**RD$ {item['mora_acumulada']:,.2f}**]")
+                        st.write(f"⚠️ Mora acumulada: :orange[RD$ {item['mora_acumulada']:,.2f}]")
 
                 with c_pago:
-                    # COBRO SUGERIDO (REEMPLAZA COBRO TOTAL)
-                    # Si no hay cuota_esperada en DB, sugerimos el 10% por defecto
-                    sugerido = float(item.get('cuota_esperada', 0))
-                    if sugerido <= 0: sugerido = float(item['balance_pendiente']) * 0.1
-                    
-                    st.markdown(f"**Sugerido: RD$ {sugerido:,.2f}**")
-                    
-                    # Botón que llena el input (usando session_state para persistencia)
-                    if st.button(f"Sugerir RD$ {sugerido:,.0f}", key=f"sug_{item['id']}", use_container_width=True):
-                        st.session_state[f"input_{item['id']}"] = sugerido
+                    if not modo_analisis:
+                        # Lógica de Cobro Sugerido
+                        sug = float(item.get('cuota_esperada', 0))
+                        if sug <= 0: sug = m_pend * 0.1 # Fallback 10%
+                        
+                        st.markdown(f"**Sugerido: RD$ {sug:,.2f}**")
+                        
+                        if st.button(f"Sugerir RD$ {sug:,.0f}", key=f"btn_sug_{token}", use_container_width=True):
+                            st.session_state[f"input_{token}"] = sug
 
-                    # El input toma el valor del botón o el manual
-                    val_input = st.session_state.get(f"input_{item['id']}", 0.0)
-                    abono = st.number_input("Monto a cobrar", min_value=0.0, value=float(val_input), key=f"v_{item['id']}")
-                    
-                    # Sistema de Mora (Adicional)
-                    mora_cobrada = st.number_input("Mora / Penalidad", min_value=0.0, key=f"mora_{item['id']}")
-                    f_prox = st.date_input("Próximo cobro", value=datetime.now().date(), key=f"d_{item['id']}")
+                        # Input con persistencia
+                        val_default = st.session_state.get(f"input_{token}", 0.0)
+                        abono = st.number_input("Monto Recibido", min_value=0.0, max_value=m_pend, value=float(val_default), key=f"val_{token}")
+                        
+                        mora = st.number_input("Mora cobrada", min_value=0.0, key=f"mora_{token}")
+                        f_prox = st.date_input("Próxima Visita", key=f"date_{token}")
+                    else:
+                        st.write("📅 Finalizada el:")
+                        st.write(item.get('proximo_pago', 'N/A'))
 
                 with c_accion:
-                    st.write("")
-                    if st.button("✅ Registrar Recibo", key=f"r_{item['id']}", type="primary", use_container_width=True):
-                        if abono > 0 or mora_cobrada > 0:
-                            try:
-                                # 1. Insertar Pago con Mora y Estado (Completo/Incompleto)
-                                es_incompleto = abono < sugerido and abono > 0
-                                payload_pago = {
-                                    "cuenta_id": str(item['id']), 
-                                    "monto_pagado": float(abono),
-                                    "mora_pagada": float(mora_cobrada),
-                                    "user_id": str(u_id),
-                                    "nota_auditoria": "Pago Incompleto" if es_incompleto else "Pago Completo"
-                                }
-                                conn.table("pagos").insert(payload_pago).execute()
-                                
-                                # 2. Actualizar Cuenta y Limpiar Mora Acumulada
-                                n_bal = float(item['balance_pendiente']) - float(abono)
-                                conn.table("cuentas").update({
-                                    "balance_pendiente": n_bal,
-                                    "estado": "Saldado" if n_bal <= 0 else "Activo",
-                                    "proximo_pago": str(f_prox),
-                                    "mora_acumulada": 0 # Se limpia al cobrar
-                                }).eq("id", item['id']).execute()
-                                
-                                st.session_state[f"success_{item['id']}"] = {
-                                    "monto": abono, "balance": n_bal, "fecha": f_prox, "mora": mora_cobrada
-                                }
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Error: {e}")
+                    st.write("") # Espaciador
+                    if not modo_analisis:
+                        if st.button("✅ Registrar Pago", key=f"reg_{token}", type="primary", use_container_width=True):
+                            if abono > 0 or mora > 0:
+                                try:
+                                    # 1. Registrar el Pago
+                                    conn.table("pagos").insert({
+                                        "cuenta_id": str(token),
+                                        "monto_pagado": float(abono),
+                                        "mora_pagada": float(mora),
+                                        "user_id": str(u_id)
+                                    }).execute()
+                                    
+                                    # 2. Actualizar la Cuenta
+                                    nuevo_balance = m_pend - abono
+                                    conn.table("cuentas").update({
+                                        "balance_pendiente": nuevo_balance,
+                                        "estado": "Saldado" if nuevo_balance <= 0 else "Activo",
+                                        "proximo_pago": str(f_prox),
+                                        "mora_acumulada": 0
+                                    }).eq("id", token).execute()
+                                    
+                                    # 3. Datos para el recibo
+                                    st.session_state[f"recibo_{token}"] = {"monto": abono, "mora": mora, "pend": nuevo_balance}
+                                    st.success("¡Pago guardado!")
+                                    time.sleep(1)
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error DB: {e}")
+                    else:
+                        if st.button("🔍 Ver Historial", key=f"hist_{token}", use_container_width=True):
+                            st.session_state["cuenta_auditada"] = token
+                            st.info("Cargando historial de pagos...")
 
-                    # --- Lógica Post-Cobro Premium ---
-                    if f"success_{item['id']}" in st.session_state:
-                        # ... (Aquí va tu lógica de PDF y WhatsApp que ya tenías)
-                        # Nota: Asegúrate de incluir la frase de la mora en el PDF/WhatsApp
-                        st.success("¡Cobro Exitoso!")
-                        if st.button("Limpiar", key=f"clean_{item['id']}"):
-                            del st.session_state[f"success_{item['id']}"]
+                    # --- ZONA DE RECIBO POST-PAGO ---
+                    if f"recibo_{token}" in st.session_state:
+                        r = st.session_state[f"recibo_{token}"]
+                        # Aquí puedes llamar a tu función de WhatsApp/PDF
+                        st.write(f"Último: RD$ {r['monto']}")
+                        if st.button("Cerrar", key=f"close_{token}"):
+                            del st.session_state[f"recibo_{token}"]
                             st.rerun()
     else:
-        st.info("No hay cuentas activas.")
+        st.info("No se encontraron registros para mostrar.")
 
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
