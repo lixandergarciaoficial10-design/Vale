@@ -583,149 +583,152 @@ if menu == "Panel de Control":
     c3.markdown(f"<div class='metric-card'><small>GASTOS TOTALES</small><h2 style='color:#FF3B30;'>RD$ {total_gastado:,.0f}</h2></div>", unsafe_allow_html=True)
 
 elif menu == "Gestión de Cobros":
-    st.header("⚡ Centro de Recaudación Inteligente")
+    st.header("⚡ Centro de Recaudación")
     
     # --- 1. CONTROLES SUPERIORES ---
     col_search, col_view = st.columns([2, 1])
     with col_search:
-        search_term = st.text_input("🔍 Buscar cliente...", placeholder="Escribe el nombre...").lower()
+        search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre...").lower()
     with col_view:
-        modo_analisis = st.toggle("📈 Modo Análisis", help="Ver solo cuentas saldadas (Balance 0)")
+        modo_analisis = st.toggle("📈 Modo Análisis", help="Ver saldados")
 
     # --- 2. CONSULTA DE DATOS ---
-    # Traemos las cuentas y unimos con clientes
     query = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("user_id", u_id)
-    
-    # Filtro estricto por estado de deuda
-    if modo_analisis:
-        query = query.lte("balance_pendiente", 0)
-    else:
-        query = query.gt("balance_pendiente", 0)
-        
+    query = query.lte("balance_pendiente", 0) if modo_analisis else query.gt("balance_pendiente", 0)
     res = query.execute()
     
     if res.data:
-        # --- 3. PROCESAMIENTO Y PRIORIZACIÓN (Evita errores de indexación) ---
         datos_procesados = []
         for c in res.data:
-            # Validamos que el cliente exista para evitar KeyError
-            nombre_cliente = c.get('clientes', {}).get('nombre', 'Cliente Desconocido')
-            
-            if search_term in nombre_cliente.lower():
-                # Cálculo de tiempos y prioridad
+            nombre = c.get('clientes', {}).get('nombre', 'Cliente')
+            if search_term in nombre.lower():
                 txt_atraso, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
-                score = obtener_prioridad(dias_num, float(c.get('balance_pendiente', 0)))
-                
-                # Inyectamos los cálculos en el diccionario
-                c['aux_nombre'] = nombre_cliente
+                c['aux_nombre'] = nombre
                 c['aux_atraso_txt'] = txt_atraso
                 c['aux_dias_num'] = dias_num
-                c['aux_prioridad'] = score
+                c['aux_prioridad'] = obtener_prioridad(dias_num, float(c.get('balance_pendiente', 0)))
                 datos_procesados.append(c)
 
-        # Orden inteligente (Solo si hay deuda, sino por nombre)
-        if not modo_analisis:
-            datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
-        else:
-            datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_nombre'])
+        datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
 
-        # --- 4. RENDERIZADO DE INTERFAZ ---
         for item in datos_procesados:
-            token = item['id'] # ID único para los keys de Streamlit
+            token = item['id']
+            m_ini = float(item.get('monto_inicial', 1))
+            m_pend = float(item.get('balance_pendiente', 0))
+            cuota_contrato = float(item.get('cuota_esperada', 0))
+            tel_cliente = item['clientes']['telefono']
             
             with st.container(border=True):
-                c_info, c_pago, c_accion = st.columns([1.5, 1, 1])
+                # Diseño compacto de 4 columnas
+                c_nom, c_status, c_inputs, c_btn = st.columns([1.2, 1, 1.2, 0.8])
                 
-                with c_info:
-                    st.markdown(f"### {item['aux_nombre']}")
-                    
-                    # Semáforo de Alertas
+                with c_nom:
+                    st.markdown(f"**{item['aux_nombre']}**")
+                    st.caption(f"Pendiente: RD$ {m_pend:,.2f}")
+                    if item.get('mora_acumulada', 0) > 0:
+                        st.caption(f"⚠️ Mora Pendiente: :orange[RD$ {item['mora_acumulada']:,.2f}]")
+
+                with c_status:
                     if modo_analisis:
-                        st.info("✅ CUENTA SALDADA")
+                        st.info("✅ SALDADO")
                     else:
                         if item['aux_dias_num'] > 0:
-                            st.error(f"🔴 Atraso: {item['aux_atraso_txt']}")
+                            st.error(f"Atraso: {item['aux_atraso_txt']}")
                         elif item['aux_dias_num'] == 0:
-                            st.warning("🟡 Debe pagar hoy")
+                            st.warning("Debe pagar hoy")
                         else:
-                            st.success("🟢 Al día")
-                    
-                    # Barra de Progreso Segura
-                    m_ini = float(item.get('monto_inicial', 1))
-                    m_pend = float(item.get('balance_pendiente', 0))
-                    progreso = max(0.0, min(1.0, (m_ini - m_pend) / m_ini))
-                    st.progress(progreso, text=f"Recuperado: {progreso:.0%}")
-                    
-                    st.write(f"Pendiente: **RD$ {m_pend:,.2f}**")
-                    if item.get('mora_acumulada', 0) > 0:
-                        st.write(f"⚠️ Mora acumulada: :orange[RD$ {item['mora_acumulada']:,.2f}]")
+                            st.success("Al día")
+                        prog = max(0.0, min(1.0, (m_ini - m_pend) / m_ini))
+                        st.progress(prog)
 
-                with c_pago:
+                with c_inputs:
                     if not modo_analisis:
-                        # Lógica de Cobro Sugerido
-                        sug = float(item.get('cuota_esperada', 0))
-                        if sug <= 0: sug = m_pend * 0.1 # Fallback 10%
+                        # Cuota predeterminada como valor inicial
+                        st.caption(f"Cuota: RD$ {cuota_contrato:,.2f}")
+                        abono = st.number_input("Monto Recibido", min_value=0.0, max_value=m_pend, 
+                                               value=cuota_contrato if cuota_contrato > 0 else 0.0, 
+                                               key=f"val_{token}", label_visibility="collapsed")
                         
-                        st.markdown(f"**Sugerido: RD$ {sug:,.2f}**")
+                        f_prox = st.date_input("Próxima Visita", key=f"date_{token}", label_visibility="collapsed")
                         
-                        if st.button(f"Sugerir RD$ {sug:,.0f}", key=f"btn_sug_{token}", use_container_width=True):
-                            st.session_state[f"input_{token}"] = sug
-
-                        # Input con persistencia
-                        val_default = st.session_state.get(f"input_{token}", 0.0)
-                        abono = st.number_input("Monto Recibido", min_value=0.0, max_value=m_pend, value=float(val_default), key=f"val_{token}")
-                        
-                        mora = st.number_input("Mora cobrada", min_value=0.0, key=f"mora_{token}")
-                        f_prox = st.date_input("Próxima Visita", key=f"date_{token}")
+                        # Blindaje Legal de Mora (Expander)
+                        with st.expander("⚠️ Mora / Penalidad"):
+                            mora = st.number_input("RD$ adicionales", min_value=0.0, key=f"mora_{token}")
                     else:
-                        st.write("📅 Finalizada el:")
-                        st.write(item.get('proximo_pago', 'N/A'))
+                        st.write(f"Finalizado: {item['proximo_pago']}")
+                        mora = 0
 
-                with c_accion:
-                    st.write("") # Espaciador
+                with c_btn:
                     if not modo_analisis:
-                        if st.button("✅ Registrar Pago", key=f"reg_{token}", type="primary", use_container_width=True):
+                        st.write("") 
+                        if st.button("✅ Cobrar", key=f"reg_{token}", type="primary", use_container_width=True):
                             if abono > 0 or mora > 0:
                                 try:
-                                    # 1. Registrar el Pago
+                                    # 1. Registrar Pago
                                     conn.table("pagos").insert({
-                                        "cuenta_id": str(token),
-                                        "monto_pagado": float(abono),
-                                        "mora_pagada": float(mora),
-                                        "user_id": str(u_id)
+                                        "cuenta_id": str(token), "monto_pagado": float(abono),
+                                        "mora_pagada": float(mora), "user_id": str(u_id)
                                     }).execute()
                                     
-                                    # 2. Actualizar la Cuenta
-                                    nuevo_balance = m_pend - abono
+                                    # 2. Actualizar Cuenta
+                                    n_bal = m_pend - abono
                                     conn.table("cuentas").update({
-                                        "balance_pendiente": nuevo_balance,
-                                        "estado": "Saldado" if nuevo_balance <= 0 else "Activo",
+                                        "balance_pendiente": n_bal,
+                                        "estado": "Saldado" if n_bal <= 0 else "Activo",
                                         "proximo_pago": str(f_prox),
-                                        "mora_acumulada": 0
+                                        "mora_acumulada": 0 
                                     }).eq("id", token).execute()
                                     
-                                    # 3. Datos para el recibo
-                                    st.session_state[f"recibo_{token}"] = {"monto": abono, "mora": mora, "pend": nuevo_balance}
-                                    st.success("¡Pago guardado!")
-                                    time.sleep(1)
+                                    # 3. Guardar datos para recibo inmediato
+                                    st.session_state[f"recibo_{token}"] = {
+                                        "monto": abono, "mora": mora, "pend": n_bal, "fecha": str(f_prox)
+                                    }
                                     st.rerun()
                                 except Exception as e:
-                                    st.error(f"Error DB: {e}")
+                                    st.error(f"Error: {e}")
                     else:
-                        if st.button("🔍 Ver Historial", key=f"hist_{token}", use_container_width=True):
+                        if st.button("📄 Historial", key=f"hist_{token}", use_container_width=True):
                             st.session_state["cuenta_auditada"] = token
-                            st.info("Cargando historial de pagos...")
 
-                    # --- ZONA DE RECIBO POST-PAGO ---
-                    if f"recibo_{token}" in st.session_state:
-                        r = st.session_state[f"recibo_{token}"]
-                        # Aquí puedes llamar a tu función de WhatsApp/PDF
-                        st.write(f"Último: RD$ {r['monto']}")
-                        if st.button("Cerrar", key=f"close_{token}"):
+                # --- ZONA DE RECIBO, PDF Y WHATSAPP (REINSTALADO) ---
+                if f"recibo_{token}" in st.session_state:
+                    r_data = st.session_state[f"recibo_{token}"]
+                    st.divider()
+                    col_pdf, col_wa, col_close = st.columns(3)
+                    
+                    with col_pdf:
+                        # Generación de PDF (Usando tu función existente)
+                        pdf_bin = generar_pdf_recibo_pro(
+                            item['aux_nombre'], r_data['monto'], r_data['pend'], u_id, mora=r_data['mora']
+                        )
+                        st.download_button(
+                            "📥 Descargar PDF", data=pdf_bin, 
+                            file_name=f"Recibo_{item['aux_nombre']}.pdf", mime="application/pdf", key=f"dl_{token}"
+                        )
+                    
+                    with col_wa:
+                        # Lógica de WhatsApp
+                        import urllib.parse
+                        tel = "".join(filter(str.isdigit, str(tel_cliente)))
+                        mora_txt = f"\nMora aplicada: *RD$ {r_data['mora']:,.2f}*" if r_data['mora'] > 0 else ""
+                        msg = (f"✅ *RECIBO DE PAGO*\n\n"
+                               f"Hola *{item['aux_nombre']}*,\n"
+                               f"Recibimos: *RD$ {r_data['monto']:,.2f}*{mora_txt}\n"
+                               f"Balance restante: *RD$ {r_data['pend']:,.2f}*\n"
+                               f"Próxima visita: {r_data['fecha']}\n\n"
+                               f"¡Gracias por su pago!")
+                        wa_url = f"https://wa.me/{tel}?text={urllib.parse.quote(msg)}"
+                        st.markdown(f'''<a href="{wa_url}" target="_blank">
+                            <button style="width:100%; background:#25D366; color:white; border:none; padding:8px; border-radius:10px; cursor:pointer; font-weight:bold;">
+                                Enviar WhatsApp 💬
+                            </button></a>''', unsafe_allow_html=True)
+                    
+                    with col_close:
+                        if st.button("Finalizar ➡️", key=f"fin_{token}", use_container_width=True):
                             del st.session_state[f"recibo_{token}"]
                             st.rerun()
     else:
-        st.info("No se encontraron registros para mostrar.")
+        st.info("No hay registros que coincidan.")
 
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
