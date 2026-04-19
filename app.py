@@ -584,10 +584,10 @@ elif menu == "Gestión de Cobros":
     def confirmar_cobro_modal(item, monto, fecha, mora, u_id):
         st.warning(f"¿Estás seguro de registrar este pago para **{item['aux_nombre']}**?")
         st.markdown(f"""
-        **Resumen del Cobro:**
-        * 💵 **Monto a Capital:** RD$ {monto:,.2f}
+        **Resumen del Cobro (confirma que los datos sean correctos):**
+        * 💵 **Monto cobrado:** RD$ {monto:,.2f}
         * ⚖️ **Mora Aplicada:** RD$ {mora:,.2f}
-        * 📅 **Próxima Fecha:** {fecha}
+        * 📅 **Fecha:** {fecha}
         """)
         st.info("Verifique que el dinero esté en mano antes de confirmar.")
         
