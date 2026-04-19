@@ -637,7 +637,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                     for k in ["prestamo_exitoso", "pdf_ready", "wa_link", "last_name"]:
                         if k in st.session_state: del st.session_state[k]
                     st.rerun()
-    else:
+    elif:
         # FORMULARIO ORIGINAL (Dentro del contenedor vacío)
         with contenedor_formulario.container():
             if res_cli.data:
