@@ -919,73 +919,63 @@ def modal_detalle(cliente, cuentas, pagos):
         st.markdown(f"### {cliente['nombre']}")
         st.caption(f"🆔 Cédula: {cliente.get('cedula', 'N/A')} | 📞 {cliente.get('telefono', 'N/A')}")
     
-    # --- INDICADORES RÁPIDOS (CORRECCIÓN VISUAL TOTAL) ---
+    # --- INDICADORES RÁPIDOS CON ADAPTACIÓN PARA MILLONES ---
     mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
     total_deuda = sum(float(ct.get('balance_pendiente', 0)) for ct in mis_ctas)
     
-    # Formato de visualización: Siempre completo pero con tamaño de fuente adaptable para móvil
-    # Si pasa de un millón, bajamos un poco el tamaño de letra para que no rompa el diseño
-    font_size = "22px" if total_deuda >= 1000000 else "28px"
+    # Lógica de visualización para montos grandes en el celular
+    if total_deuda >= 1000000:
+        deuda_format = f"RD$ {total_deuda/1000000:.2f}M"
+    else:
+        deuda_format = f"RD$ {total_deuda:,.2f}"
     
-    st.markdown(f"""
-        <div style="background: white; padding: 20px; border-radius: 15px; border: 1px solid #E5E7EB; text-align: center; margin-bottom: 20px;">
-            <p style="margin: 0; color: #6B7280; font-size: 14px; font-weight: bold;">DEUDA TOTAL PENDIENTE</p>
-            <h2 style="margin: 0; color: #111827; font-size: {font_size}; white-space: nowrap;">RD$ {total_deuda:,.2f}</h2>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # Columnas secundarias con estilo Apple-Enterprise
-    c2, c3 = st.columns(2)
-    activas = len([c for c in mis_ctas if float(c.get('balance_pendiente', 0)) > 0])
-    atrasos = 0
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Deuda Total", deuda_format)
+    c2.metric("Cuentas Activas", len([c for c in mis_ctas if float(c.get('balance_pendiente', 0)) > 0]))
+    
+    p_vencidos = 0
     for ct in mis_ctas:
         if ct.get('proximo_pago') and pd.to_datetime(ct['proximo_pago']).date() < hoy_dt and float(ct.get('balance_pendiente', 0)) > 0:
-            atrasos += 1
-            
-    with c2:
-        st.markdown(f"<div style='background:#F3F4F6; padding:10px; border-radius:10px; text-align:center;'><small>Cuentas</small><br><b>{activas} Activas</b></div>", unsafe_allow_html=True)
-    with c3:
-        color_atraso = "#EF4444" if atrasos > 0 else "#10B981"
-        st.markdown(f"<div style='background:#F3F4F6; padding:10px; border-radius:10px; text-align:center;'><small>Estado</small><br><b style='color:{color_atraso};'>{atrasos} Atrasos</b></div>", unsafe_allow_html=True)
+            p_vencidos += 1
+    c3.metric("Atrasos", p_vencidos, delta_color="inverse")
 
     st.divider()
     
     # --- EXCEL EDITABLE DE ABONOS ---
-    st.markdown("#### 📑 Historial de Abonos")
+    st.markdown("#### 📑 Desglose de Abonos y Movimientos")
     
-    # Aviso de responsabilidad obligatorio
-    st.warning("""**AVISO DE CONTROL:** La edición manual de estos datos ajusta el balance del sistema. 
-    CobroYa no se responsabiliza por cambios realizados fuera del flujo automático.""")
+    with st.expander("⚠️ DESCARGO DE RESPONSABILIDAD (LEER ANTES DE EDITAR)", expanded=False):
+        st.error("""
+            **AVISO IMPORTANTE:** Estás accediendo a la edición directa de movimientos. 
+            Cualquier modificación manual en los montos o fechas afectará directamente el balance del sistema. 
+            **CobroYa** no se hace responsable por descuadres o inconsistencias derivadas de cambios realizados por el usuario en esta sección.
+        """)
+        st.info("💡 **Instrucciones:** Haz **3 toques rápidos** (o doble clic) en una celda para modificarla. Al terminar, presiona 'Sincronizar y Ajustar'.")
 
     ids_mis_ctas = [ct['id'] for ct in mis_ctas]
     mis_p = [p for p in pagos if p.get('cuenta_id') in ids_mis_ctas]
 
-    # Convertimos a DataFrame para el editor (Siempre se muestra la estructura)
-    if mis_p:
+    if not mis_p:
+        st.info("No hay abonos registrados para este cliente.")
+    else:
         df_p = pd.DataFrame(mis_p)
         df_p['fecha_pago'] = pd.to_datetime(df_p['fecha_pago']).dt.date
-    else:
-        # Si no hay pagos, creamos un DataFrame vacío con las columnas para que vea la tabla
-        df_p = pd.DataFrame(columns=['id', 'fecha_pago', 'monto_pagado', 'cuenta_id'])
-        st.info("ℹ️ No se han registrado abonos para este cliente todavía.")
+        
+        # El "Excel" editable
+        edited_p = st.data_editor(
+            df_p[['id', 'fecha_pago', 'monto_pagado', 'cuenta_id']],
+            column_config={
+                "id": None, # Ocultamos ID
+                "fecha_pago": st.column_config.DateColumn("Fecha Cobro", format="DD/MM/YYYY"),
+                "monto_pagado": st.column_config.NumberColumn("Monto Recibido", format="RD$ %d"),
+                "cuenta_id": st.column_config.SelectboxColumn("ID Factura", options=ids_mis_ctas, disabled=True)
+            },
+            hide_index=True,
+            use_container_width=True,
+            key=f"excel_{cliente['id']}"
+        )
 
-    # El Editor siempre visible
-    edited_p = st.data_editor(
-        df_p[['id', 'fecha_pago', 'monto_pagado', 'cuenta_id']],
-        column_config={
-            "id": None, 
-            "fecha_pago": st.column_config.DateColumn("Fecha", format="DD/MM/YYYY"),
-            "monto_pagado": st.column_config.NumberColumn("Monto (RD$)", format="%.2f", min_value=0),
-            "cuenta_id": st.column_config.SelectboxColumn("Factura ID", options=ids_mis_ctas, disabled=True)
-        },
-        hide_index=True,
-        use_container_width=True,
-        key=f"editor_v2_{cliente['id']}"
-    )
-
-    # Botón de Guardado (Solo si hay datos para editar)
-    if not df_p.empty:
-        if st.button("💾 Guardar y Sincronizar Abonos", use_container_width=True, type="primary"):
+        if st.button("💾 Sincronizar y Ajustar Sistema", use_container_width=True, type="primary"):
             try:
                 for i, row in edited_p.iterrows():
                     conn.table("pagos").update({
@@ -993,63 +983,93 @@ def modal_detalle(cliente, cuentas, pagos):
                         "fecha_pago": str(row['fecha_pago'])
                     }).eq("id", row['id']).execute()
                 
-                st.success("✅ Cambios aplicados con éxito.")
+                st.success("✅ ¡Movimientos actualizados correctamente!")
                 time.sleep(1)
                 st.rerun()
             except Exception as e:
-                st.error(f"Error técnico: {e}")
+                st.error(f"Error al sincronizar: {e}")
 
     st.divider()
-    if st.button("Cerrar", use_container_width=True):
+    if st.button("Cerrar Expediente", use_container_width=True):
         st.rerun()
 
-# --- GRID DE CLIENTES (CORRECCIÓN DE ICONOS Y MAPS) ---
+# --- GRID DE CLIENTES (CORREGIDO CON GOOGLE MAPS DINÁMICO) ---
 if not clientes_f:
-    st.warning("No hay resultados.")
+    st.warning("No hay clientes que coincidan con la búsqueda o filtro.")
 else:
     grid = st.columns(3)
     for idx, cl in enumerate(clientes_f):
         with grid[idx % 3]:
             with st.container(border=True):
+                # 1. Cabecera de Tarjeta
                 st.markdown(f"**{cl['nombre']}**")
                 st.caption(f"🆔 {cl.get('cedula', 'N/A')}")
                 
+                # 2. Botones de Acción (📂, WhatsApp, Maps)
                 b1, b2, b3 = st.columns(3)
                 with b1:
-                    if st.button("📂", key=f"btn_h_{cl['id']}", use_container_width=True):
+                    if st.button("📂", key=f"h_{cl['id']}", use_container_width=True):
                         modal_detalle(cl, cuentas_db, pagos_db)
                 
                 with b2:
                     tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
-                    st.markdown(f'''<a href="https://wa.me/{tel}" target="_blank">
-                        <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer;">
+                    wa_url = f"https://wa.me/{tel}"
+                    st.markdown(f'''<a href="{wa_url}" target="_blank">
+                        <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
                             <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
                         </button></a>''', unsafe_allow_html=True)
                 
                 with b3:
                     lat, lon = cl.get('latitud'), cl.get('longitud')
-                    if lat and str(lat) not in ["0", "0.0", "None", ""]:
-                        map_url = f"https://www.google.com/maps?q={lat},{lon}"
+                    if lat and str(lat) not in ["0", "0.0", "None"]:
+                        # URL corregida para abrir directamente en la App del móvil
+                        map_url = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
                         st.markdown(f'''<a href="{map_url}" target="_blank">
-                            <button style="width:100%; background:#F3F4F6; border:1px solid #D1D5DB; padding:8px; border-radius:10px; cursor:pointer;">
+                            <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
                                 <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" width="18">
                             </button></a>''', unsafe_allow_html=True)
                     else:
                         st.button("📵", disabled=True, key=f"no_gps_{cl['id']}", use_container_width=True)
 
-                # --- POP OVER DE AJUSTES ---
+                # 3. Centro de Gestión (Popover)
                 with st.popover("⚙️ Ajustes", use_container_width=True):
-                    if st.button("✏️ Editar Perfil", key=f"ed_p_{cl['id']}", use_container_width=True):
-                        st.session_state[f"editing_{cl['id']}"] = True
-                    
-                    if st.session_state.get(f"editing_{cl['id']}"):
-                        with st.form(f"form_ed_{cl['id']}"):
-                            n_nom = st.text_input("Nombre", value=cl['nombre'])
-                            n_tel = st.text_input("Teléfono", value=cl.get('telefono',''))
-                            if st.form_submit_button("Guardar Cambios"):
-                                conn.table("clientes").update({"nombre": n_nom, "telefono": n_tel}).eq("id", cl['id']).execute()
-                                st.rerun()
+                    g1, g2 = st.columns(2)
+                    with g1:
+                        if st.button("✏️ Editar", key=f"e_b_{cl['id']}", use_container_width=True):
+                            st.session_state[f"editing_{cl['id']}"] = True
+                    with g2:
+                        if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", type="primary", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 1
 
+                    if st.session_state.get(f"editing_{cl['id']}"):
+                        st.markdown("---")
+                        e_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
+                        e_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
+                        e_tel = st.text_input("Teléfono", value=cl.get('telefono', ''), key=f"et_{cl['id']}")
+                        c_la, c_lo = st.columns(2)
+                        e_lat = c_la.text_input("Latitud", value=str(cl.get('latitud', '0.0')), key=f"elat_{cl['id']}")
+                        e_lon = c_lo.text_input("Longitud", value=str(cl.get('longitud', '0.0')), key=f"elon_{cl['id']}")
+
+                        if st.button("💾 Guardar", key=f"sv_{cl['id']}", type="primary", use_container_width=True):
+                            conn.table("clientes").update({
+                                "nombre": e_nom, "cedula": e_ced, "telefono": e_tel,
+                                "latitud": float(e_lat), "longitud": float(e_lon)
+                            }).eq("id", cl['id']).execute()
+                            st.toast("✅ ¡Datos actualizados!")
+                            del st.session_state[f"editing_{cl['id']}"]
+                            st.rerun()
+
+                    if st.session_state.get(f"del_step_{cl['id']}") == 1:
+                        st.warning("¿Seguro?")
+                        if st.button("SÍ", key=f"d1_{cl['id']}", use_container_width=True):
+                            st.session_state[f"del_step_{cl['id']}"] = 2
+                            st.rerun()
+                    elif st.session_state.get(f"del_step_{cl['id']}") == 2:
+                        if st.button("CONFIRMAR BORRADO", key=f"d2_{cl['id']}", type="primary", use_container_width=True):
+                            conn.table("clientes").delete().eq("id", cl['id']).execute()
+                            st.toast("🗑️ Eliminado")
+                            del st.session_state[f"del_step_{cl['id']}"]
+                            st.rerun()
 
 # --- CAMBIO DE SECCIÓN (MOVIMIENTOS DE EFECTIVO) ---
 if menu == "Cuentas por Pagar":
