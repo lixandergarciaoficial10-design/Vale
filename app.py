@@ -16,6 +16,7 @@ import qrcode # Asegúrate de tener: pip install qrcode
 import base64
 from fpdf import FPDF
 from datetime import datetime
+import streamlit as st
 
 # 1. CONFIGURACIÓN Y ESTILO APPLE-ENTERPRISE
 st.set_page_config(page_title="CobroYa Pro", layout="wide", page_icon="📈")
@@ -44,6 +45,15 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 conn = st.connection("supabase", type=SupabaseConnection)
+
+hide_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    </style>
+    """
+st.markdown(hide_style, unsafe_allow_html=True)
 
 # --- 2. SISTEMA DE ACCESO Y RECUPERACIÓN (SaaS) ---
 
