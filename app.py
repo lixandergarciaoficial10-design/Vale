@@ -598,6 +598,7 @@ elif menu == "Gestión de Cobros":
     # 🏦 SECCIÓN: NUEVA CUENTA POR COBRAR
     # =========================================================
     elif menu == "Nueva Cuenta por Cobrar":
+        from datetime import datetime # Asegura que datetime esté disponible
         st.header("🏢 Registro de Nueva Factura")
         
         # Contenedor principal para poder limpiar la pantalla
@@ -710,8 +711,10 @@ elif menu == "Gestión de Cobros":
                         
                         st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(wa_msg)}"
                         st.rerun()
+                else:
+                    st.warning("⚠️ No hay clientes registrados. Crea uno en la sección de Clientes.")
 
-# =========================================================
+    # =========================================================
     # 👥 SECCIÓN: TODOS MIS CLIENTES (COMPLETO Y REORGANIZADO)
     # =========================================================
     elif menu == "👥 Todos mis Clientes":
@@ -738,7 +741,7 @@ elif menu == "Gestión de Cobros":
         res_pagos = conn.table("pagos").select("*").execute()
         pagos_db = res_pagos.data if res_pagos.data else []
 
-        # 2. DEFINICIÓN DEL MODAL
+        # 2. DEFINICIÓN DEL MODAL (Se define dentro pero se asegura su ejecución)
         @st.dialog("📄 Expediente de Facturación")
         def modal_detalle(cliente_info, todas_las_cuentas, todos_los_pagos):
             col_icon, col_data = st.columns([1, 4])
@@ -748,7 +751,6 @@ elif menu == "Gestión de Cobros":
                 st.markdown(f"### {cliente_info['nombre']}")
                 st.caption(f"🆔 Cédula: {cliente_info.get('cedula', 'N/A')} | 📞 {cliente_info.get('telefono', 'N/A')}")
             
-            # Cálculos de deuda total
             mis_ctas = [ct for ct in todas_las_cuentas if ct['cliente_id'] == cliente_info['id']]
             total_deuda = sum(float(ct.get('balance_pendiente', 0)) for ct in mis_ctas)
             
@@ -800,9 +802,6 @@ elif menu == "Gestión de Cobros":
                     </a>''', unsafe_allow_html=True)
                 else:
                     st.button("📵 Sin Ubicación", disabled=True, use_container_width=True)
-
-            if st.button("Cerrar", use_container_width=True):
-                st.rerun()
 
         # 3. REGISTRO DESPLEGABLE
         with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
@@ -870,7 +869,6 @@ elif menu == "Gestión de Cobros":
         clientes_f = []
         for c in clientes_db:
             match_s = not search_query or (search_query.lower() in c['nombre'].lower() or search_query in str(c.get('cedula','')))
-            # Lógica de filtro (puedes expandirla según tus necesidades de estado)
             if match_s: clientes_f.append(c)
 
         # 5. GRID DE CLIENTES
