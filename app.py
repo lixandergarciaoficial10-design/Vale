@@ -822,12 +822,12 @@ elif menu == "Gestión de Cobros":
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
     
-    # Manejo inteligente de fechas
+    # Manejo profesional de fechas
     from dateutil.relativedelta import relativedelta, MO, TU, WE, TH, FR, SA, SU
 
     contenedor_formulario = st.empty()
 
-    # 0. AUDITORÍA DE DEUDAS
+    # 0. AUDITORÍA DE DEUDAS (Optimizado)
     res_cli = conn.table("clientes").select("id, nombre, cedula, telefono").eq("user_id", u_id).execute()
     res_activas = conn.table("cuentas").select("cliente_id, balance_pendiente").eq("user_id", u_id).gt("balance_pendiente", 0).execute()
     
@@ -840,22 +840,16 @@ elif menu == "Nueva Cuenta por Cobrar":
             resumen_deudas[c_id]['total'] += float(d['balance_pendiente'])
 
     if "prestamo_exitoso" in st.session_state:
+        # --- UI DE ÉXITO (Sin cambios) ---
         with st.container(border=True):
             st.balloons()
             st.success(f"### ✅ ¡Préstamo Activado para {st.session_state.last_name}!")
             st.write("La cuenta y su calendario de pagos han sido registrados correctamente.")
-            
             c1, c2, c3 = st.columns(3)
             with c1:
-                st.download_button("📥 Descargar Contrato PDF", 
-                                 data=st.session_state.pdf_ready, 
-                                 file_name=f"Factura_{st.session_state.last_name}.pdf", 
-                                 use_container_width=True)
+                st.download_button("📥 Descargar Contrato PDF", data=st.session_state.pdf_ready, file_name=f"Factura_{st.session_state.last_name}.pdf", use_container_width=True)
             with c2:
-                st.markdown(f'''<a href="{st.session_state.wa_link}" target="_blank">
-                    <button style="width:100%; background:#25D366; color:white; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold; height:45px;">
-                        💬 Enviar por WhatsApp
-                    </button></a>''', unsafe_allow_html=True)
+                st.markdown(f'''<a href="{st.session_state.wa_link}" target="_blank"><button style="width:100%; background:#25D366; color:white; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold; height:45px;">💬 WhatsApp</button></a>''', unsafe_allow_html=True)
             with c3:
                 if st.button("🔄 Crear otra factura", use_container_width=True):
                     for k in ["prestamo_exitoso", "pdf_ready", "wa_link", "last_name"]:
@@ -881,39 +875,44 @@ elif menu == "Nueva Cuenta por Cobrar":
                     porcentaje = st.number_input("Interés (%)", min_value=0, value=20)
                     freq_sel = st.selectbox("Frecuencia de Pago", ["Semanal", "Quincenal", "Mensual"], index=0)
                     
-                    # --- LÓGICA DE DÍA FIJO CON OPCIÓN 'NINGUNO' ---
-                    dias_semana = {"Ninguno (Días corridos)": None, "Lunes": MO, "Martes": TU, "Miércoles": WE, "Jueves": TH, "Viernes": FR, "Sábado": SA, "Domingo": SU}
+                    # --- CONFIGURACIÓN DE DÍA FIJO ---
+                    dias_semana = {"Cualquiera (Días corridos)": None, "Lunes": MO, "Martes": TU, "Miércoles": WE, "Jueves": TH, "Viernes": FR, "Sábado": SA, "Domingo": SU}
                     
                     if freq_sel == "Semanal":
-                        dia_input = st.selectbox("Día de cobro específico", list(dias_semana.keys()), index=0)
+                        dia_input = st.selectbox("Día de cobro", list(dias_semana.keys()), index=0)
                         dia_fijo = dias_semana[dia_input]
                     else:
-                        # Para Mensual/Quincenal, el 0 significa "Día corrido"
-                        dia_fijo = st.number_input("Día del mes (0 = Día de hoy)", min_value=0, max_value=31, value=0)
+                        dia_fijo = st.number_input("Día del mes fijo (0 = Día de hoy)", min_value=0, max_value=31, value=0)
                 
                 with col3:
                     cuotas_n = st.number_input("Cantidad de Cuotas", min_value=1, value=4)
                     fecha_desembolso = st.date_input("Fecha de Operación", value=datetime.now().date())
 
-                # --- CÁLCULO DE FECHAS ADAPTATIVO ---
+                # --- LÓGICA DE FECHAS RECONSTRUIDA (CRÍTICA) ---
                 fechas_proyectadas = []
+                # El punto de partida es la fecha de operación
+                current_date = fecha_desembolso
+
                 for i in range(cuotas_n):
                     if freq_sel == "Semanal":
-                        if dia_fijo is None: # Días corridos
-                            next_date = fecha_desembolso + relativedelta(days=(i+1)*7)
-                        else: # Día de semana específico
-                            next_date = fecha_desembolso + relativedelta(weeks=i+1, weekday=dia_fijo)
+                        if dia_fijo is None:
+                            current_date = current_date + relativedelta(weeks=1)
+                        else:
+                            # Salta al siguiente día especificado (ej. siguiente Martes)
+                            # Si hoy es Martes y i=0, saltará al martes de la próxima semana
+                            current_date = current_date + relativedelta(weeks=1, weekday=dia_fijo)
                     
                     elif freq_sel == "Quincenal":
-                        next_date = fecha_desembolso + relativedelta(days=(i+1)*15)
+                        current_date = current_date + relativedelta(days=15)
                     
                     elif freq_sel == "Mensual":
-                        if dia_fijo == 0: # Día corrido (mismo día que hoy)
-                            next_date = fecha_desembolso + relativedelta(months=i+1)
-                        else: # Día del mes específico
-                            next_date = fecha_desembolso + relativedelta(months=i+1, day=dia_fijo)
-
-                    fechas_proyectadas.append(next_date)
+                        if dia_fijo == 0:
+                            current_date = current_date + relativedelta(months=1)
+                        else:
+                            # Mantiene el día del mes fijo (ej. siempre los 30)
+                            current_date = current_date + relativedelta(months=1, day=dia_fijo)
+                    
+                    fechas_proyectadas.append(current_date)
 
                 total_esp = capital * (1 + (porcentaje / 100))
                 monto_c_base = total_esp / cuotas_n if cuotas_n > 0 else 0
@@ -930,14 +929,14 @@ elif menu == "Nueva Cuenta por Cobrar":
                     "Monto Cuota (RD$)": round(monto_c_base, 2)
                 } for i in range(cuotas_n)])
                 
-                st.info(f"📅 Plan de pagos generado iniciando el: **{df_p.iloc[0]['Fecha'].strftime('%d/%m/%Y')}**")
+                st.info(f"📅 El primer pago será el **{df_p.iloc[0]['Fecha'].strftime('%A %d de %B, %Y')}**")
                 df_e = st.data_editor(df_p, use_container_width=True, key="editor_p")
                 
                 total_f = float(df_e["Monto Cuota (RD$)"].sum())
                 cuota_final = total_f / cuotas_n
 
                 if st.button("🚀 ACTIVAR FACTURA / PRÉSTAMO", use_container_width=True, disabled=not (capital > 0 and continuar)):
-                    # 1. Insertar CUENTA
+                    # 1. Registrar la cuenta principal
                     res_c = conn.table("cuentas").insert({
                         "cliente_id": cliente_obj['id'], 
                         "monto_inicial": total_f,
@@ -951,7 +950,7 @@ elif menu == "Nueva Cuenta por Cobrar":
 
                     if res_c.data:
                         nueva_cuenta_id = res_c.data[0]['id']
-                        # 2. Insertar PLAN DE CUOTAS
+                        # 2. Registrar el plan de cuotas detallado
                         filas_plan = []
                         for _, row in df_e.iterrows():
                             filas_plan.append({
@@ -964,29 +963,27 @@ elif menu == "Nueva Cuenta por Cobrar":
                             })
                         conn.table("plan_cuotas").insert(filas_plan).execute()
 
-                        # 3. Documentos y Comunicación
+                        # 3. PDF y Mensajería
                         pdf_out = generar_pdf_contrato_legal(
                             cliente_obj['nombre'], cliente_obj.get('cedula', 'S/N'), 
                             float(capital), float(total_f), df_e, freq_sel,
-                            st.session_state.get("mis_clausulas", "Pago conforme a cronograma establecido.")
+                            st.session_state.get("mis_clausulas", "Pago conforme a cronograma.")
                         )
 
                         st.session_state.pdf_ready = pdf_out
                         st.session_state.last_name = cliente_obj['nombre']
                         st.session_state.prestamo_exitoso = True
                         
-                        wa_msg = f"✅ *NUEVA FACTURA GENERADA*\n\n" \
-                                 f"Hola {cliente_obj['nombre']},\n" \
-                                 f"Se ha registrado tu plan de pagos:\n" \
-                                 f"💰 *Total:* RD$ {total_f:,.2f}\n" \
-                                 f"🗓️ *{cuotas_n} cuotas* de RD$ {cuota_final:,.2f}\n" \
-                                 f"📅 *Primer pago:* {df_e.iloc[0]['Fecha'].strftime('%d/%m/%Y')}"
+                        wa_msg = f"✅ *NUEVA FACTURA*\n\nHola {cliente_obj['nombre']},\n" \
+                                 f"Tu plan de pagos está listo:\n💰 *Total:* RD$ {total_f:,.2f}\n" \
+                                 f"🗓️ *{cuotas_n} pagos* de RD$ {cuota_final:,.2f}\n" \
+                                 f"📅 *Inicia:* {df_e.iloc[0]['Fecha'].strftime('%d/%m/%Y')}"
                         
                         import requests
                         st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(wa_msg)}"
                         st.rerun()
                     else:
-                        st.error("Error al registrar en la base de datos.")
+                        st.error("Error en base de datos al activar.")
                     
 # --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
 # --- SECCIÓN A: REGISTRO PREMIUM ---
