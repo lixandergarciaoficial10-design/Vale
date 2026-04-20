@@ -890,29 +890,22 @@ elif menu == "Nueva Cuenta por Cobrar":
 
                 # --- MOTOR DE CÁLCULO DE FECHAS ---
                 fechas_proyectadas = []
-                # Referencia inicial para el cálculo
                 referencia = fecha_desembolso 
 
                 for i in range(cuotas_n):
                     if freq_sel == "Semanal":
                         if dia_fijo is None:
-                            # 7 días exactos después de la referencia
                             next_date = referencia + relativedelta(weeks=i+1)
                         else:
-                            # Próximo día X de la semana + i semanas
-                            # Esto garantiza que si pones "Martes", la primera cuota sea el próximo martes
                             next_date = referencia + relativedelta(weeks=i+1, weekday=dia_fijo)
                     
                     elif freq_sel == "Quincenal":
-                        # 15 días exactos acumulados
                         next_date = referencia + relativedelta(days=(i+1)*15)
                     
                     elif freq_sel == "Mensual":
                         if dia_fijo == 0:
-                            # Próximo mes, mismo día
                             next_date = referencia + relativedelta(months=i+1)
                         else:
-                            # Próximo mes, día específico (ej. los 30)
                             next_date = referencia + relativedelta(months=i+1, day=dia_fijo)
 
                     fechas_proyectadas.append(next_date)
@@ -926,20 +919,28 @@ elif menu == "Nueva Cuenta por Cobrar":
                 m2.metric("Ganancia", f"RD$ {total_esp - capital:,.2f}")
                 m3.metric("Total a Cobrar", f"RD$ {total_esp:,.2f}")
 
+                # Función para formatear fecha a "Día de Mes de Año"
+                def fecha_legible(f):
+                    meses = ["enero", "febrero", "marzo", "abril", "mayo", "junio", 
+                             "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+                    return f"{f.day} de {meses[f.month - 1]} del {f.year}"
+
                 # Tabla interactiva
                 df_p = pd.DataFrame([{
                     "Nº": i + 1,
                     "Fecha": fechas_proyectadas[i],
-                    "Monto Cuota (RD$)": round(monto_c_base, 2)
+                    "Monto Cuota (RD$)": round(monto_c_base, 2),
+                    "Vencimiento": fecha_legible(fechas_proyectadas[i])
                 } for i in range(cuotas_n)])
                 
                 # Info visual para el usuario
-                primera_fecha = df_p.iloc[0]['Fecha']
-                st.info(f"📅 **Aviso:** El primer cobro será el **{primera_fecha.strftime('%d/%m/%Y')}**.")
+                primera_fecha_texto = fecha_legible(df_p.iloc[0]['Fecha'])
+                st.info(f"📅 **Aviso:** El primer cobro será el **{primera_fecha_texto}**.")
                 
-                df_e = st.data_editor(df_p, use_container_width=True, key="editor_p")
+                # Ocultamos la columna 'Fecha' original para que no confunda, pero la dejamos para cálculos
+                df_e = st.data_editor(df_p, use_container_width=True, key="editor_p", 
+                                      column_config={"Fecha": None}) # Fecha real oculta, se usa 'Vencimiento'
                 
-                # Recalcular totales por si el usuario editó la tabla manualmente
                 total_f = float(df_e["Monto Cuota (RD$)"].sum())
                 cuota_esperada_f = total_f / cuotas_n
 
@@ -982,12 +983,15 @@ elif menu == "Nueva Cuenta por Cobrar":
                         st.session_state.last_name = cliente_obj['nombre']
                         st.session_state.prestamo_exitoso = True
                         
+                        # Formato legible para WhatsApp
+                        fecha_wa = fecha_legible(df_e.iloc[0]['Fecha'])
+                        
                         wa_msg = f"✅ *NUEVO CRÉDITO REGISTRADO*\n\n" \
                                  f"Hola {cliente_obj['nombre']},\n" \
                                  f"Detalles de tu cuenta:\n" \
                                  f"💰 *Total:* RD$ {total_f:,.2f}\n" \
                                  f"🗓️ *{cuotas_n} pagos* de RD$ {cuota_esperada_f:,.2f}\n" \
-                                 f"📅 *Primer pago:* {df_e.iloc[0]['Fecha'].strftime('%d/%m/%Y')}"
+                                 f"📅 *Primer pago:* {fecha_wa}"
                         
                         import requests
                         st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(wa_msg)}"
