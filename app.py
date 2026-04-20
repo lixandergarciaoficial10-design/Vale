@@ -827,8 +827,9 @@ elif menu == "Nueva Cuenta por Cobrar":
 
     contenedor_formulario = st.empty()
 
-    # 0. AUDITORÍA DE DEUDAS
-    res_cli = conn.table("clientes").select("id, nombre, cedula, telefono").eq("user_id", u_id).execute()
+    # 0. AUDITORÍA DE DEUDAS Y CARGA DE CLIENTES ORDENADOS
+    # Se añade .order("fecha_registro", desc=True) para que los más recientes aparezcan primero
+    res_cli = conn.table("clientes").select("id, nombre, cedula, telefono").eq("user_id", u_id).order("fecha_registro", desc=True).execute()
     res_activas = conn.table("cuentas").select("cliente_id, balance_pendiente").eq("user_id", u_id).gt("balance_pendiente", 0).execute()
     
     resumen_deudas = {}
@@ -860,16 +861,30 @@ elif menu == "Nueva Cuenta por Cobrar":
             if res_cli.data:
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    cliente_obj = st.selectbox("Seleccionar Cliente", options=res_cli.data, format_func=lambda x: x['nombre'])
+                    # IMPLEMENTACIÓN DE BUSCADOR POR NOMBRE, CÉDULA O TELÉFONO
+                    # index=None asegura que no haya un cliente seleccionado por defecto
+                    cliente_obj = st.selectbox(
+                        "Seleccionar Cliente", 
+                        options=res_cli.data, 
+                        index=None,
+                        placeholder="Buscar por nombre, cédula o teléfono...",
+                        format_func=lambda x: f"{x['nombre']} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else ""
+                    )
+                    
                     capital = st.number_input("Capital/Venta (RD$)", min_value=0.0, step=100.0)
                     
-                    if cliente_obj['id'] in resumen_deudas:
-                        info = resumen_deudas[cliente_obj['id']]
-                        st.error(f"⚠️ EL CLIENTE YA DEBE: RD$ {info['total']:,.2f}")
-                        continuar = st.checkbox("Autorizar nueva factura manual")
+                    # Lógica de validación si hay un cliente seleccionado
+                    continuar = False
+                    if cliente_obj:
+                        if cliente_obj['id'] in resumen_deudas:
+                            info = resumen_deudas[cliente_obj['id']]
+                            st.error(f"⚠️ EL CLIENTE YA DEBE: RD$ {info['total']:,.2f}")
+                            continuar = st.checkbox("Autorizar nueva factura manual")
+                        else:
+                            st.success("✅ Cliente al día")
+                            continuar = True
                     else:
-                        st.success("✅ Cliente al día")
-                        continuar = True
+                        st.info("Por favor, selecciona un cliente para continuar.")
                 
                 with col2:
                     porcentaje = st.number_input("Interés (%)", min_value=0, value=20)
@@ -925,7 +940,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                              "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
                     return f"{f.day} de {meses[f.month - 1]} del {f.year}"
 
-                # Tabla interactiva (La columna 'Fecha' es la que manda)
+                # Tabla interactiva
                 df_p = pd.DataFrame([{
                     "Nº": i + 1,
                     "Fecha": fechas_proyectadas[i],
@@ -941,7 +956,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                 total_f = float(df_e["Monto Cuota (RD$)"].sum())
                 cuota_esperada_f = total_f / cuotas_n
 
-                if st.button("🚀 REGISTRAR Y ACTIVAR", use_container_width=True, disabled=not (capital > 0 and continuar)):
+                if st.button("🚀 REGISTRAR Y ACTIVAR", use_container_width=True, disabled=not (capital > 0 and continuar and cliente_obj is not None)):
                     # IMPORTANTE: Tomamos la fecha de la tabla, por si el usuario la editó
                     primera_fecha_final = df_e.iloc[0]['Fecha']
                     
@@ -983,7 +998,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                         st.session_state.last_name = cliente_obj['nombre']
                         st.session_state.prestamo_exitoso = True
                         
-                        # Formato legible para WhatsApp (convertimos a fecha de texto)
+                        # Formato legible para WhatsApp
                         import pandas as pd
                         f_obj = pd.to_datetime(df_e.iloc[0]['Fecha'])
                         fecha_wa = fecha_legible(f_obj)
