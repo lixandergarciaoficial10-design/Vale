@@ -880,7 +880,8 @@ elif menu == "Nueva Cuenta por Cobrar":
                 
                 with col3:
                     cuotas_n = st.number_input("Cuotas", min_value=1, value=4)
-                    fecha_inicio = st.date_input("Fecha Inicio", value=datetime.now().date())
+                    # La fecha de inicio por defecto es HOY, pero las cuotas se proyectarán a futuro
+                    fecha_inicio = st.date_input("Fecha de Desembolso (Hoy)", value=datetime.now().date())
 
                 total_esp = capital * (1 + (porcentaje / 100))
                 monto_c_base = total_esp / cuotas_n if cuotas_n > 0 else 0
@@ -891,16 +892,17 @@ elif menu == "Nueva Cuenta por Cobrar":
                 m2.metric("Ganancia", f"RD$ {total_esp - capital:,.2f}", delta=f"{porcentaje}%")
                 m3.metric("Total a Cobrar", f"RD$ {total_esp:,.2f}")
 
-                # Generar tabla interactiva
+                # --- LÓGICA DE FECHAS CORREGIDA ---
+                # Usamos (i+1) para que la primera cuota sea HOY + 1 Frecuencia
                 df_p = pd.DataFrame([{
                     "Nº": i + 1,
-                    "Fecha": (fecha_inicio + pd.DateOffset(days=i*7 if freq_sel=="Semanal" else i*14 if freq_sel=="Quincenal" else i*30)).date(),
+                    "Fecha": (fecha_inicio + pd.DateOffset(days=(i+1)*7 if freq_sel=="Semanal" else (i+1)*14 if freq_sel=="Quincenal" else (i+1)*30)).date(),
                     "Monto Cuota (RD$)": round(monto_c_base, 2)
                 } for i in range(cuotas_n)])
                 
+                st.info(f"📅 Primer pago programado para el: **{df_p.iloc[0]['Fecha']}**")
                 df_e = st.data_editor(df_p, use_container_width=True, key="editor_p")
                 
-                # TOTAL FINAL basándonos en lo que dice el editor (por si el usuario cambió montos)
                 total_f = float(df_e["Monto Cuota (RD$)"].sum())
                 cuota_final = total_f / cuotas_n
 
@@ -912,12 +914,12 @@ elif menu == "Nueva Cuenta por Cobrar":
                         "balance_pendiente": total_f, 
                         "user_id": u_id,
                         "estado": "Activo", 
-                        "proximo_pago": str(df_e.iloc[0]["Fecha"]),
-                        "cuota_esperada": float(cuota_final), # <-- Valor real calculado
+                        "proximo_pago": str(df_e.iloc[0]["Fecha"]), # Guarda la fecha de la primera cuota del editor
+                        "cuota_esperada": float(cuota_final),
                         "frecuencia_pago": freq_sel
                     }).execute()
 
-                    # 2. Insertar en tabla PLAN_CUOTAS (solo si el paso anterior fue exitoso)
+                    # 2. Insertar en tabla PLAN_CUOTAS
                     if res_c.data:
                         nueva_cuenta_id = res_c.data[0]['id']
                         filas_plan = []
@@ -932,7 +934,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                             })
                         conn.table("plan_cuotas").insert(filas_plan).execute()
 
-                        # 3. Generar documentos y estado de éxito
+                        # 3. Generar documentos y WhatsApp
                         pdf_out = generar_pdf_contrato_legal(
                             cliente_obj['nombre'], cliente_obj.get('cedula', 'S/N'), 
                             float(capital), float(total_f), df_e, freq_sel,
@@ -955,7 +957,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                         st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(wa_msg)}"
                         st.rerun()
                     else:
-                        st.error("Error al registrar la cuenta en la base de datos.")
+                        st.error("Error crítico: No se pudo conectar con la base de datos para registrar la cuenta.")
                     
 # --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
 # --- SECCIÓN A: REGISTRO PREMIUM ---
