@@ -822,6 +822,9 @@ elif menu == "Gestión de Cobros":
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
     
+    # Necesitaremos dateutil para manejo inteligente de meses
+    from dateutil.relativedelta import relativedelta, MO, TU, WE, TH, FR, SA, SU
+
     contenedor_formulario = st.empty()
 
     # 0. AUDITORÍA DE DEUDAS
@@ -840,7 +843,7 @@ elif menu == "Nueva Cuenta por Cobrar":
         with st.container(border=True):
             st.balloons()
             st.success(f"### ✅ ¡Préstamo Activado para {st.session_state.last_name}!")
-            st.write("La cuenta se registró correctamente y el plan de cuotas ha sido guardado.")
+            st.write("La cuenta y su calendario de pagos fijos han sido registrados.")
             
             c1, c2, c3 = st.columns(3)
             with c1:
@@ -868,7 +871,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                     
                     if cliente_obj['id'] in resumen_deudas:
                         info = resumen_deudas[cliente_obj['id']]
-                        st.error(f"⚠️ YA DEBE: RD$ {info['total']:,.2f} en {info['cantidad']} factura(s)")
+                        st.error(f"⚠️ YA DEBE: RD$ {info['total']:,.2f} ({info['cantidad']} facturas)")
                         continuar = st.checkbox("Autorizar nueva deuda")
                     else:
                         st.success("✅ Cliente al día")
@@ -876,52 +879,78 @@ elif menu == "Nueva Cuenta por Cobrar":
                 
                 with col2:
                     porcentaje = st.number_input("Interés (%)", min_value=0, value=20)
-                    freq_sel = st.selectbox("Frecuencia", ["Semanal", "Quincenal", "Mensual"], index=2)
+                    freq_sel = st.selectbox("Frecuencia de Pago", ["Semanal", "Quincenal", "Mensual"], index=0)
+                    
+                    # --- NUEVA LÓGICA DE DÍA FIJO ---
+                    dias_semana = {"Lunes": MO, "Martes": TU, "Miércoles": WE, "Jueves": TH, "Viernes": FR, "Sábado": SA, "Domingo": SU}
+                    if freq_sel == "Semanal":
+                        dia_fijo = st.selectbox("Día de cobro", list(dias_semana.keys()), index=0)
+                    else:
+                        dia_fijo = st.number_input("Día del mes para cobrar", min_value=1, max_value=31, value=datetime.now().day)
                 
                 with col3:
-                    cuotas_n = st.number_input("Cuotas", min_value=1, value=4)
-                    # La fecha de inicio por defecto es HOY, pero las cuotas se proyectarán a futuro
-                    fecha_inicio = st.date_input("Fecha de Desembolso (Hoy)", value=datetime.now().date())
+                    cuotas_n = st.number_input("Cantidad de Cuotas", min_value=1, value=4)
+                    fecha_desembolso = st.date_input("Fecha de Desembolso (Hoy)", value=datetime.now().date())
+
+                # --- CÁLCULO DE FECHAS "ESTILO DOMINICANO" ---
+                fechas_proyectadas = []
+                temp_date = fecha_desembolso
+
+                for i in range(cuotas_n):
+                    if freq_sel == "Semanal":
+                        # Salta al día seleccionado de la PRÓXIMA semana (+1)
+                        # El (+ i) asegura que la primera sea la próxima semana y las demás sigan el ritmo
+                        target_day = dias_semana[dia_fijo]
+                        next_date = fecha_desembolso + relativedelta(weeks=i+1, weekday=target_day)
+                    
+                    elif freq_sel == "Quincenal":
+                        # Suma 15 días fijos o ajusta al día del mes
+                        next_date = fecha_desembolso + relativedelta(days=(i+1)*15)
+                    
+                    elif freq_sel == "Mensual":
+                        # Mantiene el mismo día del mes siempre
+                        next_date = fecha_desembolso + relativedelta(months=i+1, day=dia_fijo)
+
+                    fechas_proyectadas.append(next_date)
 
                 total_esp = capital * (1 + (porcentaje / 100))
                 monto_c_base = total_esp / cuotas_n if cuotas_n > 0 else 0
 
-                st.markdown("#### 📊 Proyección de Rentabilidad")
+                st.markdown("#### 📊 Resumen de Factura")
                 m1, m2, m3 = st.columns(3)
                 m1.metric("Inversión", f"RD$ {capital:,.2f}")
-                m2.metric("Ganancia", f"RD$ {total_esp - capital:,.2f}", delta=f"{porcentaje}%")
+                m2.metric("Ganancia", f"RD$ {total_esp - capital:,.2f}")
                 m3.metric("Total a Cobrar", f"RD$ {total_esp:,.2f}")
 
-                # --- LÓGICA DE FECHAS CORREGIDA ---
-                # Usamos (i+1) para que la primera cuota sea HOY + 1 Frecuencia
+                # Generar tabla con las fechas inteligentes
                 df_p = pd.DataFrame([{
                     "Nº": i + 1,
-                    "Fecha": (fecha_inicio + pd.DateOffset(days=(i+1)*7 if freq_sel=="Semanal" else (i+1)*14 if freq_sel=="Quincenal" else (i+1)*30)).date(),
+                    "Fecha": fechas_proyectadas[i],
                     "Monto Cuota (RD$)": round(monto_c_base, 2)
                 } for i in range(cuotas_n)])
                 
-                st.info(f"📅 Primer pago programado para el: **{df_p.iloc[0]['Fecha']}**")
+                st.warning(f"📅 El cliente empezará a pagar el: **{df_p.iloc[0]['Fecha'].strftime('%d/%m/%Y')}** ({freq_sel})")
                 df_e = st.data_editor(df_p, use_container_width=True, key="editor_p")
                 
                 total_f = float(df_e["Monto Cuota (RD$)"].sum())
                 cuota_final = total_f / cuotas_n
 
                 if st.button("🚀 ACTIVAR PRÉSTAMO", use_container_width=True, disabled=not (capital > 0 and continuar)):
-                    # 1. Insertar en tabla CUENTAS
+                    # 1. Insertar CUENTA
                     res_c = conn.table("cuentas").insert({
                         "cliente_id": cliente_obj['id'], 
                         "monto_inicial": total_f,
                         "balance_pendiente": total_f, 
                         "user_id": u_id,
                         "estado": "Activo", 
-                        "proximo_pago": str(df_e.iloc[0]["Fecha"]), # Guarda la fecha de la primera cuota del editor
+                        "proximo_pago": str(df_e.iloc[0]["Fecha"]),
                         "cuota_esperada": float(cuota_final),
                         "frecuencia_pago": freq_sel
                     }).execute()
 
-                    # 2. Insertar en tabla PLAN_CUOTAS
                     if res_c.data:
                         nueva_cuenta_id = res_c.data[0]['id']
+                        # 2. Insertar PLAN DE CUOTAS
                         filas_plan = []
                         for _, row in df_e.iterrows():
                             filas_plan.append({
@@ -934,30 +963,30 @@ elif menu == "Nueva Cuenta por Cobrar":
                             })
                         conn.table("plan_cuotas").insert(filas_plan).execute()
 
-                        # 3. Generar documentos y WhatsApp
+                        # 3. Documentos y Comunicación
                         pdf_out = generar_pdf_contrato_legal(
                             cliente_obj['nombre'], cliente_obj.get('cedula', 'S/N'), 
                             float(capital), float(total_f), df_e, freq_sel,
-                            st.session_state.get("mis_clausulas", "Sujeto a términos.")
+                            st.session_state.get("mis_clausulas", "Sujeto a términos y condiciones de pago puntual.")
                         )
 
                         st.session_state.pdf_ready = pdf_out
                         st.session_state.last_name = cliente_obj['nombre']
                         st.session_state.prestamo_exitoso = True
                         
-                        wa_msg = f"✅ *NUEVA FACTURA DISPONIBLE*\n\n" \
+                        wa_msg = f"✅ *NUEVA FACTURA REGISTRADA*\n\n" \
                                  f"Hola {cliente_obj['nombre']},\n" \
-                                 f"Se ha generado tu plan de pagos:\n" \
+                                 f"Se ha creado tu plan de pagos {freq_sel}:\n" \
                                  f"💰 *Total:* RD$ {total_f:,.2f}\n" \
                                  f"🗓️ *{cuotas_n} cuotas* de RD$ {cuota_final:,.2f}\n" \
-                                 f"📅 *Primer pago:* {df_e.iloc[0]['Fecha']}\n\n" \
-                                 "Te envío el contrato legal adjunto."
+                                 f"📅 *Primer pago:* {df_e.iloc[0]['Fecha'].strftime('%d/%m/%Y')}\n\n" \
+                                 "Contrato adjunto."
                         
                         import requests
                         st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(wa_msg)}"
                         st.rerun()
                     else:
-                        st.error("Error crítico: No se pudo conectar con la base de datos para registrar la cuenta.")
+                        st.error("Error al guardar en Supabase. Revisa la conexión.")
                     
 # --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
 # --- SECCIÓN A: REGISTRO PREMIUM ---
