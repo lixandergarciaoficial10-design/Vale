@@ -822,7 +822,6 @@ elif menu == "Gestión de Cobros":
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
     
-    # Contenedor principal para poder limpiar la pantalla
     contenedor_formulario = st.empty()
 
     # 0. AUDITORÍA DE DEUDAS
@@ -837,13 +836,11 @@ elif menu == "Nueva Cuenta por Cobrar":
             resumen_deudas[c_id]['cantidad'] += 1
             resumen_deudas[c_id]['total'] += float(d['balance_pendiente'])
 
-    # --- LÓGICA DE MOSTRAR ÉXITO O FORMULARIO ---
     if "prestamo_exitoso" in st.session_state:
-        # Esto es lo que aparece DESPUÉS de confirmar
         with st.container(border=True):
             st.balloons()
             st.success(f"### ✅ ¡Préstamo Activado para {st.session_state.last_name}!")
-            st.write("La cuenta se registró correctamente. Ahora puedes descargar el contrato y enviarlo.")
+            st.write("La cuenta se registró correctamente y el plan de cuotas ha sido guardado.")
             
             c1, c2, c3 = st.columns(3)
             with c1:
@@ -862,7 +859,6 @@ elif menu == "Nueva Cuenta por Cobrar":
                         if k in st.session_state: del st.session_state[k]
                     st.rerun()
     else:
-        # FORMULARIO ORIGINAL
         with contenedor_formulario.container():
             if res_cli.data:
                 col1, col2, col3 = st.columns(3)
@@ -887,27 +883,29 @@ elif menu == "Nueva Cuenta por Cobrar":
                     fecha_inicio = st.date_input("Fecha Inicio", value=datetime.now().date())
 
                 total_esp = capital * (1 + (porcentaje / 100))
-                ganancia = total_esp - capital
-                # Este monto_c es el que guardaremos como cuota acordada
-                monto_c = total_esp / cuotas_n if cuotas_n > 0 else 0
+                monto_c_base = total_esp / cuotas_n if cuotas_n > 0 else 0
 
                 st.markdown("#### 📊 Proyección de Rentabilidad")
                 m1, m2, m3 = st.columns(3)
                 m1.metric("Inversión", f"RD$ {capital:,.2f}")
-                m2.metric("Ganancia Neta", f"RD$ {ganancia:,.2f}", delta=f"{porcentaje}%")
+                m2.metric("Ganancia", f"RD$ {total_esp - capital:,.2f}", delta=f"{porcentaje}%")
                 m3.metric("Total a Cobrar", f"RD$ {total_esp:,.2f}")
 
+                # Generar tabla interactiva
                 df_p = pd.DataFrame([{
                     "Nº": i + 1,
                     "Fecha": (fecha_inicio + pd.DateOffset(days=i*7 if freq_sel=="Semanal" else i*14 if freq_sel=="Quincenal" else i*30)).date(),
-                    "Monto Cuota (RD$)": round(monto_c, 2)
+                    "Monto Cuota (RD$)": round(monto_c_base, 2)
                 } for i in range(cuotas_n)])
                 
                 df_e = st.data_editor(df_p, use_container_width=True, key="editor_p")
-                total_f = df_e["Monto Cuota (RD$)"].sum()
+                
+                # TOTAL FINAL basándonos en lo que dice el editor (por si el usuario cambió montos)
+                total_f = float(df_e["Monto Cuota (RD$)"].sum())
+                cuota_final = total_f / cuotas_n
 
                 if st.button("🚀 ACTIVAR PRÉSTAMO", use_container_width=True, disabled=not (capital > 0 and continuar)):
-                    # 1. Guardar Cuenta Principal con la Cuota y Frecuencia
+                    # 1. Insertar en tabla CUENTAS
                     res_c = conn.table("cuentas").insert({
                         "cliente_id": cliente_obj['id'], 
                         "monto_inicial": total_f,
@@ -915,12 +913,11 @@ elif menu == "Nueva Cuenta por Cobrar":
                         "user_id": u_id,
                         "estado": "Activo", 
                         "proximo_pago": str(df_e.iloc[0]["Fecha"]),
-                        # AQUÍ GUARDAMOS LOS DATOS QUE FALTABAN:
-                        "cuota_esperada": float(monto_c),
+                        "cuota_esperada": float(cuota_final), # <-- Valor real calculado
                         "frecuencia_pago": freq_sel
                     }).execute()
 
-                    # --- LÓGICA DE PERSISTENCIA DEL PLAN ---
+                    # 2. Insertar en tabla PLAN_CUOTAS (solo si el paso anterior fue exitoso)
                     if res_c.data:
                         nueva_cuenta_id = res_c.data[0]['id']
                         filas_plan = []
@@ -935,28 +932,30 @@ elif menu == "Nueva Cuenta por Cobrar":
                             })
                         conn.table("plan_cuotas").insert(filas_plan).execute()
 
-                    # 2. PDF y WhatsApp
-                    pdf_out = generar_pdf_contrato_legal(
-                        cliente_obj['nombre'], cliente_obj.get('cedula', 'S/N'), 
-                        float(capital), float(total_f), df_e, freq_sel,
-                        st.session_state.get("mis_clausulas", "Sujeto a términos.")
-                    )
+                        # 3. Generar documentos y estado de éxito
+                        pdf_out = generar_pdf_contrato_legal(
+                            cliente_obj['nombre'], cliente_obj.get('cedula', 'S/N'), 
+                            float(capital), float(total_f), df_e, freq_sel,
+                            st.session_state.get("mis_clausulas", "Sujeto a términos.")
+                        )
 
-                    st.session_state.pdf_ready = pdf_out
-                    st.session_state.last_name = cliente_obj['nombre']
-                    st.session_state.prestamo_exitoso = True
-                    
-                    wa_msg = f"✅ *NUEVA FACTURA DISPONIBLE*\n\n" \
-                             f"Hola {cliente_obj['nombre']},\n" \
-                             f"Se ha generado tu plan de pagos:\n" \
-                             f"💰 *Total:* RD$ {total_f:,.2f}\n" \
-                             f"🗓️ *{cuotas_n} cuotas* de RD$ {monto_c:,.2f}\n" \
-                             f"📅 *Primer pago:* {df_e.iloc[0]['Fecha']}\n\n" \
-                             "Te envío el contrato legal adjunto."
-                    
-                    import requests
-                    st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(wa_msg)}"
-                    st.rerun()
+                        st.session_state.pdf_ready = pdf_out
+                        st.session_state.last_name = cliente_obj['nombre']
+                        st.session_state.prestamo_exitoso = True
+                        
+                        wa_msg = f"✅ *NUEVA FACTURA DISPONIBLE*\n\n" \
+                                 f"Hola {cliente_obj['nombre']},\n" \
+                                 f"Se ha generado tu plan de pagos:\n" \
+                                 f"💰 *Total:* RD$ {total_f:,.2f}\n" \
+                                 f"🗓️ *{cuotas_n} cuotas* de RD$ {cuota_final:,.2f}\n" \
+                                 f"📅 *Primer pago:* {df_e.iloc[0]['Fecha']}\n\n" \
+                                 "Te envío el contrato legal adjunto."
+                        
+                        import requests
+                        st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(wa_msg)}"
+                        st.rerun()
+                    else:
+                        st.error("Error al registrar la cuenta en la base de datos.")
                     
 # --- AQUÍ TERMINA LA SECCIÓN ANTERIOR Y EMPIEZA EL DIRECTORIO ---
 # --- SECCIÓN A: REGISTRO PREMIUM ---
