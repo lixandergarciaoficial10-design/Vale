@@ -886,7 +886,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                 
                 with col3:
                     cuotas_n = st.number_input("Cantidad de Cuotas", min_value=1, value=4)
-                    fecha_desembolso = st.date_input("Fecha de Operación", value=datetime.now().date())
+                    fecha_desembolso = st.date_input("Fecha de desembolso", value=datetime.now().date())
 
                 # --- MOTOR DE CÁLCULO DE FECHAS ---
                 fechas_proyectadas = []
