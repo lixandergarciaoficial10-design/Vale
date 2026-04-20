@@ -616,7 +616,7 @@ elif menu == "Gestión de Cobros":
                     datos_plan.append({
                         "Cuota #": cuota['numero_cuota'],
                         "Fecha de Pago": cuota['fecha_esperada'],
-                        "Monto (RD$)": f"{monto_esperado:,.2f}", # Formato corregido sin decimales extra
+                        "Monto (RD$)": f"{monto_esperado:,.2f}", # Formato corregido a 2 decimales
                         "Estatus": estado_actual
                     })
                 
@@ -631,11 +631,11 @@ elif menu == "Gestión de Cobros":
                 col_fecha = 'fecha_pago' if 'fecha_pago' in df_pagos.columns else 'created_at'
                 df_pagos['Fecha'] = pd.to_datetime(df_pagos[col_fecha]).dt.date
                 
-                # Formatear montos para que no salgan con miles de decimales
+                # Formatear montos para visualización limpia
                 df_pagos['Abono Capital'] = df_pagos['monto_pagado'].apply(lambda x: f"RD$ {float(x):,.2f}")
                 df_pagos['Mora Pagada'] = df_pagos['mora_pagada'].apply(lambda x: f"RD$ {float(x):,.2f}")
                 
-                # Mostrar código de factura si existe, sino mostrar N/A
+                # Mostrar código de factura y datos reales
                 cols_finales = ['codigo_factura', 'Fecha', 'Abono Capital', 'Mora Pagada']
                 df_mostrar = df_pagos[[c for c in cols_finales if c in df_pagos.columns]]
                 df_mostrar.columns = ['Factura #', 'Fecha Cobro', 'Abono Capital', 'Mora Pagada']
@@ -656,7 +656,7 @@ elif menu == "Gestión de Cobros":
         import random
         import string
         
-        # Generar código de factura aleatorio (Ej: FAC-7291)
+        # Generar código de factura aleatorio simple (Ej: FAC-7291)
         codigo_random = f"FAC-{''.join(random.choices(string.digits, k=4))}"
         
         st.warning(f"¿Estás seguro de registrar este pago para **{item['aux_nombre']}**?")
@@ -672,12 +672,12 @@ elif menu == "Gestión de Cobros":
         with c_conf1:
             if st.button("✅ CONFIRMAR Y REGISTRAR", type="primary", use_container_width=True):
                 try:
-                    # 1. Registro en Pagos (Guardando Mora y Código de Factura)
+                    # 1. Registro en Pagos (Guardando Mora y Código de Factura en DB)
                     conn.table("pagos").insert({
                         "cuenta_id": str(item['id']),
                         "monto_pagado": float(monto),
                         "mora_pagada": float(mora),
-                        "codigo_factura": codigo_random, # Se guarda en la DB
+                        "codigo_factura": codigo_random,
                         "user_id": str(u_id)
                     }).execute()
                     
@@ -687,7 +687,7 @@ elif menu == "Gestión de Cobros":
                         "balance_pendiente": n_bal,
                         "estado": "Saldado" if n_bal <= 0 else "Activo",
                         "proximo_pago": str(fecha),
-                        "mora_acumulada": 0 # Se resetea la mora acumulada tras el cobro
+                        "mora_acumulada": 0 # Se limpia la mora tras cobrarla
                     }).eq("id", item['id']).execute()
                     
                     st.session_state[f"recibo_{item['id']}"] = {
@@ -754,7 +754,13 @@ elif menu == "Gestión de Cobros":
         for c in res.data:
             nombre = c.get('clientes', {}).get('nombre', 'Cliente')
             if search_term in nombre.lower():
-                txt_atraso, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
+                # Lógica de texto de atraso personalizada
+                txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
+                if dias_num > 0:
+                    txt_atraso = f"Han pasado {dias_num} días desde la fecha de pago acordada"
+                else:
+                    txt_atraso = txt_atraso_base
+                
                 c['aux_nombre'] = nombre
                 c['aux_atraso_txt'] = txt_atraso
                 c['aux_dias_num'] = dias_num
@@ -787,7 +793,7 @@ elif menu == "Gestión de Cobros":
                         
                 with c_inputs:
                     if not modo_analisis:
-                        # CORRECCIÓN CUOTA SUGERIDA: Usamos el valor real acordado 'cuota_esperada' de la DB
+                        # Cuota acordada desde la columna cuota_esperada de la DB
                         cuota_acordada = float(item.get('cuota_esperada', 0))
                         valor_default = min(cuota_acordada, m_pend) if cuota_acordada > 0 else m_pend
                         
@@ -795,7 +801,7 @@ elif menu == "Gestión de Cobros":
                         abono_input = st.number_input("Monto", min_value=0.0, value=float(valor_default), key=f"val_{token}", label_visibility="collapsed")
                         f_prox_input = st.date_input("Próxima", key=f"date_{token}", label_visibility="collapsed")
                     else:
-                        st.write(f"Saldó: {item.get('proximo_pago')}")
+                        st.write(f"Saldó el: {item.get('proximo_pago')}")
 
                 with c_btn:
                     if not modo_analisis:
@@ -808,10 +814,10 @@ elif menu == "Gestión de Cobros":
 
                 if not modo_analisis:
                     with st.expander("⚖️ Penalidad (Mora)"):
-                        st.caption("Afecta el recibo, no el capital.")
+                        st.caption("Este monto se guarda como ingreso por mora y no resta capital.")
                         st.number_input("Monto de Mora", min_value=0.0, key=f"mora_{token}")
     else:
-        st.info("No se encontraron clientes.")
+        st.info("No se encontraron clientes activos.")
         
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
