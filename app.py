@@ -882,7 +882,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                         dia_input = st.selectbox("Día de cobro fijo", list(dias_semana.keys()), index=0)
                         dia_fijo = dias_semana[dia_input]
                     else:
-                        dia_fijo = st.number_input("Día del mes para cobrar (0 = Igual a hoy)", min_value=0, max_value=31, value=0)
+                        dia_fijo = st.number_input("Día del mes (0 = Igual a hoy)", min_value=0, max_value=31, value=0)
                 
                 with col3:
                     cuotas_n = st.number_input("Cantidad de Cuotas", min_value=1, value=4)
@@ -925,26 +925,26 @@ elif menu == "Nueva Cuenta por Cobrar":
                              "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
                     return f"{f.day} de {meses[f.month - 1]} del {f.year}"
 
-                # Tabla interactiva
+                # Tabla interactiva (La columna 'Fecha' es la que manda)
                 df_p = pd.DataFrame([{
                     "Nº": i + 1,
                     "Fecha": fechas_proyectadas[i],
-                    "Monto Cuota (RD$)": round(monto_c_base, 2),
-                    "Vencimiento": fecha_legible(fechas_proyectadas[i])
+                    "Monto Cuota (RD$)": round(monto_c_base, 2)
                 } for i in range(cuotas_n)])
                 
-                # Info visual para el usuario
-                primera_fecha_texto = fecha_legible(df_p.iloc[0]['Fecha'])
-                st.info(f"📅 **Aviso:** El primer cobro será el **{primera_fecha_texto}**.")
+                st.info("💡 **Puedes editar la fecha o el monto directamente en la tabla** si necesitas ajustar el plan.")
                 
-                # Ocultamos la columna 'Fecha' original para que no confunda, pero la dejamos para cálculos
-                df_e = st.data_editor(df_p, use_container_width=True, key="editor_p", 
-                                      column_config={"Fecha": None}) # Fecha real oculta, se usa 'Vencimiento'
+                # Mostramos el editor
+                df_e = st.data_editor(df_p, use_container_width=True, key="editor_p")
                 
+                # Recalcular totales DESDE LO QUE ESTÁ EN LA TABLA EDITADA
                 total_f = float(df_e["Monto Cuota (RD$)"].sum())
                 cuota_esperada_f = total_f / cuotas_n
 
                 if st.button("🚀 REGISTRAR Y ACTIVAR", use_container_width=True, disabled=not (capital > 0 and continuar)):
+                    # IMPORTANTE: Tomamos la fecha de la tabla, por si el usuario la editó
+                    primera_fecha_final = df_e.iloc[0]['Fecha']
+                    
                     # 1. Insertar en CUENTAS
                     res_c = conn.table("cuentas").insert({
                         "cliente_id": cliente_obj['id'], 
@@ -952,20 +952,20 @@ elif menu == "Nueva Cuenta por Cobrar":
                         "balance_pendiente": total_f, 
                         "user_id": u_id,
                         "estado": "Activo", 
-                        "proximo_pago": str(df_e.iloc[0]["Fecha"]),
+                        "proximo_pago": str(primera_fecha_final),
                         "cuota_esperada": float(cuota_esperada_f),
                         "frecuencia_pago": freq_sel
                     }).execute()
 
                     if res_c.data:
                         nueva_id = res_c.data[0]['id']
-                        # 2. Insertar PLAN_CUOTAS
+                        # 2. Insertar PLAN_CUOTAS (Respetando cada edición de fecha y monto)
                         filas_plan = []
                         for _, row in df_e.iterrows():
                             filas_plan.append({
                                 "cuenta_id": nueva_id,
                                 "numero_cuota": int(row["Nº"]),
-                                "fecha_esperada": str(row["Fecha"]),
+                                "fecha_esperada": str(row["Fecha"]), 
                                 "monto_cuota": float(row["Monto Cuota (RD$)"]),
                                 "estado": "Pendiente",
                                 "user_id": u_id
@@ -983,8 +983,10 @@ elif menu == "Nueva Cuenta por Cobrar":
                         st.session_state.last_name = cliente_obj['nombre']
                         st.session_state.prestamo_exitoso = True
                         
-                        # Formato legible para WhatsApp
-                        fecha_wa = fecha_legible(df_e.iloc[0]['Fecha'])
+                        # Formato legible para WhatsApp (convertimos a fecha de texto)
+                        import pandas as pd
+                        f_obj = pd.to_datetime(df_e.iloc[0]['Fecha'])
+                        fecha_wa = fecha_legible(f_obj)
                         
                         wa_msg = f"✅ *NUEVO CRÉDITO REGISTRADO*\n\n" \
                                  f"Hola {cliente_obj['nombre']},\n" \
