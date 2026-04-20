@@ -1308,6 +1308,14 @@ elif menu == "👥 Todos mis Clientes":
                         st.divider()
     
 # --- LISTADO DE CUENTAS DETALLADO ---
+# Consultamos las cuentas y pagos del cliente específico antes de mostrar el historial
+res_ctas = conn.table("cuentas").select("*").eq("cliente_id", cl['id']).execute()
+mis_ctas = res_ctas.data if res_ctas.data else []
+
+# Obtenemos todos los pagos para cruzarlos con las cuentas
+res_pagos_all = conn.table("pagos").select("*").execute()
+todos_los_pagos = res_pagos_all.data if res_pagos_all.data else []
+
 st.markdown("#### 📑 Historial de Deudas y Abonos")
 
 if not mis_ctas:
@@ -1318,6 +1326,8 @@ else:
             # Encabezado de la factura con Badge de estado
             f_pago = pd.to_datetime(ct.get('proximo_pago')).date() if ct.get('proximo_pago') else None
             balance = float(ct.get('balance_pendiente', 0))
+            # 'hoy_dt' debe estar definido arriba en tu app, usualmente: hoy_dt = datetime.now().date()
+            hoy_dt = datetime.now().date() 
             atrasada = f_pago and f_pago < hoy_dt and balance > 0
             
             est_color = "#ef4444" if atrasada else "#22c55e"
@@ -1345,17 +1355,16 @@ else:
 
             # --- DESPLEGABLE DE ABONOS ---
             with st.expander("🔍 Ver desglose de abonos y movimientos"):
-                mis_p = [p for p in pagos if str(p.get('cuenta_id')) == str(ct['id'])]
+                # Filtramos los pagos que pertenecen a ESTA cuenta específica
+                mis_p = [p for p in todos_los_pagos if str(p.get('cuenta_id')) == str(ct['id'])]
                 
                 if mis_p:
-                    # Ordenar por fecha para el desglose
                     mis_p_sorted = sorted(mis_p, key=lambda x: x['fecha_pago'], reverse=True)
                     
                     for p in mis_p_sorted:
                         monto_p = float(p.get('monto_pagado', 0))
                         cuota_e = float(ct.get('cuota_esperada', 0))
                         
-                        # Clasificación visual
                         if monto_p < cuota_e: 
                             t_txt, t_col = "Incompleto", "#f59e0b"
                         elif monto_p > cuota_e: 
@@ -1363,7 +1372,6 @@ else:
                         else: 
                             t_txt, t_col = "Pago Regular", "#16a34a"
 
-                        # Fila de Abono
                         with st.container(border=True):
                             c_pag1, c_pag2 = st.columns([2, 1])
                             with c_pag1:
@@ -1371,9 +1379,7 @@ else:
                                 st.write(f"**RD$ {monto_p:,.2f}**")
                             
                             with c_pag2:
-                                # --- POPOVER DE GESTIÓN DE ABONO ---
                                 with st.popover("⚙️ Gestionar", use_container_width=True):
-                                    # 1. EDITAR ABONO
                                     st.subheader("✏️ Editar Monto")
                                     nuevo_monto = st.number_input("Monto pagado", value=monto_p, key=f"inp_ed_{p['id']}")
                                     
@@ -1381,59 +1387,38 @@ else:
                                         st.session_state[f"confirm_edit_{p['id']}"] = True
                                     
                                     if st.session_state.get(f"confirm_edit_{p['id']}"):
-                                        st.warning("¿Confirmar edición?")
                                         if st.button("✅ Confirmar edición", key=f"btn_ed_2_{p['id']}", type="primary"):
-                                            # Actualizar Pago
                                             conn.table("pagos").update({"monto_pagado": nuevo_monto}).eq("id", p['id']).execute()
                                             
-                                            # RECÁLCULO TOTAL
+                                            # Recálculo
                                             res_p_upd = conn.table("pagos").select("monto_pagado").eq("cuenta_id", ct['id']).execute()
                                             total_abonado = sum(float(x['monto_pagado']) for x in res_p_upd.data)
                                             nuevo_bal = float(ct['monto_inicial']) - total_abonado
-                                            
                                             conn.table("cuentas").update({"balance_pendiente": nuevo_bal}).eq("id", ct['id']).execute()
                                             
                                             del st.session_state[f"confirm_edit_{p['id']}"]
-                                            st.success("Actualizado correctamente")
-                                            time.sleep(1)
                                             st.rerun()
 
                                     st.divider()
-                                    
-                                    # 2. ELIMINAR ABONO (TRIPLE CONFIRMACIÓN)
                                     st.subheader("🗑️ Eliminar Abono")
                                     if st.button("🗑️ Eliminar", key=f"btn_del_1_{p['id']}", use_container_width=True):
                                         st.session_state[f"del_p_step_{p['id']}"] = 1
                                     
                                     p_step = st.session_state.get(f"del_p_step_{p['id']}", 0)
-                                    
-                                    if p_step == 1:
-                                        st.error("¿Eliminar este abono?")
-                                        if st.button("Confirmar (Paso 1/3)", key=f"btn_del_2_{p['id']}"):
-                                            st.session_state[f"del_p_step_{p['id']}"] = 2
-                                            st.rerun()
-                                    
-                                    elif p_step == 2:
-                                        st.warning("Esto afectará el balance actual.")
-                                        if st.button("Confirmar (Paso 2/3)", key=f"btn_del_3_{p['id']}"):
-                                            st.session_state[f"del_p_step_{p['id']}"] = 3
-                                            st.rerun()
-                                    
-                                    elif p_step == 3:
-                                        st.error("ELIMINAR DEFINITIVAMENTE")
-                                        if st.button("🔥 ELIMINAR (Paso 3/3)", key=f"btn_del_4_{p['id']}", type="primary"):
-                                            # Eliminar Pago
-                                            conn.table("pagos").delete().eq("id", p['id']).execute()
-                                            
-                                            # RECÁLCULO TOTAL
-                                            res_p_upd = conn.table("pagos").select("monto_pagado").eq("cuenta_id", ct['id']).execute()
-                                            total_abonado = sum(float(x['monto_pagado']) for x in res_p_upd.data) if res_p_upd.data else 0
-                                            nuevo_bal = float(ct['monto_inicial']) - total_abonado
-                                            
-                                            conn.table("cuentas").update({"balance_pendiente": nuevo_bal}).eq("id", ct['id']).execute()
-                                            
-                                            st.session_state[f"del_p_step_{p['id']}"] = 0
-                                            st.rerun()
+                                    if p_step >= 1:
+                                        if st.button(f"🔥 Confirmar Eliminación (Paso {p_step}/3)", key=f"btn_del_final_{p['id']}", type="primary"):
+                                            if p_step < 3:
+                                                st.session_state[f"del_p_step_{p['id']}"] += 1
+                                                st.rerun()
+                                            else:
+                                                conn.table("pagos").delete().eq("id", p['id']).execute()
+                                                # Recálculo tras borrar
+                                                res_p_upd = conn.table("pagos").select("monto_pagado").eq("cuenta_id", ct['id']).execute()
+                                                total_abonado = sum(float(x['monto_pagado']) for x in res_p_upd.data) if res_p_upd.data else 0
+                                                nuevo_bal = float(ct['monto_inicial']) - total_abonado
+                                                conn.table("cuentas").update({"balance_pendiente": nuevo_bal}).eq("id", ct['id']).execute()
+                                                st.session_state[f"del_p_step_{p['id']}"] = 0
+                                                st.rerun()
                 else:
                     st.caption("No se han registrado abonos aún.")
 
