@@ -596,7 +596,6 @@ elif menu == "Gestión de Cobros":
         with tab1:
             if plan:
                 # LÓGICA DE ESTADO DE CUENTA DINÁMICO
-                # Calculamos cuánto ha pagado el cliente en total para distribuir en el plan
                 total_pagado_acumulado = sum(float(p.get('monto_pagado', 0)) for p in pagos)
                 progreso = total_pagado_acumulado
                 
@@ -616,7 +615,7 @@ elif menu == "Gestión de Cobros":
                     datos_plan.append({
                         "Cuota #": cuota['numero_cuota'],
                         "Fecha de Pago": cuota['fecha_esperada'],
-                        "Monto (RD$)": f"{monto_esperado:,.2f}", # Formato corregido a 2 decimales
+                        "Monto (RD$)": f"{monto_esperado:,.2f}",
                         "Estatus": estado_actual
                     })
                 
@@ -627,15 +626,12 @@ elif menu == "Gestión de Cobros":
         with tab2:
             if pagos:
                 df_pagos = pd.DataFrame(pagos)
-                # Formateo de fecha y montos
                 col_fecha = 'fecha_pago' if 'fecha_pago' in df_pagos.columns else 'created_at'
                 df_pagos['Fecha'] = pd.to_datetime(df_pagos[col_fecha]).dt.date
                 
-                # Formatear montos para visualización limpia
                 df_pagos['Abono Capital'] = df_pagos['monto_pagado'].apply(lambda x: f"RD$ {float(x):,.2f}")
                 df_pagos['Mora Pagada'] = df_pagos['mora_pagada'].apply(lambda x: f"RD$ {float(x):,.2f}")
                 
-                # Mostrar código de factura y datos reales
                 cols_finales = ['codigo_factura', 'Fecha', 'Abono Capital', 'Mora Pagada']
                 df_mostrar = df_pagos[[c for c in cols_finales if c in df_pagos.columns]]
                 df_mostrar.columns = ['Factura #', 'Fecha Cobro', 'Abono Capital', 'Mora Pagada']
@@ -656,7 +652,6 @@ elif menu == "Gestión de Cobros":
         import random
         import string
         
-        # Generar código de factura aleatorio simple (Ej: FAC-7291)
         codigo_random = f"FAC-{''.join(random.choices(string.digits, k=4))}"
         
         st.warning(f"¿Estás seguro de registrar este pago para **{item['aux_nombre']}**?")
@@ -672,7 +667,6 @@ elif menu == "Gestión de Cobros":
         with c_conf1:
             if st.button("✅ CONFIRMAR Y REGISTRAR", type="primary", use_container_width=True):
                 try:
-                    # 1. Registro en Pagos (Guardando Mora y Código de Factura en DB)
                     conn.table("pagos").insert({
                         "cuenta_id": str(item['id']),
                         "monto_pagado": float(monto),
@@ -681,13 +675,12 @@ elif menu == "Gestión de Cobros":
                         "user_id": str(u_id)
                     }).execute()
                     
-                    # 2. Actualización de Cuenta
                     n_bal = float(item.get('balance_pendiente', 0)) - monto
                     conn.table("cuentas").update({
                         "balance_pendiente": n_bal,
                         "estado": "Saldado" if n_bal <= 0 else "Activo",
                         "proximo_pago": str(fecha),
-                        "mora_acumulada": 0 # Se limpia la mora tras cobrarla
+                        "mora_acumulada": 0
                     }).eq("id", item['id']).execute()
                     
                     st.session_state[f"recibo_{item['id']}"] = {
@@ -740,21 +733,29 @@ elif menu == "Gestión de Cobros":
     # --- 4. CONTROLES SUPERIORES ---
     col_search, col_view = st.columns([2, 1])
     with col_search:
-        search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre...").lower()
+        search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre, Cédula o Teléfono...").lower()
     with col_view:
         modo_analisis = st.toggle("📈 Modo Análisis", help="Ver cuentas saldadas")
 
     # --- 5. CONSULTA DE DATOS ---
-    query = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("user_id", u_id)
+    # Traemos nombre, cedula y telefono para el filtrado multidimensional
+    query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula)").eq("user_id", u_id)
     query = query.lte("balance_pendiente", 0) if modo_analisis else query.gt("balance_pendiente", 0)
     res = query.execute()
     
     if res.data:
         datos_procesados = []
         for c in res.data:
-            nombre = c.get('clientes', {}).get('nombre', 'Cliente')
-            if search_term in nombre.lower():
-                # Lógica de texto de atraso personalizada
+            cliente_info = c.get('clientes', {})
+            nombre = cliente_info.get('nombre', 'Cliente')
+            cedula = cliente_info.get('cedula', '')
+            telefono = cliente_info.get('telefono', '')
+            
+            # Lógica de búsqueda: Nombre OR Cédula OR Teléfono
+            if (search_term in nombre.lower() or 
+                search_term in str(cedula).lower() or 
+                search_term in str(telefono).lower()):
+                
                 txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
                 if dias_num > 0:
                     txt_atraso = f"Han pasado {dias_num} días desde la fecha de pago acordada"
@@ -793,7 +794,6 @@ elif menu == "Gestión de Cobros":
                         
                 with c_inputs:
                     if not modo_analisis:
-                        # Cuota acordada desde la columna cuota_esperada de la DB
                         cuota_acordada = float(item.get('cuota_esperada', 0))
                         valor_default = min(cuota_acordada, m_pend) if cuota_acordada > 0 else m_pend
                         
