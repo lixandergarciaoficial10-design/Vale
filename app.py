@@ -1021,6 +1021,7 @@ elif menu == "👥 Todos mis Clientes":
         st.markdown("<h1 style='color: #1e293b; font-size: 1.6rem;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
 
 # 2. REGISTRO DESPLEGABLE
+# 2. REGISTRO DESPLEGABLE
         with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
             
             st.markdown("### 🛰️ Localización Satelital")
@@ -1032,6 +1033,7 @@ elif menu == "👥 Todos mis Clientes":
                 col_gps, col_map = st.columns([1, 1.5])
                 
                 with col_gps:
+                    # MANTENEMOS TU MOTOR ORIGINAL V6 FINAL
                     pos = streamlit_js_eval(
                         js_expressions="""
                         new Promise((resolve) => {
@@ -1058,12 +1060,17 @@ elif menu == "👥 Todos mis Clientes":
                         elif pos and pos.startswith("ERROR"):
                             st.error("🚫 Error de señal. Revisa tus permisos de GPS.")
                     
-                    st.session_state.reg_gps = st.text_input("📍 Coordenadas (Ajuste manual)", 
-                                                            value=st.session_state.reg_gps,
-                                                            placeholder="Lat, Lon")
+                    # Vinculación directa al session_state
+                    st.text_input("📍 Coordenadas (Ajuste manual)", 
+                                  value=st.session_state.get('reg_gps', ''),
+                                  placeholder="Lat, Lon",
+                                  key="manual_gps_input")
+                    # Sincronizamos la key manual con el reg_gps si el usuario escribe
+                    if st.session_state.manual_gps_input:
+                        st.session_state.reg_gps = st.session_state.manual_gps_input
 
                 with col_map:
-                    if st.session_state.reg_gps and "," in st.session_state.reg_gps:
+                    if st.session_state.get('reg_gps') and "," in st.session_state.reg_gps:
                         try:
                             lat, lon = map(float, st.session_state.reg_gps.split(","))
                             m = folium.Map(location=[lat, lon], zoom_start=19)
@@ -1077,11 +1084,12 @@ elif menu == "👥 Todos mis Clientes":
             st.markdown("### 📝 Datos del Cliente")
             c1, c2 = st.columns(2)
             with c1:
-                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="f_n")
-                st.session_state.reg_ced = st.text_input("Cédula / ID *", value=st.session_state.reg_ced, key="f_c")
+                # Usamos directamente el session_state para que la limpieza sea efectiva
+                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.get('reg_nombre', ''), key="f_n")
+                st.session_state.reg_ced = st.text_input("Cédula / ID *", value=st.session_state.get('reg_ced', ''), key="f_c")
             with c2:
-                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="f_t")
-                st.session_state.reg_dir = st.text_area("Referencia (Color de casa, etc.)", value=st.session_state.reg_dir, height=68, key="f_d")
+                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.get('reg_tel', ''), key="f_t")
+                st.session_state.reg_dir = st.text_area("Referencia (Color de casa, etc.)", value=st.session_state.get('reg_dir', ''), height=68, key="f_d")
 
             col_b1, col_b2 = st.columns(2)
             
@@ -1092,57 +1100,47 @@ elif menu == "👥 Todos mis Clientes":
                     st.rerun()
 
             with col_b2:
-                # Lógica Anti-Duplicados: Deshabilitar botón si ya se está procesando
-                if st.session_state.get('procesando_guardado', False):
-                    st.button("⏳ PROCESANDO...", use_container_width=True, disabled=True)
-                else:
-                    if st.button("🚀 GUARDAR EN CARTERA", use_container_width=True, type="primary"):
-                        if not st.session_state.reg_nombre or not st.session_state.reg_ced:
-                            st.error("❌ El **Nombre** y la **Cédula** son obligatorios.")
-                        else:
-                            st.session_state.procesando_guardado = True # Bloqueo de seguridad
-                            
-                            # Manejo de GPS
-                            lat_final, lon_final = 0.0, 0.0
-                            if st.session_state.reg_gps:
-                                try:
-                                    lat_v, lon_v = st.session_state.reg_gps.split(",")
-                                    lat_final, lon_final = float(lat_v), float(lon_v)
-                                except: pass
-                            else:
-                                st.warning("⚠️ Guardando sin ubicación exacta.")
-
+                # Sistema de Guardado Corregido
+                btn_label = "🚀 GUARDAR EN CARTERA"
+                if st.button(btn_label, use_container_width=True, type="primary"):
+                    if not st.session_state.reg_nombre or not st.session_state.reg_ced:
+                        st.error("❌ El **Nombre** y la **Cédula** son obligatorios.")
+                    else:
+                        # Procesar GPS
+                        lat_final, lon_final = 0.0, 0.0
+                        if st.session_state.get('reg_gps'):
                             try:
-                                # Ejecución
-                                conn.table("clientes").insert({
-                                    "nombre": st.session_state.reg_nombre,
-                                    "telefono": st.session_state.reg_tel,
-                                    "cedula": st.session_state.reg_ced,
-                                    "direccion": st.session_state.reg_dir,
-                                    "latitud": lat_final,
-                                    "longitud": lon_final,
-                                    "user_id": u_id,
-                                    "fecha_registro": str(hoy_dt)
-                                }).execute()
-                                
-                                # Mensaje Visual de Éxito
-                                st.balloons() # Opcional: Feedback festivo rápido
-                                msg_exito = st.success(f"✅ ¡Cliente **{st.session_state.reg_nombre}** guardado correctamente!")
-                                
-                                # Limpiar campos antes del rerun
-                                for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: 
-                                    st.session_state[k] = ""
-                                
-                                st.session_state.procesando_guardado = False # Liberar bloqueo
-                                
-                                # Delay controlado de 2.5 segundos para que el usuario vea el mensaje
-                                time.sleep(2.5)
-                                msg_exito.empty() # Limpiar mensaje visualmente
-                                st.rerun()
+                                lat_v, lon_v = st.session_state.reg_gps.split(",")
+                                lat_final, lon_final = float(lat_v), float(lon_v)
+                            except: pass
 
-                            except Exception as e:
-                                st.session_state.procesando_guardado = False
-                                st.error(f"Error al guardar: {e}")
+                        try:
+                            # INSERT EN SUPABASE
+                            conn.table("clientes").insert({
+                                "nombre": st.session_state.reg_nombre,
+                                "telefono": st.session_state.reg_tel,
+                                "cedula": st.session_state.reg_ced,
+                                "direccion": st.session_state.reg_dir,
+                                "latitud": str(lat_final),
+                                "longitud": str(lon_final),
+                                "user_id": u_id,
+                                "fecha_registro": str(hoy_dt)
+                            }).execute()
+                            
+                            # FEEDBACK VISUAL INMEDIATO
+                            st.toast(f"✅ ¡{st.session_state.reg_nombre} guardado!", icon="🚀")
+                            st.success("✅ Cliente guardado correctamente. Limpiando formulario...")
+                            
+                            # LIMPIEZA DE CAMPOS
+                            for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
+                                st.session_state[k] = ""
+                            
+                            # ESPERA PARA QUE VEA EL MENSAJE Y RECARGA
+                            time.sleep(2)
+                            st.rerun()
+
+                        except Exception as e:
+                            st.error(f"Error técnico: {e}")
     
         # --- 4. CENTRO DE CONTROL DE CLIENTES (Lógica Avanzada y Diseño Premium) ---
     
