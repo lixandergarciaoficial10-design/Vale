@@ -882,7 +882,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                         dia_input = st.selectbox("Día de cobro fijo", list(dias_semana.keys()), index=0)
                         dia_fijo = dias_semana[dia_input]
                     else:
-                        dia_fijo = st.number_input("Día del mes (0 = Igual a hoy)", min_value=0, max_value=31, value=0)
+                        dia_fijo = st.number_input("Día del mes para cobrar (0 = Igual a hoy)", min_value=0, max_value=31, value=0)
                 
                 with col3:
                     cuotas_n = st.number_input("Cantidad de Cuotas", min_value=1, value=4)
