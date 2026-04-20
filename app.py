@@ -605,12 +605,21 @@ elif menu == "Gestión de Cobros":
         with tab2:
             if pagos:
                 df_pagos = pd.DataFrame(pagos)
-                df_pagos['fecha_real'] = pd.to_datetime(df_pagos['created_at']).dt.date
-                df_pagos = df_pagos[['fecha_real', 'monto_pagado', 'mora_pagada']]
-                df_pagos.columns = ['Fecha Cobro', 'Abono Capital', 'Mora Pagada']
-                st.table(df_pagos)
+                # CORRECCIÓN DE COLUMNA: Buscamos 'fecha_pago' que es la real en tu DB
+                col_fecha = 'fecha_pago' if 'fecha_pago' in df_pagos.columns else None
                 
-                total_pagado = sum(p['monto_pagado'] for p in pagos)
+                if col_fecha:
+                    df_pagos['fecha_real'] = pd.to_datetime(df_pagos[col_fecha]).dt.date
+                else:
+                    df_pagos['fecha_real'] = "N/A"
+                
+                # Seleccionamos solo las columnas existentes para evitar KeyError
+                cols_finales = ['fecha_real', 'monto_pagado', 'mora_pagada']
+                df_mostrar = df_pagos[[c for c in cols_finales if c in df_pagos.columns]]
+                df_mostrar.columns = ['Fecha Cobro', 'Abono Capital', 'Mora Pagada']
+                st.table(df_mostrar)
+                
+                total_pagado = sum(float(p.get('monto_pagado', 0)) for p in pagos)
                 st.metric("Total Capital Recibido", f"RD$ {total_pagado:,.2f}")
             else:
                 st.info("Aún no se han registrado pagos reales.")
@@ -752,7 +761,7 @@ elif menu == "Gestión de Cobros":
                         cuota_base = float(item.get('cuota_esperada', 0)) or (float(item.get('monto_inicial', 0)) * 0.1)
                         valor_default = min(cuota_base, m_pend)
                         
-                        st.caption(f"Cuota Sugerida: RD$ {cuota_base:,.2f}")
+                        st.caption(f"Cuota acordada: RD$ {cuota_base:,.2f}")
                         abono_input = st.number_input("Monto", min_value=0.0, value=float(valor_default), key=f"val_{token}", label_visibility="collapsed")
                         f_prox_input = st.date_input("Próxima", key=f"date_{token}", label_visibility="collapsed")
                     else:
