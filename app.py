@@ -852,7 +852,6 @@ elif menu == "Nueva Cuenta por Cobrar":
                                  file_name=f"Factura_{st.session_state.last_name}.pdf", 
                                  use_container_width=True)
             with c2:
-                # El link de WhatsApp ya lleva el mensaje profesional
                 st.markdown(f'''<a href="{st.session_state.wa_link}" target="_blank">
                     <button style="width:100%; background:#25D366; color:white; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold; height:45px;">
                         💬 Enviar por WhatsApp
@@ -863,7 +862,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                         if k in st.session_state: del st.session_state[k]
                     st.rerun()
     else:
-        # FORMULARIO ORIGINAL (Dentro del contenedor vacío)
+        # FORMULARIO ORIGINAL
         with contenedor_formulario.container():
             if res_cli.data:
                 col1, col2, col3 = st.columns(3)
@@ -889,9 +888,9 @@ elif menu == "Nueva Cuenta por Cobrar":
 
                 total_esp = capital * (1 + (porcentaje / 100))
                 ganancia = total_esp - capital
+                # Este monto_c es el que guardaremos como cuota acordada
                 monto_c = total_esp / cuotas_n if cuotas_n > 0 else 0
 
-                # Métricas de ganancia real
                 st.markdown("#### 📊 Proyección de Rentabilidad")
                 m1, m2, m3 = st.columns(3)
                 m1.metric("Inversión", f"RD$ {capital:,.2f}")
@@ -908,17 +907,20 @@ elif menu == "Nueva Cuenta por Cobrar":
                 total_f = df_e["Monto Cuota (RD$)"].sum()
 
                 if st.button("🚀 ACTIVAR PRÉSTAMO", use_container_width=True, disabled=not (capital > 0 and continuar)):
-                    # 1. Guardar Cuenta Principal
+                    # 1. Guardar Cuenta Principal con la Cuota y Frecuencia
                     res_c = conn.table("cuentas").insert({
                         "cliente_id": cliente_obj['id'], 
                         "monto_inicial": total_f,
                         "balance_pendiente": total_f, 
                         "user_id": u_id,
-                        "estado": "Al Día", 
-                        "proximo_pago": str(df_e.iloc[0]["Fecha"])
+                        "estado": "Activo", 
+                        "proximo_pago": str(df_e.iloc[0]["Fecha"]),
+                        # AQUÍ GUARDAMOS LOS DATOS QUE FALTABAN:
+                        "cuota_esperada": float(monto_c),
+                        "frecuencia_pago": freq_sel
                     }).execute()
 
-                    # --- LÓGICA DE PERSISTENCIA DEL PLAN (NUEVO) ---
+                    # --- LÓGICA DE PERSISTENCIA DEL PLAN ---
                     if res_c.data:
                         nueva_cuenta_id = res_c.data[0]['id']
                         filas_plan = []
@@ -933,14 +935,13 @@ elif menu == "Nueva Cuenta por Cobrar":
                             })
                         conn.table("plan_cuotas").insert(filas_plan).execute()
 
-                    # 2. PDF y WhatsApp (Tu código original intacto)
+                    # 2. PDF y WhatsApp
                     pdf_out = generar_pdf_contrato_legal(
                         cliente_obj['nombre'], cliente_obj.get('cedula', 'S/N'), 
                         float(capital), float(total_f), df_e, freq_sel,
                         st.session_state.get("mis_clausulas", "Sujeto a términos.")
                     )
 
-                    # Guardar info en estado y limpiar pantalla
                     st.session_state.pdf_ready = pdf_out
                     st.session_state.last_name = cliente_obj['nombre']
                     st.session_state.prestamo_exitoso = True
@@ -953,6 +954,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                              f"📅 *Primer pago:* {df_e.iloc[0]['Fecha']}\n\n" \
                              "Te envío el contrato legal adjunto."
                     
+                    import requests
                     st.session_state.wa_link = f"https://wa.me/{cliente_obj.get('telefono', '')}?text={requests.utils.quote(wa_msg)}"
                     st.rerun()
                     
