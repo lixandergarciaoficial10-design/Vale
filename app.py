@@ -876,7 +876,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                     freq_sel = st.selectbox("Frecuencia de Pago", ["Semanal", "Quincenal", "Mensual"], index=0)
                     
                     # --- DÍA FIJO ---
-                    dias_semana = {"Cada 7 días)": None, "Lunes": MO, "Martes": TU, "Miércoles": WE, "Jueves": TH, "Viernes": FR, "Sábado": SA, "Domingo": SU}
+                    dias_semana = {"Cada 7 día": None, "Lunes": MO, "Martes": TU, "Miércoles": WE, "Jueves": TH, "Viernes": FR, "Sábado": SA, "Domingo": SU}
                     
                     if freq_sel == "Semanal":
                         dia_input = st.selectbox("Día de cobro fijo", list(dias_semana.keys()), index=0)
