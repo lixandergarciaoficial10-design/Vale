@@ -1020,20 +1020,20 @@ elif menu == "👥 Todos mis Clientes":
 
         st.markdown("<h1 style='color: #1e293b; font-size: 1.6rem;'>Gestión de Cartera</h1>", unsafe_allow_html=True)
 
-# 2. REGISTRO DESPLEGABLE
-# 2. REGISTRO DESPLEGABLE
+        # 2. REGISTRO DESPLEGABLE
         with st.expander("✨ Registrar Nuevo Cliente", expanded=False):
             
             st.markdown("### 🛰️ Localización Satelital")
             
+            # NOTA CON SIGNO DE PREGUNTA (HELP)
             st.caption("⚠️ **Nota sobre precisión:** El GPS puede tener un margen de error de 5 a 50 metros.", 
-                       help="Consejo para mayor precisión: Cuando estés en el terreno, asegúrate de que el celular tenga el Wi-Fi encendido (aunque no estés conectado a una red), ya que CobroYa utiliza las redes cercanas para triangular mejor la posición que el puro satélite. Te recomendamos estar al aire libre")
+                       help="Consejo para mayor precisión: Cuando estés en el terreno, asegúrate de que el celular tenga el Wi-Fi encendido (aunque no estés conectado a una red), ya que Google utiliza las redes cercanas para triangular mejor la posición que el puro satélite.")
             
             with st.container(border=True):
                 col_gps, col_map = st.columns([1, 1.5])
                 
                 with col_gps:
-                    # MANTENEMOS TU MOTOR ORIGINAL V6 FINAL
+                    # Motor de captura con máxima precisión
                     pos = streamlit_js_eval(
                         js_expressions="""
                         new Promise((resolve) => {
@@ -1060,37 +1060,33 @@ elif menu == "👥 Todos mis Clientes":
                         elif pos and pos.startswith("ERROR"):
                             st.error("🚫 Error de señal. Revisa tus permisos de GPS.")
                     
-                    # Vinculación directa al session_state
-                    st.text_input("📍 Coordenadas (Ajuste manual)", 
-                                  value=st.session_state.get('reg_gps', ''),
-                                  placeholder="Lat, Lon",
-                                  key="manual_gps_input")
-                    # Sincronizamos la key manual con el reg_gps si el usuario escribe
-                    if st.session_state.manual_gps_input:
-                        st.session_state.reg_gps = st.session_state.manual_gps_input
+                    st.session_state.reg_gps = st.text_input("📍 Coordenadas (Ajuste manual)", 
+                                                            value=st.session_state.reg_gps,
+                                                            placeholder="Lat, Lon")
 
                 with col_map:
-                    if st.session_state.get('reg_gps') and "," in st.session_state.reg_gps:
+                    if st.session_state.reg_gps and "," in st.session_state.reg_gps:
                         try:
-                            lat, lon = map(float, st.session_state.reg_gps.split(","))
+                            lat_str, lon_str = st.session_state.reg_gps.split(",")
+                            lat, lon = float(lat_str.strip()), float(lon_str.strip())
                             m = folium.Map(location=[lat, lon], zoom_start=19)
                             folium.Marker([lat, lon], icon=folium.Icon(color='red', icon='home')).add_to(m)
                             st_folium(m, height=250, use_container_width=True, key=f"map_p_{lat}_{lon}")
                         except:
-                            st.error("Formato inválido.")
+                            st.error("Formato de coordenadas inválido.")
                     else:
                         st.info("Captura ubicación para ver el mapa.")
 
             st.markdown("### 📝 Datos del Cliente")
             c1, c2 = st.columns(2)
             with c1:
-                # Usamos directamente el session_state para que la limpieza sea efectiva
-                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.get('reg_nombre', ''), key="f_n")
-                st.session_state.reg_ced = st.text_input("Cédula / ID *", value=st.session_state.get('reg_ced', ''), key="f_c")
+                st.session_state.reg_nombre = st.text_input("Nombre Completo *", value=st.session_state.reg_nombre, key="f_n")
+                st.session_state.reg_ced = st.text_input("Cédula / ID *", value=st.session_state.reg_ced, key="f_c")
             with c2:
-                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.get('reg_tel', ''), key="f_t")
-                st.session_state.reg_dir = st.text_area("Referencia (Color de casa, etc.)", value=st.session_state.get('reg_dir', ''), height=68, key="f_d")
+                st.session_state.reg_tel = st.text_input("WhatsApp / Celular *", value=st.session_state.reg_tel, key="f_t")
+                st.session_state.reg_dir = st.text_area("Referencia (Color de casa, etc.)", value=st.session_state.reg_dir, height=68, key="f_d")
 
+            # --- BOTONES DE ACCIÓN (LIMPIAR Y GUARDAR) ---
             col_b1, col_b2 = st.columns(2)
             
             with col_b1:
@@ -1100,52 +1096,70 @@ elif menu == "👥 Todos mis Clientes":
                     st.rerun()
 
             with col_b2:
-                # Sistema de Guardado Corregido
-                btn_label = "🚀 GUARDAR EN CARTERA"
-                if st.button(btn_label, use_container_width=True, type="primary"):
-                    if not st.session_state.reg_nombre or not st.session_state.reg_ced:
-                        st.error("❌ El **Nombre** y la **Cédula** son obligatorios.")
-                    else:
-                        # Procesar GPS
-                        lat_final, lon_final = 0.0, 0.0
-                        if st.session_state.get('reg_gps'):
-                            try:
-                                lat_v, lon_v = st.session_state.reg_gps.split(",")
-                                lat_final, lon_final = float(lat_v), float(lon_v)
-                            except: pass
+                btn_guardar = st.button("🚀 GUARDAR EN CARTERA", use_container_width=True, type="primary")
 
-                        try:
-                            # INSERT EN SUPABASE
-                            conn.table("clientes").insert({
+            if btn_guardar:
+                # 1. BLOQUEO TOTAL: Solo Nombre y Cédula
+                if not st.session_state.reg_nombre or not st.session_state.reg_ced:
+                    st.error("❌ El **Nombre** y la **Cédula** son obligatorios.")
+                
+                else:
+                    # --- PREVENCIÓN DE DUPLICADOS ---
+                    try:
+                        # Buscamos si existe la cédula O el nombre con el mismo teléfono
+                        check_ced = conn.table("clientes").select("id").eq("cedula", st.session_state.reg_ced).execute()
+                        check_nom = conn.table("clientes").select("id").eq("nombre", st.session_state.reg_nombre).eq("telefono", st.session_state.reg_tel).execute()
+                        
+                        if check_ced.data or check_nom.data:
+                            st.warning("⚠️ Este cliente ya está registrado en tu sistema (Cédula o Nombre/Tel coinciden).")
+                        else:
+                            # --- MANEJO DE GPS ROBUSTO ---
+                            lat_final, lon_final = 0.0, 0.0
+                            gps_warning = False
+                            
+                            if not st.session_state.reg_gps:
+                                gps_warning = True
+                            else:
+                                try:
+                                    lat_v, lon_v = st.session_state.reg_gps.split(",")
+                                    lat_final, lon_final = float(lat_v.strip()), float(lon_v.strip())
+                                except:
+                                    gps_warning = True # Si el formato es malo, se guarda como 0.0 sin romper
+
+                            # --- EJECUCIÓN DEL GUARDADO ---
+                            res = conn.table("clientes").insert({
                                 "nombre": st.session_state.reg_nombre,
                                 "telefono": st.session_state.reg_tel,
                                 "cedula": st.session_state.reg_ced,
                                 "direccion": st.session_state.reg_dir,
-                                "latitud": str(lat_final),
-                                "longitud": str(lon_final),
+                                "latitud": lat_final,
+                                "longitud": lon_final,
                                 "user_id": u_id,
-                                "fecha_registro": str(hoy_dt)
+                                "fecha_registro": hoy_dt.isoformat() # ISO para orden consistente
                             }).execute()
                             
-                            # FEEDBACK VISUAL INMEDIATO
-                            st.toast(f"✅ ¡{st.session_state.reg_nombre} guardado!", icon="🚀")
-                            st.success("✅ Cliente guardado correctamente. Limpiando formulario...")
+                            # MENSAJE DE ÉXITO VISIBLE
+                            if gps_warning:
+                                st.success(f"✅ ¡{st.session_state.reg_nombre} guardado! (Sin ubicación exacta)")
+                            else:
+                                st.success(f"✅ ¡{st.session_state.reg_nombre} registrado con éxito!")
                             
-                            # LIMPIEZA DE CAMPOS
-                            for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]:
+                            # LIMPIEZA PERFECTA DE SESIÓN
+                            for k in ["reg_gps", "reg_nombre", "reg_tel", "reg_ced", "reg_dir"]: 
                                 st.session_state[k] = ""
                             
-                            # ESPERA PARA QUE VEA EL MENSAJE Y RECARGA
-                            time.sleep(2)
+                            time.sleep(2.5) # Duración óptima del mensaje
                             st.rerun()
 
-                        except Exception as e:
-                            st.error(f"Error técnico: {e}")
+                    except Exception as e:
+                        st.error(f"Error en el proceso: {e}")
+
+        st.divider()
     
-        # --- 4. CENTRO DE CONTROL DE CLIENTES (Lógica Avanzada y Diseño Premium) ---
+# --- 4. CENTRO DE CONTROL DE CLIENTES (Lógica Avanzada y Diseño Premium) ---
     
-        # 1. CARGA DE DATOS Y ESTADOS (Usando tus columnas reales del CSV)
-        res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
+        # 1. CARGA DE DATOS Y ESTADOS
+        res_cl = conn.table("clientes").select("*").eq("user_id", u_id).execute()
         clientes_db = res_cl.data if res_cl.data else []
         res_cuentas = conn.table("cuentas").select("*").execute()
         cuentas_db = res_cuentas.data if res_cuentas.data else []
@@ -1154,142 +1168,262 @@ elif menu == "👥 Todos mis Clientes":
 
         hoy = datetime.now().date()
 
+        # --- FUNCIÓN LOCAL DE SCORE Y ESTADO ---
+        def calcular_info_cliente(cliente_id):
+            ctas = [ct for ct in cuentas_db if ct['cliente_id'] == cliente_id]
+            deuda_activa = sum(float(ct.get('balance_pendiente', 0)) for ct in ctas)
+            max_atraso = 0
+            cant_atrasos = 0
+            es_pagado = len(ctas) > 0 and deuda_activa <= 0
+
+            for ct in ctas:
+                if ct.get('proximo_pago') and float(ct.get('balance_pendiente', 0)) > 0:
+                    fecha_p = pd.to_datetime(ct['proximo_pago']).date()
+                    if hoy > fecha_p:
+                        dias = (hoy - fecha_p).days
+                        max_atraso = max(max_atraso, dias)
+                        cant_atrasos += 1
+            
+            # Algoritmo de Prioridad
+            score = (max_atraso * 3) + (cant_atrasos * 10) + (deuda_activa / 5000)
+            return score, max_atraso, deuda_activa, es_pagado
+
         # --- BARRA DE COMANDO: BUSCADOR + PILLS ---
         col_search, col_filter = st.columns([1.2, 2])
         with col_search:
             search_query = st.text_input("🔍", placeholder="Buscar cliente...", label_visibility="collapsed")
         
         with col_filter:
-            opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟡 Próximos/Hoy"]
+            opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟡 Próximos/Hoy", "⚪ Saldados"]
             sel_filtro = st.pills("Filtro Inteligente:", opciones, selection_mode="single", default="🌍 Todos", label_visibility="collapsed")
 
-        # --- LÓGICA DE FILTRADO "GENIO" ---
+        # --- LÓGICA DE FILTRADO Y ORDENACIÓN ---
         clientes_f = []
         for c in clientes_db:
-            # Buscamos la cuenta principal (o la más reciente)
-            cuenta = next((d for d in cuentas_db if d['cliente_id'] == c['id']), None)
+            score, atraso, balance, saldado = calcular_info_cliente(c['id'])
+            c['score_prio'] = score # Inyectamos score para ordenar
             
-            # Si no hay cuenta, solo aparece en "Todos"
+            cuenta = next((d for d in cuentas_db if d['cliente_id'] == c['id']), None)
             match_estado = False
-            if sel_filtro == "🌍 Todos":
-                match_estado = True
+            
+            if sel_filtro == "🌍 Todos": match_estado = True
+            elif sel_filtro == "⚪ Saldados" and saldado: match_estado = True
             elif cuenta:
                 prox_pago = pd.to_datetime(cuenta.get('proximo_pago')).date() if cuenta.get('proximo_pago') else None
-                balance = cuenta.get('balance_pendiente', 0)
-                
-                # Atrasado: Si hoy es después de la fecha y tiene deuda
-                if sel_filtro == "🔴 Atrasados":
-                    if prox_pago and hoy > prox_pago and balance > 0:
-                        match_estado = True
-                
-                # Al Día: Balance 0 O la fecha es futura y no hay retrasos previos
-                elif sel_filtro == "🟢 Al Día":
-                    if balance <= 0 or (prox_pago and prox_pago > hoy):
-                        # Nota: Si estaba atrasado no entra aquí
-                        if not (prox_pago and hoy > prox_pago and balance > 0):
-                            match_estado = True
-                
-                # Próximos/Hoy: Falta 1 día o es hoy mismo
-                elif sel_filtro == "🟡 Próximos/Hoy":
-                    if prox_pago:
-                        dias_dif = (prox_pago - hoy).days
-                        if dias_dif == 0 or dias_dif == 1:
-                            match_estado = True
+                if sel_filtro == "🔴 Atrasados" and prox_pago and hoy > prox_pago and balance > 0: match_estado = True
+                elif sel_filtro == "🟢 Al Día" and (balance <= 0 or (prox_pago and prox_pago > hoy)):
+                    if not (prox_pago and hoy > prox_pago and balance > 0): match_estado = True
+                elif sel_filtro == "🟡 Próximos/Hoy" and prox_pago:
+                    dias_dif = (prox_pago - hoy).days
+                    if 0 <= dias_dif <= 1: match_estado = True
 
-            # Match de búsqueda por texto
             match_search = not search_query or (search_query.lower() in c['nombre'].lower() or search_query in str(c.get('cedula', '')))
             
             if match_search and match_estado:
                 clientes_f.append(c)
 
+        # ORDEN INTELIGENTE POR PRIORIDAD DESCENDENTE
+        clientes_f = sorted(clientes_f, key=lambda x: x.get('score_prio', 0), reverse=True)
+
         # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
-@st.dialog("📄 Expediente de Facturación")
-def modal_detalle(cliente, cuentas, pagos):
-    # --- CABECERA ---
-    col_icon, col_data = st.columns([1, 4])
-    with col_icon:
-        st.markdown("<h1 style='text-align:center;'>👤</h1>", unsafe_allow_html=True)
-    with col_data:
-        st.markdown(f"### {cliente['nombre']}")
-        st.caption(f"🆔 Cédula: {cliente.get('cedula', 'N/A')} | 📞 {cliente.get('telefono', 'N/A')}")
+        @st.dialog("📄 Expediente de Facturación")
+        def modal_detalle(cliente, cuentas, pagos):
+            # CSS para Deuda Total Responsiva
+            st.markdown("""
+                <style>
+                [data-testid="stMetricValue"] {
+                    font-size: clamp(1.5rem, 5vw, 2.2rem) !important;
+                    white-space: normal !important;
+                    word-wrap: break-word !important;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+
+            score, dias_atraso, total_deuda, saldado = calcular_info_cliente(cliente['id'])
+            
+            col_icon, col_data = st.columns([1, 4])
+            with col_icon: st.markdown("<h1 style='text-align:center;'>👤</h1>", unsafe_allow_html=True)
+            with col_data:
+                st.markdown(f"### {cliente['nombre']}")
+                st.caption(f"🆔 {cliente.get('cedula', 'N/A')} | Score Prioridad: **{int(score)} pts**")
+            
+            # Alertas Inteligentes
+            if dias_atraso > 0: st.error(f"🔴 Cliente tiene {dias_atraso} días de atraso acumulados.")
+            elif total_deuda > 0: st.warning("⚠️ Debe pagar hoy o próximamente.")
+            else: st.success("🟢 Cliente al día / Sin deuda activa.")
+
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Deuda Total", f"RD$ {total_deuda:,.2f}")
+            c2.metric("Cuentas", len([c for c in cuentas if c['cliente_id'] == cliente['id']]))
+            c3.metric("Atrasos", 1 if dias_atraso > 0 else 0, delta_color="inverse")
+
+            st.divider()
+
+            with st.expander("🔍 Ver desglose de abonos y movimientos", expanded=True):
+                mis_cuentas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
+                
+                if not mis_cuentas:
+                    st.info("No hay cuentas registradas.")
+                else:
+                    for cta in mis_cuentas:
+                        st.markdown(f"**Cuenta #{cta['id']}** | Inicial: RD$ {cta.get('monto_prestado', 0):,.2f}")
+                        
+                        # Tabla de Pagos
+                        sus_pagos = [p for p in pagos if str(p['cuenta_id']) == str(cta['id'])]
+                        if sus_pagos:
+                            df_p = pd.DataFrame(sus_pagos)
+                            # Formateo visual
+                            for p in sus_pagos:
+                                with st.container(border=True):
+                                    colp1, colp2, colp3 = st.columns([2, 2, 1.5])
+                                    colp1.write(f"📅 {p['fecha_pago']}")
+                                    colp2.write(f"💰 RD$ {float(p['monto_pagado']):,.2f}")
+                                    
+                                    with colp3:
+                                        pop = st.popover("⚙️")
+                                        # --- EDITAR ABONO ---
+                                        new_monto = pop.number_input("Nuevo Monto", value=float(p['monto_pagado']), key=f"ed_amt_{p['id']}")
+                                        if pop.button("Confirmar Edición", key=f"btn_ed_{p['id']}"):
+                                            diff = float(p['monto_pagado']) - new_monto
+                                            new_bal = float(cta['balance_pendiente']) + diff
+                                            conn.table("pagos").update({"monto_pagado": new_monto}).eq("id", p['id']).execute()
+                                            conn.table("cuentas").update({"balance_pendiente": new_bal}).eq("id", cta['id']).execute()
+                                            st.toast("Abono actualizado")
+                                            st.rerun()
+                                        
+                                        # --- ELIMINAR ABONO (TRIPLE CONFIRMACIÓN) ---
+                                        if pop.button("🗑️ Eliminar", key=f"del_p_{p['id']}", type="primary"):
+                                            st.session_state[f"confirm_del_{p['id']}"] = True
+                                        
+                                        if st.session_state.get(f"confirm_del_{p['id']}"):
+                                            st.warning("¿Seguro?")
+                                            if st.button("SÍ, BORRAR", key=f"f_del_{p['id']}"):
+                                                revert_bal = float(cta['balance_pendiente']) + float(p['monto_pagado'])
+                                                conn.table("pagos").delete().eq("id", p['id']).execute()
+                                                conn.table("cuentas").update({"balance_pendiente": revert_bal}).eq("id", cta['id']).execute()
+                                                st.session_state[f"confirm_del_{p['id']}"] = False
+                                                st.rerun()
+                        else:
+                            st.caption("Sin abonos registrados.")
+                        st.divider()
     
-    # --- INDICADORES RÁPIDOS ---
-    mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
-    total_deuda = sum(float(ct.get('balance_pendiente', 0)) for ct in mis_ctas)
-    
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Deuda Total", f"RD$ {total_deuda:,.2f}")
-    c2.metric("Cuentas Activas", len([c for c in mis_ctas if float(c.get('balance_pendiente', 0)) > 0]))
-    
-    # Cálculo de salud financiera
-    p_vencidos = 0
+# --- LISTADO DE CUENTAS DETALLADO ---
+# Consultamos las cuentas y pagos del cliente específico antes de mostrar el historial
+res_ctas = conn.table("cuentas").select("*").eq("cliente_id", cl['id']).execute()
+mis_ctas = res_ctas.data if res_ctas.data else []
+
+# Obtenemos todos los pagos para cruzarlos con las cuentas
+res_pagos_all = conn.table("pagos").select("*").execute()
+todos_los_pagos = res_pagos_all.data if res_pagos_all.data else []
+
+st.markdown("#### 📑 Historial de Deudas y Abonos")
+
+if not mis_ctas:
+    st.info("Este cliente no tiene registros financieros.")
+else:
     for ct in mis_ctas:
-        if ct.get('proximo_pago') and pd.to_datetime(ct['proximo_pago']).date() < hoy_dt and float(ct.get('balance_pendiente', 0)) > 0:
-            p_vencidos += 1
-    c3.metric("Atrasos", p_vencidos, delta_color="inverse")
+        with st.container(border=True):
+            # Encabezado de la factura con Badge de estado
+            f_pago = pd.to_datetime(ct.get('proximo_pago')).date() if ct.get('proximo_pago') else None
+            balance = float(ct.get('balance_pendiente', 0))
+            # 'hoy_dt' debe estar definido arriba en tu app, usualmente: hoy_dt = datetime.now().date()
+            hoy_dt = datetime.now().date() 
+            atrasada = f_pago and f_pago < hoy_dt and balance > 0
+            
+            est_color = "#ef4444" if atrasada else "#22c55e"
+            est_txt = "⚠️ ATRASADA" if atrasada else "✅ AL DÍA"
+            if balance <= 0:
+                est_txt = "🏁 PAGADA"
+                est_color = "#64748b"
 
-    st.divider()
-    
-    # --- LISTADO DE CUENTAS DETALLADO ---
-    st.markdown("#### 📑 Historial de Deudas y Abonos")
-    
-    if not mis_ctas:
-        st.info("Este cliente no tiene registros financieros.")
-    else:
-        for ct in mis_ctas:
-            with st.container(border=True):
-                # Encabezado de la factura con Badge de estado
-                f_pago = pd.to_datetime(ct.get('proximo_pago')).date() if ct.get('proximo_pago') else None
-                balance = float(ct.get('balance_pendiente', 0))
-                atrasada = f_pago and f_pago < hoy_dt and balance > 0
-                
-                est_color = "#ef4444" if atrasada else "#22c55e"
-                est_txt = "⚠️ ATRASADA" if atrasada else "✅ AL DÍA"
-                if balance <= 0:
-                    est_txt = "🏁 PAGADA"
-                    est_color = "#64748b"
+            st.markdown(f"""
+                <div style='display:flex; justify-content:space-between; align-items:center;'>
+                    <b>Factura: #{str(ct['id'])[:6].upper()}</b>
+                    <span style='background:{est_color}; color:white; padding:2px 8px; border-radius:10px; font-size:11px;'>{est_txt}</span>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            col_info, col_monto = st.columns([2, 1])
+            with col_info:
+                st.write(f"📅 **Vence:** {f_pago if f_pago else 'N/A'}")
+                if atrasada:
+                    dias = (hoy_dt - f_pago).days
+                    st.markdown(f"<span style='color:#ef4444; font-size:12px;'>Mora de {dias} días</span>", unsafe_allow_html=True)
+            
+            with col_monto:
+                st.markdown(f"<h4 style='margin:0; text-align:right;'>RD$ {balance:,.2f}</h4>", unsafe_allow_html=True)
 
-                st.markdown(f"""
-                    <div style='display:flex; justify-content:space-between; align-items:center;'>
-                        <b>Factura: #{str(ct['id'])[:6].upper()}</b>
-                        <span style='background:{est_color}; color:white; padding:2px 8px; border-radius:10px; font-size:11px;'>{est_txt}</span>
-                    </div>
-                """, unsafe_allow_html=True)
+            # --- DESPLEGABLE DE ABONOS ---
+            with st.expander("🔍 Ver desglose de abonos y movimientos"):
+                # Filtramos los pagos que pertenecen a ESTA cuenta específica
+                mis_p = [p for p in todos_los_pagos if str(p.get('cuenta_id')) == str(ct['id'])]
                 
-                col_info, col_monto = st.columns([2, 1])
-                with col_info:
-                    st.write(f"📅 **Vence:** {f_pago if f_pago else 'N/A'}")
-                    if atrasada:
-                        dias = (hoy_dt - f_pago).days
-                        st.markdown(f"<span style='color:#ef4444; font-size:12px;'>Mora de {dias} días</span>", unsafe_allow_html=True)
-                
-                with col_monto:
-                    st.markdown(f"<h4 style='margin:0; text-align:right;'>RD$ {balance:,.2f}</h4>", unsafe_allow_html=True)
+                if mis_p:
+                    mis_p_sorted = sorted(mis_p, key=lambda x: x['fecha_pago'], reverse=True)
+                    
+                    for p in mis_p_sorted:
+                        monto_p = float(p.get('monto_pagado', 0))
+                        cuota_e = float(ct.get('cuota_esperada', 0))
+                        
+                        if monto_p < cuota_e: 
+                            t_txt, t_col = "Incompleto", "#f59e0b"
+                        elif monto_p > cuota_e: 
+                            t_txt, t_col = "Abono Extra", "#3b82f6"
+                        else: 
+                            t_txt, t_col = "Pago Regular", "#16a34a"
 
-                # --- DESPLEGABLE DE ABONOS ---
-                with st.expander("🔍 Ver desglose de abonos y movimientos"):
-                    mis_p = [p for p in pagos if p.get('cuenta_id') == ct['id']]
-                    if mis_p:
-                        df_p = pd.DataFrame(mis_p).sort_values("fecha_pago", ascending=False)
-                        for _, p in df_p.iterrows():
-                            monto_p = float(p.get('monto_pagado', 0))
-                            cuota_e = float(ct.get('cuota_esperada', 0))
-                            tipo_pago = "Abono Extra" if monto_p > cuota_e else "Pago Regular"
+                        with st.container(border=True):
+                            c_pag1, c_pag2 = st.columns([2, 1])
+                            with c_pag1:
+                                st.markdown(f"📅 {str(p['fecha_pago'])[:10]} | <span style='color:{t_col}; font-weight:bold;'>{t_txt}</span>", unsafe_allow_html=True)
+                                st.write(f"**RD$ {monto_p:,.2f}**")
                             
-                            st.markdown(f"""
-                                <div style='display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;'>
-                                    <div>
-                                        <small style='color:gray;'>{str(p['fecha_pago'])[:10]}</small><br>
-                                        <b style='font-size:13px;'>{tipo_pago}</b>
-                                    </div>
-                                    <b style='color:#16a34a;'>+ RD$ {monto_p:,.2f}</b>
-                                </div>
-                            """, unsafe_allow_html=True)
-                    else:
-                        st.caption("No se han registrado abonos aún.")
+                            with c_pag2:
+                                with st.popover("⚙️ Gestionar", use_container_width=True):
+                                    st.subheader("✏️ Editar Monto")
+                                    nuevo_monto = st.number_input("Monto pagado", value=monto_p, key=f"inp_ed_{p['id']}")
+                                    
+                                    if st.button("👉 Aplicar cambios", key=f"btn_ed_1_{p['id']}"):
+                                        st.session_state[f"confirm_edit_{p['id']}"] = True
+                                    
+                                    if st.session_state.get(f"confirm_edit_{p['id']}"):
+                                        if st.button("✅ Confirmar edición", key=f"btn_ed_2_{p['id']}", type="primary"):
+                                            conn.table("pagos").update({"monto_pagado": nuevo_monto}).eq("id", p['id']).execute()
+                                            
+                                            # Recálculo
+                                            res_p_upd = conn.table("pagos").select("monto_pagado").eq("cuenta_id", ct['id']).execute()
+                                            total_abonado = sum(float(x['monto_pagado']) for x in res_p_upd.data)
+                                            nuevo_bal = float(ct['monto_inicial']) - total_abonado
+                                            conn.table("cuentas").update({"balance_pendiente": nuevo_bal}).eq("id", ct['id']).execute()
+                                            
+                                            del st.session_state[f"confirm_edit_{p['id']}"]
+                                            st.rerun()
 
-    if st.button("Cerrar Expediente", use_container_width=True):
-        st.rerun()
+                                    st.divider()
+                                    st.subheader("🗑️ Eliminar Abono")
+                                    if st.button("🗑️ Eliminar", key=f"btn_del_1_{p['id']}", use_container_width=True):
+                                        st.session_state[f"del_p_step_{p['id']}"] = 1
+                                    
+                                    p_step = st.session_state.get(f"del_p_step_{p['id']}", 0)
+                                    if p_step >= 1:
+                                        if st.button(f"🔥 Confirmar Eliminación (Paso {p_step}/3)", key=f"btn_del_final_{p['id']}", type="primary"):
+                                            if p_step < 3:
+                                                st.session_state[f"del_p_step_{p['id']}"] += 1
+                                                st.rerun()
+                                            else:
+                                                conn.table("pagos").delete().eq("id", p['id']).execute()
+                                                # Recálculo tras borrar
+                                                res_p_upd = conn.table("pagos").select("monto_pagado").eq("cuenta_id", ct['id']).execute()
+                                                total_abonado = sum(float(x['monto_pagado']) for x in res_p_upd.data) if res_p_upd.data else 0
+                                                nuevo_bal = float(ct['monto_inicial']) - total_abonado
+                                                conn.table("cuentas").update({"balance_pendiente": nuevo_bal}).eq("id", ct['id']).execute()
+                                                st.session_state[f"del_p_step_{p['id']}"] = 0
+                                                st.rerun()
+                else:
+                    st.caption("No se han registrado abonos aún.")
+
+if st.button("Cerrar Expediente", use_container_width=True):
+    st.rerun()
 
 # --- GRID DE CLIENTES (CORREGIDO) ---
 if menu == "👥 Todos mis Clientes":
@@ -1321,6 +1455,7 @@ if menu == "👥 Todos mis Clientes":
                     with b3:
                         lat, lon = cl.get('latitud'), cl.get('longitud')
                         if lat and str(lat) not in ["0", "0.0", "None"]:
+                            # URL Corregida de Google Maps
                             map_url = f"https://www.google.com/maps?q={lat},{lon}"
                             st.markdown(f'''<a href="{map_url}" target="_blank">
                                 <button style="width:100%; background:white; border:1px solid #ddd; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
@@ -1337,7 +1472,6 @@ if menu == "👥 Todos mis Clientes":
                                 st.session_state[f"editing_{cl['id']}"] = True
                                 st.rerun()
                         with g2:
-                            # CORRECCIÓN: Este botón ya NO borra, solo activa el Paso 1
                             if st.button("🗑️ Borrar", key=f"d_b_{cl['id']}", type="primary", use_container_width=True):
                                 st.session_state[f"del_step_{cl['id']}"] = 1
                                 st.rerun()
@@ -1345,7 +1479,7 @@ if menu == "👥 Todos mis Clientes":
                     # --- LÓGICA DE EDICIÓN ---
                     if st.session_state.get(f"editing_{cl['id']}"):
                         st.markdown("---")
-                        st.caption("⚠️ **DISCLAIMER:** La modificación de estos datos es irreversible y afectará los reportes.")
+                        st.caption("⚠️ **Edición de Perfil**")
                         
                         e_nom = st.text_input("Nombre", value=cl['nombre'], key=f"en_{cl['id']}")
                         e_ced = st.text_input("Cédula", value=cl.get('cedula', ''), key=f"ec_{cl['id']}")
@@ -1361,7 +1495,7 @@ if menu == "👥 Todos mis Clientes":
                                 try:
                                     conn.table("clientes").update({
                                         "nombre": e_nom, "cedula": e_ced, "telefono": e_tel,
-                                        "latitud": float(e_lat), "longitud": float(e_lon)
+                                        "latitud": e_lat, "longitud": e_lon
                                     }).eq("id", cl['id']).execute()
                                     st.toast("✅ ¡Datos actualizados!")
                                     del st.session_state[f"editing_{cl['id']}"]
@@ -1373,21 +1507,21 @@ if menu == "👥 Todos mis Clientes":
                                 del st.session_state[f"editing_{cl['id']}"]
                                 st.rerun()
 
-                    # --- LÓGICA DE ELIMINAR (TRIPLE CONFIRMACIÓN REAL) ---
+                    # --- LÓGICA DE ELIMINAR CLIENTE ---
                     step_key = f"del_step_{cl['id']}"
                     actual_step = st.session_state.get(step_key, 0)
 
                     if actual_step == 1:
-                        st.error("🚨 **PASO 1:** ¿Desea borrar este cliente?")
+                        st.error("🚨 ¿Borrar cliente?")
                         if st.button("SÍ, CONTINUAR", key=f"d1_{cl['id']}", use_container_width=True):
                             st.session_state[step_key] = 2
                             st.rerun()
                         if st.button("CANCELAR", key=f"c1_{cl['id']}", use_container_width=True):
                             st.session_state[step_key] = 0
                             st.rerun()
-                    
+                        
                     elif actual_step == 2:
-                        st.warning("⚠️ **PASO 2:** Se perderán los históricos.")
+                        st.warning("⚠️ Se perderán los históricos.")
                         if st.button("SÍ, ESTOY SEGURO", key=f"d2_{cl['id']}", type="primary", use_container_width=True):
                             st.session_state[step_key] = 3
                             st.rerun()
@@ -1396,16 +1530,15 @@ if menu == "👥 Todos mis Clientes":
                             st.rerun()
 
                     elif actual_step == 3:
-                        st.error("❗ **PASO 3:** ÚLTIMA ADVERTENCIA.")
-                        # AQUÍ ES EL ÚNICO LUGAR DONDE SE BORRA DE LA BASE DE DATOS
+                        st.error("❗ ÚLTIMA ADVERTENCIA.")
                         if st.button("BORRAR DEFINITIVAMENTE", key=f"d3_{cl['id']}", type="primary", use_container_width=True):
                             try:
                                 conn.table("clientes").delete().eq("id", cl['id']).execute()
-                                st.toast("🗑️ Registro eliminado exitosamente")
+                                st.toast("🗑️ Eliminado")
                                 st.session_state[step_key] = 0
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"Error al borrar: {e}")
+                                st.error(f"Error: {e}")
                         if st.button("ABORTAR", key=f"c3_{cl['id']}", use_container_width=True):
                             st.session_state[step_key] = 0
                             st.rerun()
@@ -1421,7 +1554,6 @@ elif menu == "Cuentas por Pagar":
     total_gastos = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
     
     st.metric("Total Recaudado", f"${total_pagos:,.2f}")
-
 
 elif menu == "IA Predictiva":
     # ---------------------------------------------------------
