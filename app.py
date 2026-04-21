@@ -1395,43 +1395,30 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
         res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute().data
 
 # --- PESTAÑA 1: HISTORIAL COMPLETO (EDICIÓN PROFESIONAL COMPACTA) ---
-# --- PESTAÑA 1: HISTORIAL COMPLETO (DISEÑO PROFESIONAL CON SOMBRAS) ---
-# --- PESTAÑA 1: HISTORIAL COMPLETO (SINTAXIS EXACTA Y AJUSTES FINALES) ---
+# --- PESTAÑA 1: HISTORIAL COMPLETO (DESPLEGABLES Y RESUMEN EXTERIOR) ---
         with tab_historial:
             st.markdown("""
                 <style>
-                .separador-expediente { 
-                    margin-top: 40px; 
-                    margin-bottom: 20px; 
-                    border-top: 2px dashed #1a73e8; 
-                    opacity: 0.5;
-                }
-                .factura-card {
-                    background-color: #ffffff;
-                    border-radius: 12px;
-                    padding: 22px;
-                    margin-bottom: 30px;
-                    border: 1px solid #e1e4e8;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-                }
-                .header-resumen {
-                    font-size: 1.2rem;
+                /* Estilo para resaltar el faltante en la línea del título */
+                .faltante-header {
+                    color: #d93025;
                     font-weight: bold;
-                    color: #1a73e8;
-                    border-bottom: 2px solid #f1f3f4;
-                    padding-bottom: 12px;
-                    margin-bottom: 15px;
-                    display: flex;
-                    justify-content: space-between;
+                    margin-left: 15px;
+                }
+                .factura-card-interior {
+                    background-color: #ffffff;
+                    padding: 15px;
+                    border-radius: 8px;
                 }
                 .narrativa-apertura {
                     background-color: #f0f7ff;
-                    padding: 12px;
-                    border-radius: 8px;
+                    padding: 15px;
+                    border-radius: 10px;
                     font-size: 0.95rem;
                     color: #1e3a8a;
-                    margin-bottom: 15px;
-                    border-left: 4px solid #1a73e8;
+                    margin-bottom: 20px;
+                    border-left: 5px solid #1a73e8;
+                    line-height: 1.5;
                 }
                 .movimiento-row {
                     padding: 12px;
@@ -1440,24 +1427,23 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
                 }
+                /* Estados de colores */
                 .status-verde { background-color: #e6f4ea; border-left: 6px solid #34a853; color: #137333; }
                 .status-amarillo { background-color: #fff9e6; border-left: 6px solid #fbbc04; color: #7a5a00; }
                 .status-naranja { background-color: #fef7e0; border-left: 6px solid #fb8c00; color: #855100; }
                 .status-rojo { background-color: #fce8e6; border-left: 6px solid #d93025; color: #a50e0e; }
+                
                 .mora-recaudada { color: #d93025; font-weight: bold; }
                 </style>
             """, unsafe_allow_html=True)
 
-            for idx, ct in enumerate(mis_ctas):
-                # Espaciado entre facturas si hay más de una
-                if idx > 0:
-                    st.markdown('<div class="separador-expediente"></div>', unsafe_allow_html=True)
-
+            for ct in mis_ctas:
                 c_id = ct['id']
                 cod_fac = ct.get('codigo_factura', f"FAC-{str(c_id)[:6].upper()}")
                 
-                # Datos reales
+                # Cálculos de datos reales
                 cap_puro = float(ct.get('capital_puro', 0))
                 monto_total = float(ct.get('monto_inicial', 0))
                 ganancia_esperada = monto_total - cap_puro
@@ -1467,79 +1453,74 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                 total_abonado = sum(float(p['monto_pagado']) for p in mis_pagos_cta)
                 total_mora_cobrada = sum(float(p.get('mora_pagada', 0)) for p in mis_pagos_cta)
                 faltante_por_cobrar = monto_total - total_abonado
+
+                # Título del Desplegable (Muestra Código y Faltante por fuera)
+                label_expander = f"📄 Factura: {cod_fac} | 🔴 Faltante: RD$ {faltante_por_cobrar:,.2f}"
                 
-                res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute().data
+                with st.expander(label_expander, expanded=False):
+                    st.markdown('<div class="factura-card-interior">', unsafe_allow_html=True)
+                    
+                    # 1. NARRATIVA DE APERTURA
+                    st.markdown(f"""
+                    <div class="narrativa-apertura">
+                        <b>DETALLES DE APERTURA:</b> El crédito fue generado el <b>{f_creacion}</b>. 
+                        Se entregó un capital de <b>RD$ {cap_puro:,.2f}</b> con un compromiso de pago final de 
+                        <b>RD$ {monto_total:,.2f}</b> (Ganancia: RD$ {ganancia_esperada:,.2f}).
+                    </div>
+                    """, unsafe_allow_html=True)
 
-                # --- RENDERIZADO ---
-                st.markdown(f'<div class="factura-card">', unsafe_allow_html=True)
-                
-                # Encabezado
-                st.markdown(f'<div class="header-resumen"><span>📑 EXPEDIENTE: {cod_fac}</span> <span style="font-weight:normal; font-size:0.9rem;">📅 {f_creacion}</span></div>', unsafe_allow_html=True)
+                    # 2. RESUMEN DE ESTADO
+                    col_info1, col_info2 = st.columns(2)
+                    with col_info1:
+                        st.write(f"**Monto Contrato:** RD$ {monto_total:,.2f}")
+                        st.write(f"**Total Abonado:** RD$ {total_abonado:,.2f}")
+                    with col_info2:
+                        st.write(f"**Mora Cobrada:** <span class='mora-recaudada'>RD$ {total_mora_cobrada:,.2f}</span>", unsafe_allow_html=True)
+                        st.markdown(f"**Pendiente:** <span style='color:red; font-weight:bold;'>RD$ {faltante_por_cobrar:,.2f}</span>", unsafe_allow_html=True)
 
-                # 1. DESCRIPCIÓN DE CREACIÓN (Narrativa)
-                st.markdown(f"""
-                <div class="narrativa-apertura">
-                    <b>ORIGEN DEL CRÉDITO:</b> Se aperturó este financiamiento el día {f_creacion} con un capital base de <b>RD$ {cap_puro:,.2f}</b>. 
-                    El compromiso total de retorno se fijó en <b>RD$ {monto_total:,.2f}</b>, proyectando un beneficio de <b>RD$ {ganancia_esperada:,.2f}</b>.
-                </div>
-                """, unsafe_allow_html=True)
+                    st.markdown("---")
+                    st.markdown("<b>📜 MOVIMIENTOS REGISTRADOS:</b>", unsafe_allow_html=True)
 
-                # 2. RESUMEN DE TOTALES (Ajustado)
-                col_r1, col_r2 = st.columns(2)
-                with col_r1:
-                    st.write(f"**Capital:** RD$ {cap_puro:,.2f}")
-                    st.write(f"**Interés:** RD$ {ganancia_esperada:,.2f}")
-                    st.write(f"**Mora Cobrada:** <span class='mora-recaudada'>RD$ {total_mora_cobrada:,.2f}</span>", unsafe_allow_html=True)
-                with col_r2:
-                    st.write(f"**Monto Contrato:** RD$ {monto_total:,.2f}")
-                    st.markdown(f"**Faltante por Cobrar:** <br><span style='color:red; font-size:1.3rem; font-weight:bold;'>RD$ {faltante_por_cobrar:,.2f}</span>", unsafe_allow_html=True)
-
-                st.markdown("<br><b>📊 HISTORIAL DE MOVIMIENTOS:</b>", unsafe_allow_html=True)
-                
-                if not mis_pagos_cta:
-                    st.info("Sin abonos registrados en sistema.")
-                else:
-                    pagos_ord = sorted(mis_pagos_cta, key=lambda x: x['fecha_pago'])
-                    for i, p in enumerate(pagos_ord):
-                        f_pago = pd.to_datetime(p['fecha_pago']).date()
-                        m_pagado = float(p['monto_pagado'])
-                        mora_p = float(p.get('mora_pagada', 0))
+                    # 3. LISTADO DE MOVIMIENTOS CON LÓGICA DE COLORES
+                    if not mis_pagos_cta:
+                        st.caption("No se registran movimientos todavía.")
+                    else:
+                        res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute().data
+                        pagos_ord = sorted(mis_pagos_cta, key=lambda x: x['fecha_pago'])
                         
-                        clase_css, txt_status, icono = "status-verde", "PAGO A TIEMPO", "✅"
-                        
-                        if res_plan and i < len(res_plan):
-                            cp = res_plan[i]
-                            f_esp = pd.to_datetime(cp['fecha_esperada']).date()
-                            m_esp = float(cp['monto_cuota'])
+                        for i, p in enumerate(pagos_ord):
+                            f_pago = pd.to_datetime(p['fecha_pago']).date()
+                            m_pagado = float(p['monto_pagado'])
+                            mora_p = float(p.get('mora_pagada', 0))
                             
-                            if f_pago > f_esp and m_pagado < m_esp:
-                                clase_css, txt_status, icono = "status-rojo", f"INCOMPLETO Y DESTIEMPO ({(f_pago-f_esp).days}D)", "🚨"
-                            elif f_pago > f_esp:
-                                clase_css, txt_status, icono = "status-amarillo", f"TARDANZA ({(f_pago-f_esp).days}D)", "⚠️"
-                            elif m_pagado < m_esp:
-                                clase_css, txt_status, icono = "status-naranja", f"ABONO PARCIAL (Faltó RD$ {m_esp-m_pagado:,.2f})", "📉"
+                            clase_css, txt_status, icono = "status-verde", "PAGO A TIEMPO", "✅"
+                            
+                            if res_plan and i < len(res_plan):
+                                cp = res_plan[i]
+                                f_esp = pd.to_datetime(cp['fecha_esperada']).date()
+                                m_esp = float(cp['monto_cuota'])
+                                
+                                if f_pago > f_esp and m_pagado < m_esp:
+                                    clase_css, txt_status, icono = "status-rojo", f"INCOMPLETO Y FUERA DE FECHA ({(f_pago-f_esp).days}D)", "🚨"
+                                elif f_pago > f_esp:
+                                    clase_css, txt_status, icono = "status-amarillo", f"PAGO TARDÍO ({(f_pago-f_esp).days}D)", "⚠️"
+                                elif m_pagado < m_esp:
+                                    clase_css, txt_status, icono = "status-naranja", f"ABONO INCOMPLETO (Faltó RD$ {m_esp-m_pagado:,.2f})", "📉"
 
-                        st.markdown(f"""
-                            <div class="movimiento-row {clase_css}">
-                                <div>
-                                    {icono} <b>{f_pago.strftime('%d/%m/%Y')}</b> — RD$ {m_pagado:,.2f}
-                                    <br><small>{txt_status}</small>
+                            st.markdown(f"""
+                                <div class="movimiento-row {clase_css}">
+                                    <div>
+                                        {icono} <b>{f_pago.strftime('%d/%m/%Y')}</b> — RD$ {m_pagado:,.2f}
+                                        <br><small>{txt_status}</small>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <span style="font-size:0.75rem; color:#555;">Ref: {str(p['id'])[:6].upper()}</span>
+                                        {f'<br><span class="mora-recaudada">+ RD$ {mora_p:,.2f} Mora</span>' if mora_p > 0 else ''}
+                                    </div>
                                 </div>
-                                <div style="text-align: right;">
-                                    <span style="font-size:0.7rem; color:gray;">Ref: {str(p['id'])[:6].upper()}</span>
-                                    {f'<br><span class="mora-recaudada">+ RD$ {mora_p:,.2f} Mora</span>' if mora_p > 0 else ''}
-                                </div>
-                            </div>
-                        """, unsafe_allow_html=True)
+                            """, unsafe_allow_html=True)
 
-                # Auditoría
-                logs_db = conn.table("logs_financieros").select("*").eq("registro_id", c_id).execute().data
-                if logs_db:
-                    with st.expander("🛠️ Registro de auditoría"):
-                        for l in logs_db:
-                            st.caption(f"🔧 {l['accion']} - {l.get('fecha_log', '')[:16]}")
-
-                st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
             
         # --- PESTAÑA 2: ABONOS REALES (MANTENIENDO TU LÓGICA DE EDICIÓN) ---
         with tab_abonos:
