@@ -1336,86 +1336,123 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
     for ct in mis_ctas:
         c_id = ct['id']
         mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
-        
-# --- PESTAÑA 1: ABONOS REALES (ESTILO EXCEL DE CAJA) ---
+
+
+# --- PESTAÑA 1: GESTIÓN DE ABONOS (SISTEMA DE CAJA) ---
         with tab_abonos:
-            # Estilo para apretar la tabla y que parezca software contable
-            st.markdown("""
-                <style>
-                [data-testid="stMetric"] { background-color: #f8f9fa; border-radius: 8px; padding: 10px; border: 1px solid #eee; }
-                [data-testid="stTable"] { font-size: 12px; }
-                </style>
-            """, unsafe_allow_html=True)
+            # Ordenar facturas: Las pendientes arriba, las saldadas al final
+            facturas_ordenadas = sorted(mis_ctas, key=lambda x: float(x['balance_pendiente']) == 0)
 
-            c1, c2 = st.columns([2, 1])
-            c1.markdown(f"### 📄 Factura: `{str(c_id)[:8].upper()}`")
-            c2.metric("Pendiente", f"RD$ {float(ct['balance_pendiente']):,.2f}")
-            
-            if not mis_pagos_cta:
-                st.info("Sin abonos registrados.")
-            else:
-                # 1. Preparar la "Sábana de Datos"
-                data_libreta = []
-                for p in mis_pagos_cta:
-                    editable = puede_gestionar_48h(p.get('created_at'))
-                    data_libreta.append({
-                        "ID": p["id"],
-                        "ELIMINAR": False, # Columna de acción rápida
-                        "FECHA": pd.to_datetime(p.get('fecha_pago')).strftime('%d/%m/%Y'),
-                        "REFERENCIA": p.get('codigo_factura', 'ABONO'),
-                        "MONTO (RD$)": float(p['monto_pagado']),
-                        "EDIT": "🔓" if editable else "🔒",
-                        "_is_editable": editable
-                    })
+            for ct in facturas_ordenadas:
+                c_id = ct['id']
+                esta_saldada = float(ct['balance_pendiente']) <= 0
+                mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
+
+                # 1. TRATAMIENTO DE FACTURAS SALDADAS (COMPACTO AL FINAL)
+                if esta_saldada:
+                    with st.expander(f"✅ FACTURA SALDADA - {str(c_id)[:8].upper()} - {cliente['nombre']}"):
+                        st.success(f"Esta factura fue completada el {limpiar_fecha(ct.get('updated_at')).strftime('%d/%m/%Y')}")
+                        # Mostrar solo tabla de lectura, sin edición
+                        if mis_pagos_cta:
+                            df_saldado = pd.DataFrame([{
+                                "Fecha del Abono": pd.to_datetime(p['fecha_pago']).strftime('%d/%m/%Y'),
+                                "Referencia": p.get('codigo_factura', 'N/A'),
+                                "Monto Recibido": f"RD$ {float(p['monto_pagado']):,.2f}"
+                            } for p in mis_pagos_cta])
+                            st.table(df_saldado)
+                    continue # Saltar al siguiente ciclo
+
+                # 2. FACTURA ACTIVA (MINIMALISMO TIPO EXCEL)
+                st.markdown(f"#### 📑 Control de Factura: `{str(c_id)[:8].upper()}`")
                 
-                df_original = pd.DataFrame(data_libreta)
+                m1, m2, m3 = st.columns(3)
+                m1.metric("Capital Inicial", f"RD$ {float(ct['monto_inicial']):,.2f}")
+                m2.metric("Balance Pendiente", f"RD$ {float(ct['balance_pendiente']):,.2f}", delta_color="inverse")
+                
+                # --- SUB-SECCIÓN: CUOTAS Y MORAS ---
+                with st.expander("📅 Ver Cronograma de Cuotas y Moras", expanded=False):
+                    res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute()
+                    if res_plan.data:
+                        plan_data = []
+                        for cuo in res_plan.data:
+                            f_venc = pd.to_datetime(cuo['fecha_esperada']).date()
+                            hoy = datetime.now().date()
+                            mora = "RD$ 0.00"
+                            if f_venc < hoy and float(ct['balance_pendiente']) > 0:
+                                # Cálculo hipotético de mora (ajustar según tu lógica)
+                                mora = "⚠️ APLICADA" 
+                            
+                            plan_data.append({
+                                "#": cuo['numero_cuota'],
+                                "Vencimiento": f_venc.strftime('%d/%m/%Y'),
+                                "Monto Cuota": f"RD$ {float(cuo['monto_cuota']):,.2f}",
+                                "Estado Mora": mora
+                            })
+                        st.dataframe(pd.DataFrame(plan_data), use_container_width=True, hide_index=True)
 
-                # 2. El Excel Organizadísimo
-                edited_df = st.data_editor(
-                    df_original,
-                    use_container_width=True,
-                    hide_index=True,
-                    # Solo permitimos tocar Monto y el Checkbox de eliminar
-                    disabled=["ID", "FECHA", "REFERENCIA", "EDIT"], 
-                    column_config={
-                        "ID": None, # Oculto
-                        "_is_editable": None, # Oculto
-                        "ELIMINAR": st.column_config.CheckboxColumn("🗑️", help="Marcar para borrar"),
-                        "FECHA": st.column_config.TextColumn("FECHA", width="small"),
-                        "MONTO (RD$)": st.column_config.NumberColumn("MONTO (RD$)", format="%.2f", width="medium"),
-                        "EDIT": st.column_config.TextColumn("ST", width="small")
-                    },
-                    key=f"excel_caja_{c_id}"
-                )
-
-                # 3. Lógica de Procesamiento en Lote (Sincronización)
-                if not edited_df.equals(df_original):
-                    for i, row in edited_df.iterrows():
-                        orig = df_original.iloc[i]
+                # --- SUB-SECCIÓN: LIBRETA DE ABONOS (EDICIÓN) ---
+                if not mis_pagos_cta:
+                    st.info("No hay abonos registrados.")
+                else:
+                    data_ca = []
+                    for p in mis_pagos_cta:
+                        p_id = p["id"]
+                        editable = puede_gestionar_48h(p.get('created_at'))
                         
-                        # ACCIÓN A: Borrado rápido vía Checkbox
-                        if row["ELIMINAR"] and row["_is_editable"]:
-                            monto_del = orig["MONTO (RD$)"]
-                            n_bal = float(ct['balance_pendiente']) + monto_del
-                            conn.table("cuentas").update({"balance_pendiente": n_bal}).eq("id", c_id).execute()
-                            conn.table("pagos").delete().eq("id", row["ID"]).execute()
-                            registrar_log_detallado("BORRADO_EXCEL", "pagos", row["ID"], monto_del, 0, u_id)
-                            st.toast("🗑️ Registro eliminado")
-                            time.sleep(0.5); st.rerun()
+                        data_ca.append({
+                            "ID_INTERNO": p_id,
+                            "Fecha del Abono": pd.to_datetime(p.get('fecha_pago')).strftime('%d/%m/%Y'),
+                            "Referencia / Código": p.get('codigo_factura', 'ABONO'),
+                            "Monto Cobrado (RD$)": float(p['monto_pagado']),
+                            "Seguridad": "🔓 MODIFICABLE" if editable else "🔒 BLOQUEADO",
+                            "_editable": editable
+                        })
 
-                        # ACCIÓN B: Edición de monto
-                        elif row["MONTO (RD$)"] != orig["MONTO (RD$)"]:
-                            if row["_is_editable"]:
-                                dif = row["MONTO (RD$)"] - orig["MONTO (RD$)"]
-                                n_bal = float(ct['balance_pendiente']) - dif
-                                conn.table("cuentas").update({"balance_pendiente": n_bal}).eq("id", c_id).execute()
-                                conn.table("pagos").update({"monto_pagado": row["MONTO (RD$)"]}).eq("id", row["ID"]).execute()
-                                registrar_log_detallado("EDIT_EXCEL", "pagos", row["ID"], orig["MONTO (RD$)"], row["MONTO (RD$)"], u_id)
-                                st.toast("✅ Monto actualizado")
-                                time.sleep(0.5); st.rerun()
-                            else:
-                                st.error("Registro bloqueado (>48h)")
-                                time.sleep(1); st.rerun()
+                    df_ca = pd.DataFrame(data_ca)
+                    
+                    # Editor Estilo Excel
+                    ed_df = st.data_editor(
+                        df_ca,
+                        use_container_width=True,
+                        hide_index=True,
+                        disabled=["ID_INTERNO", "Fecha del Abono", "Referencia / Código", "Seguridad"],
+                        column_config={
+                            "ID_INTERNO": None, "_editable": None,
+                            "Monto Cobrado (RD$)": st.column_config.NumberColumn("Monto Cobrado (RD$)", format="%.2f"),
+                            "Seguridad": st.column_config.TextColumn("Estado de Seguridad", width="small")
+                        },
+                        key=f"ed_box_{c_id}"
+                    )
+
+                    # --- LÓGICA INVASIVA DE CONFIRMACIÓN ---
+                    if not ed_df.equals(df_ca):
+                        for i, row in ed_df.iterrows():
+                            if row["Monto Cobrado (RD$)"] != df_ca.iloc[i]["Monto Cobrado (RD$)"]:
+                                if row["_editable"]:
+                                    # DISCLAIMER INVASIVO
+                                    st.warning(f"### ⚠️ ADVERTENCIA DE AUDITORÍA")
+                                    st.write(f"Vas a alterar el registro de dinero de la factura **{c_id}**.")
+                                    st.write(f"Valor anterior: **RD$ {df_ca.iloc[i]['Monto Cobrado (RD$)']:,.2f}**")
+                                    st.write(f"Nuevo valor: **RD$ {row['Monto Cobrado (RD$)']:,.2f}**")
+                                    
+                                    col_btn1, col_btn2 = st.columns(2)
+                                    if col_btn1.button("✅ SÍ, CONFIRMO EL CAMBIO", key=f"conf_{row['ID_INTERNO']}"):
+                                        dif = row["Monto Cobrado (RD$)"] - df_ca.iloc[i]["Monto Cobrado (RD$)"]
+                                        nuevo_bal = float(ct['balance_pendiente']) - dif
+                                        
+                                        conn.table("cuentas").update({"balance_pendiente": nuevo_bal}).eq("id", c_id).execute()
+                                        conn.table("pagos").update({"monto_pagado": row["Monto Cobrado (RD$)"]}).eq("id", row["ID_INTERNO"]).execute()
+                                        
+                                        registrar_log_detallado("AJUSTE_CAJA", "pagos", row["ID_INTERNO"], df_ca.iloc[i]["Monto Cobrado (RD$)"], row["Monto Cobrado (RD$)"], u_id)
+                                        st.toast("Dinero actualizado en sistema"); time.sleep(0.5); st.rerun()
+                                    
+                                    if col_btn2.button("❌ CANCELAR", key=f"canc_{row['ID_INTERNO']}"):
+                                        st.rerun()
+                                else:
+                                    st.error("Error: El tiempo de gracia de 48h ha expirado para este cobro.")
+                                    time.sleep(2); st.rerun()
+
+                st.divider()
 
         # --- PESTAÑA 2: PLAN IDEAL (CON DESPLIEGUE) ---
         with tab_plan:
