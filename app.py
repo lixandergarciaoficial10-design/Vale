@@ -1337,37 +1337,86 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
         mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
         res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute().data
 
-        # --- PESTAÑA 1: HISTORIAL COMPLETO (RELATO NARRATIVO) ---
+# --- PESTAÑA 1: HISTORIAL COMPLETO (RELATO NARRATIVO Y LÓGICA MEJORADA) ---
         with tab_historial:
-            st.markdown(f"### 📖 Bitácora: Factura `{cod_fac}`")
-            
-            # Cálculo de ganancia real vs proyectada
-            ganancia_total = monto_total - cap_puro
-            
-            # Evento de Creación
-            st.markdown(f"""<div class="log-narrativo">
-                🚀 <b>APERTURA DE CRÉDITO:</b> Se desembolsó un capital de <b>RD$ {cap_puro:,.2f}</b>. 
-                El monto total a recuperar con intereses es de <b>RD$ {monto_total:,.2f}</b>. 
-                <br>💰 <span class="ganancia-text">Ganancia Proyectada: RD$ {ganancia_total:,.2f}</span>
-            </div>""", unsafe_allow_html=True)
+            # Contenedor principal por factura para evitar confusión
+            with st.container(border=True):
+                st.markdown(f"### 📑 EXPEDIENTE DE FACTURA: `{cod_fac}`")
+                
+                # --- LÓGICA DE CÁLCULOS CLAROS ---
+                capital = float(ct.get('capital_puro', 0))
+                total_contrato = float(ct.get('monto_inicial', 0))
+                intereses_acordados = total_contrato - capital
+                
+                # Encabezado de apertura con diseño limpio
+                col_cap, col_int, col_tot = st.columns(3)
+                col_cap.metric("Capital Prestado", f"RD$ {capital:,.2f}")
+                col_int.metric("Intereses (Ganancia)", f"RD$ {intereses_acordados:,.2f}", delta_color="normal")
+                col_tot.metric("Total a Recuperar", f"RD$ {total_contrato:,.2f}")
 
-            # Pagos registrados
-            if mis_pagos_cta:
-                for p in sorted(mis_pagos_cta, key=lambda x: x['fecha_pago']):
-                    st.markdown(f"""<div class="log-narrativo">
-                        💰 <b>INGRESO RECIBIDO:</b> El {pd.to_datetime(p['fecha_pago']).strftime('%d/%m/%Y')} se registró un abono de 
-                        <b>RD$ {float(p['monto_pagado']):,.2f}</b>. 
-                        <small>(Mora: RD$ {float(p.get('mora_pagada',0)):,.2f} | Ref: {p.get('id')[:8]})</small>
-                    </div>""", unsafe_allow_html=True)
+                st.markdown("---")
+                st.subheader("🏁 Inicio del Contrato")
+                st.markdown(f"""
+                    <div class="log-narrativo" style="background-color: #f8f9fa; border-left: 5px solid #007AFF;">
+                        🚀 <b>DESEMBOLSO INICIAL:</b> Se entregó al cliente la suma de <b>RD$ {capital:,.2f}</b>. <br>
+                        El compromiso legal es devolver un total de <b>RD$ {total_contrato:,.2f}</b>, 
+                        lo que representa un beneficio proyectado de <b>RD$ {intereses_acordados:,.2f}</b> para el prestamista.
+                    </div>
+                """, unsafe_allow_html=True)
 
-            # Auditoría de Ediciones (Logs)
-            logs_db = conn.table("logs_financieros").select("*").eq("registro_id", c_id).execute().data
-            if logs_db:
-                for l in logs_db:
-                    st.markdown(f"""<div class="log-narrativo" style="border-left-color: #ff9800; background: #fffcf5;">
-                        ⚠️ <b>AJUSTE DE SEGURIDAD:</b> Acción <i>{l['accion']}</i>. 
-                        <br><small>Cambio: {l.get('datos_antes')} → {l.get('datos_despues')}</small>
-                    </div>""", unsafe_allow_html=True)
+                st.subheader("💰 Flujo de Caja y Cumplimiento")
+                
+                # --- LÓGICA AVANZADA DE COMPARACIÓN (PAGOS VS PLAN) ---
+                if not mis_pagos_cta:
+                    st.info("Aún no se han registrado movimientos de cobro para esta factura.")
+                else:
+                    # Ordenamos pagos y plan para comparar
+                    pagos_ordenados = sorted(mis_pagos_cta, key=lambda x: x['fecha_pago'])
+                    
+                    for i, p in enumerate(pagos_ordenados):
+                        fecha_pago_real = pd.to_datetime(p['fecha_pago']).date()
+                        monto_pagado = float(p['monto_pagado'])
+                        mora_pagada = float(p.get('mora_pagada', 0))
+                        
+                        # Buscamos la cuota correspondiente en el plan para ver puntualidad
+                        info_puntualidad = ""
+                        if res_plan and i < len(res_plan):
+                            cuota_plan = res_plan[i]
+                            fecha_esperada = pd.to_datetime(cuota_plan['fecha_esperada']).date()
+                            monto_esperado = float(cuota_plan['monto_cuota'])
+                            
+                            # Validar si fue tarde
+                            if fecha_pago_real > fecha_esperada:
+                                dias_atraso = (fecha_pago_real - fecha_esperada).days
+                                info_puntualidad += f"<br>⚠️ <b>PAGO ATRASADO:</b> Recibido {dias_atraso} días después de la fecha acordada ({fecha_esperada.strftime('%d/%m/%Y')})."
+                            else:
+                                info_puntualidad += f"<br>✅ <b>PAGO A TIEMPO:</b> Recibido antes o en la fecha límite ({fecha_esperada.strftime('%d/%m/%Y')})."
+                            
+                            # Validar si fue incompleto
+                            if monto_pagado < monto_esperado:
+                                faltante = monto_esperado - monto_pagado
+                                info_puntualidad += f"<br>📉 <b>ABONO PARCIAL:</b> El cliente solo cubrió RD$ {monto_pagado:,.2f} de los RD$ {monto_esperado:,.2f} esperados. (Faltan: RD$ {faltante:,.2f})."
+
+                        # Renderizado del bloque de pago
+                        st.markdown(f"""
+                            <div class="log-narrativo" style="border-left: 5px solid #28a745;">
+                                💵 <b>ENTRADA DE EFECTIVO:</b> RD$ <b>{monto_pagado:,.2f}</b>
+                                <br><small>Fecha de recibo: {fecha_pago_real.strftime('%d/%m/%Y')} | Ref: {str(p['id'])[:8].upper()}</small>
+                                {info_puntualidad}
+                                {f'<br><span style="color:red;">+ Mora cobrada: RD$ {mora_pagada:,.2f}</span>' if mora_pagada > 0 else ''}
+                            </div>
+                        """, unsafe_allow_html=True)
+
+                # --- SECCIÓN DE AUDITORÍA ---
+                if logs_db:
+                    with st.expander("🔍 Ver ajustes técnicos y correcciones"):
+                        for l in logs_db:
+                            st.markdown(f"""
+                                <div class="log-narrativo" style="border-left-color: #ff9800; background: #fffcf5; font-size: 0.85rem;">
+                                    🔧 <b>MODIFICACIÓN DE SEGURIDAD:</b> {l['accion']}<br>
+                                    <small>Se detectó un cambio en los valores internos. IP: {user_ip}</small>
+                                </div>
+                            """, unsafe_allow_html=True)
 
         # --- PESTAÑA 2: ABONOS REALES (EDICIÓN Y AUDITORÍA) ---
         with tab_abonos:
