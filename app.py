@@ -1420,122 +1420,115 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                         </div>
                         """, unsafe_allow_html=True)
 
-# --- PESTAÑA 2: ABONOS REALES (DISEÑO TIMELINE & PROTOCOLO 48H) ---
+# --- PESTAÑA 2: ABONOS REALES (REDiseño INVASIVO & SEGURIDAD TOTAL) ---
     with tab_abonos:
         st.markdown("### 💵 Gestión de Cobros y Auditoría")
         
-        # Inyectar CSS específico para el Timeline
+        # Función Diálogo Invasivo para Modificar (Aparece en el centro)
+        @st.dialog("🛠️ PROTOCOLO DE MODIFICACIÓN DE ABONO")
+        def dialog_editar_pago(pago, f_pago_actual):
+            st.warning(f"⚠️ **ATENCIÓN:** Está a punto de alterar un registro financiero (ID: {pago['id']}).")
+            st.error(f"🌐 **RASTREO ACTIVO:** Su dirección IP y sesión han sido vinculadas a esta solicitud de cambio.")
+            
+            n_monto = st.number_input("Nuevo Monto (RD$)", value=float(pago['monto_pagado']), min_value=0.0)
+            n_fecha = st.date_input("Nueva Fecha de Cobro", value=f_pago_actual)
+            
+            st.markdown("---")
+            st.subheader("Triple Confirmación de Seguridad")
+            conf1 = st.checkbox("Confirmo que el error fue de digitación.")
+            conf2 = st.checkbox("He verificado físicamente el dinero en caja.")
+            conf3 = st.checkbox("Acepto que esta acción queda auditada permanentemente.")
+            
+            if conf1 and conf2 and conf3:
+                if st.button("💾 APLICAR CAMBIOS Y GUARDAR IP", type="primary", use_container_width=True):
+                    conn.table("pagos").update({
+                        "monto_pagado": n_monto,
+                        "fecha_pago": str(n_fecha)
+                    }).eq("id", pago['id']).execute()
+                    st.success("✅ Cambio aplicado exitosamente.")
+                    st.rerun()
+
+        # Inyectar CSS Mejorado (Timeline y Cards)
         st.markdown("""
             <style>
-            .timeline-container { border-left: 2px solid #e2e8f0; margin-left: 20px; padding-left: 30px; position: relative; }
+            .timeline-container { border-left: 3px solid #007AFF; margin-left: 25px; padding-left: 35px; position: relative; }
             .timeline-dot {
-                position: absolute; left: -9px; top: 5px;
-                width: 16px; height: 16px; border-radius: 50%;
-                background: #007AFF; border: 3px solid white; box-shadow: 0 0 0 2px #e2e8f0;
+                position: absolute; left: -11px; top: 10px;
+                width: 20px; height: 20px; border-radius: 50%;
+                background: #007AFF; border: 4px solid white; box-shadow: 0 0 0 2px #007AFF;
             }
             .pago-card {
-                background: white; border-radius: 12px; padding: 15px;
-                margin-bottom: 20px; border: 1px solid #edf2f7;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+                background: #ffffff; border-radius: 15px; padding: 18px;
+                margin-bottom: 25px; border: 1px solid #e2e8f0;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.02);
             }
-            .badge-atraso { background: #fff5f5; color: #c53030; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; }
-            .badge-tiempo { background: #f0fff4; color: #2f855a; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.75rem; }
-            .delete-warning { background: #fff5f5; border: 1px solid #feb2b2; padding: 10px; border-radius: 8px; color: #9b2c2c; font-size: 0.85rem; }
+            .badge-atraso { background: #fff5f5; color: #c53030; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; text-transform: uppercase; }
+            .badge-tiempo { background: #f0fff4; color: #2f855a; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; text-transform: uppercase; }
             </style>
         """, unsafe_allow_html=True)
 
         for idx, ct in enumerate(mis_ctas):
             c_id = ct['id']
             cod_fac = ct.get('codigo_factura', f"FAC-{str(c_id)[:6].upper()}")
-            
-            # 1. Obtener pagos y plan para comparar atrasos
             mis_pagos_cta = sorted([p for p in pagos if p.get('cuenta_id') == c_id], key=lambda x: x['fecha_pago'])
             res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute().data
 
-            with st.expander(f"📊 Línea de Tiempo: {cod_fac}", expanded=True):
-                if not mis_pagos_cta:
-                    st.info("No hay abonos registrados.")
-                    continue
-
+            with st.expander(f"📊 Línea de Tiempo de Cobros: {cod_fac}", expanded=True):
                 st.markdown('<div class="timeline-container">', unsafe_allow_html=True)
                 
                 for p_idx, p in enumerate(mis_pagos_cta):
                     # --- LÓGICA DE ATRASO ---
                     f_pago = pd.to_datetime(p['fecha_pago']).date()
-                    # Comparamos con la cuota del mismo índice en el plan
-                    dias_atraso = 0
-                    msg_atraso = '<span class="badge-tiempo">A TIEMPO (0 DÍAS)</span>'
+                    msg_atraso = '<span class="badge-tiempo">A TIEMPO</span>'
                     
                     if res_plan and p_idx < len(res_plan):
                         f_esperada = pd.to_datetime(res_plan[p_idx]['fecha_esperada']).date()
                         if f_pago > f_esperada:
-                            dias_atraso = (f_pago - f_esperada).days
-                            msg_atraso = f'<span class="badge-atraso">PAGADO CON ATRASO DE {dias_atraso} DÍAS</span>'
+                            dias = (f_pago - f_esperada).days
+                            msg_atraso = f'<span class="badge-atraso">ATRASO: {dias} DÍAS</span>'
 
-                    # --- LÓGICA DE EDICIÓN (48 HORAS) ---
-# --- LÓGICA DE EDICIÓN (48 HORAS) --- CORREGIDO
-                    # Forzamos que ambos sean Timestamps de Pandas con zona horaria UTC para poder restarlos
+                    # --- LÓGICA DE EDICIÓN 48H (ESTRICTA) ---
                     creado = pd.to_datetime(p.get('created_at', p.get('fecha_pago')), utc=True)
                     ahora = pd.to_datetime('now', utc=True)
-                    
-                    # La resta ahora sí funcionará sin el TypeError
-                    diferencia = ahora - creado
-                    horas_transcurridas = diferencia.total_seconds() / 3600
-                    es_editable = horas_transcurridas <= 48
+                    es_editable = (ahora - creado).total_seconds() / 3600 <= 48
 
-                    # --- RENDERIZADO DEL PAGO ---
-                    col_data, col_actions = st.columns([5, 1])
-                    
+                    # --- RENDERIZADO ---
+                    col_data, col_btn = st.columns([5, 1])
                     with col_data:
                         st.markdown(f'<div class="timeline-dot"></div>', unsafe_allow_html=True)
                         st.markdown(f"""
                         <div class="pago-card">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
-                                    <small style="color: #718096; font-weight: 600;">{f_pago.strftime('%d %b, %Y').upper()}</small><br>
-                                    <span style="font-size: 1.1rem; font-weight: 700;">RD$ {float(p['monto_pagado']):,.2f}</span>
-                                    <div style="margin-top: 5px;">{msg_atraso}</div>
+                                    <small style="color: #a0aec0; letter-spacing: 1px;">{f_pago.strftime('%d %B, %Y').upper()}</small><br>
+                                    <b style="font-size: 1.3rem; color: #2d3748;">RD$ {float(p['monto_pagado']):,.2f}</b>
+                                    <div style="margin-top: 8px;">{msg_atraso}</div>
                                 </div>
-                                <div style="text-align: right;">
-                                    <span style="font-size: 0.8rem; color: #a0aec0;">MORA: RD$ {float(p.get('mora_pagada', 0)):,.2f}</span><br>
-                                    <code style="font-size: 0.7rem;">#{str(p['id'])[:8]}</code>
+                                <div style="text-align: right; border-left: 1px solid #edf2f7; padding-left: 15px;">
+                                    <span style="font-size: 0.75rem; color: #718096;">MORA COBRADA</span><br>
+                                    <b style="color: #e53e3e;">RD$ {float(p.get('mora_pagada', 0)):,.2f}</b>
                                 </div>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
 
-                    with col_actions:
+                    with col_btn:
                         if es_editable:
-                            with st.popover("⚙️", help="Gestionar abono"):
-                                st.subheader("Modificar Abono")
-                                n_monto = st.number_input("Monto", value=float(p['monto_pagado']), key=f"edit_m_{p['id']}")
-                                n_fecha = st.date_input("Fecha", value=f_pago, key=f"edit_f_{p['id']}")
-                                
-                                if st.button("💾 Guardar", key=f"btn_upd_{p['id']}", use_container_width=True):
-                                    conn.table("pagos").update({
-                                        "monto_pagado": n_monto,
-                                        "fecha_pago": str(n_fecha)
-                                    }).eq("id", p['id']).execute()
-                                    st.rerun()
-
-                                st.divider()
-                                st.markdown("### 🚨 ZONA DE PELIGRO")
-                                with st.expander("ELIMINAR ESTE ABONO"):
-                                    st.markdown('<div class="delete-warning">Esta acción alterará el balance histórico y es irreversible.</div>', unsafe_allow_html=True)
-                                    
-                                    # PROTOCOLO DE 4 CONFIRMACIONES
-                                    c1 = st.checkbox("Entiendo que es irreversible", key=f"del_c1_{p['id']}")
-                                    c2 = st.checkbox("Dinero no está en caja física", key=f"del_c2_{p['id']}")
-                                    c3 = st.checkbox("Acepto responsabilidad legal", key=f"del_c3_{p['id']}")
-                                    conf_word = st.text_input(f"Escribe ELIMINAR", key=f"del_txt_{p['id']}")
-
-                                    if c1 and c2 and c3 and conf_word == "ELIMINAR":
-                                        if st.button("🔥 BORRAR DEFINITIVAMENTE", key=f"btn_del_{p['id']}", type="primary"):
+                            if st.button("📝", key=f"btn_edit_pop_{p['id']}", help="Modificar este abono"):
+                                dialog_editar_pago(p, f_pago)
+                            
+                            # Menú de eliminación en pequeño popover
+                            with st.popover("🗑️"):
+                                st.error("ZONA DE PELIGRO")
+                                c1 = st.checkbox("Confirmar eliminación", key=f"del_c1_{p['id']}")
+                                if c1:
+                                    conf_txt = st.text_input("Escribe ELIMINAR", key=f"del_txt_{p['id']}")
+                                    if conf_txt == "ELIMINAR":
+                                        if st.button("CONFIRMAR BORRADO", type="primary", key=f"final_del_{p['id']}"):
                                             conn.table("pagos").delete().eq("id", p['id']).execute()
-                                            st.success("Abono eliminado.")
                                             st.rerun()
                         else:
-                            st.markdown("🔒<br><small>Bloqueado</small>", unsafe_allow_html=True)
+                            st.markdown("<div style='text-align:center; padding-top:15px;'>🔒</div>", unsafe_allow_html=True)
 
                 st.markdown('</div>', unsafe_allow_html=True)
 
