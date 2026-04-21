@@ -1824,15 +1824,77 @@ if menu == "👥 Todos mis Clientes":
 
 # --- CAMBIO DE SECCIÓN (FUERA DEL BUCLE) ---
 elif menu == "Cuentas por Pagar":
-    st.header("🏧 Movimientos de Efectivo")
-    
+    st.header("🏧 Cuentas por Pagar y Gastos")
+
+    # --- 1. RESUMEN RÁPIDO (KPIs) ---
     res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
     res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
     
-    total_pagos = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
+    total_recaudado = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
     total_gastos = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
     
-    st.metric("Total Recaudado", f"${total_pagos:,.2f}")
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Ingresos (Cobros)", f"RD$ {total_recaudado:,.2f}")
+    c2.metric("Egresos (Gastos)", f"RD$ {total_gastos:,.2f}", delta_color="inverse")
+    c3.metric("Disponible Real", f"RD$ {(total_recaudado - total_gastos):,.2f}")
+
+    st.divider()
+
+    # --- 2. REGISTRO SIMPLIFICADO DE GASTOS ---
+    with st.expander("➕ REGISTRAR NUEVO GASTO / PAGO", expanded=False):
+        with st.form("form_gastos", clear_on_submit=True):
+            col_desc, col_monto = st.columns([2, 1])
+            desc_gasto = col_desc.text_input("Descripción del gasto", placeholder="Ej: Pago Local, Gasolina, Suplidores...")
+            monto_gasto = col_monto.number_input("Monto (RD$)", min_value=0.0, step=100.0)
+            
+            if st.form_submit_button("Guardar Gasto", type="primary", use_container_width=True):
+                if desc_gasto and monto_gasto > 0:
+                    conn.table("gastos").insert({
+                        "descripcion": desc_gasto,
+                        "monto": monto_gasto,
+                        "user_id": u_id
+                    }).execute()
+                    st.success("Gasto registrado correctamente")
+                    st.rerun()
+
+    # --- 3. RECORDATORIOS DE FECHAS DE PAGO (PROXIMOS VENCIMIENTOS) ---
+    st.subheader("🗓️ Recordatorios de Próximos Pagos")
+    
+    # Aquí consultamos la tabla de gastos o una nueva de 'pendientes' si la tienes
+    # Si usas la misma tabla de 'gastos', podemos filtrar los que no tengan fecha_pago real
+    res_pendientes = conn.table("gastos").select("*").eq("user_id", u_id).order("fecha_gasto").limit(10).execute()
+    
+    if res_pendientes.data:
+        from datetime import datetime, date
+        hoy = date.today()
+
+        for g in res_pendientes.data:
+            # Simulamos una lógica de recordatorio basada en la fecha de registro + 30 días 
+            # o si tienes una columna 'fecha_vencimiento' úsala aquí:
+            fecha_g = datetime.fromisoformat(g['fecha_gasto'].replace('Z', '+00:00')).date()
+            
+            with st.container(border=True):
+                col_info, col_alert = st.columns([3, 1])
+                
+                with col_info:
+                    st.write(f"**{g['descripcion']}**")
+                    st.caption(f"Registrado el: {fecha_g}")
+                
+                with col_alert:
+                    st.write(f"**RD$ {float(g['monto']):,.2f}**")
+                    # Lógica de recordatorio visual
+                    if (fecha_g - hoy).days <= 3:
+                        st.error("⚠️ Vence pronto")
+                    else:
+                        st.info("📅 Programado")
+    else:
+        st.info("No hay pagos pendientes programados.")
+
+    # --- 4. TABLA DE HISTORIAL RECIENTE ---
+    with st.expander("📊 Ver historial completo de gastos"):
+        if res_g.data:
+            df_g = pd.DataFrame(res_g.data)
+            st.dataframe(df_g[['descripcion', 'monto', 'fecha_gasto']], use_container_width=True)
 
 
 elif menu == "IA Predictiva":
