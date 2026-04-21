@@ -1248,12 +1248,15 @@ def puede_gestionar(fecha_registro):
     """Verifica el candado de 24 horas para edición o borrado."""
     if not fecha_registro: return False
     ahora = datetime.now()
-    # Convertir a datetime nativo para comparar
-    f_reg = pd.to_datetime(fecha_registro).replace(tzinfo=None)
-    return (ahora - f_reg) < timedelta(hours=24)
+    try:
+        # Convertir a datetime nativo para evitar errores de zona horaria
+        f_reg = pd.to_datetime(fecha_registro).replace(tzinfo=None)
+        return (ahora - f_reg) < timedelta(hours=24)
+    except:
+        return False
 
 def reajustar_por_edicion_pago(c_id, monto_anterior, monto_nuevo, balance_actual):
-    """Calcula el descuadre y actualiza el balance de la cuenta."""
+    """Calcula el descuadre y actualiza el balance de la cuenta automáticamente."""
     diferencia = float(monto_nuevo) - float(monto_anterior)
     nuevo_balance = float(balance_actual) - diferencia
     conn.table("cuentas").update({"balance_pendiente": nuevo_balance}).eq("id", c_id).execute()
@@ -1261,7 +1264,8 @@ def reajustar_por_edicion_pago(c_id, monto_anterior, monto_nuevo, balance_actual
 
 @st.dialog("📄 Expediente de Gestión Avanzada", width="large")
 def modal_detalle(cliente, cuentas, pagos, u_id=None):
-    if u_id is None: u_id = st.session_state.get('user_id', '0000')
+    if u_id is None: 
+        u_id = st.session_state.get('user_id', '0000')
 
     # --- DISCLAIMER LEGAL DOMINICANO ---
     st.markdown("""
@@ -1271,16 +1275,30 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
         </div>
     """, unsafe_allow_html=True)
 
-    # --- CABECERA ---
-    col_h1, col_h2 = st.columns([1, 3])
-    with col_h1: st.markdown("## 👤")
+    # --- CABECERA Y EDICIÓN DE CLIENTE ---
+    col_h1, col_h2 = st.columns([1, 4])
+    with col_h1: 
+        st.markdown("<h1 style='text-align:center;'>👤</h1>", unsafe_allow_html=True)
     with col_h2: 
         st.subheader(cliente['nombre'])
         st.caption(f"🆔 {cliente.get('cedula', 'N/A')} | 📞 {cliente.get('telefono', 'N/A')}")
+    
+    with st.expander("📝 Editar Información del Cliente"):
+        with st.form("form_edit_cliente"):
+            n_nombre = st.text_input("Nombre Completo", value=cliente['nombre'])
+            n_ced = st.text_input("Cédula", value=cliente.get('cedula', ''))
+            n_tel = st.text_input("Teléfono", value=cliente.get('telefono', ''))
+            if st.form_submit_button("Actualizar Datos Personales"):
+                antes = {"nom": cliente['nombre'], "ced": cliente.get('cedula')}
+                despues = {"nombre": n_nombre, "cedula": n_ced, "telefono": n_tel}
+                conn.table("clientes").update(despues).eq("id", cliente['id']).execute()
+                registrar_log("EDIT_CLIENTE", "clientes", cliente['id'], antes, despues, u_id)
+                st.success("Datos actualizados"); time.sleep(1); st.rerun()
 
+    # --- LISTADO DE CUENTAS ---
     mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
     if not mis_ctas:
-        st.info("No hay cuentas activas.")
+        st.info("No hay cuentas activas para este cliente.")
         return
 
     for ct in mis_ctas:
@@ -1291,54 +1309,55 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
         # --- ESTRUCTURA DE 3 COLUMNAS SOLICITADA ---
         col_real, col_historial, col_plan = st.columns([1.3, 1, 1.2])
         
+        # Filtrado seguro de pagos
         mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
 
-        # 1. COLUMNA: EJECUCIÓN REAL (Lo que el cliente ha pagado y es editable)
+        # 1. COLUMNA: EJECUCIÓN REAL (Edición y Borrado)
         with col_real:
             st.markdown("#### ✅ Ejecución Real")
-            st.caption("Abonos efectivos recibidos")
+            st.caption("Abonos recibidos (Editables < 24h)")
             
             if not mis_pagos_cta:
-                st.info("No hay pagos realizados.")
+                st.info("Sin abonos.")
             
             for p in mis_pagos_cta:
                 with st.container(border=True):
-                    # Check de 24 horas
-                    permitido = puede_gestionar(p.get('created_at'))
+                    # Usar .get() para evitar KeyErrors
+                    fecha_ref = p.get('created_at') or p.get('fecha_pago')
+                    permitido = puede_gestionar(fecha_ref)
                     
                     if permitido:
-                        with st.form(key=f"form_edit_{p['id']}"):
-                            m_edit = st.number_input("Editar Monto (RD$)", value=float(p['monto_pagado']), step=100.0)
-                            if st.form_submit_button("Actualizar"):
+                        with st.form(key=f"form_p_{p['id']}"):
+                            m_edit = st.number_input("Monto RD$", value=float(p['monto_pagado']), step=100.0)
+                            if st.form_submit_button("Guardar"):
                                 n_bal = reajustar_por_edicion_pago(c_id, p['monto_pagado'], m_edit, ct['balance_pendiente'])
                                 conn.table("pagos").update({"monto_pagado": m_edit}).eq("id", p['id']).execute()
-                                registrar_log("EDIT_PAGO", "pagos", p['id'], {"monto": p['monto_pagado']}, {"monto": m_edit}, u_id)
-                                st.success("¡Guardado!"); time.sleep(1); st.rerun()
+                                registrar_log("EDIT_PAGO", "pagos", p['id'], {"m": p['monto_pagado']}, {"m": m_edit}, u_id)
+                                st.success("¡Ajustado!"); time.sleep(1); st.rerun()
                         
-                        if st.button("🗑️ Eliminar Pago", key=f"del_p_{p['id']}", use_container_width=True):
-                            # Al eliminar un pago, la deuda sube
+                        if st.button("🗑️ Eliminar", key=f"del_p_{p['id']}", use_container_width=True):
                             n_bal = float(ct['balance_pendiente']) + float(p['monto_pagado'])
                             conn.table("cuentas").update({"balance_pendiente": n_bal}).eq("id", c_id).execute()
                             conn.table("pagos").delete().eq("id", p['id']).execute()
-                            registrar_log("DEL_PAGO", "pagos", p['id'], {"monto": p['monto_pagado']}, {}, u_id)
-                            st.error("Pago eliminado"); time.sleep(1); st.rerun()
+                            registrar_log("DEL_PAGO", "pagos", p['id'], {"m": p['monto_pagado']}, {}, u_id)
+                            st.error("Eliminado"); time.sleep(1); st.rerun()
                     else:
                         st.markdown(f"**Monto:** RD$ {float(p['monto_pagado']):,.2f}")
-                        st.caption(f"📅 {pd.to_datetime(p['fecha_pago']).strftime('%d/%m/%Y')}")
+                        st.caption(f"📅 {pd.to_datetime(fecha_ref).strftime('%d/%m/%Y')}")
                         st.markdown("<small style='color:gray;'>🔒 Bloqueado (+24h)</small>", unsafe_allow_html=True)
 
-        # 2. COLUMNA: HISTORIAL (Cronología de eventos)
+        # 2. COLUMNA: HISTORIAL (Timeline de auditoría)
         with col_historial:
             st.markdown("#### 📜 Historial")
-            st.caption("Logs de movimientos")
+            st.caption("Eventos registrados")
             
-            # Obtener logs de la DB
             res_logs = conn.table("logs_financieros").select("*").eq("registro_id", c_id).execute()
             
             eventos = []
             eventos.append({"f": ct['fecha_creacion'], "t": "CREACIÓN", "m": f"RD$ {float(ct['monto_inicial']):,.0f}", "i": "📝"})
             for p in mis_pagos_cta:
-                eventos.append({"f": p['created_at'], "t": "PAGO", "m": f"RD$ {float(p['monto_pagado']):,.0f}", "i": "💰"})
+                f_p = p.get('created_at') or p.get('fecha_pago')
+                eventos.append({"f": f_p, "t": "PAGO", "m": f"RD$ {float(p['monto_pagado']):,.0f}", "i": "💰"})
             for l in (res_logs.data if res_logs.data else []):
                 eventos.append({"f": l['fecha_log'], "t": l['accion'], "m": "Ajuste manual", "i": "⚙️"})
             
@@ -1350,10 +1369,10 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                     </div>
                 """, unsafe_allow_html=True)
 
-        # 3. COLUMNA: PLAN IDEAL (Cómo debió ejecutarse)
+        # 3. COLUMNA: PLAN IDEAL (Comparativa de cuotas)
         with col_plan:
             st.markdown("#### 📅 Plan Ideal")
-            st.caption("Cronograma original oficial")
+            st.caption("Cronograma oficial original")
             
             res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute()
             if res_plan.data:
@@ -1364,7 +1383,6 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                     f_e = pd.to_datetime(cuota['fecha_esperada']).date()
                     hoy = datetime.now().date()
                     
-                    # Determinar estado
                     if progreso_total >= m_c:
                         est, col, ico = "COMPLETA", "#28a745", "✅"
                         progreso_total -= m_c
@@ -1387,7 +1405,7 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                 st.warning("Sin plan de cuotas.")
 
     st.divider()
-    if st.button("Cerrar Expediente", use_container_width=True):
+    if st.button("Cerrar Expediente Completo", use_container_width=True):
         st.rerun()
 
 # --- GRID DE CLIENTES (CORREGIDO) ---
