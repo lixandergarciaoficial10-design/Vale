@@ -1342,53 +1342,81 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
         "📜 HISTORIAL COMPLETO", "💵 ABONOS REALES", "📅 PLAN IDEAL", "⚙️ PERFIL"
     ])
 
-    # --- PESTAÑA 1: HISTORIAL COMPLETO (Sobre tu código) ---
+# --- PESTAÑA 1: HISTORIAL COMPLETO ---
     with tab_historial:
         for idx, ct in enumerate(mis_ctas):
             c_id = ct['id']
             cod_fac = ct.get('codigo_factura', f"FAC-{str(c_id)[:6].upper()}")
             
-            # Lógica de cálculos que ya tenías
+            # 1. Cálculos de la cuenta
+            monto_ini = float(ct.get('monto_inicial', 0))
+            cap_puro = float(ct.get('capital_puro', 0))
+            ganancia = monto_ini - cap_puro
+            f_inicio = pd.to_datetime(ct['fecha_creacion']).strftime('%d/%m/%Y')
+            
+            # Intentar buscar la fecha final en el plan de cuotas si existe
+            res_plan = conn.table("plan_cuotas").select("fecha_esperada").eq("cuenta_id", c_id).order("numero_cuota", desc=True).limit(1).execute()
+            f_final = pd.to_datetime(res_plan.data[0]['fecha_esperada']).strftime('%d/%m/%Y') if res_plan.data else "Final del ciclo"
+
+            # 2. Pagos de esta cuenta
             mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
             total_abonado = sum(float(p['monto_pagado']) for p in mis_pagos_cta)
-            monto_ini = float(ct.get('monto_inicial', 0))
             faltante = monto_ini - total_abonado
             
-            # Expander con tu estilo
+            # EXPANDER PRINCIPAL
             with st.expander(f"📄 Factura: {cod_fac} | 🔴 Faltante: RD$ {faltante:,.2f}", expanded=(idx==0)):
                 
-                # Diseño de dos columnas dentro del expander
-                col_info, col_res = st.columns([2, 1])
+                # Layout: Narrativa (Izquierda) | Resumen (Derecha)
+                col_info, col_res = st.columns([2.2, 1])
                 
                 with col_info:
                     st.markdown(f"""
                     <div class="narrativa-apertura">
-                        <b>PRÉSTAMO {cod_fac}:</b> Iniciado el {pd.to_datetime(ct['fecha_creacion']).strftime('%d/%m/%Y')}.<br>
-                        Total pactado: <b>RD$ {monto_ini:,.2f}</b>.
+                        <span style="font-weight: 800; font-size: 1.1rem; color: #1e3a8a; display: block; margin-bottom: 8px;">
+                            🚀 INICIO DE OPERACIÓN
+                        </span>
+                        Se generó una factura por un total de <b>RD$ {monto_ini:,.2f}</b> al cliente 
+                        <b>{cliente['nombre'].upper()}</b> el día {f_inicio}. 
+                        <br><br>
+                        Esta operación cuenta con un capital base de <b>RD$ {cap_puro:,.2f}</b>, 
+                        con el cual se espera obtener una ganancia neta de <b>RD$ {ganancia:,.2f}</b> 
+                        al completar el ciclo de cobros pautado para el <b>{f_final}</b>.
                     </div>
                     """, unsafe_allow_html=True)
                 
                 with col_res:
                     st.markdown(f"""
                         <div class="resumen-box">
-                            <div class="resumen-item"><span>Total:</span><span class="resumen-valor">RD$ {monto_ini:,.2f}</span></div>
-                            <div class="resumen-item"><span>Abonado:</span><span class="resumen-valor" style="color:green;">RD$ {total_abonado:,.2f}</span></div>
-                            <div class="resumen-item" style="border-top:1px solid #ddd; padding-top:5px;">
-                                <span>Restante:</span><span class="resumen-valor" style="color:red;">RD$ {faltante:,.2f}</span>
+                            <div style="font-weight:800; color:#1e3a8a; border-bottom:1px solid #e1e8f0; margin-bottom:10px; padding-bottom:5px;">
+                                DATOS CLAVE
+                            </div>
+                            <div class="resumen-item"><span>Total Factura:</span><span class="resumen-valor">RD$ {monto_ini:,.2f}</span></div>
+                            <div class="resumen-item"><span>Inversión:</span><span class="resumen-valor">RD$ {cap_puro:,.2f}</span></div>
+                            <div class="resumen-item" style="margin-top:8px; padding-top:8px; border-top:1px dashed #cbd5e0;">
+                                <span>Restante:</span><span class="resumen-valor" style="color:#e53e3e; font-size:1rem;">RD$ {faltante:,.2f}</span>
                             </div>
                         </div>
                     """, unsafe_allow_html=True)
 
-                st.write("---")
+                st.write("") # Espaciador
+                st.markdown("**🔍 DETALLE DE MOVIMIENTOS**")
+                
                 if not mis_pagos_cta:
-                    st.caption("No hay abonos registrados aún.")
+                    st.info("No hay abonos registrados para esta factura.")
                 else:
-                    # Tus filas de movimientos
+                    # Mostrar movimientos con el indicador lateral
                     for p in sorted(mis_pagos_cta, key=lambda x: x['fecha_pago']):
                         st.markdown(f"""
                         <div class="movimiento-row status-verde">
-                            <div>✅ <b>{pd.to_datetime(p['fecha_pago']).strftime('%d/%m/%Y')}</b> — RD$ {float(p['monto_pagado']):,.2f}</div>
-                            <div style="font-size:0.8rem; color:gray;">ID: {str(p['id'])[:6].upper()}</div>
+                            <div>
+                                <span style="color:#28a745;">●</span> 
+                                <b>{pd.to_datetime(p['fecha_pago']).strftime('%d/%m/%Y')}</b> — 
+                                <span style="font-size:1.05rem;">RD$ {float(p['monto_pagado']):,.2f}</span>
+                                <br><small style="color:gray; margin-left:18px;">Abono recibido correctamente</small>
+                            </div>
+                            <div style="text-align:right;">
+                                <code style="color:#a0aec0; font-size:0.75rem;">REF-{str(p['id'])[:6].upper()}</code>
+                            </div>
                         </div>
                         """, unsafe_allow_html=True)
 
