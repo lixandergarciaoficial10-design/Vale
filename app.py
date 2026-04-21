@@ -1288,74 +1288,102 @@ def registrar_log_detallado(accion, tabla, registro_id, antes, despues, u_id, no
 
 @st.dialog("📦 EXPEDIENTE MAESTRO DE CLIENTE", width="large")
 def modal_detalle(cliente, cuentas, pagos, u_id=None):
-    if u_id is None: u_id = st.session_state.get('user_id', '0000')
+    # --- CÁLCULO DE DEUDA GLOBAL (Para la esquina superior derecha) ---
+    mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
+    total_monto_inicial = sum(float(ct.get('monto_inicial', 0)) for ct in mis_ctas)
     
-    # Captura de IP para auditoría
-    user_ip = st.context.headers.get("X-Forwarded-For", "IP_DESCONOCIDA").split(",")[0]
+    # Sumar todos los pagos de todas las cuentas de este cliente
+    ids_mis_ctas = [ct['id'] for ct in mis_ctas]
+    total_abonado_global = sum(float(p['monto_pagado']) for p in pagos if p.get('cuenta_id') in ids_mis_ctas)
+    
+    deuda_global_pendiente = total_monto_inicial - total_abonado_global
 
-    # --- 1. CSS ESTILO PREMIUM (Consolidado para evitar repeticiones) ---
-    st.markdown("""
+    # --- CSS: TU DISEÑO PREMIUM ---
+    st.markdown(f"""
         <style>
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-        .stTabs [data-baseweb="tab"] {
-            background-color: #f8f9fa; border-radius: 12px 12px 0px 0px;
-            padding: 12px 24px; font-weight: 700; color: #4b5563;
-        }
-        .stTabs [aria-selected="true"] { background-color: #007AFF !important; color: white !important; }
-        .movimiento-row {
-            padding: 12px; margin-bottom: 10px; border-radius: 8px;
-            display: flex; justify-content: space-between; align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .status-verde { background-color: #e6f4ea; border-left: 6px solid #34a853; color: #137333; }
-        .status-rojo { background-color: #fce8e6; border-left: 6px solid #d93025; color: #a50e0e; }
-        .narrativa-apertura {
+        .global-debt-container {{
+            text-align: right; background: #fff5f5; padding: 12px;
+            border-radius: 12px; border: 1px solid #feb2b2; margin-bottom: 15px;
+        }}
+        .resumen-box {{
+            background-color: #f8faff; border: 1px solid #e1e8f0;
+            border-radius: 12px; padding: 15px; font-size: 0.9rem;
+        }}
+        .resumen-item {{ display: flex; justify-content: space-between; margin-bottom: 5px; color: #4a5568; }}
+        .resumen-valor {{ font-weight: 700; color: #2d3748; }}
+        .narrativa-apertura {{
             background-color: #f0f7ff; padding: 15px; border-radius: 10px;
-            font-size: 0.95rem; color: #1e3a8a; margin-bottom: 20px;
-            border-left: 5px solid #1a73e8; line-height: 1.5;
-        }
+            font-size: 0.95rem; color: #1e3a8a; border-left: 5px solid #1a73e8;
+        }}
+        .movimiento-row {{
+            padding: 12px; margin-bottom: 8px; border-radius: 8px;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); background: white;
+        }}
+        .status-verde {{ border-left: 5px solid #28a745; }}
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 2. CABECERA ---
-    st.title(f"👤 {cliente['nombre'].upper()}")
-    st.caption(f"ID: {cliente.get('id')} | Cédula: {cliente.get('cedula', 'N/A')} | 🌐 IP: {user_ip}")
-
-    # Definición de Cuentas del Cliente
-    mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
+    # --- CABECERA CON DEUDA TOTAL ---
+    col_tit, col_bal = st.columns([2, 1])
+    with col_tit:
+        st.title(f"👤 {cliente['nombre'].upper()}")
+        st.caption(f"ID: {cliente.get('id')} | Cédula: {cliente.get('cedula', 'N/A')}")
     
-    if not mis_ctas:
-        st.warning("Este cliente no tiene facturas activas.")
-        return
+    with col_bal:
+        st.markdown(f"""
+            <div class="global-debt-container">
+                <small style="color: #c53030; font-weight: 600;">DEUDA TOTAL PENDIENTE</small><br>
+                <span style="font-size: 1.4rem; font-weight: 800; color: #c53030;">RD$ {deuda_global_pendiente:,.2f}</span>
+            </div>
+        """, unsafe_allow_html=True)
 
-    # --- 3. CREACIÓN DE PESTAÑAS (Solo una vez) ---
     tab_historial, tab_abonos, tab_plan, tab_perfil = st.tabs([
         "📜 HISTORIAL COMPLETO", "💵 ABONOS REALES", "📅 PLAN IDEAL", "⚙️ PERFIL"
     ])
 
-    # --- PESTAÑA 1: HISTORIAL COMPLETO ---
+    # --- PESTAÑA 1: HISTORIAL COMPLETO (Sobre tu código) ---
     with tab_historial:
         for idx, ct in enumerate(mis_ctas):
             c_id = ct['id']
             cod_fac = ct.get('codigo_factura', f"FAC-{str(c_id)[:6].upper()}")
             
-            # Cálculo de totales
+            # Lógica de cálculos que ya tenías
             mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
             total_abonado = sum(float(p['monto_pagado']) for p in mis_pagos_cta)
-            faltante = float(ct.get('monto_inicial', 0)) - total_abonado
+            monto_ini = float(ct.get('monto_inicial', 0))
+            faltante = monto_ini - total_abonado
             
-            # Expander con Key Única
+            # Expander con tu estilo
             with st.expander(f"📄 Factura: {cod_fac} | 🔴 Faltante: RD$ {faltante:,.2f}", expanded=(idx==0)):
-                st.markdown(f"""
-                <div class="narrativa-apertura">
-                    <b>PRÉSTAMO {cod_fac}:</b> Iniciado el {pd.to_datetime(ct['fecha_creacion']).strftime('%d/%m/%Y')}. 
-                    Total pactado: <b>RD$ {float(ct.get('monto_inicial', 0)):,.2f}</b>.
-                </div>
-                """, unsafe_allow_html=True)
                 
+                # Diseño de dos columnas dentro del expander
+                col_info, col_res = st.columns([2, 1])
+                
+                with col_info:
+                    st.markdown(f"""
+                    <div class="narrativa-apertura">
+                        <b>PRÉSTAMO {cod_fac}:</b> Iniciado el {pd.to_datetime(ct['fecha_creacion']).strftime('%d/%m/%Y')}.<br>
+                        Total pactado: <b>RD$ {monto_ini:,.2f}</b>.
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with col_res:
+                    st.markdown(f"""
+                        <div class="resumen-box">
+                            <div class="resumen-item"><span>Total:</span><span class="resumen-valor">RD$ {monto_ini:,.2f}</span></div>
+                            <div class="resumen-item"><span>Abonado:</span><span class="resumen-valor" style="color:green;">RD$ {total_abonado:,.2f}</span></div>
+                            <div class="resumen-item" style="border-top:1px solid #ddd; padding-top:5px;">
+                                <span>Restante:</span><span class="resumen-valor" style="color:red;">RD$ {faltante:,.2f}</span>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+                st.write("---")
                 if not mis_pagos_cta:
                     st.caption("No hay abonos registrados aún.")
                 else:
+                    # Tus filas de movimientos
                     for p in sorted(mis_pagos_cta, key=lambda x: x['fecha_pago']):
                         st.markdown(f"""
                         <div class="movimiento-row status-verde">
