@@ -1473,9 +1473,14 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                             msg_atraso = f'<span class="badge-atraso">PAGADO CON ATRASO DE {dias_atraso} DÍAS</span>'
 
                     # --- LÓGICA DE EDICIÓN (48 HORAS) ---
-                    creado = pd.to_datetime(p.get('created_at', p.get('fecha_pago')))
-                    ahora = pd.to_datetime(datetime.now())
-                    horas_transcurridas = (ahora - creado).total_seconds() / 3600
+# --- LÓGICA DE EDICIÓN (48 HORAS) --- CORREGIDO
+                    # Forzamos que ambos sean Timestamps de Pandas con zona horaria UTC para poder restarlos
+                    creado = pd.to_datetime(p.get('created_at', p.get('fecha_pago')), utc=True)
+                    ahora = pd.to_datetime('now', utc=True)
+                    
+                    # La resta ahora sí funcionará sin el TypeError
+                    diferencia = ahora - creado
+                    horas_transcurridas = diferencia.total_seconds() / 3600
                     es_editable = horas_transcurridas <= 48
 
                     # --- RENDERIZADO DEL PAGO ---
