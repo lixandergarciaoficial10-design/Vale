@@ -1420,11 +1420,11 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                         </div>
                         """, unsafe_allow_html=True)
 
-# --- PESTAÑA 2: ABONOS REALES (VERSIÓN COMPATIBLE SIN DIÁLOGOS ANIDADOS) ---
+# --- PESTAÑA 2: ABONOS REALES (VERSIÓN CON INDENTACIÓN CORREGIDA) ---
     with tab_abonos:
         st.markdown("### 💵 Gestión de Cobros y Auditoría")
         
-        # Inyectar CSS (Corregido para evitar que Streamlit rompa el timeline)
+        # 1. Inyectar CSS (Asegurando que el timeline y el mensaje de vacío se vean bien)
         st.markdown("""
             <style>
             .timeline-container { 
@@ -1433,7 +1433,7 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                 padding-left: 20px; 
             }
             .item-wrapper {
-                position: relative; /* Clave para que el punto no salga volando */
+                position: relative;
                 margin-bottom: 20px;
             }
             .timeline-dot {
@@ -1445,13 +1445,12 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
             }
             .dot-atraso { background: #ED8936; }
             .dot-peligro { background: #E53E3E; }
-            
             .pago-card {
                 background: #ffffff; border-radius: 12px; padding: 15px 20px;
                 border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
             }
             .flex-row {
-                display: flex; justify-content: space-between; align-items: flex-end; /* Alineación por debajo para balancear los textos */
+                display: flex; justify-content: space-between; align-items: flex-end;
             }
             .badge-atraso { background: #fff5f5; color: #c53030; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; border: 1px solid #fed7d7; }
             .badge-tiempo { background: #f0fff4; color: #2f855a; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; border: 1px solid #c6f6d5; }
@@ -1461,17 +1460,37 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
             }
             .text-muted { color: #A0AEC0; font-size: 0.70rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
             .monto-principal { font-size: 1.15rem; font-weight: 800; color: #1A202C; }
+            .empty-info { 
+                background: #F7FAFC; border: 2px dashed #E2E8F0; padding: 30px; 
+                border-radius: 12px; text-align: center; color: #718096; 
+                margin-bottom: 20px; font-weight: 500;
+            }
             </style>
         """, unsafe_allow_html=True)
 
-        for idx, ct in enumerate(mis_ctas):
+        # 2. LÓGICA DE ORDENAMIENTO (Facturas con abonos arriba)
+        cuentas_preparadas = []
+        for ct in mis_ctas:
+            c_id = ct['id']
+            p_cta = sorted([p for p in pagos if p.get('cuenta_id') == c_id], key=lambda x: x['fecha_pago'])
+            cuentas_preparadas.append({
+                'datos': ct,
+                'pagos': p_cta,
+                'tiene_pagos': len(p_cta) > 0
+            })
+
+        # Ordenar: Las que tienen abonos primero
+        cuentas_ordenadas = sorted(cuentas_preparadas, key=lambda x: x['tiene_pagos'], reverse=True)
+
+        # 3. RENDERIZADO
+        for item in cuentas_ordenadas:
+            ct = item['datos']
+            mis_pagos_cta = item['pagos']
             c_id = ct['id']
             cod_fac = ct.get('codigo_factura', f"FAC-{str(c_id)[:6].upper()}")
-            mis_pagos_cta = sorted([p for p in pagos if p.get('cuenta_id') == c_id], key=lambda x: x['fecha_pago'])
             res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute().data
 
-            # --- LÓGICA: ¿ESTÁ SALDADA O ACTIVA? ---
-            # Verificamos si tiene estado 'cerrada'/'pagada' o si ya se pagó el monto total
+            # --- LÓGICA DE ESTADO ---
             estado_cta = str(ct.get('estado', '')).strip().lower()
             es_saldada = estado_cta in ['saldada', 'cerrada', 'pagada']
             
@@ -1481,8 +1500,7 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                 if total_abonado >= monto_total_fac:
                     es_saldada = True
 
-            # Si está saldada -> Expander cerrado para no estorbar.
-            # Si está activa -> Contenedor normal, sin desplegables.
+            # --- CONTENEDOR UI ---
             if es_saldada:
                 contenedor_UI = st.expander(f"📁 Historial de Cobros: {cod_fac} (SALDADA)", expanded=False)
             else:
@@ -1490,100 +1508,102 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                 contenedor_UI = st.container()
 
             with contenedor_UI:
-                st.markdown('<div class="timeline-container">', unsafe_allow_html=True)
-                
-                for p_idx, p in enumerate(mis_pagos_cta):
-                    # --- LÓGICA DE ATRASO Y EDICIÓN ---
-                    f_pago = pd.to_datetime(p['fecha_pago']).date()
-                    dia_mes = f_pago.strftime('%d')
+                if not mis_pagos_cta:
+                    st.markdown(f"""
+                        <div class="empty-info">
+                            <span style="font-size: 1.5rem;">ℹ️</span><br><br>
+                            Esta factura todavía no tiene abonos registrados.
+                        </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown('<div class="timeline-container">', unsafe_allow_html=True)
                     
-                    msg_atraso = '<span class="badge-tiempo">A TIEMPO</span>'
-                    dot_class = "timeline-dot"
-                    dias_txt = "0 días"
-                    
-                    if res_plan and p_idx < len(res_plan):
-                        f_esp = pd.to_datetime(res_plan[p_idx]['fecha_esperada']).date()
-                        if f_pago > f_esp:
-                            dias_reales = (f_pago - f_esp).days
-                            msg_atraso = f'<span class="badge-atraso">ATRASADO</span>'
-                            dias_txt = f"{dias_reales} días"
-                            dot_class = "timeline-dot dot-atraso" if dias_reales <= 5 else "timeline-dot dot-peligro"
-
-                    creado = pd.to_datetime(p.get('created_at', p.get('fecha_pago')), utc=True)
-                    es_editable = (pd.to_datetime('now', utc=True) - creado).total_seconds() / 3600 <= 48
-
-                    # --- ENCABEZADOS (SOLO PARA LA PRIMERA CUOTA) ---
-                    lbl_fecha  = '<div class="text-muted" style="margin-bottom: 4px;">MES ABONADO</div>' if p_idx == 0 else ''
-                    lbl_estado = '<div class="text-muted" style="margin-bottom: 4px;">CONDICIÓN</div>' if p_idx == 0 else ''
-                    lbl_tiempo = '<div class="text-muted" style="margin-bottom: 4px;">ATRASO DE</div>' if p_idx == 0 else ''
-                    lbl_mora   = '<div class="text-muted" style="margin-bottom: 4px;">MORA COBRADA</div>' if p_idx == 0 else ''
-
-                    # --- RENDER ---
-                    col_data, col_btn = st.columns([6, 1]) 
-                    
-                    with col_data:
-                        # Bajamos un poco el punto en la primera cuota para que cuadre con los nuevos encabezados
-                        dot_top = "25px" if p_idx == 0 else "12px"
+                    for p_idx, p in enumerate(mis_pagos_cta):
+                        f_pago = pd.to_datetime(p['fecha_pago']).date()
+                        dia_mes = f_pago.strftime('%d')
                         
-                        st.markdown(f"""
-                        <div class="item-wrapper">
-                            <div class="{dot_class}" style="top: {dot_top};">{dia_mes}</div>
-                            <div class="pago-card">
-                                <div class="flex-row">
-                                    <div style="flex: 1.2;">
-                                        {lbl_fecha}
-                                        <div class="text-muted" style="font-size: 0.85rem; color: #718096; font-weight: 500;">{f_pago.strftime('%B %Y')}</div>
-                                        <div class="monto-principal">RD$ {float(p['monto_pagado']):,.2f}</div>
-                                    </div>
-                                    <div style="flex: 1; text-align: center;">
-                                        {lbl_estado}
-                                        <div>{msg_atraso}</div>
-                                    </div>
-                                    <div style="flex: 1; text-align: center; color: #718096; font-size: 0.85rem;">
-                                        {lbl_tiempo}
-                                        <div style="font-weight: 600;">{dias_txt}</div>
-                                    </div>
-                                    <div style="flex: 1; text-align: right;">
-                                        {lbl_mora}
-                                        <div style="font-weight: 700; color: #4A5568;">RD$ {float(p.get('mora_pagada', 0)):,.2f}</div>
+                        msg_atraso = '<span class="badge-tiempo">A TIEMPO</span>'
+                        dot_class = "timeline-dot"
+                        dias_txt = "0 días"
+                        
+                        if res_plan and p_idx < len(res_plan):
+                            f_esp = pd.to_datetime(res_plan[p_idx]['fecha_esperada']).date()
+                            if f_pago > f_esp:
+                                dias_reales = (f_pago - f_esp).days
+                                msg_atraso = f'<span class="badge-atraso">ATRASADO</span>'
+                                dias_txt = f"{dias_reales} días"
+                                dot_class = "timeline-dot dot-atraso" if dias_reales <= 5 else "timeline-dot dot-peligro"
+
+                        creado = pd.to_datetime(p.get('created_at', p.get('fecha_pago')), utc=True)
+                        es_editable = (pd.to_datetime('now', utc=True) - creado).total_seconds() / 3600 <= 48
+
+                        lbl_fecha  = '<div class="text-muted" style="margin-bottom: 4px;">MES ABONADO</div>' if p_idx == 0 else ''
+                        lbl_estado = '<div class="text-muted" style="margin-bottom: 4px;">CONDICIÓN</div>' if p_idx == 0 else ''
+                        lbl_tiempo = '<div class="text-muted" style="margin-bottom: 4px;">ATRASO DE</div>' if p_idx == 0 else ''
+                        lbl_mora   = '<div class="text-muted" style="margin-bottom: 4px;">MORA COBRADA</div>' if p_idx == 0 else ''
+
+                        col_data, col_btn = st.columns([6, 1]) 
+                        
+                        with col_data:
+                            dot_top = "25px" if p_idx == 0 else "12px"
+                            st.markdown(f"""
+                            <div class="item-wrapper">
+                                <div class="{dot_class}" style="top: {dot_top};">{dia_mes}</div>
+                                <div class="pago-card">
+                                    <div class="flex-row">
+                                        <div style="flex: 1.2;">
+                                            {lbl_fecha}
+                                            <div class="text-muted" style="font-size: 0.85rem; color: #718096; font-weight: 500;">{f_pago.strftime('%B %Y')}</div>
+                                            <div class="monto-principal">RD$ {float(p['monto_pagado']):,.2f}</div>
+                                        </div>
+                                        <div style="flex: 1; text-align: center;">
+                                            {lbl_estado}
+                                            <div>{msg_atraso}</div>
+                                        </div>
+                                        <div style="flex: 1; text-align: center; color: #718096; font-size: 0.85rem;">
+                                            {lbl_tiempo}
+                                            <div style="font-weight: 600;">{dias_txt}</div>
+                                        </div>
+                                        <div style="flex: 1; text-align: right;">
+                                            {lbl_mora}
+                                            <div style="font-weight: 700; color: #4A5568;">RD$ {float(p.get('mora_pagada', 0)):,.2f}</div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </div>""", unsafe_allow_html=True)
+                            </div>""", unsafe_allow_html=True)
 
-                    with col_btn:
-                        # Ajustamos el margen del botón para que se alinee perfectamente con la tarjeta si tiene encabezado
-                        margin_top = "30px" if p_idx == 0 else "15px"
-                        st.markdown(f"<div style='height: {margin_top};'></div>", unsafe_allow_html=True)
-                        
-                        if es_editable:
-                            with st.popover("📝", use_container_width=True):
-                                st.markdown('<div class="alerta-seguridad">🚨 <b>AUDITORÍA ACTIVA</b><br>Su IP está siendo registrada.</div>', unsafe_allow_html=True)
-                                new_m = st.number_input("Nuevo Monto", value=float(p['monto_pagado']), key=f"nm_{p['id']}")
-                                new_f = st.date_input("Nueva Fecha", value=f_pago, key=f"nf_{p['id']}")
-                                
-                                st.divider()
-                                c1 = st.checkbox("Confirmo corrección", key=f"c1_{p['id']}")
-                                c2 = st.checkbox("Dinero verificado", key=f"c2_{p['id']}")
-                                
-                                if c1 and c2:
-                                    if st.button("💾 GUARDAR", key=f"sv_{p['id']}", type="primary", use_container_width=True):
-                                        conn.table("pagos").update({"monto_pagado": new_m, "fecha_pago": str(new_f)}).eq("id", p['id']).execute()
-                                        st.rerun()
-                                
-                                st.divider()
-                                with st.expander("🗑️ ELIMINAR ABONO"):
-                                    st.error("Esta acción es irreversible.")
-                                    if st.checkbox("Autorizo borrado", key=f"del_chk_{p['id']}"):
-                                        if st.text_input("Escribe ELIMINAR", key=f"del_in_{p['id']}") == "ELIMINAR":
-                                            if st.button("🔥 BORRAR", key=f"btn_del_{p['id']}", type="primary"):
-                                                conn.table("pagos").delete().eq("id", p['id']).execute()
-                                                st.rerun()
-                        else:
-                            st.markdown("<div style='text-align:center; padding-top:10px; font-size:1.2rem; color:#E2E8F0;'>🔒</div>", unsafe_allow_html=True)
+                        with col_btn:
+                            margin_top = "30px" if p_idx == 0 else "15px"
+                            st.markdown(f"<div style='height: {margin_top};'></div>", unsafe_allow_html=True)
+                            
+                            if es_editable:
+                                with st.popover("📝", use_container_width=True):
+                                    st.markdown('<div class="alerta-seguridad">🚨 <b>AUDITORÍA ACTIVA</b><br>Su IP está siendo registrada.</div>', unsafe_allow_html=True)
+                                    new_m = st.number_input("Nuevo Monto", value=float(p['monto_pagado']), key=f"nm_{p['id']}")
+                                    new_f = st.date_input("Nueva Fecha", value=f_pago, key=f"nf_{p['id']}")
+                                    
+                                    st.divider()
+                                    c1 = st.checkbox("Confirmo corrección", key=f"c1_{p['id']}")
+                                    c2 = st.checkbox("Dinero verificado", key=f"c2_{p['id']}")
+                                    
+                                    if c1 and c2:
+                                        if st.button("💾 GUARDAR", key=f"sv_{p['id']}", type="primary", use_container_width=True):
+                                            conn.table("pagos").update({"monto_pagado": new_m, "fecha_pago": str(new_f)}).eq("id", p['id']).execute()
+                                            st.rerun()
+                                    
+                                    st.divider()
+                                    with st.expander("🗑️ ELIMINAR ABONO"):
+                                        st.error("Esta acción es irreversible.")
+                                        if st.checkbox("Autorizo borrado", key=f"del_chk_{p['id']}"):
+                                            if st.text_input("Escribe ELIMINAR", key=f"del_in_{p['id']}") == "ELIMINAR":
+                                                if st.button("🔥 BORRAR", key=f"btn_del_{p['id']}", type="primary"):
+                                                    conn.table("pagos").delete().eq("id", p['id']).execute()
+                                                    st.rerun()
+                            else:
+                                st.markdown("<div style='text-align:center; padding-top:10px; font-size:1.2rem; color:#E2E8F0;'>🔒</div>", unsafe_allow_html=True)
 
-                st.markdown('</div>', unsafe_allow_html=True)
-
+                    st.markdown('</div>', unsafe_allow_html=True)
+                
 # --- PESTAÑA 3: PLAN IDEAL (CRONOGRAMA VS REALIDAD) ---
     with tab_plan:
         st.markdown("### 📅 Cronograma de Pagos")
