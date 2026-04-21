@@ -1823,73 +1823,86 @@ if menu == "👥 Todos mis Clientes":
                             st.rerun()
 
 # --- CAMBIO DE SECCIÓN (FUERA DEL BUCLE) ---
+# --- SECCIÓN: CUENTAS POR PAGAR (MODO INTELIGENTE) ---
 elif menu == "Cuentas por Pagar":
-    st.header("🏧 Cuentas por Pagar y Gastos")
+    st.header("🏧 Gestión de Compromisos")
 
-    # --- 1. RESUMEN RÁPIDO (KPIs) ---
-    res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
-    res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
-    
-    total_recaudado = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
-    total_gastos = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
-    
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Ingresos (Cobros)", f"RD$ {total_recaudado:,.2f}")
-    c2.metric("Egresos (Gastos)", f"RD$ {total_gastos:,.2f}", delta_color="inverse")
-    c3.metric("Disponible Real", f"RD$ {(total_recaudado - total_gastos):,.2f}")
+    # 1. FORMULARIO DE REGISTRO CON OPCIÓN RECURRENTE
+    with st.expander("🚀 Registrar Gasto o Pago Programado", expanded=True):
+        with st.form("nuevo_gasto_pro"):
+            c1, c2 = st.columns(2)
+            desc = c1.text_input("¿Qué vas a pagar?", placeholder="Ej. Alquiler del local")
+            monto = c2.number_input("Monto RD$", min_value=0.0, step=500.0)
+            
+            c3, c4 = st.columns(2)
+            fecha_pago = c3.date_input("Fecha de vencimiento")
+            es_recurrente = c4.checkbox("🔄 Es un gasto recurrente (Mensual)")
+            
+            if st.form_submit_button("Registrar Compromiso", use_container_width=True, type="primary"):
+                if desc and monto > 0:
+                    conn.table("gastos").insert({
+                        "descripcion": desc,
+                        "monto": monto,
+                        "fecha_gasto": str(fecha_pago),
+                        "user_id": u_id,
+                        "es_recurrente": es_recurrente,
+                        "estado": "Pendiente",
+                        "visible_usuario": True # Se queda en tu BD aunque ellos lo "borren"
+                    }).execute()
+                    st.success("¡Compromiso guardado!")
+                    st.rerun()
 
     st.divider()
 
-    # --- 2. REGISTRO SIMPLIFICADO DE GASTOS ---
-    with st.expander("➕ REGISTRAR NUEVO GASTO / PAGO", expanded=False):
-        with st.form("form_gastos", clear_on_submit=True):
-            col_desc, col_monto = st.columns([2, 1])
-            desc_gasto = col_desc.text_input("Descripción del gasto", placeholder="Ej: Pago Local, Gasolina, Suplidores...")
-            monto_gasto = col_monto.number_input("Monto (RD$)", min_value=0.0, step=100.0)
-            
-            if st.form_submit_button("Guardar Gasto", type="primary", use_container_width=True):
-                if desc_gasto and monto_gasto > 0:
-                    conn.table("gastos").insert({
-                        "descripcion": desc_gasto,
-                        "monto": monto_gasto,
-                        "user_id": u_id
-                    }).execute()
-                    st.success("Gasto registrado correctamente")
-                    st.rerun()
-
-    # --- 3. RECORDATORIOS DE FECHAS DE PAGO (PROXIMOS VENCIMIENTOS) ---
-    st.subheader("🗓️ Recordatorios de Próximos Pagos")
+    # 2. LÓGICA DE NOTIFICACIONES E INTELIGENCIA
+    # Consultamos solo los que están "visibles" para el usuario
+    res = conn.table("gastos").select("*").eq("user_id", u_id).eq("visible_usuario", True).order("fecha_gasto").execute()
     
-    # Aquí consultamos la tabla de gastos o una nueva de 'pendientes' si la tienes
-    # Si usas la misma tabla de 'gastos', podemos filtrar los que no tengan fecha_pago real
-    res_pendientes = conn.table("gastos").select("*").eq("user_id", u_id).order("fecha_gasto").limit(10).execute()
-    
-    if res_pendientes.data:
+    if res.data:
         from datetime import datetime, date
         hoy = date.today()
 
-        for g in res_pendientes.data:
-            # Simulamos una lógica de recordatorio basada en la fecha de registro + 30 días 
-            # o si tienes una columna 'fecha_vencimiento' úsala aquí:
-            fecha_g = datetime.fromisoformat(g['fecha_gasto'].replace('Z', '+00:00')).date()
+        st.subheader("📌 Pendientes y Recordatorios")
+        
+        for g in res.data:
+            f_vence = datetime.strptime(g['fecha_gasto'][:10], "%Y-%m-%d").date()
+            dias_restantes = (f_vence - hoy).days
             
+            # Diseño de la Tarjeta
             with st.container(border=True):
-                col_info, col_alert = st.columns([3, 1])
+                col_info, col_status, col_btns = st.columns([2, 1, 1.5])
                 
                 with col_info:
-                    st.write(f"**{g['descripcion']}**")
-                    st.caption(f"Registrado el: {fecha_g}")
-                
-                with col_alert:
-                    st.write(f"**RD$ {float(g['monto']):,.2f}**")
-                    # Lógica de recordatorio visual
-                    if (fecha_g - hoy).days <= 3:
-                        st.error("⚠️ Vence pronto")
-                    else:
-                        st.info("📅 Programado")
-    else:
-        st.info("No hay pagos pendientes programados.")
+                    st.write(f"### {g['descripcion']}")
+                    st.caption(f"Vence el: {f_vence.strftime('%d/%m/%Y')}")
+                    if g.get('es_recurrente'):
+                        st.info("🔄 Recurrente Mensual")
 
+                with col_status:
+                    if g['estado'] == "Pagado":
+                        st.success("✅ PAGADO")
+                    elif dias_restantes < 0:
+                        st.error(f"🚨 VENCIDO ({abs(dias_restantes)} días)")
+                    elif dias_restantes <= 3:
+                        st.warning(f"⏰ Vence en {dias_restantes} días")
+                    else:
+                        st.write(f"⏳ Faltan {dias_restantes} días")
+
+                with col_btns:
+                    # Botón para Marcar como Pagado (Esto detiene notificaciones)
+                    if g['estado'] == "Pendiente":
+                        if st.button("Marcar Pagado", key=f"pay_{g['id']}", use_container_width=True):
+                            conn.table("gastos").update({"estado": "Pagado"}).eq("id", g['id']).execute()
+                            st.rerun()
+                    
+                    # Botón para "Eliminar" (Solo oculta al usuario)
+                    if st.button("🗑️ Eliminar", key=f"del_{g['id']}", use_container_width=True):
+                        conn.table("gastos").update({"visible_usuario": False}).eq("id", g['id']).execute()
+                        st.toast(f"Gasto '{g['descripcion']}' movido al archivo.")
+                        st.rerun()
+
+    else:
+        st.info("No tienes deudas o gastos pendientes por ahora. ¡Todo al día!")
     # --- 4. TABLA DE HISTORIAL RECIENTE ---
     with st.expander("📊 Ver historial completo de gastos"):
         if res_g.data:
