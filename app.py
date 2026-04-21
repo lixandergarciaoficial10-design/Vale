@@ -1553,7 +1553,7 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                                     <div class="flex-row">
                                         <div style="flex: 1.2;">
                                             {lbl_fecha}
-                                            <div class="text-muted" style="font-size: 0.85rem; color: #718096; font-weight: 500;">{f_pago.strftime('%B %Y')}</div>
+                                            <div class="text-muted" style="font-size: 0.85rem; color: #718096; font-weight: 500;">{f_pago.strftime('%d de %B %Y')}</div>
                                             <div class="monto-principal">RD$ {float(p['monto_pagado']):,.2f}</div>
                                         </div>
                                         <div style="flex: 1; text-align: center;">
