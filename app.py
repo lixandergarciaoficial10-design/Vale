@@ -737,46 +737,56 @@ elif menu == "Gestión de Cobros":
     with col_view:
         modo_analisis = st.toggle("📈 Modo Análisis", help="Ver cuentas saldadas")
 
-    # --- 5. CONSULTA DE DATOS ---
-    # Traemos nombre, cedula y telefono para el filtrado multidimensional
+# --- 5. CONSULTA DE DATOS ---
+    # Traemos todos los datos para procesar el recibo incluso si el balance llega a 0
     query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula)").eq("user_id", u_id)
-    query = query.lte("balance_pendiente", 0) if modo_analisis else query.gt("balance_pendiente", 0)
     res = query.execute()
     
     if res.data:
         datos_procesados = []
+        
+        # 5a. BUSCAR RECIBOS PENDIENTES PRIMERO (Para evitar que se pierdan al saldar)
+        for c in res.data:
+            token = str(c['id'])
+            if f"recibo_{token}" in st.session_state:
+                # Si hay recibo, preparamos datos mínimos y lanzamos la modal
+                c['aux_nombre'] = c.get('clientes', {}).get('nombre', 'Cliente')
+                mostrar_recibo_modal(c, st.session_state[f"recibo_{token}"], u_id)
+                del st.session_state[f"recibo_{token}"]
+                st.rerun()
+
+        # 5b. FILTRADO PARA LA VISTA ACTUAL
         for c in res.data:
             cliente_info = c.get('clientes', {})
             nombre = cliente_info.get('nombre', 'Cliente')
             cedula = cliente_info.get('cedula', '')
             telefono = cliente_info.get('telefono', '')
-            
-            # Lógica de búsqueda: Nombre OR Cédula OR Teléfono
-            if (search_term in nombre.lower() or 
-                search_term in str(cedula).lower() or 
-                search_term in str(telefono).lower()):
-                
-                txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
-                if dias_num > 0:
-                    txt_atraso = f"Han pasado {dias_num} días desde la fecha de pago acordada"
-                else:
-                    txt_atraso = txt_atraso_base
-                
-                c['aux_nombre'] = nombre
-                c['aux_atraso_txt'] = txt_atraso
-                c['aux_dias_num'] = dias_num
-                c['aux_prioridad'] = obtener_prioridad(dias_num, float(c.get('balance_pendiente', 0)))
-                datos_procesados.append(c)
+            m_pend = float(c.get('balance_pendiente', 0))
 
+            # Filtro de Modo Análisis vs Activos
+            cumple_filtro_modo = (modo_analisis and m_pend <= 0) or (not modo_analisis and m_pend > 0)
+            
+            if cumple_filtro_modo:
+                # Filtro de búsqueda por texto
+                if (search_term in nombre.lower() or 
+                    search_term in str(cedula).lower() or 
+                    search_term in str(telefono).lower()):
+                    
+                    txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
+                    
+                    c['aux_nombre'] = nombre
+                    c['aux_atraso_txt'] = f"Han pasado {dias_num} días desde el pago acordado" if dias_num > 0 else txt_atraso_base
+                    c['aux_dias_num'] = dias_num
+                    c['aux_prioridad'] = obtener_prioridad(dias_num, m_pend)
+                    datos_procesados.append(c)
+
+        # Ordenar por prioridad
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
 
+        # 5c. RENDERIZADO DE TARJETAS
         for item in datos_procesados:
             token = item['id']
             m_pend = float(item.get('balance_pendiente', 0))
-            
-            if f"recibo_{token}" in st.session_state:
-                mostrar_recibo_modal(item, st.session_state[f"recibo_{token}"], u_id)
-                del st.session_state[f"recibo_{token}"]
 
             with st.container(border=True):
                 c_nom, c_status, c_inputs, c_btn = st.columns([1.2, 1, 1.2, 0.8])
@@ -788,9 +798,12 @@ elif menu == "Gestión de Cobros":
                         mostrar_historial_modal(item, u_id)
 
                 with c_status:
-                    if modo_analisis: st.info("✅ SALDADO")
-                    elif item['aux_dias_num'] > 0: st.error(f"⚠️ {item['aux_atraso_txt']}")
-                    else: st.success("🟢 Al día")
+                    if modo_analisis: 
+                        st.info("✅ SALDADO")
+                    elif item['aux_dias_num'] > 0: 
+                        st.error(f"⚠️ {item['aux_atraso_txt']}")
+                    else: 
+                        st.success("🟢 Al día")
                         
                 with c_inputs:
                     if not modo_analisis:
@@ -810,7 +823,8 @@ elif menu == "Gestión de Cobros":
                             v_mora = st.session_state.get(f"mora_{token}", 0.0)
                             confirmar_cobro_modal(item, abono_input, f_prox_input, v_mora, u_id)
                     else:
-                        st.button("📄 Detalles", key=f"info_{token}", use_container_width=True)
+                        if st.button("📄 Detalles", key=f"info_{token}", use_container_width=True):
+                            mostrar_historial_modal(item, u_id)
 
                 if not modo_analisis:
                     with st.expander("⚖️ Penalidad (Mora)"):
