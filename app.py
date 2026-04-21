@@ -957,12 +957,18 @@ elif menu == "Nueva Cuenta por Cobrar":
                 cuota_esperada_f = total_f / cuotas_n
 
                 if st.button("🚀 REGISTRAR Y ACTIVAR", use_container_width=True, disabled=not (capital > 0 and continuar and cliente_obj is not None)):
+                    # GENERACIÓN DE DATOS REALES PARA AUDITORÍA
+                    import uuid
+                    codigo_fac = f"FAC-{str(uuid.uuid4())[:8].upper()}"
+                    
                     # IMPORTANTE: Tomamos la fecha de la tabla, por si el usuario la editó
                     primera_fecha_final = df_e.iloc[0]['Fecha']
                     
-                    # 1. Insertar en CUENTAS
+                    # 1. Insertar en CUENTAS (Capturando Capital Real y Código)
                     res_c = conn.table("cuentas").insert({
                         "cliente_id": cliente_obj['id'], 
+                        "codigo_factura": codigo_fac,
+                        "capital_puro": float(capital),
                         "monto_inicial": total_f,
                         "balance_pendiente": total_f, 
                         "user_id": u_id,
@@ -1006,6 +1012,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                         wa_msg = f"✅ *NUEVO CRÉDITO REGISTRADO*\n\n" \
                                  f"Hola {cliente_obj['nombre']},\n" \
                                  f"Detalles de tu cuenta:\n" \
+                                 f"📄 *Factura:* {codigo_fac}\n" \
                                  f"💰 *Total:* RD$ {total_f:,.2f}\n" \
                                  f"🗓️ *{cuotas_n} pagos* de RD$ {cuota_esperada_f:,.2f}\n" \
                                  f"📅 *Primer pago:* {fecha_wa}"
