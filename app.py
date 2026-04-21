@@ -1642,42 +1642,75 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                                     registrar_log_detallado(f"EDIT_IP_{user_ip}", "pagos", row["ID"], f"Monto:{orig['MONTO (RD$)']}", f"Monto:{row['MONTO (RD$)']}", u_id)
                         st.rerun()
 
-        # --- PESTAÑA 3: PLAN IDEAL (CRONOGRAMA INAMOVIBLE) ---
+# --- PESTAÑA 3: PLAN IDEAL (CRONOGRAMA INAMOVIBLE CON DESPLEGABLES) ---
         with tab_plan:
-            st.markdown(f"### 📅 Cronograma vs Realidad")
-            if res_plan:
-                # El progreso se calcula sobre la suma de pagos vs el plan
-                progreso_total = sum(float(p['monto_pagado']) for p in mis_pagos_cta)
-                datos_visuales = []
-                
-                for cuota in res_plan:
-                    m_esp = float(cuota['monto_cuota'])
-                    f_esp = pd.to_datetime(cuota['fecha_esperada']).date()
-                    
-                    if progreso_total >= (m_esp - 0.01): # Tolerancia de decimales
-                        estado_html = '<span style="color:#28a745; font-weight:bold;">✅ PAGADA</span>'
-                        progreso_total -= m_esp
-                    elif progreso_total > 0:
-                        estado_html = f'<span style="color:#fd7e14; font-weight:bold;">⚠️ ABONO (Falta RD$ {m_esp-progreso_total:,.2f})</span>'
-                        progreso_total = 0
-                    else:
-                        vencida = f_esp < datetime.now().date()
-                        color_class = "cuota-vencida" if vencida else "cuota-pendiente"
-                        txt = "🚨 VENCIDA" if vencida else "⏳ PENDIENTE"
-                        estado_html = f'<span class="{color_class}">{txt}</span>'
+            st.markdown("""
+                <style>
+                .cuota-vencida { color: #d93025; font-weight: bold; }
+                .cuota-pendiente { color: #5f6368; font-weight: bold; }
+                .plan-container { 
+                    background-color: #ffffff; 
+                    padding: 10px; 
+                    border-radius: 10px; 
+                    border: 1px solid #f1f3f4;
+                }
+                </style>
+            """, unsafe_allow_html=True)
 
-                    datos_visuales.append({
-                        "CUOTA": f"#{cuota['numero_cuota']}",
-                        "FECHA ACORDADA": f_esp.strftime('%d/%m/%Y'),
-                        "MONTO ESPERADO": f"RD$ {m_esp:,.2f}",
-                        "ESTADO ACTUAL": estado_html
-                    })
-                
-                df_v = pd.DataFrame(datos_visuales)
-                st.write(df_v.to_html(escape=False, index=False), unsafe_allow_html=True)
-                st.caption("🔒 El plan ideal se genera al crear la factura y no puede ser modificado manualmente.")
+            if not mis_ctas:
+                st.info("No hay planes de pago generados.")
             else:
-                st.warning("No hay plan de cuotas registrado para esta cuenta.")
+                for idx, ct in enumerate(mis_ctas):
+                    c_id = ct['id']
+                    cod_fac = ct.get('codigo_factura', f"FAC-{str(c_id)[:6].upper()}")
+                    
+                    # Traemos el plan ideal desde la base de datos (igual que en Gestión de Cobros)
+                    res_plan_db = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute().data
+                    
+                    # Obtenemos los pagos de esta factura específica para calcular el progreso
+                    mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
+                    progreso_total = sum(float(p['monto_pagado']) for p in mis_pagos_cta)
+
+                    # Título del desplegable para separar por factura
+                    with st.expander(f"📅 Cronograma vs Realidad: {cod_fac}", expanded=(len(mis_ctas) == 1)):
+                        if not res_plan_db:
+                            st.warning(f"No hay plan registrado para la factura {cod_fac}.")
+                        else:
+                            datos_visuales = []
+                            # Hacemos una copia local del progreso para la cascada de pagos
+                            saldo_recorrido = progreso_total
+                            
+                            for cuota in res_plan_db:
+                                m_esp = float(cuota['monto_cuota'])
+                                f_esp = pd.to_datetime(cuota['fecha_esperada']).date()
+                                
+                                # Lógica de comparación "Cascada" (La misma de Gestión de Cobros)
+                                if saldo_recorrido >= (m_esp - 0.01):
+                                    estado_html = '<span style="color:#28a745; font-weight:bold;">✅ PAGADA</span>'
+                                    saldo_recorrido -= m_esp
+                                elif saldo_recorrido > 0:
+                                    estado_html = f'<span style="color:#fd7e14; font-weight:bold;">⚠️ ABONO (Faltó RD$ {m_esp-saldo_recorrido:,.2f})</span>'
+                                    saldo_recorrido = 0
+                                else:
+                                    vencida = f_esp < datetime.now().date()
+                                    txt = "🚨 VENCIDA" if vencida else "⏳ PENDIENTE"
+                                    color_cl = "cuota-vencida" if vencida else "cuota-pendiente"
+                                    estado_html = f'<span class="{color_cl}">{txt}</span>'
+
+                                datos_visuales.append({
+                                    "CUOTA": f"#{cuota['numero_cuota']}",
+                                    "FECHA ACORDADA": f_esp.strftime('%d/%m/%Y'),
+                                    "MONTO ESPERADO": f"RD$ {m_esp:,.2f}",
+                                    "ESTADO ACTUAL": estado_html
+                                })
+                            
+                            # Renderizado en formato tabla HTML para soportar los colores
+                            st.markdown('<div class="plan-container">', unsafe_allow_html=True)
+                            df_v = pd.DataFrame(datos_visuales)
+                            st.write(df_v.to_html(escape=False, index=False), unsafe_allow_html=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                            
+                            st.caption(f"🔒 Plan de {cod_fac} generado automáticamente. Los pagos se aplican en orden cronológico.")
 
     # --- PESTAÑA 4: PERFIL (GESTIÓN DE DATOS) ---
     with tab_perfil:
