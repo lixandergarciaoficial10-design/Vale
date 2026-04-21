@@ -1309,6 +1309,7 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
         }
         .cuota-vencida { background-color: #ffe5e5; color: #b71c1c; padding: 5px; border-radius: 4px; font-weight: bold; }
         .cuota-pendiente { background-color: #f0f0f0; color: #666; padding: 5px; border-radius: 4px; opacity: 0.7; }
+        .ganancia-text { color: #28a745; font-weight: bold; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -1316,7 +1317,7 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
     st.title(f"👤 {cliente['nombre'].upper()}")
     st.caption(f"ID: {cliente.get('id')} | Cédula: {cliente.get('cedula', 'N/A')} | 🌐 IP Sesión: {user_ip}")
 
-    # --- SISTEMA DE NAVEGACIÓN (ORDEN EXACTO SOLICITADO) ---
+    # --- SISTEMA DE NAVEGACIÓN ---
     tab_historial, tab_abonos, tab_plan, tab_perfil = st.tabs([
         "📜 HISTORIAL COMPLETO", "💵 ABONOS REALES", "📅 PLAN IDEAL", "⚙️ PERFIL"
     ])
@@ -1329,51 +1330,60 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
 
     for ct in mis_ctas:
         c_id = ct['id']
+        cod_fac = ct.get('codigo_factura', f"FAC-{str(c_id)[:6].upper()}")
+        cap_puro = float(ct.get('capital_puro', 0))
+        monto_total = float(ct.get('monto_inicial', 0))
+        
         mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
         res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute().data
 
         # --- PESTAÑA 1: HISTORIAL COMPLETO (RELATO NARRATIVO) ---
         with tab_historial:
-            st.markdown("### 📖 Bitácora Maestra de la Cuenta")
-            ganancia_proyectada = (float(ct.get('cuota_esperada', 0)) * len(res_plan or [])) - float(ct.get('monto_inicial', 0))
+            st.markdown(f"### 📖 Bitácora: Factura `{cod_fac}`")
+            
+            # Cálculo de ganancia real vs proyectada
+            ganancia_total = monto_total - cap_puro
             
             # Evento de Creación
             st.markdown(f"""<div class="log-narrativo">
-                🚀 <b>APERTURA DE CRÉDITO:</b> Se generó la factura por <b>RD$ {float(ct['monto_inicial']):,.2f}</b>. 
-                El prestamista proyecta una ganancia de <b>RD$ {ganancia_proyectada:,.2f}</b> bajo este contrato.
+                🚀 <b>APERTURA DE CRÉDITO:</b> Se desembolsó un capital de <b>RD$ {cap_puro:,.2f}</b>. 
+                El monto total a recuperar con intereses es de <b>RD$ {monto_total:,.2f}</b>. 
+                <br>💰 <span class="ganancia-text">Ganancia Proyectada: RD$ {ganancia_total:,.2f}</span>
             </div>""", unsafe_allow_html=True)
 
-            # Pagos
-            for p in mis_pagos_cta:
-                st.markdown(f"""<div class="log-narrativo">
-                    💰 <b>INGRESO RECIBIDO:</b> El {pd.to_datetime(p['fecha_pago']).strftime('%d/%m/%Y')} se registró un abono de 
-                    <b>RD$ {float(p['monto_pagado']):,.2f}</b> (Mora: RD$ {float(p.get('mora_pagada',0)):,.2f}).
-                </div>""", unsafe_allow_html=True)
+            # Pagos registrados
+            if mis_pagos_cta:
+                for p in sorted(mis_pagos_cta, key=lambda x: x['fecha_pago']):
+                    st.markdown(f"""<div class="log-narrativo">
+                        💰 <b>INGRESO RECIBIDO:</b> El {pd.to_datetime(p['fecha_pago']).strftime('%d/%m/%Y')} se registró un abono de 
+                        <b>RD$ {float(p['monto_pagado']):,.2f}</b>. 
+                        <small>(Mora: RD$ {float(p.get('mora_pagada',0)):,.2f} | Ref: {p.get('id')[:8]})</small>
+                    </div>""", unsafe_allow_html=True)
 
             # Auditoría de Ediciones (Logs)
             logs_db = conn.table("logs_financieros").select("*").eq("registro_id", c_id).execute().data
             if logs_db:
                 for l in logs_db:
-                    st.markdown(f"""<div class="log-narrativo" style="border-left-color: #ff9800;">
-                        ⚠️ <b>AJUSTE DE SEGURIDAD:</b> Acción <i>{l['accion']}</i> realizada. 
-                        Cambio detectado: {l.get('datos_antes')} → {l.get('datos_despues')}
+                    st.markdown(f"""<div class="log-narrativo" style="border-left-color: #ff9800; background: #fffcf5;">
+                        ⚠️ <b>AJUSTE DE SEGURIDAD:</b> Acción <i>{l['accion']}</i>. 
+                        <br><small>Cambio: {l.get('datos_antes')} → {l.get('datos_despues')}</small>
                     </div>""", unsafe_allow_html=True)
 
-        # --- PESTAÑA 2: ABONOS REALES (EDICIÓN CON MIEDO) ---
+        # --- PESTAÑA 2: ABONOS REALES (EDICIÓN Y AUDITORÍA) ---
         with tab_abonos:
-            st.markdown(f"### 💵 Registro de Cobros (Factura: `{str(c_id)[:8].upper()}`)")
+            st.markdown(f"### 💵 Registro de Cobros (Factura: `{cod_fac}`)")
             
             if not mis_pagos_cta:
                 st.info("Sin abonos registrados.")
             else:
                 data_libreta = []
                 for p in mis_pagos_cta:
+                    # Función de validación de 48h (Asumiendo que existe en tu app)
                     editable = puede_gestionar_48h(p.get('created_at'))
                     data_libreta.append({
                         "ID": p["id"],
                         "ELIMINAR": False,
                         "FECHA PAGO REAL": pd.to_datetime(p.get('fecha_pago')).date(),
-                        "REF": p.get('codigo_factura', 'PAGO'),
                         "MONTO (RD$)": float(p['monto_pagado']),
                         "MORA": float(p.get('mora_pagada', 0)),
                         "STATUS": "🔓" if editable else "🔒",
@@ -1381,38 +1391,37 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                     })
                 
                 df_original = pd.DataFrame(data_libreta)
+                st.warning("⚠️ **Doble clic** para corregir montos. Solo permitido antes de las 48h.")
                 
-                st.warning("⚠️ **Doble clic** para editar. La edición solo está permitida antes de las 48h.")
                 edited_df = st.data_editor(
                     df_original,
                     use_container_width=True, hide_index=True,
-                    disabled=["ID", "REF", "STATUS"],
+                    disabled=["ID", "STATUS"],
                     column_config={
                         "ID": None, "_is_editable": None,
                         "ELIMINAR": st.column_config.CheckboxColumn("🗑️"),
-                        "FECHA PAGO REAL": st.column_config.DateColumn("FECHA PAGO REAL"),
+                        "FECHA PAGO REAL": st.column_config.DateColumn("FECHA"),
                         "MONTO (RD$)": st.column_config.NumberColumn("MONTO", format="%.2f"),
                         "MORA": st.column_config.NumberColumn("MORA", format="%.2f"),
                     },
-                    key=f"ed_caja_real_{c_id}"
+                    key=f"ed_caja_{c_id}"
                 )
 
                 if not edited_df.equals(df_original):
-                    st.error(f"""### 🚨 PROTOCOLO DE AUDITORÍA ACTIVO
-                    **ATENCIÓN:** Estás entrando en formato de edición. **CobroYa Pro** no se hace responsable por descuadres.
-                    - **Rastreo Legal:** IP {user_ip} será vinculada a este cambio.
-                    - **Evidencia:** El historial guardará este movimiento para revisión del dueño.
-                    """)
+                    st.error(f"🚨 **PROTOCOLO IP {user_ip} ACTIVO**. Los cambios afectarán el balance pendiente.")
                     
-                    if st.button("🔥 GUARDAR Y ASUMIR RESPONSABILIDAD", key=f"btn_save_{c_id}"):
+                    if st.button("🔥 APLICAR CAMBIOS Y LOGUEAR", key=f"save_{c_id}"):
                         for i, row in edited_df.iterrows():
                             orig = df_original.iloc[i]
                             if row["_is_editable"]:
+                                # Lógica de Eliminación
                                 if row["ELIMINAR"]:
                                     n_bal = float(ct['balance_pendiente']) + orig["MONTO (RD$)"]
                                     conn.table("cuentas").update({"balance_pendiente": n_bal}).eq("id", c_id).execute()
                                     conn.table("pagos").delete().eq("id", row["ID"]).execute()
                                     registrar_log_detallado(f"BORRADO_IP_{user_ip}", "pagos", row["ID"], orig["MONTO (RD$)"], 0, u_id)
+                                
+                                # Lógica de Edición de Monto
                                 elif row["MONTO (RD$)"] != orig["MONTO (RD$)"] or row["FECHA PAGO REAL"] != orig["FECHA PAGO REAL"]:
                                     dif = row["MONTO (RD$)"] - orig["MONTO (RD$)"]
                                     n_bal = float(ct['balance_pendiente']) - dif
@@ -1422,56 +1431,63 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                                         "fecha_pago": str(row["FECHA PAGO REAL"]),
                                         "mora_pagada": row["MORA"]
                                     }).eq("id", row["ID"]).execute()
-                                    registrar_log_detallado(f"EDIT_IP_{user_ip}", "pagos", row["ID"], orig["MONTO (RD$)"], row["MONTO (RD$)"], u_id)
+                                    registrar_log_detallado(f"EDIT_IP_{user_ip}", "pagos", row["ID"], f"Monto:{orig['MONTO (RD$)']}", f"Monto:{row['MONTO (RD$)']}", u_id)
                         st.rerun()
 
-        # --- PESTAÑA 3: PLAN IDEAL (SOMBREADOS Y ESTADOS) ---
+        # --- PESTAÑA 3: PLAN IDEAL (CRONOGRAMA INAMOVIBLE) ---
         with tab_plan:
             st.markdown(f"### 📅 Cronograma vs Realidad")
             if res_plan:
-                progreso = sum(float(p['monto_pagado']) for p in mis_pagos_cta)
-                datos_finales = []
+                # El progreso se calcula sobre la suma de pagos vs el plan
+                progreso_total = sum(float(p['monto_pagado']) for p in mis_pagos_cta)
+                datos_visuales = []
                 
                 for cuota in res_plan:
                     m_esp = float(cuota['monto_cuota'])
                     f_esp = pd.to_datetime(cuota['fecha_esperada']).date()
                     
-                    if progreso >= m_esp:
-                        estado_html = "✅ PAGADA"
-                        progreso -= m_esp
-                    elif progreso > 0:
-                        estado_html = f"⚠️ ABONO PARCIAL (Resta RD$ {m_esp-progreso:,.2f})"
-                        progreso = 0
+                    if progreso_total >= (m_esp - 0.01): # Tolerancia de decimales
+                        estado_html = '<span style="color:#28a745; font-weight:bold;">✅ PAGADA</span>'
+                        progreso_total -= m_esp
+                    elif progreso_total > 0:
+                        estado_html = f'<span style="color:#fd7e14; font-weight:bold;">⚠️ ABONO (Falta RD$ {m_esp-progreso_total:,.2f})</span>'
+                        progreso_total = 0
                     else:
                         vencida = f_esp < datetime.now().date()
                         color_class = "cuota-vencida" if vencida else "cuota-pendiente"
-                        txt = "🚨 VENCIDA" if vencida else "⏳ AÚN NO PAGADA"
+                        txt = "🚨 VENCIDA" if vencida else "⏳ PENDIENTE"
                         estado_html = f'<span class="{color_class}">{txt}</span>'
 
-                    datos_finales.append({
+                    datos_visuales.append({
                         "CUOTA": f"#{cuota['numero_cuota']}",
                         "FECHA ACORDADA": f_esp.strftime('%d/%m/%Y'),
-                        "FECHA REAL": "---", # Lógica para buscar el pago exacto si quieres
                         "MONTO ESPERADO": f"RD$ {m_esp:,.2f}",
-                        "ESTADO": estado_html
+                        "ESTADO ACTUAL": estado_html
                     })
                 
-                # Renderizar tabla con HTML habilitado para los sombreados
-                df_visual = pd.DataFrame(datos_finales)
-                st.write(df_visual.to_html(escape=False, index=False), unsafe_allow_html=True)
-                st.caption("🔒 El Plan Ideal es inamovible para garantizar el contrato original.")
+                df_v = pd.DataFrame(datos_visuales)
+                st.write(df_v.to_html(escape=False, index=False), unsafe_allow_html=True)
+                st.caption("🔒 El plan ideal se genera al crear la factura y no puede ser modificado manualmente.")
             else:
-                st.warning("No hay plan registrado.")
+                st.warning("No hay plan de cuotas registrado para esta cuenta.")
 
-    # --- PESTAÑA 4: PERFIL ---
+    # --- PESTAÑA 4: PERFIL (GESTIÓN DE DATOS) ---
     with tab_perfil:
-        with st.form(key=f"form_perfil_{cliente['id']}"):
+        with st.form(key=f"perfil_edit_{cliente['id']}"):
+            st.subheader("📝 Editar Información Básica")
             n_nom = st.text_input("Nombre Completo", value=cliente['nombre'])
-            n_ced = st.text_input("Cédula", value=cliente.get('cedula', ''))
-            n_tel = st.text_input("Teléfono", value=cliente.get('telefono', ''))
-            if st.form_submit_button("GUARDAR CAMBIOS"):
-                conn.table("clientes").update({"nombre": n_nom, "cedula": n_ced, "telefono": n_tel}).eq("id", cliente['id']).execute()
-                st.success("Perfil actualizado"); st.rerun()
+            col_a, col_b = st.columns(2)
+            n_ced = col_a.text_input("Cédula", value=cliente.get('cedula', ''))
+            n_tel = col_b.text_input("Teléfono", value=cliente.get('telefono', ''))
+            
+            if st.form_submit_button("ACTUALIZAR DATOS DEL CLIENTE"):
+                conn.table("clientes").update({
+                    "nombre": n_nom, 
+                    "cedula": n_ced, 
+                    "telefono": n_tel
+                }).eq("id", cliente['id']).execute()
+                st.success("¡Datos actualizados correctamente!")
+                st.rerun()
 
     st.divider()
     if st.button("CERRAR EXPEDIENTE", use_container_width=True):
