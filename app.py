@@ -730,64 +730,60 @@ elif menu == "Gestión de Cobros":
         if st.button("✅ FINALIZAR", use_container_width=True):
             st.rerun()
 
-    # --- 4. CONTROLES SUPERIORES ---
+# --- 4. DETECTOR MAESTRO DE RECIBOS (FUERA DE TODO BUCLE) ---
+    # Esto debe ejecutarse antes que cualquier filtro para que no importe si la cuenta se saldó
+    for key in list(st.session_state.keys()):
+        if key.startswith("recibo_"):
+            id_para_recibo = key.replace("recibo_", "")
+            # Buscamos la data directamente en la tabla para asegurar que tenemos el nombre
+            # sin importar si está saldada o no
+            res_recibo = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("id", id_para_recibo).single().execute()
+            
+            if res_recibo.data:
+                item_recibo = res_recibo.data
+                item_recibo['aux_nombre'] = item_recibo.get('clientes', {}).get('nombre', 'Cliente')
+                
+                # Lanzamos la modal y limpiamos el estado
+                mostrar_recibo_modal(item_recibo, st.session_state[key], u_id)
+                del st.session_state[key]
+                # No hacemos rerun aquí, dejamos que la modal se procese
+
+    # --- 5. CONTROLES SUPERIORES ---
     col_search, col_view = st.columns([2, 1])
     with col_search:
         search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre, Cédula o Teléfono...").lower()
     with col_view:
         modo_analisis = st.toggle("📈 Modo Análisis", help="Ver cuentas saldadas")
 
-# --- 5. CONSULTA DE DATOS Y LÓGICA DE RECIBO INDEPENDIENTE ---
-    
-    # Traemos todos los datos sin filtrar por balance aún
+    # --- 6. CONSULTA DE DATOS PARA LA LISTA ---
+    # Ahora sí consultamos para mostrar en pantalla según el modo
     query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula)").eq("user_id", u_id)
+    if modo_analisis:
+        query = query.lte("balance_pendiente", 0)
+    else:
+        query = query.gt("balance_pendiente", 0)
+        
     res = query.execute()
     
     if res.data:
-        # A. DETECTOR DE RECIBOS (Ejecución prioritaria)
-        # Buscamos en el session_state si hay algún recibo pendiente
-        for key in list(st.session_state.keys()):
-            if key.startswith("recibo_"):
-                token_recibo = key.replace("recibo_", "")
-                # Buscamos la data de esa cuenta específica en los resultados de 'res.data'
-                cta_del_recibo = next((c for c in res.data if str(c['id']) == token_recibo), None)
-                
-                if cta_del_recibo:
-                    # Le inyectamos el nombre para que la modal no falle
-                    cta_del_recibo['aux_nombre'] = cta_del_recibo.get('clientes', {}).get('nombre', 'Cliente')
-                    # Lanzamos la modal
-                    mostrar_recibo_modal(cta_del_recibo, st.session_state[key], u_id)
-                    # Borramos para que no se repita en el próximo loop
-                    del st.session_state[key]
-                    st.rerun()
-
-        # B. PROCESAMIENTO PARA LA LISTA VISUAL
         datos_procesados = []
         for c in res.data:
             cliente_info = c.get('clientes', {})
             nombre = cliente_info.get('nombre', 'Cliente')
             cedula = cliente_info.get('cedula', '')
             telefono = cliente_info.get('telefono', '')
-            m_pend = float(c.get('balance_pendiente', 0))
-
-            # Filtro lógico: ¿Estamos en modo análisis o activos?
-            cumple_filtro_modo = (modo_analisis and m_pend <= 0) or (not modo_analisis and m_pend > 0)
             
-            if cumple_filtro_modo:
-                # Filtro de búsqueda por texto
-                if (search_term in nombre.lower() or 
-                    search_term in str(cedula).lower() or 
-                    search_term in str(telefono).lower()):
-                    
-                    txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
-                    
-                    c['aux_nombre'] = nombre
-                    c['aux_atraso_txt'] = f"Han pasado {dias_num} días..." if dias_num > 0 else txt_atraso_base
-                    c['aux_dias_num'] = dias_num
-                    c['aux_prioridad'] = obtener_prioridad(dias_num, m_pend)
-                    datos_procesados.append(c)
+            if (search_term in nombre.lower() or 
+                search_term in str(cedula).lower() or 
+                search_term in str(telefono).lower()):
+                
+                txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
+                c['aux_nombre'] = nombre
+                c['aux_atraso_txt'] = f"Atraso: {dias_num} días" if dias_num > 0 else txt_atraso_base
+                c['aux_dias_num'] = dias_num
+                c['aux_prioridad'] = obtener_prioridad(dias_num, float(c.get('balance_pendiente', 0)))
+                datos_procesados.append(c)
 
-        # C. ORDENAMIENTO Y RENDERIZADO
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
 
         for item in datos_procesados:
@@ -820,7 +816,7 @@ elif menu == "Gestión de Cobros":
 
                 with c_btn:
                     if not modo_analisis:
-                        st.write("") # Espaciador
+                        st.write("") 
                         if st.button("💵 COBRAR", key=f"reg_{token}", type="primary", use_container_width=True):
                             v_mora = st.session_state.get(f"mora_{token}", 0.0)
                             confirmar_cobro_modal(item, abono_input, f_prox_input, v_mora, u_id)
@@ -832,7 +828,7 @@ elif menu == "Gestión de Cobros":
                     with st.expander("⚖️ Penalidad (Mora)"):
                         st.number_input("Monto de Mora", min_value=0.0, key=f"mora_{token}")
     else:
-        st.info("No se encontraron clientes activos.")
+        st.info("No se encontraron registros.")
         
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
