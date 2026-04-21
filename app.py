@@ -1283,216 +1283,192 @@ def registrar_log_detallado(accion, tabla, registro_id, antes, despues, u_id, no
 def modal_detalle(cliente, cuentas, pagos, u_id=None):
     if u_id is None: u_id = st.session_state.get('user_id', '0000')
 
-    # CSS para estética Premium (Pestañas limpias y bordes suaves)
+    # --- CSS PARA ESTÉTICA PREMIUM ---
     st.markdown("""
         <style>
-        .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+        .stTabs [data-baseweb="tab-list"] { gap: 8px; }
         .stTabs [data-baseweb="tab"] {
             background-color: #f0f2f6;
             border-radius: 10px 10px 0px 0px;
             padding: 10px 20px;
             font-weight: 600;
+            font-size: 14px;
         }
         .stTabs [aria-selected="true"] { background-color: #007AFF !important; color: white !important; }
-        .log-entry { padding: 10px; border-bottom: 1px solid #eee; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
+        .log-entry { padding: 12px; border-bottom: 1px solid #f0f0f0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 13px; }
+        [data-testid="stMetric"] { background-color: #ffffff; border-radius: 12px; padding: 15px; border: 1px solid #e0e0e0; }
         </style>
     """, unsafe_allow_html=True)
 
     # Cabecera de Identidad
-    st.title(f"👤 {cliente['nombre']}")
+    st.title(f"👤 {cliente['nombre'].upper()}")
     st.caption(f"ID Cliente: {cliente.get('id')} | Cédula: {cliente.get('cedula', 'N/A')}")
 
-    # Sistema de Navegación por Pestañas (Navegación Intuitiva)
-    tab_abonos, tab_plan, tab_historial, tab_perfil = st.tabs([
-        "💰 ABONOS REALES", "📅 PLAN IDEAL", "📜 HISTORIAL COMPLETO", "⚙️ PERFIL"
+    # --- SISTEMA DE NAVEGACIÓN (ORDEN SOLICITADO) ---
+    # 1. Historial Completo (Análisis dinámico)
+    # 2. Abonos Reales (Excel Editable)
+    # 3. Plan Ideal (Cronograma)
+    # 4. Perfil (Datos personales)
+    tab_historial, tab_abonos, tab_plan, tab_perfil = st.tabs([
+        "📜 HISTORIAL COMPLETO", "💵 ABONOS REALES", "📅 PLAN IDEAL", "⚙️ PERFIL"
     ])
 
     mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
     
-    # --- PESTAÑA 4: PERFIL (Fuera del bucle para evitar error de duplicados) ---
-    with tab_perfil:
-        st.markdown("### Datos del Titular")
-        # Clave única para el formulario basada en el cliente
-        with st.form(key=f"form_perfil_{cliente['id']}"):
-            n_nom = st.text_input("Nombre Completo", value=cliente['nombre'])
-            n_ced = st.text_input("Cédula / Pasaporte", value=cliente.get('cedula',''))
-            n_tel = st.text_input("Teléfono de Contacto", value=cliente.get('telefono',''))
-            
-            if st.form_submit_button("Guardar Cambios en Perfil", use_container_width=True):
-                conn.table("clientes").update({
-                    "nombre": n_nom, 
-                    "cedula": n_ced, 
-                    "telefono": n_tel
-                }).eq("id", cliente['id']).execute()
-                st.success("✅ Información del perfil actualizada.")
-                time.sleep(0.5)
-                st.rerun()
-
     if not mis_ctas:
         st.warning("Este cliente no tiene facturas activas en el sistema.")
         return
 
-    # Iteración por facturas para las pestañas de datos financieros
-    for ct in mis_ctas:
-        c_id = ct['id']
-        mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
-        
-# --- PESTAÑA 1: ABONOS REALES (ESTILO EXCEL DE CAJA) ---
-        with tab_abonos:
-            # Estilo para apretar la tabla y que parezca software contable
-            st.markdown("""
-                <style>
-                [data-testid="stMetric"] { background-color: #f8f9fa; border-radius: 8px; padding: 10px; border: 1px solid #eee; }
-                [data-testid="stTable"] { font-size: 12px; }
-                </style>
-            """, unsafe_allow_html=True)
+    # --- PESTAÑA 1: HISTORIAL COMPLETO (ANÁLISIS DINÁMICO) ---
+    with tab_historial:
+        for ct in mis_ctas:
+            c_id = ct['id']
+            st.markdown(f"### 📈 Análisis: Factura `{str(c_id)[:8].upper()}`")
+            
+            res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute()
+            mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
+            
+            if res_plan.data:
+                progreso = sum(float(p.get('monto_pagado', 0)) for p in mis_pagos_cta)
+                total_cobrado = progreso
+                datos_seguimiento = []
+                
+                for cuota in res_plan.data:
+                    m_esp = float(cuota['monto_cuota'])
+                    f_esp = pd.to_datetime(cuota['fecha_esperada']).date()
+                    
+                    if progreso >= m_esp:
+                        estado = "✅ COMPLETA"
+                        progreso -= m_esp
+                    elif progreso > 0:
+                        estado = "⚠️ INCOMPLETA"
+                        progreso = 0
+                    else:
+                        vencida = f_esp < datetime.now().date()
+                        estado = "🚨 VENCIDA" if vencida else "⏳ PENDIENTE"
+                    
+                    datos_seguimiento.append({
+                        "CUOTA": f"#{cuota['numero_cuota']}",
+                        "FECHA DEL PAGO": f_esp.strftime('%d/%m/%Y'),
+                        "MONTO ESPERADO": f"RD$ {m_esp:,.2f}",
+                        "ESTADO ACTUAL": estado
+                    })
+                
+                st.table(pd.DataFrame(datos_seguimiento))
+                
+                c1, c2, c3 = st.columns(3)
+                c1.metric("Total Recibido", f"RD$ {total_cobrado:,.2f}")
+                c2.metric("Pendiente Base", f"RD$ {float(ct['balance_pendiente']):,.2f}")
+                c3.metric("Mora Acumulada", f"RD$ {float(ct.get('mora_acumulada', 0)):,.2f}", delta_color="inverse")
+            else:
+                st.info("No hay un plan configurado para esta factura.")
+            st.divider()
 
-            c1, c2 = st.columns([2, 1])
-            c1.markdown(f"### 📄 Factura: `{str(c_id)[:8].upper()}`")
-            c2.metric("Pendiente", f"RD$ {float(ct['balance_pendiente']):,.2f}")
+    # --- PESTAÑA 2: ABONOS REALES (ESTILO EXCEL / CAJA) ---
+    with tab_abonos:
+        for ct in mis_ctas:
+            c_id = ct['id']
+            mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
+            
+            st.markdown(f"### 📝 Libro de Caja: `{str(c_id)[:8].upper()}`")
             
             if not mis_pagos_cta:
-                st.info("Sin abonos registrados.")
+                st.info("No se registran cobros físicos aún.")
             else:
-                # 1. Preparar la "Sábana de Datos"
+                # Preparar datos para el Editor
                 data_libreta = []
                 for p in mis_pagos_cta:
                     editable = puede_gestionar_48h(p.get('created_at'))
                     data_libreta.append({
                         "ID": p["id"],
-                        "ELIMINAR": False, # Columna de acción rápida
-                        "FECHA": pd.to_datetime(p.get('fecha_pago')).strftime('%d/%m/%Y'),
-                        "REFERENCIA": p.get('codigo_factura', 'ABONO'),
-                        "MONTO (RD$)": float(p['monto_pagado']),
-                        "EDIT": "🔓" if editable else "🔒",
+                        "BORRAR": False,
+                        "FECHA ABONO": pd.to_datetime(p.get('fecha_pago')).strftime('%d/%m/%Y'),
+                        "REF": p.get('codigo_factura', 'PAGO'),
+                        "MONTO RECIBIDO": float(p['monto_pagado']),
+                        "MORA": float(p.get('mora_pagada', 0)),
+                        "ESTADO": "🔓 EDIT" if editable else "🔒 FIJO",
                         "_is_editable": editable
                     })
                 
                 df_original = pd.DataFrame(data_libreta)
-
-                # 2. El Excel Organizadísimo
+                
                 edited_df = st.data_editor(
                     df_original,
                     use_container_width=True,
                     hide_index=True,
-                    # Solo permitimos tocar Monto y el Checkbox de eliminar
-                    disabled=["ID", "FECHA", "REFERENCIA", "EDIT"], 
+                    disabled=["ID", "FECHA ABONO", "REF", "ESTADO"],
                     column_config={
-                        "ID": None, # Oculto
-                        "_is_editable": None, # Oculto
-                        "ELIMINAR": st.column_config.CheckboxColumn("🗑️", help="Marcar para borrar"),
-                        "FECHA": st.column_config.TextColumn("FECHA", width="small"),
-                        "MONTO (RD$)": st.column_config.NumberColumn("MONTO (RD$)", format="%.2f", width="medium"),
-                        "EDIT": st.column_config.TextColumn("ST", width="small")
+                        "ID": None, "_is_editable": None,
+                        "BORRAR": st.column_config.CheckboxColumn("🗑️"),
+                        "MONTO RECIBIDO": st.column_config.NumberColumn("MONTO (RD$)", format="%.2f"),
+                        "MORA": st.column_config.NumberColumn("MORA (RD$)", format="%.2f"),
                     },
-                    key=f"excel_caja_{c_id}"
+                    key=f"ed_caja_{c_id}"
                 )
 
-                # 3. Lógica de Procesamiento en Lote (Sincronización)
+                # LÓGICA DE ACTUALIZACIÓN CON DISCLAIMER
                 if not edited_df.equals(df_original):
-                    for i, row in edited_df.iterrows():
-                        orig = df_original.iloc[i]
-                        
-                        # ACCIÓN A: Borrado rápido vía Checkbox
-                        if row["ELIMINAR"] and row["_is_editable"]:
-                            monto_del = orig["MONTO (RD$)"]
-                            n_bal = float(ct['balance_pendiente']) + monto_del
-                            conn.table("cuentas").update({"balance_pendiente": n_bal}).eq("id", c_id).execute()
-                            conn.table("pagos").delete().eq("id", row["ID"]).execute()
-                            registrar_log_detallado("BORRADO_EXCEL", "pagos", row["ID"], monto_del, 0, u_id)
-                            st.toast("🗑️ Registro eliminado")
-                            time.sleep(0.5); st.rerun()
-
-                        # ACCIÓN B: Edición de monto
-                        elif row["MONTO (RD$)"] != orig["MONTO (RD$)"]:
+                    st.error("### ⚠️ ADVERTENCIA DE SEGURIDAD")
+                    st.write("Has detectado un error y estás modificando el flujo de caja real.")
+                    
+                    if st.button("🔥 CONFIRMAR CAMBIOS EN CAJA", key=f"btn_save_{c_id}", type="primary"):
+                        for i, row in edited_df.iterrows():
+                            orig = df_original.iloc[i]
                             if row["_is_editable"]:
-                                dif = row["MONTO (RD$)"] - orig["MONTO (RD$)"]
-                                n_bal = float(ct['balance_pendiente']) - dif
-                                conn.table("cuentas").update({"balance_pendiente": n_bal}).eq("id", c_id).execute()
-                                conn.table("pagos").update({"monto_pagado": row["MONTO (RD$)"]}).eq("id", row["ID"]).execute()
-                                registrar_log_detallado("EDIT_EXCEL", "pagos", row["ID"], orig["MONTO (RD$)"], row["MONTO (RD$)"], u_id)
-                                st.toast("✅ Monto actualizado")
-                                time.sleep(0.5); st.rerun()
-                            else:
-                                st.error("Registro bloqueado (>48h)")
-                                time.sleep(1); st.rerun()
+                                # Caso A: Borrado
+                                if row["BORRAR"]:
+                                    n_bal = float(ct['balance_pendiente']) + orig["MONTO RECIBIDO"]
+                                    conn.table("cuentas").update({"balance_pendiente": n_bal}).eq("id", c_id).execute()
+                                    conn.table("pagos").delete().eq("id", row["ID"]).execute()
+                                    registrar_log_detallado("BORRADO_MAESTRO", "pagos", row["ID"], orig["MONTO RECIBIDO"], 0, u_id)
+                                
+                                # Caso B: Cambio de Monto
+                                elif row["MONTO RECIBIDO"] != orig["MONTO RECIBIDO"]:
+                                    dif = row["MONTO RECIBIDO"] - orig["MONTO RECIBIDO"]
+                                    n_bal = float(ct['balance_pendiente']) - dif
+                                    conn.table("cuentas").update({"balance_pendiente": n_bal}).eq("id", c_id).execute()
+                                    conn.table("pagos").update({"monto_pagado": row["MONTO RECIBIDO"]}).eq("id", row["ID"]).execute()
+                                    registrar_log_detallado("AJUSTE_MONTO", "pagos", row["ID"], orig["MONTO RECIBIDO"], row["MONTO RECIBIDO"], u_id)
 
-        # --- PESTAÑA 2: PLAN IDEAL (CON DESPLIEGUE) ---
-        with tab_plan:
-            st.markdown(f"### Plan Original - Factura {str(c_id)[:8].upper()}")
-            
-            with st.expander("👁️ Ver desglose de cuotas acordadas", expanded=False):
-                res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute()
-                
-                st.divider()
-                # Disclaimer invasivo para edición
-                edit_plan_mode = st.checkbox("🔓 Activar Edición del Plan (Modo Error)", key=f"chk_plan_{c_id}")
-                if edit_plan_mode:
-                    st.error("⚠️ Estás editando el PLAN IDEAL. Úsalo solo para corregir errores de creación.")
+                        st.success("Sincronización completa.")
+                        time.sleep(0.5); st.rerun()
 
-                if res_plan.data:
-                    progreso_recorrido = sum(float(p['monto_pagado']) for p in mis_pagos_cta)
-                    for cuota in res_plan.data:
-                        m_cuota = float(cuota['monto_cuota'])
-                        f_venc = pd.to_datetime(cuota['fecha_esperada']).date()
-                        
-                        # Lógica de estados clara
-                        if progreso_recorrido >= m_cuota:
-                            st.success(f"Cuota {cuota['numero_cuota']} - PAGADA (RD$ {m_cuota:,.2f})")
-                            progreso_recorrido -= m_cuota
-                        elif progreso_recorrido > 0:
-                            st.warning(f"Cuota {cuota['numero_cuota']} - ABONO PARCIAL (Resta RD$ {m_cuota-progreso_recorrido:,.2f})")
-                            progreso_recorrido = 0
-                        else:
-                            vencida = f_venc < datetime.now().date()
-                            color = "red" if vencida else "gray"
-                            txt = "VENCIDA" if vencida else "PENDIENTE"
-                            st.markdown(f"**Cuota {cuota['numero_cuota']}** - <span style='color:{color}'>{txt} ({f_venc.strftime('%d/%m/%Y')})</span>", unsafe_allow_html=True)
-                        
-                        if edit_plan_mode:
-                            with st.popover(f"Editar Cuota {cuota['numero_cuota']}"):
-                                n_m_c = st.number_input("Nuevo Monto", value=m_cuota, key=f"p_edit_{cuota['id']}")
-                                if st.button("Guardar", key=f"p_save_{cuota['id']}"):
-                                    conn.table("plan_cuotas").update({"monto_cuota": n_m_c}).eq("id", cuota['id']).execute()
-                                    registrar_log_detallado("EDIT_PLAN_IDEAL", "plan_cuotas", cuota['id'], m_cuota, n_m_c, u_id)
-                                    st.rerun()
+    # --- PESTAÑA 3: PLAN IDEAL (CRONOGRAMA) ---
+    with tab_plan:
+        for ct in mis_ctas:
+            c_id = ct['id']
+            st.markdown(f"### 📅 Plan de Cuotas: `{str(c_id)[:8].upper()}`")
+            res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute()
+            
+            if res_plan.data:
+                df_plan = pd.DataFrame(res_plan.data)
+                st.dataframe(
+                    df_plan[['numero_cuota', 'fecha_esperada', 'monto_cuota']],
+                    column_config={
+                        "numero_cuota": "#",
+                        "fecha_esperada": "Fecha Programada",
+                        "monto_cuota": st.column_config.NumberColumn("Monto Cuota", format="RD$ %.2f")
+                    },
+                    use_container_width=True, hide_index=True
+                )
+            else:
+                st.warning("No hay plan registrado.")
 
-        # --- PESTAÑA 3: HISTORIAL (TEXTO CLARO E INMÓVIL) ---
-        with tab_historial:
-            st.markdown(f"### Auditoría de Factura {str(c_id)[:8].upper()}")
-            logs_db = conn.table("logs_financieros").select("*").eq("registro_id", c_id).execute().data
+    # --- PESTAÑA 4: PERFIL (DATOS DEL CLIENTE) ---
+    with tab_perfil:
+        st.markdown("### ⚙️ Gestión de Identidad")
+        with st.form(key=f"form_cli_{cliente['id']}"):
+            c1, c2 = st.columns(2)
+            n_nom = c1.text_input("Nombre Completo", value=cliente['nombre'])
+            n_ced = c2.text_input("Cédula", value=cliente.get('cedula', ''))
+            n_tel = c1.text_input("Teléfono", value=cliente.get('telefono', ''))
             
-            timeline = []
-            # Evento inicial de la cuenta
-            timeline.append({
-                "f": limpiar_fecha(ct.get('fecha_creacion')), 
-                "m": f"REGISTRO INICIAL: Factura creada por RD$ {float(ct['monto_inicial']):,.2f}."
-            })
-            # Registro de pagos realizados
-            for p in mis_pagos_cta:
-                timeline.append({
-                    "f": limpiar_fecha(p.get('created_at') or p.get('fecha_pago')), 
-                    "m": f"PAGO REGISTRADO: Recibido abono de RD$ {float(p['monto_pagado']):,.2f} (Cód: {p.get('codigo_factura')})."
-                })
-            # Registro de cambios por sistema (Logs)
-            if logs_db:
-                for l in logs_db:
-                    timeline.append({
-                        "f": limpiar_fecha(l.get('fecha_log')), 
-                        "m": f"AJUSTE DE SISTEMA: Acción {l['accion']} ejecutada sobre {l['tabla_afectada']}."
-                    })
-            
-            # Ordenamiento robusto (descendente por fecha)
-            for item in sorted(timeline, key=lambda x: x['f'], reverse=True):
-                st.markdown(f"""
-                    <div class="log-entry">
-                        <span style="color:#007AFF; font-weight:bold;">[{item['f'].strftime('%d/%m/%Y %I:%M %p')}]</span><br>
-                        {item['m']}
-                    </div>
-                """, unsafe_allow_html=True)
+            if st.form_submit_button("ACTUALIZAR PERFIL"):
+                conn.table("clientes").update({"nombre": n_nom, "cedula": n_ced, "telefono": n_tel}).eq("id", cliente['id']).execute()
+                st.success("Datos actualizados."); time.sleep(0.5); st.rerun()
 
     st.divider()
-    if st.button("Cerrar Expediente del Cliente", use_container_width=True):
+    if st.button("CERRAR EXPEDIENTE", use_container_width=True):
         st.rerun()
 
 # --- GRID DE CLIENTES (CORREGIDO) ---
