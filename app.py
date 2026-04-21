@@ -46,14 +46,6 @@ st.markdown("""
 
 conn = st.connection("supabase", type=SupabaseConnection)
 
-hide_style = """
-    <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    </style>
-    """
-st.markdown(hide_style, unsafe_allow_html=True)
 
 # --- 2. SISTEMA DE ACCESO Y RECUPERACIÓN (SaaS) ---
 
