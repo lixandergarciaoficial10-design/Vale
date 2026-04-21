@@ -1606,50 +1606,75 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                 
 # --- PESTAÑA 3: PLAN IDEAL (CRONOGRAMA VS REALIDAD) ---
     with tab_plan:
-        st.markdown("### 📅 Cronograma de Pagos")
+        st.markdown("### 📅 Plan de Pagos por Factura")
+        
         for idx, ct in enumerate(mis_ctas):
             c_id = ct['id']
-            cod_fac = ct.get('codigo_factura', f"FAC-{str(c_id)[:6].upper()}")
+            # Obtener el código de factura o un genérico si no existe
+            cod_fac = ct.get('codigo_factura', f"FACTURA SIN CÓDIGO (ID: {str(c_id)[:4]})")
             
-            # 1. Obtener Plan y Pagos
+            # Título directo sin expander
+            st.markdown(f"#### 📄 {cod_fac}")
+            
+            # 1. Obtener Plan y Pagos (Ordenados para comparar uno a uno)
             res_plan_db = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute().data
-            mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
+            mis_pagos_cta = sorted([p for p in pagos if p.get('cuenta_id') == c_id], key=lambda x: x['fecha_pago'])
             progreso_total = sum(float(p['monto_pagado']) for p in mis_pagos_cta)
 
-            with st.expander(f"📊 Seguimiento: {cod_fac}", expanded=(len(mis_ctas) == 1)):
-                if not res_plan_db:
-                    st.warning("No hay un plan de cuotas generado para esta factura.")
-                else:
-                    datos_visuales = []
-                    saldo_recorrido = progreso_total
+            if not res_plan_db:
+                st.info(f"ℹ️ No hay un plan de cuotas generado para la factura {cod_fac}.")
+                st.divider() # Separador entre facturas
+            else:
+                datos_visuales = []
+                saldo_recorrido = progreso_total
+                
+                for p_idx, cuota in enumerate(res_plan_db):
+                    m_esp = float(cuota['monto_cuota'])
+                    f_esp = pd.to_datetime(cuota['fecha_esperada']).date()
                     
-                    for cuota in res_plan_db:
-                        m_esp = float(cuota['monto_cuota'])
-                        f_esp = pd.to_datetime(cuota['fecha_esperada']).date()
+                    # --- LÓGICA DE ESTADO Y RETRASO ---
+                    retraso_txt = "-" # Por defecto si no está pagada o no hay retraso
+                    
+                    if saldo_recorrido >= (m_esp - 0.01):
+                        estado = '<span style="color:#28a745; font-weight:bold;">✅ PAGADA</span>'
                         
-                        # Lógica de semáforo en cascada
-                        if saldo_recorrido >= (m_esp - 0.01):
-                            estado = '<span style="color:#28a745; font-weight:bold;">✅ PAGADA</span>'
-                            saldo_recorrido -= m_esp
-                        elif saldo_recorrido > 0:
-                            estado = f'<span style="color:#fd7e14; font-weight:bold;">⚠️ ABONO (Faltó RD$ {m_esp-saldo_recorrido:,.2f})</span>'
-                            saldo_recorrido = 0
-                        else:
-                            vencida = f_esp < datetime.now().date()
-                            txt = "🚨 VENCIDA" if vencida else "⏳ PENDIENTE"
-                            color = "#d93025" if vencida else "#5f6368"
-                            estado = f'<span style="color:{color}; font-weight:bold;">{txt}</span>'
+                        # Calculamos retraso si hay un pago real asociado a esta posición de cuota
+                        if p_idx < len(mis_pagos_cta):
+                            f_pago_real = pd.to_datetime(mis_pagos_cta[p_idx]['fecha_pago']).date()
+                            if f_pago_real > f_esp:
+                                dias = (f_pago_real - f_esp).days
+                                retraso_txt = f'<span style="color:#d93025;">{dias} días de retraso</span>'
+                            else:
+                                retraso_txt = '<span style="color:#28a745;">Al día</span>'
+                        
+                        saldo_recorrido -= m_esp
+                        
+                    elif saldo_recorrido > 0:
+                        estado = f'<span style="color:#fd7e14; font-weight:bold;">⚠️ ABONO (Faltó RD$ {m_esp-saldo_recorrido:,.2f})</span>'
+                        saldo_recorrido = 0
+                        retraso_txt = "Incompleto"
+                    else:
+                        vencida = f_esp < datetime.now().date()
+                        txt = "🚨 VENCIDA" if vencida else "⏳ PENDIENTE"
+                        color = "#d93025" if vencida else "#5f6368"
+                        estado = f'<span style="color:{color}; font-weight:bold;">{txt}</span>'
+                        
+                        if vencida:
+                            dias_vencida = (datetime.now().date() - f_esp).days
+                            retraso_txt = f'<b>{dias_vencida} días vencida</b>'
 
-                        datos_visuales.append({
-                            "CUOTA": f"#{cuota['numero_cuota']}",
-                            "FECHA": f_esp.strftime('%d/%m/%Y'),
-                            "MONTO": f"RD$ {m_esp:,.2f}",
-                            "ESTADO": estado
-                        })
-                    
-                    # Render table
-                    df_v = pd.DataFrame(datos_visuales)
-                    st.write(df_v.to_html(escape=False, index=False, classes="dataframe"), unsafe_allow_html=True)
+                    datos_visuales.append({
+                        "CUOTA": f"#{cuota['numero_cuota']}",
+                        "FECHA ESPERADA": f_esp.strftime('%d/%m/%Y'),
+                        "MONTO": f"RD$ {m_esp:,.2f}",
+                        "ESTADO": estado,
+                        "AUDITORÍA DE PAGO": retraso_txt
+                    })
+                
+                # Renderizado de la tabla para esta factura
+                df_v = pd.DataFrame(datos_visuales)
+                st.write(df_v.to_html(escape=False, index=False, classes="dataframe"), unsafe_allow_html=True)
+                st.divider() # Espacio visual entre facturas
 
     # --- PESTAÑA 4: PERFIL (GESTIÓN DE DATOS) ---
     with tab_perfil:
