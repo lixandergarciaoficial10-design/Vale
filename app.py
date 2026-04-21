@@ -1437,7 +1437,7 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                 margin-bottom: 20px;
             }
             .timeline-dot {
-                position: absolute; left: -35px; top: 12px; /* Alineación milimétrica */
+                position: absolute; left: -35px;
                 width: 28px; height: 28px; border-radius: 50%;
                 display: flex; align-items: center; justify-content: center;
                 font-size: 0.75rem; font-weight: bold; color: white;
@@ -1451,7 +1451,7 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                 border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
             }
             .flex-row {
-                display: flex; justify-content: space-between; align-items: center;
+                display: flex; justify-content: space-between; align-items: flex-end; /* Alineación por debajo para balancear los textos */
             }
             .badge-atraso { background: #fff5f5; color: #c53030; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; border: 1px solid #fed7d7; }
             .badge-tiempo { background: #f0fff4; color: #2f855a; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; border: 1px solid #c6f6d5; }
@@ -1459,7 +1459,7 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                 background: #fffaf0; border: 1px solid #feebc8; padding: 10px; 
                 border-radius: 8px; color: #7b341e; font-size: 0.8rem; margin-bottom: 15px;
             }
-            .text-muted { color: #A0AEC0; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; }
+            .text-muted { color: #A0AEC0; font-size: 0.70rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
             .monto-principal { font-size: 1.15rem; font-weight: 800; color: #1A202C; }
             </style>
         """, unsafe_allow_html=True)
@@ -1470,7 +1470,26 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
             mis_pagos_cta = sorted([p for p in pagos if p.get('cuenta_id') == c_id], key=lambda x: x['fecha_pago'])
             res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute().data
 
-            with st.expander(f"📊 Línea de Tiempo de Cobros: {cod_fac}", expanded=True):
+            # --- LÓGICA: ¿ESTÁ SALDADA O ACTIVA? ---
+            # Verificamos si tiene estado 'cerrada'/'pagada' o si ya se pagó el monto total
+            estado_cta = str(ct.get('estado', '')).strip().lower()
+            es_saldada = estado_cta in ['saldada', 'cerrada', 'pagada']
+            
+            monto_total_fac = float(ct.get('monto_total', 0))
+            if monto_total_fac > 0:
+                total_abonado = sum(float(p['monto_pagado']) for p in mis_pagos_cta)
+                if total_abonado >= monto_total_fac:
+                    es_saldada = True
+
+            # Si está saldada -> Expander cerrado para no estorbar.
+            # Si está activa -> Contenedor normal, sin desplegables.
+            if es_saldada:
+                contenedor_UI = st.expander(f"📁 Historial de Cobros: {cod_fac} (SALDADA)", expanded=False)
+            else:
+                st.markdown(f"<h4 style='color:#2D3748; margin-top:30px; margin-bottom:15px;'>📊 Línea de Tiempo de Cobros: {cod_fac}</h4>", unsafe_allow_html=True)
+                contenedor_UI = st.container()
+
+            with contenedor_UI:
                 st.markdown('<div class="timeline-container">', unsafe_allow_html=True)
                 
                 for p_idx, p in enumerate(mis_pagos_cta):
@@ -1493,25 +1512,39 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                     creado = pd.to_datetime(p.get('created_at', p.get('fecha_pago')), utc=True)
                     es_editable = (pd.to_datetime('now', utc=True) - creado).total_seconds() / 3600 <= 48
 
+                    # --- ENCABEZADOS (SOLO PARA LA PRIMERA CUOTA) ---
+                    lbl_fecha  = '<div class="text-muted" style="margin-bottom: 4px;">MES ABONADO</div>' if p_idx == 0 else ''
+                    lbl_estado = '<div class="text-muted" style="margin-bottom: 4px;">CONDICIÓN</div>' if p_idx == 0 else ''
+                    lbl_tiempo = '<div class="text-muted" style="margin-bottom: 4px;">ATRASO DE</div>' if p_idx == 0 else ''
+                    lbl_mora   = '<div class="text-muted" style="margin-bottom: 4px;">MORA COBRADA</div>' if p_idx == 0 else ''
+
                     # --- RENDER ---
-                    # Ajustamos las proporciones de las columnas para que el botón no aplaste la tarjeta
                     col_data, col_btn = st.columns([6, 1]) 
                     
                     with col_data:
-                        # El contenedor item-wrapper amarra el punto para que no flote por toda la pantalla
+                        # Bajamos un poco el punto en la primera cuota para que cuadre con los nuevos encabezados
+                        dot_top = "25px" if p_idx == 0 else "12px"
+                        
                         st.markdown(f"""
                         <div class="item-wrapper">
-                            <div class="{dot_class}">{dia_mes}</div>
+                            <div class="{dot_class}" style="top: {dot_top};">{dia_mes}</div>
                             <div class="pago-card">
                                 <div class="flex-row">
                                     <div style="flex: 1.2;">
-                                        <div class="text-muted">{f_pago.strftime('%B %Y')}</div>
+                                        {lbl_fecha}
+                                        <div class="text-muted" style="font-size: 0.85rem; color: #718096; font-weight: 500;">{f_pago.strftime('%B %Y')}</div>
                                         <div class="monto-principal">RD$ {float(p['monto_pagado']):,.2f}</div>
                                     </div>
-                                    <div style="flex: 1; text-align: center;">{msg_atraso}</div>
-                                    <div style="flex: 1; text-align: center; color: #718096; font-size: 0.85rem;">{dias_txt}</div>
+                                    <div style="flex: 1; text-align: center;">
+                                        {lbl_estado}
+                                        <div>{msg_atraso}</div>
+                                    </div>
+                                    <div style="flex: 1; text-align: center; color: #718096; font-size: 0.85rem;">
+                                        {lbl_tiempo}
+                                        <div style="font-weight: 600;">{dias_txt}</div>
+                                    </div>
                                     <div style="flex: 1; text-align: right;">
-                                        <div class="text-muted" style="font-size: 0.65rem;">MORA COBRADA</div>
+                                        {lbl_mora}
                                         <div style="font-weight: 700; color: #4A5568;">RD$ {float(p.get('mora_pagada', 0)):,.2f}</div>
                                     </div>
                                 </div>
@@ -1519,13 +1552,13 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                         </div>""", unsafe_allow_html=True)
 
                     with col_btn:
-                        # Añadimos un pequeño margen superior para alinear el botón verticalmente con la tarjeta
-                        st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
+                        # Ajustamos el margen del botón para que se alinee perfectamente con la tarjeta si tiene encabezado
+                        margin_top = "30px" if p_idx == 0 else "15px"
+                        st.markdown(f"<div style='height: {margin_top};'></div>", unsafe_allow_html=True)
+                        
                         if es_editable:
-                            # POPOVER DE EDICIÓN (Sustituye al Dialog y contiene tu lógica exacta)
                             with st.popover("📝", use_container_width=True):
-                                st.markdown('<div class="alerta-seguridad">🚨 <b>AUDITORÍA ACTIVA</b><br>Su IP está siendo registrada para este cambio.</div>', unsafe_allow_html=True)
-                                
+                                st.markdown('<div class="alerta-seguridad">🚨 <b>AUDITORÍA ACTIVA</b><br>Su IP está siendo registrada.</div>', unsafe_allow_html=True)
                                 new_m = st.number_input("Nuevo Monto", value=float(p['monto_pagado']), key=f"nm_{p['id']}")
                                 new_f = st.date_input("Nueva Fecha", value=f_pago, key=f"nf_{p['id']}")
                                 
