@@ -1213,17 +1213,16 @@ elif menu == "👥 Todos mis Clientes":
                 clientes_f.append(c)
 
         # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
-@st.dialog("📄 Expediente de Facturación")
+@st.dialog("📄 Expediente de Facturación", width="large")
 def modal_detalle(cliente, cuentas, pagos):
     # --- CABECERA ---
     col_icon, col_data = st.columns([1, 4])
     with col_icon:
-        st.markdown("<h1 style='text-align:center;'>👤</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align:center; margin:0;'>👤</h1>", unsafe_allow_html=True)
     with col_data:
         st.markdown(f"### {cliente['nombre']}")
         st.caption(f"🆔 Cédula: {cliente.get('cedula', 'N/A')} | 📞 {cliente.get('telefono', 'N/A')}")
     
-    # --- INDICADORES RÁPIDOS ---
     mis_ctas = [ct for ct in cuentas if ct['cliente_id'] == cliente['id']]
     total_deuda = sum(float(ct.get('balance_pendiente', 0)) for ct in mis_ctas)
     
@@ -1232,6 +1231,7 @@ def modal_detalle(cliente, cuentas, pagos):
     c2.metric("Cuentas Activas", len([c for c in mis_ctas if float(c.get('balance_pendiente', 0)) > 0]))
     
     # Cálculo de salud financiera
+    hoy_dt = datetime.now().date()
     p_vencidos = 0
     for ct in mis_ctas:
         if ct.get('proximo_pago') and pd.to_datetime(ct['proximo_pago']).date() < hoy_dt and float(ct.get('balance_pendiente', 0)) > 0:
@@ -1240,63 +1240,123 @@ def modal_detalle(cliente, cuentas, pagos):
 
     st.divider()
     
-    # --- LISTADO DE CUENTAS DETALLADO ---
-    st.markdown("#### 📑 Historial de Deudas y Abonos")
-    
     if not mis_ctas:
         st.info("Este cliente no tiene registros financieros.")
-    else:
-        for ct in mis_ctas:
-            with st.container(border=True):
-                # Encabezado de la factura con Badge de estado
-                f_pago = pd.to_datetime(ct.get('proximo_pago')).date() if ct.get('proximo_pago') else None
-                balance = float(ct.get('balance_pendiente', 0))
-                atrasada = f_pago and f_pago < hoy_dt and balance > 0
-                
-                est_color = "#ef4444" if atrasada else "#22c55e"
-                est_txt = "⚠️ ATRASADA" if atrasada else "✅ AL DÍA"
-                if balance <= 0:
-                    est_txt = "🏁 PAGADA"
-                    est_color = "#64748b"
+        return
 
-                st.markdown(f"""
-                    <div style='display:flex; justify-content:space-between; align-items:center;'>
-                        <b>Factura: #{str(ct['id'])[:6].upper()}</b>
-                        <span style='background:{est_color}; color:white; padding:2px 8px; border-radius:10px; font-size:11px;'>{est_txt}</span>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                col_info, col_monto = st.columns([2, 1])
-                with col_info:
-                    st.write(f"📅 **Vence:** {f_pago if f_pago else 'N/A'}")
-                    if atrasada:
-                        dias = (hoy_dt - f_pago).days
-                        st.markdown(f"<span style='color:#ef4444; font-size:12px;'>Mora de {dias} días</span>", unsafe_allow_html=True)
-                
-                with col_monto:
-                    st.markdown(f"<h4 style='margin:0; text-align:right;'>RD$ {balance:,.2f}</h4>", unsafe_allow_html=True)
+    # --- NAVEGACIÓN POR CUENTAS ---
+    for ct in mis_ctas:
+        c_id = ct['id']
+        with st.expander(f"🧾 FACTURA: #{str(c_id)[:6].upper()} - Balance: RD$ {float(ct['balance_pendiente']):,.2f}", expanded=True):
+            
+            tab_plan, tab_pagos, tab_timeline = st.tabs([
+                "📅 Plan de Pago Ideal", 
+                "💵 Historial de Abonos", 
+                "🕒 Línea de Tiempo Detallada"
+            ])
 
-                # --- DESPLEGABLE DE ABONOS ---
-                with st.expander("🔍 Ver desglose de abonos y movimientos"):
-                    mis_p = [p for p in pagos if p.get('cuenta_id') == ct['id']]
-                    if mis_p:
-                        df_p = pd.DataFrame(mis_p).sort_values("fecha_pago", ascending=False)
-                        for _, p in df_p.iterrows():
-                            monto_p = float(p.get('monto_pagado', 0))
-                            cuota_e = float(ct.get('cuota_esperada', 0))
-                            tipo_pago = "Abono Extra" if monto_p > cuota_e else "Pago Regular"
-                            
-                            st.markdown(f"""
-                                <div style='display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0;'>
-                                    <div>
-                                        <small style='color:gray;'>{str(p['fecha_pago'])[:10]}</small><br>
-                                        <b style='font-size:13px;'>{tipo_pago}</b>
-                                    </div>
-                                    <b style='color:#16a34a;'>+ RD$ {monto_p:,.2f}</b>
-                                </div>
-                            """, unsafe_allow_html=True)
-                    else:
-                        st.caption("No se han registrado abonos aún.")
+            # --- 1. TAB: PLAN DE PAGO IDEAL (Reutilizando lógica de Gestión) ---
+            with tab_plan:
+                st.markdown("#### Seguimiento del Plan Original")
+                res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute()
+                mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
+                
+                if res_plan.data:
+                    total_pagado_acumulado = sum(float(p.get('monto_pagado', 0)) for p in mis_pagos_cta)
+                    progreso = total_pagado_acumulado
+                    
+                    datos_plan = []
+                    for cuota in res_plan.data:
+                        monto_esperado = float(cuota['monto_cuota'])
+                        if progreso >= monto_esperado:
+                            estado_actual = "✅ COMPLETA"
+                            progreso -= monto_esperado
+                        elif progreso > 0:
+                            estado_actual = "⚠️ INCOMPLETA"
+                            progreso = 0
+                        else:
+                            estado_actual = "⏳ PENDIENTE"
+                        
+                        datos_plan.append({
+                            "Cuota #": cuota['numero_cuota'],
+                            "Fecha Esperada": cuota['fecha_esperada'],
+                            "Monto (RD$)": f"{monto_esperado:,.2f}",
+                            "Estatus": estado_actual
+                        })
+                    st.table(pd.DataFrame(datos_plan))
+                else:
+                    st.warning("No hay un plan de cuotas registrado para esta cuenta.")
+
+            # --- 2. TAB: HISTORIAL DE ABONOS (Formato Tabla) ---
+            with tab_pagos:
+                st.markdown("#### Pagos Recibidos")
+                if mis_pagos_cta:
+                    df_pagos = pd.DataFrame(mis_pagos_cta)
+                    df_pagos['Fecha'] = pd.to_datetime(df_pagos['fecha_pago']).dt.date
+                    df_pagos['Monto'] = df_pagos['monto_pagado'].apply(lambda x: f"RD$ {float(x):,.2f}")
+                    df_pagos['Mora'] = df_pagos['mora_pagada'].apply(lambda x: f"RD$ {float(x):,.2f}")
+                    st.table(df_pagos[['codigo_factura', 'Fecha', 'Monto', 'Mora']])
+                else:
+                    st.info("No se han registrado abonos aún.")
+
+            # --- 3. TAB: LÍNEA DE TIEMPO (Log de movimientos y ediciones) ---
+            with tab_timeline:
+                st.markdown("#### Historial de Eventos")
+                
+                # Obtener Logs de la base de datos para esta cuenta
+                res_logs = conn.table("logs_financieros").select("*").eq("registro_id", c_id).execute()
+                
+                # Unificar eventos: Creación, Pagos, Moras y Ediciones
+                eventos = []
+                
+                # Evento: Creación de la cuenta
+                eventos.append({
+                    "fecha": ct['fecha_creacion'],
+                    "icon": "📝", "tipo": "CREACIÓN",
+                    "msg": f"Cuenta creada con monto inicial de RD$ {float(ct['monto_inicial']):,.2f}"
+                })
+                
+                # Eventos: Pagos y Moras
+                for p in mis_pagos_cta:
+                    eventos.append({
+                        "fecha": p['created_at'],
+                        "icon": "💰", "tipo": "ABONO",
+                        "msg": f"Abono de RD$ {float(p['monto_pagado']):,.2f} (Factura: {p.get('codigo_factura', 'N/A')})"
+                    })
+                    if float(p.get('mora_pagada', 0)) > 0:
+                        eventos.append({
+                            "fecha": p['created_at'],
+                            "icon": "⚖️", "tipo": "MORA",
+                            "msg": f"Mora cobrada de RD$ {float(p['mora_pagada']):,.2f}"
+                        })
+                
+                # Eventos: Logs (Ediciones y otros)
+                for l in (res_logs.data if res_logs.data else []):
+                    accion = l['accion'].replace("_", " ").upper()
+                    detalles = ""
+                    if l['accion'] == "EDICION_CUENTA":
+                        antes = l.get('datos_antes', {})
+                        despues = l.get('datos_despues', {})
+                        cambios = [f"{k}: {antes.get(k)} → {despues.get(k)}" for k in despues if antes.get(k) != despues.get(k)]
+                        detalles = " | " + ", ".join(cambios)
+                    
+                    eventos.append({
+                        "fecha": l['fecha_log'],
+                        "icon": "⚙️", "tipo": accion,
+                        "msg": f"Cambio en sistema{detalles}"
+                    })
+                
+                # Ordenar cronológicamente (Nuevo arriba)
+                eventos = sorted(eventos, key=lambda x: x['fecha'], reverse=True)
+                
+                for ev in eventos:
+                    f_fmt = pd.to_datetime(ev['fecha']).strftime("%d/%m/%Y %I:%M %p")
+                    st.markdown(f"""
+                        <div style='border-left: 3px solid #007AFF; padding-left: 15px; margin-bottom: 15px;'>
+                            <small style='color:gray;'>{f_fmt}</small><br>
+                            {ev['icon']} <b>{ev['tipo']}</b>: {ev['msg']}
+                        </div>
+                    """, unsafe_allow_html=True)
 
     if st.button("Cerrar Expediente", use_container_width=True):
         st.rerun()
