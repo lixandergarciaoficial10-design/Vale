@@ -1420,50 +1420,47 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                         </div>
                         """, unsafe_allow_html=True)
 
-# --- PESTAÑA 2: ABONOS REALES (REDiseño INVASIVO & SEGURIDAD TOTAL) ---
+# --- PESTAÑA 2: ABONOS REALES (VERSIÓN COMPATIBLE SIN DIÁLOGOS ANIDADOS) ---
     with tab_abonos:
         st.markdown("### 💵 Gestión de Cobros y Auditoría")
         
-        # Función Diálogo Invasivo para Modificar (Aparece en el centro)
-        @st.dialog("🛠️ PROTOCOLO DE MODIFICACIÓN DE ABONO")
-        def dialog_editar_pago(pago, f_pago_actual):
-            st.warning(f"⚠️ **ATENCIÓN:** Está a punto de alterar un registro financiero (ID: {pago['id']}).")
-            st.error(f"🌐 **RASTREO ACTIVO:** Su dirección IP y sesión han sido vinculadas a esta solicitud de cambio.")
-            
-            n_monto = st.number_input("Nuevo Monto (RD$)", value=float(pago['monto_pagado']), min_value=0.0)
-            n_fecha = st.date_input("Nueva Fecha de Cobro", value=f_pago_actual)
-            
-            st.markdown("---")
-            st.subheader("Triple Confirmación de Seguridad")
-            conf1 = st.checkbox("Confirmo que el error fue de digitación.")
-            conf2 = st.checkbox("He verificado físicamente el dinero en caja.")
-            conf3 = st.checkbox("Acepto que esta acción queda auditada permanentemente.")
-            
-            if conf1 and conf2 and conf3:
-                if st.button("💾 APLICAR CAMBIOS Y GUARDAR IP", type="primary", use_container_width=True):
-                    conn.table("pagos").update({
-                        "monto_pagado": n_monto,
-                        "fecha_pago": str(n_fecha)
-                    }).eq("id", pago['id']).execute()
-                    st.success("✅ Cambio aplicado exitosamente.")
-                    st.rerun()
-
-        # Inyectar CSS Mejorado (Timeline y Cards)
+        # Inyectar CSS (Corregido para evitar que Streamlit rompa el timeline)
         st.markdown("""
             <style>
-            .timeline-container { border-left: 3px solid #007AFF; margin-left: 25px; padding-left: 35px; position: relative; }
+            .timeline-container { 
+                border-left: 2px solid #E2E8F0; 
+                margin-left: 15px; 
+                padding-left: 20px; 
+            }
+            .item-wrapper {
+                position: relative; /* Clave para que el punto no salga volando */
+                margin-bottom: 20px;
+            }
             .timeline-dot {
-                position: absolute; left: -11px; top: 10px;
-                width: 20px; height: 20px; border-radius: 50%;
-                background: #007AFF; border: 4px solid white; box-shadow: 0 0 0 2px #007AFF;
+                position: absolute; left: -35px; top: 12px; /* Alineación milimétrica */
+                width: 28px; height: 28px; border-radius: 50%;
+                display: flex; align-items: center; justify-content: center;
+                font-size: 0.75rem; font-weight: bold; color: white;
+                background: #2D3748; box-shadow: 0 0 0 4px white; z-index: 10;
             }
+            .dot-atraso { background: #ED8936; }
+            .dot-peligro { background: #E53E3E; }
+            
             .pago-card {
-                background: #ffffff; border-radius: 15px; padding: 18px;
-                margin-bottom: 25px; border: 1px solid #e2e8f0;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+                background: #ffffff; border-radius: 12px; padding: 15px 20px;
+                border: 1px solid #E2E8F0; box-shadow: 0 1px 3px rgba(0,0,0,0.02);
             }
-            .badge-atraso { background: #fff5f5; color: #c53030; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; text-transform: uppercase; }
-            .badge-tiempo { background: #f0fff4; color: #2f855a; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; text-transform: uppercase; }
+            .flex-row {
+                display: flex; justify-content: space-between; align-items: center;
+            }
+            .badge-atraso { background: #fff5f5; color: #c53030; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; border: 1px solid #fed7d7; }
+            .badge-tiempo { background: #f0fff4; color: #2f855a; padding: 4px 10px; border-radius: 8px; font-weight: 800; font-size: 0.7rem; border: 1px solid #c6f6d5; }
+            .alerta-seguridad { 
+                background: #fffaf0; border: 1px solid #feebc8; padding: 10px; 
+                border-radius: 8px; color: #7b341e; font-size: 0.8rem; margin-bottom: 15px;
+            }
+            .text-muted { color: #A0AEC0; font-size: 0.75rem; font-weight: 500; text-transform: uppercase; }
+            .monto-principal { font-size: 1.15rem; font-weight: 800; color: #1A202C; }
             </style>
         """, unsafe_allow_html=True)
 
@@ -1477,58 +1474,80 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                 st.markdown('<div class="timeline-container">', unsafe_allow_html=True)
                 
                 for p_idx, p in enumerate(mis_pagos_cta):
-                    # --- LÓGICA DE ATRASO ---
+                    # --- LÓGICA DE ATRASO Y EDICIÓN ---
                     f_pago = pd.to_datetime(p['fecha_pago']).date()
+                    dia_mes = f_pago.strftime('%d')
+                    
                     msg_atraso = '<span class="badge-tiempo">A TIEMPO</span>'
+                    dot_class = "timeline-dot"
+                    dias_txt = "0 días"
                     
                     if res_plan and p_idx < len(res_plan):
-                        f_esperada = pd.to_datetime(res_plan[p_idx]['fecha_esperada']).date()
-                        if f_pago > f_esperada:
-                            dias = (f_pago - f_esperada).days
-                            msg_atraso = f'<span class="badge-atraso">ATRASO: {dias} DÍAS</span>'
+                        f_esp = pd.to_datetime(res_plan[p_idx]['fecha_esperada']).date()
+                        if f_pago > f_esp:
+                            dias_reales = (f_pago - f_esp).days
+                            msg_atraso = f'<span class="badge-atraso">ATRASADO</span>'
+                            dias_txt = f"{dias_reales} días"
+                            dot_class = "timeline-dot dot-atraso" if dias_reales <= 5 else "timeline-dot dot-peligro"
 
-                    # --- LÓGICA DE EDICIÓN 48H (ESTRICTA) ---
                     creado = pd.to_datetime(p.get('created_at', p.get('fecha_pago')), utc=True)
-                    ahora = pd.to_datetime('now', utc=True)
-                    es_editable = (ahora - creado).total_seconds() / 3600 <= 48
+                    es_editable = (pd.to_datetime('now', utc=True) - creado).total_seconds() / 3600 <= 48
 
-                    # --- RENDERIZADO ---
-                    col_data, col_btn = st.columns([5, 1])
+                    # --- RENDER ---
+                    # Ajustamos las proporciones de las columnas para que el botón no aplaste la tarjeta
+                    col_data, col_btn = st.columns([6, 1]) 
+                    
                     with col_data:
-                        st.markdown(f'<div class="timeline-dot"></div>', unsafe_allow_html=True)
+                        # El contenedor item-wrapper amarra el punto para que no flote por toda la pantalla
                         st.markdown(f"""
-                        <div class="pago-card">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <small style="color: #a0aec0; letter-spacing: 1px;">{f_pago.strftime('%d %B, %Y').upper()}</small><br>
-                                    <b style="font-size: 1.3rem; color: #2d3748;">RD$ {float(p['monto_pagado']):,.2f}</b>
-                                    <div style="margin-top: 8px;">{msg_atraso}</div>
-                                </div>
-                                <div style="text-align: right; border-left: 1px solid #edf2f7; padding-left: 15px;">
-                                    <span style="font-size: 0.75rem; color: #718096;">MORA COBRADA</span><br>
-                                    <b style="color: #e53e3e;">RD$ {float(p.get('mora_pagada', 0)):,.2f}</b>
+                        <div class="item-wrapper">
+                            <div class="{dot_class}">{dia_mes}</div>
+                            <div class="pago-card">
+                                <div class="flex-row">
+                                    <div style="flex: 1.2;">
+                                        <div class="text-muted">{f_pago.strftime('%B %Y')}</div>
+                                        <div class="monto-principal">RD$ {float(p['monto_pagado']):,.2f}</div>
+                                    </div>
+                                    <div style="flex: 1; text-align: center;">{msg_atraso}</div>
+                                    <div style="flex: 1; text-align: center; color: #718096; font-size: 0.85rem;">{dias_txt}</div>
+                                    <div style="flex: 1; text-align: right;">
+                                        <div class="text-muted" style="font-size: 0.65rem;">MORA COBRADA</div>
+                                        <div style="font-weight: 700; color: #4A5568;">RD$ {float(p.get('mora_pagada', 0)):,.2f}</div>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        </div>""", unsafe_allow_html=True)
 
                     with col_btn:
+                        # Añadimos un pequeño margen superior para alinear el botón verticalmente con la tarjeta
+                        st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
                         if es_editable:
-                            if st.button("📝", key=f"btn_edit_pop_{p['id']}", help="Modificar este abono"):
-                                dialog_editar_pago(p, f_pago)
-                            
-                            # Menú de eliminación en pequeño popover
-                            with st.popover("🗑️"):
-                                st.error("ZONA DE PELIGRO")
-                                c1 = st.checkbox("Confirmar eliminación", key=f"del_c1_{p['id']}")
-                                if c1:
-                                    conf_txt = st.text_input("Escribe ELIMINAR", key=f"del_txt_{p['id']}")
-                                    if conf_txt == "ELIMINAR":
-                                        if st.button("CONFIRMAR BORRADO", type="primary", key=f"final_del_{p['id']}"):
-                                            conn.table("pagos").delete().eq("id", p['id']).execute()
-                                            st.rerun()
+                            # POPOVER DE EDICIÓN (Sustituye al Dialog y contiene tu lógica exacta)
+                            with st.popover("📝", use_container_width=True):
+                                st.markdown('<div class="alerta-seguridad">🚨 <b>AUDITORÍA ACTIVA</b><br>Su IP está siendo registrada para este cambio.</div>', unsafe_allow_html=True)
+                                
+                                new_m = st.number_input("Nuevo Monto", value=float(p['monto_pagado']), key=f"nm_{p['id']}")
+                                new_f = st.date_input("Nueva Fecha", value=f_pago, key=f"nf_{p['id']}")
+                                
+                                st.divider()
+                                c1 = st.checkbox("Confirmo corrección", key=f"c1_{p['id']}")
+                                c2 = st.checkbox("Dinero verificado", key=f"c2_{p['id']}")
+                                
+                                if c1 and c2:
+                                    if st.button("💾 GUARDAR", key=f"sv_{p['id']}", type="primary", use_container_width=True):
+                                        conn.table("pagos").update({"monto_pagado": new_m, "fecha_pago": str(new_f)}).eq("id", p['id']).execute()
+                                        st.rerun()
+                                
+                                st.divider()
+                                with st.expander("🗑️ ELIMINAR ABONO"):
+                                    st.error("Esta acción es irreversible.")
+                                    if st.checkbox("Autorizo borrado", key=f"del_chk_{p['id']}"):
+                                        if st.text_input("Escribe ELIMINAR", key=f"del_in_{p['id']}") == "ELIMINAR":
+                                            if st.button("🔥 BORRAR", key=f"btn_del_{p['id']}", type="primary"):
+                                                conn.table("pagos").delete().eq("id", p['id']).execute()
+                                                st.rerun()
                         else:
-                            st.markdown("<div style='text-align:center; padding-top:15px;'>🔒</div>", unsafe_allow_html=True)
+                            st.markdown("<div style='text-align:center; padding-top:10px; font-size:1.2rem; color:#E2E8F0;'>🔒</div>", unsafe_allow_html=True)
 
                 st.markdown('</div>', unsafe_allow_html=True)
 
