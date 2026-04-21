@@ -1394,67 +1394,92 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
         mis_pagos_cta = [p for p in pagos if p.get('cuenta_id') == c_id]
         res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", c_id).order("numero_cuota").execute().data
 
-        # --- PESTAÑA 1: HISTORIAL COMPLETO ---
+# --- PESTAÑA 1: HISTORIAL COMPLETO (EDICIÓN PROFESIONAL COMPACTA) ---
         with tab_historial:
-            st.markdown(f"### 📑 Factura: `{cod_fac}`")
-            
-            # Resumen Visual de la Factura
-            with st.container(border=True):
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Capital Prestado", f"RD$ {cap_puro:,.2f}")
-                c2.metric("Intereses Acordados", f"RD$ {ganancia_esperada:,.2f}", delta_color="normal")
-                c3.metric("Monto Total Contractual", f"RD$ {monto_total:,.2f}")
-                
-                st.info(f"🚀 **ACUERDO:** Se entregó un capital de RD$ {cap_puro:,.2f} para recuperar un total de RD$ {monto_total:,.2f} (Ganancia: RD$ {ganancia_esperada:,.2f}).")
+            # Estilo CSS para forzar densidad de información y aspecto serio
+            st.markdown("""
+                <style>
+                .pro-card {
+                    background: #ffffff; border: 1px solid #e5e7eb;
+                    border-radius: 8px; padding: 10px; margin-bottom: 8px;
+                }
+                .text-compact { font-size: 0.85rem !important; line-height: 1.2; color: #374151; }
+                .text-bold { font-weight: 700; font-size: 0.85rem; }
+                .badge-mini {
+                    padding: 1px 5px; border-radius: 3px; font-size: 0.7rem; font-weight: bold; margin-right: 4px;
+                }
+                .status-atraso { background: #fee2e2; color: #991b1b; }
+                .status-tiempo { background: #dcfce7; color: #166534; }
+                .status-parcial { background: #fef9c3; color: #854d0e; }
+                .timeline-item {
+                    padding-left: 12px; border-left: 2px solid #e5e7eb; 
+                    margin-bottom: 6px; position: relative;
+                }
+                hr { margin: 6px 0px !important; opacity: 0.3; }
+                </style>
+            """, unsafe_allow_html=True)
 
-            st.markdown("#### 🕒 Bitácora de Movimientos")
+            st.markdown(f"**📑 EXPEDIENTE:** `{cod_fac}`")
             
-            # 1. Registro de Apertura
-            st.markdown(f"""<div class="log-narrativo">
-                🗓️ <b>APERTURA:</b> Factura generada el {pd.to_datetime(ct['fecha_creacion']).strftime('%d/%m/%Y')}.
-            </div>""", unsafe_allow_html=True)
+            # --- RESUMEN FINANCIERO DENSO (Sustituye Metrics Gigantes) ---
+            st.markdown(f"""
+                <div class="pro-card">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span class="text-compact">💰 <b>Capital:</b> RD$ {cap_puro:,.2f}</span>
+                        <span class="text-compact">📈 <b>Interés:</b> RD$ {ganancia_esperada:,.2f}</span>
+                        <span class="text-compact">📑 <b>Total:</b> RD$ {monto_total:,.2f}</span>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #6b7280; border-top: 1px solid #eee; pt-1">
+                        Apertura: {pd.to_datetime(ct['fecha_creacion']).strftime('%d/%m/%Y')}
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
 
-            # 2. Lógica de Pagos Detallada (Compara contra el Plan Ideal)
-            if mis_pagos_cta:
+            st.markdown("🔍 **BITÁCORA DE PAGOS**")
+            
+            # --- FLUJO DE MOVIMIENTOS ---
+            if not mis_pagos_cta:
+                st.caption("No se registran abonos.")
+            else:
                 pagos_ordenados = sorted(mis_pagos_cta, key=lambda x: x['fecha_pago'])
                 for i, p in enumerate(pagos_ordenados):
                     f_pago = pd.to_datetime(p['fecha_pago']).date()
                     m_pagado = float(p['monto_pagado'])
                     
-                    # Comparación con el plan para detectar retrasos e incompletos
-                    detalle_status = ""
+                    # Lógica de estados compacta
+                    badges_html = ""
                     if res_plan and i < len(res_plan):
-                        cuota_p = res_plan[i]
-                        f_esperada = pd.to_datetime(cuota_p['fecha_esperada']).date()
-                        m_esperado = float(cuota_p['monto_cuota'])
+                        cp = res_plan[i]
+                        f_esp = pd.to_datetime(cp['fecha_esperada']).date()
+                        m_esp = float(cp['monto_cuota'])
                         
-                        # ¿Fue tarde?
-                        if f_pago > f_esperada:
-                            dias = (f_pago - f_esperada).days
-                            detalle_status += f'<span class="pago-status status-atraso">⚠️ ATRASO: {dias} DÍAS</span> '
+                        if f_pago > f_esp:
+                            badges_html += f'<span class="badge-mini status-atraso">ATR: {(f_pago - f_esp).days}D</span>'
                         else:
-                            detalle_status += '<span class="pago-status status-tiempo">✅ A TIEMPO</span> '
+                            badges_html += '<span class="badge-mini status-tiempo">A TIEMPO</span>'
                         
-                        # ¿Fue incompleto?
-                        if m_pagado < m_esperado:
-                            faltante = m_esperado - m_pagado
-                            detalle_status += f'<span class="pago-status status-parcial">📉 INCOMPLETO (Falta: RD$ {faltante:,.2f})</span>'
-                    
-                    st.markdown(f"""<div class="log-narrativo" style="border-left-color: #28a745;">
-                        💰 <b>COBRO RECIBIDO:</b> RD$ <b>{m_pagado:,.2f}</b><br>
-                        {detalle_status}<br>
-                        <small>Recibido el: {f_pago.strftime('%d/%m/%Y')} | Ref: {str(p['id'])[:8].upper()}</small>
-                    </div>""", unsafe_allow_html=True)
+                        if m_pagado < m_esp:
+                            badges_html += f'<span class="badge-mini status-parcial">PARCIAL (-{m_esp-m_pagado:,.0f})</span>'
 
-            # 3. Auditoría (Logs) - AQUÍ ESTABA EL ERROR (SOLUCIONADO)
+                    st.markdown(f"""
+                        <div class="timeline-item">
+                            <span class="text-compact"><b>{f_pago.strftime('%d/%m')}</b> — <b>RD$ {m_pagado:,.2f}</b></span>
+                            <div style="margin-top: 2px;">{badges_html}</div>
+                            <div style="font-size: 0.7rem; color: #9ca3af;">Ref: {str(p['id'])[:6].upper()}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+            # --- AUDITORÍA TÉCNICA (LOGS) ---
             logs_db = conn.table("logs_financieros").select("*").eq("registro_id", c_id).execute().data
             if logs_db:
-                with st.expander("🔍 Historial de Ajustes Técnicos"):
+                with st.expander("🛠️ LOGS DE SEGURIDAD", expanded=False):
                     for l in logs_db:
-                        st.markdown(f"""<div class="log-narrativo" style="border-left-color: #ff9800; font-size: 0.9rem; background: #fffcf5;">
-                            ⚠️ <b>AJUSTE:</b> {l['accion']} | <b>IP:</b> {user_ip}<br>
-                            <small>{l.get('datos_antes')} → {l.get('datos_despues')}</small>
-                        </div>""", unsafe_allow_html=True)
+                        st.markdown(f"""
+                            <div style="font-size: 0.75rem; color: #4b5563; margin-bottom: 4px; padding: 4px; background: #f9fafb; border-radius: 4px;">
+                                ⚠️ {l['accion']} | {l.get('fecha_log', '')[:16]}<br>
+                                <code style="font-size: 0.7rem;">{str(l.get('datos_antes'))[:30]} → {str(l.get('datos_despues'))[:30]}</code>
+                            </div>
+                        """, unsafe_allow_html=True)
 
         # --- PESTAÑA 2: ABONOS REALES (MANTENIENDO TU LÓGICA DE EDICIÓN) ---
         with tab_abonos:
