@@ -510,13 +510,14 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- CSS LIMPIO (Dejando que Streamlit haga su trabajo) ---
+# --- CSS DEFINITIVO (Sin fallos, nombres claros, botón visible) ---
     st.markdown(f"""
         <style>
-            /* 1. BOTÓN SIEMPRE VIVO (Estilizado sin romper el layout) */
+            /* 1. EL BOTÓN NEGRO (Rescatado y funcional) */
             [data-testid="stSidebarHeader"] {{
+                padding: 0px !important;
                 background-color: transparent !important;
-                padding: 0 !important;
+                display: flex !important;
             }}
             
             button[data-testid="stSidebarCollapseButton"] {{
@@ -524,22 +525,24 @@ with st.sidebar:
                 color: white !important;
                 border-radius: 8px !important;
                 margin: 10px !important;
-                z-index: 10000;
+                z-index: 100000 !important;
             }}
             
             button[data-testid="stSidebarCollapseButton"] svg {{
                 fill: white !important;
             }}
 
-            /* 2. SIDEBAR: Solo ancho y colores, sin bloquear el resto */
+            /* 2. ANCHO DEL SIDEBAR (Para que nada se pegue ni se corte) */
             [data-testid="stSidebar"] {{
-                min-width: 280px !important;
+                min-width: 285px !important;
+                max-width: 285px !important;
                 background-color: #FBFBFD !important;
             }}
 
-            /* 3. LOGO AL TECHO */
+            /* 3. LOGO PEGADO ARRIBA */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
+                margin-top: -10px !important;
             }}
 
             .client-brand-card {{
@@ -549,26 +552,39 @@ with st.sidebar:
                 border-bottom: 1px solid #E5E5EA;
                 margin-bottom: 20px;
             }}
+            
             .client-logo-img {{
-                max-width: 85%;
-                height: 60px;
+                max-width: 90%;
+                height: 65px;
                 object-fit: contain;
             }}
 
-            /* 4. NAVEGACIÓN (Sin forzar anchos raros) */
+            /* 4. MÓDULOS/BOTONES (Nombres completos y alineados) */
+            div[role="radiogroup"] {{
+                gap: 10px;
+                padding-left: 10px;
+            }}
+            
             div[role="radio"] p {{ 
                 font-size: 15px !important; 
-                white-space: nowrap !important;
+                white-space: nowrap !important; /* Evita que se amontonen las letras */
                 color: #1D1D1F !important;
+                font-weight: 500;
+                overflow: visible !important;
             }}
 
-            /* 5. FOOTER */
+            /* 5. AUTO-AJUSTE DE PANTALLA (Sin pelear con Streamlit) */
+            [data-testid="stAppViewBlockContainer"] {{
+                width: 100% !important;
+                max-width: 100% !important;
+            }}
+
+            /* 6. FOOTER */
             .absolute-footer {{
-                margin-top: 30px;
+                margin-top: auto;
                 text-align: center;
-                padding-bottom: 30px;
+                padding: 30px 10px;
                 border-top: 1px solid #F2F2F7;
-                padding-top: 15px;
             }}
         </style>
     """, unsafe_allow_html=True)
