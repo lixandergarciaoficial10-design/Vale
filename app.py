@@ -510,10 +510,10 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- CSS TOTAL (Botón Forzado, Logo al Techo y Nombres Claros) ---
+# --- CSS TOTAL (Sin recortes, Botón Rescatado y Logo Arriba) ---
     st.markdown(f"""
         <style>
-            /* 1. AJUSTE DEL SIDEBAR (Ancho suficiente para nombres largos) */
+            /* 1. AJUSTE DEL SIDEBAR */
             [data-testid="stSidebar"] {{
                 min-width: 280px !important;
                 max-width: 280px !important;
@@ -521,51 +521,54 @@ with st.sidebar:
                 border-right: 1px solid #E5E5EA;
             }}
 
-            /* 2. EL BOTÓN DE MENÚ (FORZADO CON ALTA PRIORIDAD) */
-            /* Lo ponemos oscuro para que lo veas inmediatamente arriba a la izquierda */
-            button[data-testid="stSidebarCollapseButton"] {{
-                left: 10px !important;
-                top: 10px !important;
-                background-color: #1D1D1F !important; /* Fondo negro Apple */
-                color: white !important; /* Icono blanco */
-                border-radius: 8px !important;
-                width: 38px !important;
-                height: 38px !important;
-                z-index: 9999999 !important;
-                display: flex !important;
-                position: fixed !important; /* Mantiene el botón fijo en la esquina */
+            /* 2. RESCATE DEL BOTÓN (Sin matarlo con display:none) */
+            /* En lugar de ocultar el header completo, solo quitamos su relleno */
+            [data-testid="stSidebarHeader"] {{
+                padding: 0px !important;
+                background-color: transparent !important;
             }}
             
-            /* Asegurar que el icono interno del botón sea blanco */
+            /* Estilo del botón para que se vea como quieres */
+            button[data-testid="stSidebarCollapseButton"] {{
+                background-color: #1D1D1F !important; /* Negro elegante */
+                color: white !important;
+                border-radius: 8px !important;
+                margin: 10px !important;
+                opacity: 1 !important;
+                display: flex !important;
+                z-index: 1000;
+            }}
+            
+            /* Forzar el color blanco en las flechitas/icono del botón */
             button[data-testid="stSidebarCollapseButton"] svg {{
                 fill: white !important;
                 color: white !important;
             }}
 
-            /* 3. PEGAR TODO AL TECHO */
+            /* 3. PEGAR TODO AL TECHO (Eliminar espacios muertos) */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
-                margin-top: 0px !important;
+                margin-top: -15px !important; /* Ajuste para subir el logo al máximo */
             }}
 
-            /* 4. CARD DEL CLIENTE (Pegada arriba y centrada) */
+            /* 4. CARD DEL CLIENTE */
             .client-brand-card {{
                 text-align: center; 
-                padding: 25px 15px 15px 15px; /* Espacio extra arriba para que el botón no tape el logo */
+                padding: 20px 15px;
                 background: white;
                 border-bottom: 1px solid #E5E5EA;
                 margin-top: 0px !important; 
                 margin-bottom: 25px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             }}
             .client-logo-img {{
-                max-width: 90%;
-                height: 65px;
+                max-width: 85%;
+                height: 60px;
                 object-fit: contain;
                 margin-bottom: 10px;
-                display: inline-block;
             }}
 
-            /* 5. NAVEGACIÓN (Sin recortes) */
+            /* 5. NAVEGACIÓN SIN RECORTES (Nombres completos) */
             div[role="radiogroup"] {{
                 gap: 12px;
                 padding-left: 10px;
@@ -575,11 +578,10 @@ with st.sidebar:
                 white-space: nowrap !important;
                 overflow: visible !important;
                 color: #1D1D1F !important;
-                text-align: left !important;
                 font-weight: 500;
             }}
 
-            /* 6. FOOTER AL FONDO */
+            /* 6. FOOTER POWERED BY */
             .absolute-footer {{
                 margin-top: auto; 
                 text-align: center;
@@ -587,9 +589,6 @@ with st.sidebar:
                 border-top: 1px solid #F2F2F7;
                 padding-top: 20px;
             }}
-            
-            /* Ocultar header original */
-            [data-testid="stSidebarHeader"] {{ display: none !important; }}
         </style>
     """, unsafe_allow_html=True)
 
