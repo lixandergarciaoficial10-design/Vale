@@ -463,16 +463,15 @@ def obtener_prioridad(dias, balance, impagos=0):
     return score
 
 # --- 1. CARGA DE DATOS DESDE SUPABASE ---
-# --- 1. CARGA DE DATOS DESDE SUPABASE (Lógica de Datos Intacta) ---
+# --- 1. CARGA DE DATOS SUPABASE (Lógica de Datos Completa) ---
 if "user" in st.session_state and st.session_state.user:
     if "datos_validados" not in st.session_state:
         try:
-            # Consulta a la tabla configuracion según tu estructura
+            # Conexión y consulta a la tabla configuración
             res = conn.table("configuracion").select("*").eq("user_id", st.session_state.user.id).execute()
             
             if res.data:
                 conf = res.data[0]
-                # Seteo de variables en session_state
                 st.session_state["nombre_negocio"] = conf.get("nombre_negocio", "Mi Negocio")
                 st.session_state["rnc"] = conf.get("rnc", "---")
                 st.session_state["telefono_negocio"] = conf.get("telefono", "---")
@@ -482,9 +481,9 @@ if "user" in st.session_state and st.session_state.user:
                 st.session_state["datos_validados"] = True
                 st.rerun()
         except Exception as e:
-            st.error(f"Error técnico al cargar configuración: {e}")
+            st.error(f"Error al cargar configuración: {e}")
 
-# --- 2. SIDEBAR ÚNICO (DISEÑO APPLE PREMIUM + TODO TU CÓDIGO) ---
+# --- 2. SIDEBAR ESTRUCTURAL (DISEÑO BLINDADO) ---
 with st.sidebar:
     import base64
     import os
@@ -492,7 +491,7 @@ with st.sidebar:
     # URL DE TU LOGO (Pégala aquí)
     URL_LOGO_COBROYA = "https://tu-url-aqui.com/logo.png" 
 
-    # Recuperación de variables (Lógica original)
+    # Recuperación de variables
     biz_name = st.session_state.get("nombre_negocio", "SIN NOMBRE").upper()
     biz_rnc  = st.session_state.get("rnc", "---")
     biz_dir  = st.session_state.get("direccion_negocio", "---")
@@ -500,96 +499,101 @@ with st.sidebar:
     logo_b64 = st.session_state.get("mi_logo")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-    # --- CSS MAESTRO (Sin repeticiones, ajustado al 100% de la pantalla) ---
+    # --- 3. CSS DE CONTROL TOTAL (Ancho Fijo + Toggle + Apple Style) ---
     st.markdown(f"""
         <style>
-            /* Fondo y borde del Sidebar */
+            /* 1. BLOQUEO DE ANCHO (Evita que el usuario lo mueva) */
             [data-testid="stSidebar"] {{
+                min-width: 300px !important;
+                max-width: 300px !important;
+                width: 300px !important;
                 background-color: #FBFBFD !important;
                 border-right: 1px solid #E5E5EA;
             }}
             
-            /* Forzar contenido a ocupar todo el alto para empujar el footer */
+            /* 2. ELIMINAR EL TIRADOR (Resizer) */
+            [data-testid="stSidebarResizer"] {{
+                display: none !important;
+            }}
+
+            /* 3. ESTILIZAR BOTÓN DE TRES LÍNEAS (Toggle) */
+            [data-testid="stSidebarCollapseButton"] {{
+                color: #1D1D1F !important;
+                background-color: #F2F2F7 !important;
+                border-radius: 8px !important;
+                top: 10px !important;
+                right: 10px !important;
+            }}
+
+            /* Contenedor principal para posicionamiento vertical */
             [data-testid="stSidebarUserContent"] {{
                 display: flex;
                 flex-direction: column;
-                height: 98vh !important;
+                height: 96vh !important;
+                padding-top: 40px !important; /* Espacio para que el botón no tape el logo */
             }}
 
-            /* Card del Cliente (Logo completo) */
+            /* Card del Cliente (Diseño Minimalista) */
             .client-brand-card {{
                 text-align: center;
-                padding: 20px 10px;
+                padding: 15px;
                 background: #FFFFFF;
                 border-radius: 20px;
                 border: 1px solid #E5E5EA;
-                margin-bottom: 10px;
+                margin-bottom: 15px;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.02);
             }}
             .client-logo-img {{
                 width: auto;
                 max-width: 100%;
-                height: 85px;
+                height: 75px;
                 object-fit: contain;
-                margin-bottom: 12px;
+                margin-bottom: 10px;
             }}
             .client-biz-info h3 {{
-                margin: 0; font-size: 15px; font-weight: 700; color: #1D1D1F;
-                font-family: -apple-system, sans-serif;
+                margin: 0; font-size: 14px; font-weight: 700; color: #1D1D1F;
             }}
             .client-biz-details p {{
-                margin: 2px 0; font-size: 11px; color: #86868B;
+                margin: 1px 0; font-size: 10px; color: #86868B;
             }}
 
-            /* Menú de Radio (Estilo Apple) */
+            /* Navegación Apple */
             div[data-testid="stRadio"] > label {{ display: none !important; }}
-            div[role="radiogroup"] {{ gap: 4px; }}
             div[role="radio"] {{
-                padding: 10px 15px !important;
+                padding: 8px 15px !important;
                 border-radius: 12px !important;
-                transition: 0.2s ease;
+                margin: 2px 0;
             }}
-            div[role="radio"]:hover {{ background-color: #F2F2F7 !important; }}
             div[role="radio"][aria-checked="true"] {{ background-color: #E8E8ED !important; }}
-            div[role="radio"] p {{ font-size: 14.5px !important; color: #48484A !important; margin: 0 !important; }}
-            div[role="radio"][aria-checked="true"] p {{ font-weight: 600 !important; color: #1D1D1F !important; }}
+            div[role="radio"] p {{ font-size: 14px !important; color: #48484A !important; }}
 
             /* Botón Salir Centrado */
             .stButton {{
                 display: flex;
                 justify-content: center;
-                margin-top: 10px;
+                margin-top: 15px;
             }}
             .stButton > button {{
-                width: 90% !important;
+                width: 85% !important;
                 border-radius: 10px !important;
                 border: 1px solid #FF3B3033 !important;
-                background-color: transparent !important;
                 color: #FF3B30 !important;
-                transition: 0.3s;
-            }}
-            .stButton > button:hover {{
-                background-color: #FF3B30 !important;
-                color: white !important;
             }}
 
-            /* Footer Absoluto al final */
+            /* Footer Absoluto (Branding CobroYa) */
             .absolute-footer {{
                 margin-top: auto;
                 text-align: center;
-                padding-bottom: 25px;
+                padding-bottom: 20px;
             }}
             .footer-cobroya-logo {{
-                width: 135px;
-                height: auto;
-                margin-top: 8px;
+                width: 140px;
+                margin-top: 5px;
             }}
-            
-            [data-testid="stSidebarHeader"] {{ display: none; }}
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 3. HEADER: MARCA DEL CLIENTE ---
+    # --- 4. CONTENIDO: MARCA DEL CLIENTE ---
     if logo_b64:
         img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
         src_logo = f"data:image/png;base64,{img_data}"
@@ -605,14 +609,14 @@ with st.sidebar:
                     <p>RNC: {biz_rnc}</p>
                     <p>📍 {biz_dir}</p>
                     <p>📞 {biz_tel}</p>
-                    <hr style='border:0; border-top:1px solid #F2F2F7; margin:10px 0;'>
+                    <hr style='border:0; border-top:1px solid #F2F2F7; margin:8px 0;'>
                     <p style='color:#1D1D1F; font-weight:600;'>{u_email}</p>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # --- 4. NAVEGACIÓN (Tus opciones reales) ---
+    # --- 5. NAVEGACIÓN ---
     opciones = ["Panel de Control", "Gestión de Cobros", "Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     iconos = {
         "Panel de Control": "🏠 Panel de Control",
@@ -624,14 +628,14 @@ with st.sidebar:
         "Configuración": "⚙️ Configuración"
     }
     
-    menu = st.radio("NAV", opciones, format_func=lambda x: iconos[x], label_visibility="collapsed")
+    st.radio("NAV", opciones, format_func=lambda x: iconos[x], label_visibility="collapsed")
 
-    # --- 5. BOTÓN SALIR ---
+    # --- 6. BOTÓN SALIR ---
     if st.button("🚪 Salir del Sistema"):
         st.session_state.clear()
         st.rerun()
 
-    # --- 6. FOOTER BRANDING AL FONDO ---
+    # --- 7. FOOTER BRANDING (AL FONDO) ---
     st.markdown(f"""
         <div class="absolute-footer">
             <p style='font-size: 0.6rem; color: #86868B; margin: 0; font-weight: 600; letter-spacing: 0.8px;'>
