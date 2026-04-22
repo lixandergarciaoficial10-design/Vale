@@ -510,10 +510,10 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- CSS CORREGIDO (Logo al techo, Footer centrado y despegado) ---
+# --- 1. CSS: Logo al techo, Footer centrado y Navegación segura ---
     st.markdown(f"""
         <style>
-            /* 1. EXPANSIÓN Y SIDEBAR */
+            /* EXPANSIÓN Y SIDEBAR */
             [data-testid="stSidebar"][aria-expanded="true"] {{
                 min-width: 300px !important;
                 max-width: 300px !important;
@@ -525,7 +525,7 @@ with st.sidebar:
                 width: 0px !important;
             }}
 
-            /* 2. BOTÓN DE MENÚ */
+            /* BOTÓN DE MENÚ */
             [data-testid="stSidebarHeader"] {{
                 padding: 0px !important;
                 background-color: transparent !important;
@@ -538,7 +538,7 @@ with st.sidebar:
                 z-index: 100000 !important;
             }}
 
-            /* 3. LOGO AL TECHO ABSOLUTO */
+            /* LOGO AL TECHO ABSOLUTO */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
                 margin-top: -50px !important; 
@@ -558,7 +558,7 @@ with st.sidebar:
                 object-fit: contain;
             }}
 
-            /* 4. MÓDULOS SIN RECORTES */
+            /* MÓDULOS NAVEGACIÓN */
             div[role="radiogroup"] {{
                 gap: 12px !important;
                 padding-left: 10px !important;
@@ -571,16 +571,17 @@ with st.sidebar:
                 padding: 6px 0 !important;
             }}
 
-            /* 5. FOOTER CENTRADO Y DESPEGADO */
+            /* FOOTER POWERED BY (Centrado y con margen corregido) */
             .absolute-footer {{
-                margin-top: 60px !important; 
+                margin-top: 50px !important; /* Espacio justo para separar de Configuración */
                 text-align: center !important;
-                padding: 30px 10px !important;
+                padding: 25px 10px !important;
                 border-top: 1px solid #F2F2F7;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+                width: 100% !important;
             }}
 
             [data-testid="stAppViewBlockContainer"] {{
@@ -589,8 +590,7 @@ with st.sidebar:
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 3. CONTENIDO DEL SIDEBAR ---
-
+    # --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
     st.sidebar.markdown(f"""
         <div class="client-brand-card">
             <img src="{src_logo}" class="client-logo-img">
@@ -605,7 +605,7 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # NAVEGACIÓN (Sincronizada con tus ELIF)
+    # --- 3. NAVEGACIÓN: OPCIONES Y LÓGICA ANTI-ERROR ---
     opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     
     mapeo_visual = {
@@ -618,7 +618,7 @@ with st.sidebar:
         "Configuración": "⚙️ Configuración"
     }
 
-    # ARREGLO DEL VALUE ERROR: Validación de seguridad
+    # Validación de seguridad para que el session_state no rompa la app
     menu_actual = st.session_state.get('menu_principal', "Panel de Control")
     idx_seguro = opciones.index(menu_actual) if menu_actual in opciones else 0
 
@@ -631,14 +631,14 @@ with st.sidebar:
     )
     st.session_state.menu_principal = menu
 
-    # FOOTER DESPEGADO Y CENTRADO
+    # --- 4. FOOTER: POWERED BY Y LOGO COBROYA ---
     st.sidebar.markdown(f"""
         <div class="absolute-footer">
             <p style='font-size: 0.65rem; color: #86868B; margin: 0; font-weight: 700; letter-spacing: 1px;'>
                 POWERED BY LIXANDER GARCÍA
             </p>
-            <div style="margin-top: 15px; display: flex; justify-content: center; width: 100%;">
-                <img src="{URL_LOGO_COBROYA}" style="width:110px; height: auto;" onerror="this.style.display='none'">
+            <div style="margin-top: 12px; width: 100%; display: flex; justify-content: center;">
+                <img src="{URL_LOGO_COBROYA}" style="width: 110px; height: auto; display: block;" onerror="this.style.display='none'">
             </div>
         </div>
     """, unsafe_allow_html=True)
