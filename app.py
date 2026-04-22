@@ -613,7 +613,7 @@ with st.sidebar:
     mapeo_visual = {
         "Panel de Control": "🏠 Panel de Control",
         "Gestión de Cobros": "💰 Gestión de Cobros",
-        "👥Todos mis Clientes": "👥 Mis Clientes",
+        "👥Todos mis Clientes": "👥 Mis Clientes", # Clave exacta
         "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
         "Cuentas por Pagar": "📉 Cuentas por Pagar",
         "IA Predictiva": "🧠 IA Predictiva",
