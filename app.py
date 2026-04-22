@@ -463,31 +463,36 @@ def obtener_prioridad(dias, balance, impagos=0):
     return score
 
 # --- 1. CARGA DE DATOS DESDE SUPABASE ---
+# --- 1. CARGA DE DATOS DESDE SUPABASE (Lógica de Datos Intacta) ---
 if "user" in st.session_state and st.session_state.user:
     if "datos_validados" not in st.session_state:
         try:
+            # Consulta a la tabla configuracion según tu estructura
             res = conn.table("configuracion").select("*").eq("user_id", st.session_state.user.id).execute()
+            
             if res.data:
                 conf = res.data[0]
+                # Seteo de variables en session_state
                 st.session_state["nombre_negocio"] = conf.get("nombre_negocio", "Mi Negocio")
                 st.session_state["rnc"] = conf.get("rnc", "---")
                 st.session_state["telefono_negocio"] = conf.get("telefono", "---")
                 st.session_state["direccion_negocio"] = conf.get("direccion", "---")
                 st.session_state["mi_logo"] = conf.get("logo_base64")
+                
                 st.session_state["datos_validados"] = True
-                st.rerun() # Solo corre una vez al validar
+                st.rerun()
         except Exception as e:
-            st.error(f"Error técnico: {e}")
+            st.error(f"Error técnico al cargar configuración: {e}")
 
-# --- 2. SIDEBAR ÚNICO (ESTILO APPLE PREMIUM) ---
+# --- 2. SIDEBAR ÚNICO (DISEÑO APPLE PREMIUM + TODO TU CÓDIGO) ---
 with st.sidebar:
     import base64
     import os
-
-    # 1. URL DE TU LOGO (Pégala aquí abajo)
+    
+    # URL DE TU LOGO (Pégala aquí)
     URL_LOGO_COBROYA = "https://tu-url-aqui.com/logo.png" 
 
-    # 2. RECUPERACIÓN DE DATOS
+    # Recuperación de variables (Lógica original)
     biz_name = st.session_state.get("nombre_negocio", "SIN NOMBRE").upper()
     biz_rnc  = st.session_state.get("rnc", "---")
     biz_dir  = st.session_state.get("direccion_negocio", "---")
@@ -495,102 +500,96 @@ with st.sidebar:
     logo_b64 = st.session_state.get("mi_logo")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-    # --- 3. CSS MÁGICO (IDENTIDAD COMPLETA Y POSICIONAMIENTO) ---
+    # --- CSS MAESTRO (Sin repeticiones, ajustado al 100% de la pantalla) ---
     st.markdown(f"""
         <style>
-            /* Fondo y Estructura Sidebar */
+            /* Fondo y borde del Sidebar */
             [data-testid="stSidebar"] {{
                 background-color: #FBFBFD !important;
                 border-right: 1px solid #E5E5EA;
             }}
             
-            /* Contenedor principal para empujar el footer al fondo */
-            .sidebar-content {{
+            /* Forzar contenido a ocupar todo el alto para empujar el footer */
+            [data-testid="stSidebarUserContent"] {{
                 display: flex;
                 flex-direction: column;
-                height: 85vh; /* Ajuste para dejar espacio al footer real */
+                height: 98vh !important;
             }}
 
-            /* Logo del Cliente (Completo, sin cortes) */
+            /* Card del Cliente (Logo completo) */
             .client-brand-card {{
                 text-align: center;
-                padding: 25px 15px;
+                padding: 20px 10px;
                 background: #FFFFFF;
-                border-radius: 24px;
+                border-radius: 20px;
                 border: 1px solid #E5E5EA;
-                margin-bottom: 20px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+                margin-bottom: 10px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.02);
             }}
             .client-logo-img {{
-                width: 100%;
-                max-width: 140px;
-                height: auto;
-                max-height: 100px;
-                object-fit: contain; /* Esto asegura que el logo se vea COMPLETO */
-                margin-bottom: 15px;
+                width: auto;
+                max-width: 100%;
+                height: 85px;
+                object-fit: contain;
+                margin-bottom: 12px;
             }}
-            
             .client-biz-info h3 {{
-                margin: 0; font-size: 16px; font-weight: 700; color: #1D1D1F;
-                letter-spacing: -0.5px; font-family: -apple-system, sans-serif;
+                margin: 0; font-size: 15px; font-weight: 700; color: #1D1D1F;
+                font-family: -apple-system, sans-serif;
             }}
-            .client-biz-details {{
-                margin-top: 10px; font-size: 11.5px; color: #86868B;
-                line-height: 1.5; font-family: -apple-system, sans-serif;
-            }}
-
-            /* Botón Salir (Refinado y Minimalista) */
-            .stButton > button {{
-                width: 100% !important;
-                border-radius: 12px !important;
-                border: 1px solid #FF3B3022 !important;
-                background-color: #FFFFFF !important;
-                color: #FF3B30 !important;
-                font-weight: 500 !important;
-                padding: 10px !important;
-                transition: all 0.3s ease !important;
-            }}
-            .stButton > button:hover {{
-                background-color: #FF3B30 !important;
-                color: #FFFFFF !important;
-                border-color: #FF3B30 !important;
-                box-shadow: 0 4px 12px rgba(255, 59, 48, 0.2);
+            .client-biz-details p {{
+                margin: 2px 0; font-size: 11px; color: #86868B;
             }}
 
-            /* Footer al fondo absoluto */
-            .absolute-footer {{
-                margin-top: auto;
-                text-align: center;
-                padding: 30px 10px 10px 10px;
-            }}
-            .footer-cobroya-logo {{
-                width: 130px;
-                margin-top: 8px;
-                filter: drop-shadow(0 2px 4px rgba(0,0,0,0.05));
-            }}
-
-            /* Limpieza de radio buttons */
+            /* Menú de Radio (Estilo Apple) */
             div[data-testid="stRadio"] > label {{ display: none !important; }}
-            div[role="radiogroup"] {{ gap: 5px; }}
+            div[role="radiogroup"] {{ gap: 4px; }}
             div[role="radio"] {{
-                padding: 11px 15px !important;
+                padding: 10px 15px !important;
                 border-radius: 12px !important;
-                background-color: transparent;
-                transition: 0.2s;
+                transition: 0.2s ease;
             }}
             div[role="radio"]:hover {{ background-color: #F2F2F7 !important; }}
             div[role="radio"][aria-checked="true"] {{ background-color: #E8E8ED !important; }}
-            div[role="radio"] p {{ font-size: 15px !important; color: #48484A !important; }}
+            div[role="radio"] p {{ font-size: 14.5px !important; color: #48484A !important; margin: 0 !important; }}
             div[role="radio"][aria-checked="true"] p {{ font-weight: 600 !important; color: #1D1D1F !important; }}
+
+            /* Botón Salir Centrado */
+            .stButton {{
+                display: flex;
+                justify-content: center;
+                margin-top: 10px;
+            }}
+            .stButton > button {{
+                width: 90% !important;
+                border-radius: 10px !important;
+                border: 1px solid #FF3B3033 !important;
+                background-color: transparent !important;
+                color: #FF3B30 !important;
+                transition: 0.3s;
+            }}
+            .stButton > button:hover {{
+                background-color: #FF3B30 !important;
+                color: white !important;
+            }}
+
+            /* Footer Absoluto al final */
+            .absolute-footer {{
+                margin-top: auto;
+                text-align: center;
+                padding-bottom: 25px;
+            }}
+            .footer-cobroya-logo {{
+                width: 135px;
+                height: auto;
+                margin-top: 8px;
+            }}
             
             [data-testid="stSidebarHeader"] {{ display: none; }}
         </style>
     """, unsafe_allow_html=True)
 
-    # Inicia contenedor de contenido (Top + Menu)
-    st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
-
-    # 4. HEADER: MARCA DEL CLIENTE
+    # --- 3. HEADER: MARCA DEL CLIENTE ---
     if logo_b64:
         img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
         src_logo = f"data:image/png;base64,{img_data}"
@@ -603,17 +602,17 @@ with st.sidebar:
             <div class="client-biz-info">
                 <h3>{biz_name}</h3>
                 <div class="client-biz-details">
-                    <p style='margin:2px 0;'>RNC: {biz_rnc}</p>
-                    <p style='margin:2px 0;'>📍 {biz_dir}</p>
-                    <p style='margin:2px 0;'>📞 {biz_tel}</p>
+                    <p>RNC: {biz_rnc}</p>
+                    <p>📍 {biz_dir}</p>
+                    <p>📞 {biz_tel}</p>
                     <hr style='border:0; border-top:1px solid #F2F2F7; margin:10px 0;'>
-                    <p style='color:#1D1D1F; font-weight:600; font-size:12px;'>{u_email}</p>
+                    <p style='color:#1D1D1F; font-weight:600;'>{u_email}</p>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # 5. NAVEGACIÓN
+    # --- 4. NAVEGACIÓN (Tus opciones reales) ---
     opciones = ["Panel de Control", "Gestión de Cobros", "Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     iconos = {
         "Panel de Control": "🏠 Panel de Control",
@@ -627,24 +626,18 @@ with st.sidebar:
     
     menu = st.radio("NAV", opciones, format_func=lambda x: iconos[x], label_visibility="collapsed")
 
-    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-    
-    # 6. BOTÓN SALIR
+    # --- 5. BOTÓN SALIR ---
     if st.button("🚪 Salir del Sistema"):
         st.session_state.clear()
         st.rerun()
 
-    # Cierre del contenedor de contenido
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # 7. FOOTER ABSOLUTO (FONDO DEL SIDEBAR)
+    # --- 6. FOOTER BRANDING AL FONDO ---
     st.markdown(f"""
         <div class="absolute-footer">
-            <p style='font-size: 0.65rem; color: #86868B; margin: 0; font-weight: 600; letter-spacing: 0.8px;'>
+            <p style='font-size: 0.6rem; color: #86868B; margin: 0; font-weight: 600; letter-spacing: 0.8px;'>
                 POWERED BY LIXANDER GARCÍA
             </p>
             <img src="{URL_LOGO_COBROYA}" class="footer-cobroya-logo" onerror="this.style.display='none'">
-            <p style='font-size: 1.1rem; font-weight: 900; color: #007AFF; margin-top: 5px; font-family: sans-serif;'>CobroYa</p>
         </div>
     """, unsafe_allow_html=True)
     
