@@ -2127,149 +2127,130 @@ elif menu == "Cuentas por Pagar":
             modal_reset_historial()
         
 elif menu == "IA Predictiva":
+    from datetime import datetime, timedelta
+
     # ---------------------------------------------------------
-    # 1. CSS AVANZADO PARA ESTILO META AI (Tarjetas Flotantes)
+    # 1. CAPA DE INTELIGENCIA (EXTRACCIÓN Y PROCESAMIENTO)
+    # ---------------------------------------------------------
+    def obtener_super_contexto(u_id):
+        """Extrae un resumen ejecutivo optimizado para que la IA no se ponga lenta."""
+        try:
+            # Consultas a la base de datos
+            p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
+            g = conn.table("gastos").select("monto").eq("user_id", u_id).eq("visible_usuario", True).execute()
+            c = conn.table("cuentas").select("balance_pendiente, cliente_id, proximo_pago").eq("user_id", u_id).eq("estado", "Activo").execute()
+            
+            # Cálculos financieros
+            cobrado = sum([i['monto_pagado'] for i in p.data]) if p.data else 0
+            gastado = sum([i['monto'] for i in g.data]) if g.data else 0
+            riesgo_total = sum([i['balance_pendiente'] for i in c.data]) if c.data else 0
+            beneficio_neto = cobrado - gastado
+
+            # Top 3 Deudores (Uniendo con nombres de clientes)
+            cuentas_sorted = sorted(c.data, key=lambda x: x['balance_pendiente'], reverse=True)[:3]
+            detalles_clientes = ""
+            for cuenta in cuentas_sorted:
+                cli_res = conn.table("clientes").select("nombre").eq("id", cuenta['cliente_id']).execute()
+                nombre = cli_res.data[0]['nombre'] if cli_res.data else "Cliente Desconocido"
+                detalles_clientes += f"- {nombre}: debe RD${cuenta['balance_pendiente']:,.0f} (Vence: {cuenta['proximo_pago']})\n"
+
+            # Formateo del contexto para la IA
+            return f"""
+            ESTADO FINANCIERO ACTUAL:
+            - Cobros Totales: RD$ {cobrado:,.2f}
+            - Gastos Registrados: RD$ {gastado:,.2f}
+            - Ganancia Neta: RD$ {beneficio_neto:,.2f}
+            - Capital prestado en la calle: RD$ {riesgo_total:,.2f}
+            
+            DEUDORES CRÍTICOS:
+            {detalles_clientes if detalles_clientes else "No hay deudas activas."}
+            
+            ESTADÍSTICAS:
+            - Tienes {len(c.data)} préstamos activos actualmente.
+            """
+        except Exception as e:
+            return f"Nota: Los datos financieros están siendo actualizados. (Error técnico: {e})"
+
+    # ---------------------------------------------------------
+    # 2. ESTILO CSS (META AI / TARJETAS FLOTANTES)
     # ---------------------------------------------------------
     st.markdown("""
         <style>
-            /* Contenedor principal centrado */
-            .main .block-container { max-width: 850px; padding-top: 3rem; }
-            [data-testid="stHeader"] { display: none; }
+            .main .block-container { max-width: 800px; padding-top: 2rem; }
+            .titulo-meta { text-align: center; font-size: 42px; font-weight: 700; color: #1c1e21; margin-bottom: 5px; }
+            .subtitulo-meta { text-align: center; color: #65676b; font-size: 18px; margin-bottom: 30px; }
             
-            /* Título estilo Meta */
-            .titulo-meta {
-                text-align: center;
-                font-size: 42px;
-                font-weight: 700;
-                margin-bottom: 10px;
-                color: #1c1e21;
-            }
-            .subtitulo-meta {
-                text-align: center;
-                color: #65676b;
-                font-size: 18px;
-                margin-bottom: 40px;
-            }
-
-            /* Estilo de las Sugerencias Flotantes */
-            .sugerencia-card {
-                background: white;
-                border: 1px solid #e4e6eb;
-                border-radius: 12px;
-                padding: 15px;
-                margin-bottom: 12px;
-                transition: all 0.3s ease;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-            }
-            .sugerencia-card:hover {
-                background-color: #f0f2f5;
-                border-color: #0084ff;
-                transform: translateY(-2px);
-            }
+            /* Ajuste para que el chat ocupe el centro */
+            .stChatMessage { border-radius: 15px; margin-bottom: 10px; }
         </style>
-        <h1 class="titulo-meta">¿En qué puedo ayudarte?</h1>
-        <p class="subtitulo-meta">Analiza tu cartera de cobros y riesgos con IA avanzada.</p>
+        <h1 class="titulo-meta">VALE AI</h1>
+        <p class="subtitulo-meta">Tu Analista Senior de Riesgo y Cobranza</p>
     """, unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # 2. SISTEMA DE MENSAJES
+    # 3. GESTIÓN DEL CHAT
     # ---------------------------------------------------------
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # 3. MOSTRAR HISTORIAL (Si ya hay chat)
+    # Mostrar historial de mensajes
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # ---------------------------------------------------------
-    # 4. PREGUNTAS SUGERIDAS (Solo si el chat está vacío)
-    # ---------------------------------------------------------
+    # Sugerencias (Solo aparecen al inicio)
     if not st.session_state.messages:
+        st.markdown("<p style='text-align:center; color:#8e8e93;'>Sugerencias de análisis:</p>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
-        
-        # Estas son las "preguntas flotantes" que querías
         with col1:
-            if st.button("📈 Simular análisis de riesgo actual", use_container_width=True):
-                st.session_state.prompt_temporal = "¿Cuál es el riesgo de mi cartera hoy?"
-            if st.button("💸 Calcular efectivo real neto", use_container_width=True):
-                st.session_state.prompt_temporal = "¿Cuánto dinero real tengo restando los gastos?"
-        
+            if st.button("📈 ¿Cuál es mi nivel de riesgo hoy?", use_container_width=True):
+                st.session_state.prompt_temporal = "Analiza mi capital en la calle y dime quiénes son los clientes con deudas más altas."
         with col2:
-            if st.button("🚀 Proyectar ganancias del mes", use_container_width=True):
-                st.session_state.prompt_temporal = "¿Qué proyección de ganancias tengo este mes?"
-            if st.button("📊 Informe de rentabilidad global", use_container_width=True):
-                st.session_state.prompt_temporal = "Hazme un resumen de la rentabilidad de mi negocio."
+            if st.button("💸 Calcular beneficio real neto", use_container_width=True):
+                st.session_state.prompt_temporal = "Dime cuánto he ganado realmente restando los gastos de los cobros."
 
-    # ---------------------------------------------------------
-    # 5. INPUT DE CHAT (Estilo Global)
-    # ---------------------------------------------------------
-    prompt = st.chat_input("Pregunta a la IA de CobroYa...")
+    # Entrada de texto
+    prompt = st.chat_input("Pregunta sobre tus cobros, gastos o deudores...")
 
-    # Si se usó un botón sugerido, lo capturamos
+    # Capturar prompt de botones sugeridos
     if "prompt_temporal" in st.session_state and st.session_state.prompt_temporal:
         prompt = st.session_state.prompt_temporal
         del st.session_state.prompt_temporal
 
     if prompt:
-        # Añadir pregunta del usuario
+        # Añadir y mostrar mensaje del usuario
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Lógica de respuesta (Groq)
+        # Generar respuesta de la IA
         with st.chat_message("assistant"):
-            with st.spinner("Procesando datos del negocio..."):
-                # Recopilar datos reales
-                p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
-                g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
-                c = conn.table("cuentas").select("balance_pendiente").eq("user_id", u_id).eq("estado", "Activo").execute()
+            with st.spinner("Analizando tu cartera en tiempo real..."):
+                # Obtenemos el contexto procesado (Rápido y potente)
+                contexto_negocio = obtener_super_contexto(u_id)
                 
-                cobrado = sum([i['monto_pagado'] for i in p.data]) if p.data else 0
-                gastado = sum([i['monto'] for i in g.data]) if g.data else 0
-                riesgo = sum([i['balance_pendiente'] for i in c.data]) if c.data else 0
+                # Instrucciones de sistema integradas
+                prompt_full = f"""
+                Eres VALE AI, un analista financiero experto. 
+                DATOS ACTUALES DEL NEGOCIO:
+                {contexto_negocio}
                 
-                contexto = f"Cobrado: {cobrado}, Gastado: {gastado}, Riesgo: {riesgo}. Responde como un analista bancario profesional."
+                REGLAS:
+                1. Responde de forma profesional, clara y directa.
+                2. Usa los números de arriba para tus cálculos.
+                3. Si el usuario pregunta por riesgo, enfócate en los deudores críticos.
+                4. No menciones que estás leyendo un 'contexto', actúa como si conocieras el negocio perfectamente.
+                5. Sé amable pero firme en las recomendaciones de cobro.
+                """
                 
                 try:
-                    respuesta = asistente_ia_cobroya(contexto, prompt)
+                    # Llamada a la función del modelo (Asegúrate de que esta función esté definida en tu app)
+                    respuesta = asistente_ia_cobroya(prompt_full, prompt)
+                    
                     st.markdown(respuesta)
                     st.session_state.messages.append({"role": "assistant", "content": respuesta})
-                    
                 except Exception as e:
-                    # Esto nos dirá el error de verdad (ej. "Connection error" o "Rate limit")
-                    st.error(f"Error real de la IA: {e}") 
-
-# --- DENTRO DE LA SECCIÓN DEL CHAT DE IA ---
-if menu == "IA Analista":
-    with st.container():
-        # Paso 1: Generar el contexto privado ANTES de que el usuario pregunte
-        contexto_seguro = obtener_contexto_privado_ia(u_id) # u_id es el id del usuario logueado
-
-        # Paso 2: Configurar las instrucciones para Gemini
-        instrucciones_ia = f"""
-        Eres VALE AI, un analista financiero privado y seguro. 
-        Tu conocimiento se limita ESTRICTAMENTE a estos datos:
-        
-        {contexto_seguro}
-        
-        REGLAS DE ORO:
-        - No inventes datos que no estén arriba.
-        - No menciones que tienes un archivo de contexto, actúa con naturalidad.
-        - Si te preguntan por riesgo, analiza quién debe más y quién tiene pagos cerca.
-        - Tu objetivo es ayudar al dueño del negocio a cobrar mejor.
-        """
-
-        # Aquí es donde llamas a tu función de chat de Gemini
-        st.title("🤖 Tu Analista Senior Privado")
-        st.info("Estoy analizando tus datos en tiempo real para darte recomendaciones de cobro.")
-        
-        prompt = st.chat_input("Pregúntame sobre tus cobros o riesgos...")
-        if prompt:
-            st.write(f"Analizando tu cartera para responder: '{prompt}'...")
+                    st.error(f"No pude conectar con la mente de la IA. Error: {e}")
 
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
