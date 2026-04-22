@@ -510,25 +510,23 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- CSS DEFINITIVO (Solución aria-expanded + Nombres Claros) ---
+# --- CSS CORREGIDO: Logo al techo y nombres con espacio ---
     st.markdown(f"""
         <style>
-            /* 1. MANEJO DINÁMICO DEL SIDEBAR (Para que la pantalla se expanda) */
-            /* Cuando está abierto */
+            /* 1. MANEJO DEL SIDEBAR Y EXPANSIÓN */
             [data-testid="stSidebar"][aria-expanded="true"] {{
-                min-width: 285px !important;
-                max-width: 285px !important;
+                min-width: 290px !important; /* Un poco más de ancho para los nombres */
+                max-width: 290px !important;
                 background-color: #FBFBFD !important;
             }}
 
-            /* Cuando está colapsado (0px reales) */
             [data-testid="stSidebar"][aria-expanded="false"] {{
                 min-width: 0px !important;
                 max-width: 0px !important;
                 width: 0px !important;
             }}
 
-            /* 2. BOTÓN DE MENÚ (Rescatado y funcional) */
+            /* 2. BOTÓN DE MENÚ */
             [data-testid="stSidebarHeader"] {{
                 padding: 0px !important;
                 background-color: transparent !important;
@@ -541,23 +539,19 @@ with st.sidebar:
                 margin: 10px !important;
                 z-index: 100000 !important;
             }}
-            
-            button[data-testid="stSidebarCollapseButton"] svg {{
-                fill: white !important;
-            }}
 
-            /* 3. LOGO Y CARD (Pegado arriba) */
+            /* 3. PEGAR LOGO AL TECHO ABSOLUTO */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
-                margin-top: -10px !important;
+                margin-top: -35px !important; /* Subimos el logo para que toque el borde */
             }}
 
             .client-brand-card {{
                 text-align: center; 
-                padding: 20px 15px;
+                padding: 15px 15px; /* Menos padding arriba para pegar el logo */
                 background: white;
                 border-bottom: 1px solid #E5E5EA;
-                margin-bottom: 20px;
+                margin-bottom: 25px;
             }}
             
             .client-logo-img {{
@@ -566,27 +560,31 @@ with st.sidebar:
                 object-fit: contain;
             }}
 
-            /* 4. MÓDULOS (Sin recortes en los nombres) */
+            /* 4. MÓDULOS (Nombres con espacio y sin recortes) */
+            div[role="radiogroup"] {{
+                gap: 15px !important; /* Más espacio entre botones */
+                padding-left: 12px !important;
+            }}
+            
             div[role="radio"] p {{ 
                 font-size: 15px !important; 
                 white-space: nowrap !important;
                 color: #1D1D1F !important;
                 font-weight: 500;
                 overflow: visible !important;
+                padding: 5px 0; /* Espacio extra individual */
             }}
 
             /* 5. AJUSTE DE PANTALLA PRINCIPAL */
             [data-testid="stAppViewBlockContainer"] {{
                 max-width: 100% !important;
-                padding-left: 4rem !important;
-                padding-right: 4rem !important;
             }}
 
             /* 6. FOOTER */
             .absolute-footer {{
                 margin-top: auto;
                 text-align: center;
-                padding: 30px 10px;
+                padding: 40px 10px;
                 border-top: 1px solid #F2F2F7;
             }}
         </style>
