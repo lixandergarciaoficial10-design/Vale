@@ -510,10 +510,23 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- CSS TOTAL (Sin recortes, Botón Rescatado y Logo Arriba) ---
+# --- CSS TOTAL (Solución al espacio vacío, Botón Rescatado y Logo Arriba) ---
     st.markdown(f"""
         <style>
-            /* 1. AJUSTE DEL SIDEBAR */
+            /* 1. SOLUCIÓN AL ESPACIO GRIS: Expandir contenido cuando el sidebar se cierra */
+            [data-testid="stAppViewBlockContainer"] {{
+                width: 100% !important;
+                max-width: 100% !important;
+                padding-left: 5rem !important;
+                padding-right: 5rem !important;
+            }}
+            
+            /* Ajuste para que el layout principal no reserve espacio del sidebar si está colapsado */
+            [data-testid="stMain"] {{
+                transition: margin-left 0.3s ease;
+            }}
+
+            /* 2. AJUSTE DEL SIDEBAR */
             [data-testid="stSidebar"] {{
                 min-width: 280px !important;
                 max-width: 280px !important;
@@ -521,37 +534,34 @@ with st.sidebar:
                 border-right: 1px solid #E5E5EA;
             }}
 
-            /* 2. RESCATE DEL BOTÓN (Sin matarlo con display:none) */
-            /* En lugar de ocultar el header completo, solo quitamos su relleno */
+            /* 3. RESCATE DEL BOTÓN (Mantenerlo vivo y visible) */
             [data-testid="stSidebarHeader"] {{
                 padding: 0px !important;
                 background-color: transparent !important;
+                display: block !important; /* No usar display:none */
             }}
             
-            /* Estilo del botón para que se vea como quieres */
             button[data-testid="stSidebarCollapseButton"] {{
                 background-color: #1D1D1F !important; /* Negro elegante */
                 color: white !important;
                 border-radius: 8px !important;
                 margin: 10px !important;
                 opacity: 1 !important;
-                display: flex !important;
-                z-index: 1000;
+                z-index: 100000; /* Prioridad máxima */
             }}
             
-            /* Forzar el color blanco en las flechitas/icono del botón */
             button[data-testid="stSidebarCollapseButton"] svg {{
                 fill: white !important;
                 color: white !important;
             }}
 
-            /* 3. PEGAR TODO AL TECHO (Eliminar espacios muertos) */
+            /* 4. PEGAR TODO AL TECHO */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
-                margin-top: -15px !important; /* Ajuste para subir el logo al máximo */
+                margin-top: -15px !important;
             }}
 
-            /* 4. CARD DEL CLIENTE */
+            /* 5. CARD DEL CLIENTE */
             .client-brand-card {{
                 text-align: center; 
                 padding: 20px 15px;
@@ -568,7 +578,7 @@ with st.sidebar:
                 margin-bottom: 10px;
             }}
 
-            /* 5. NAVEGACIÓN SIN RECORTES (Nombres completos) */
+            /* 6. NAVEGACIÓN SIN RECORTES */
             div[role="radiogroup"] {{
                 gap: 12px;
                 padding-left: 10px;
@@ -581,7 +591,7 @@ with st.sidebar:
                 font-weight: 500;
             }}
 
-            /* 6. FOOTER POWERED BY */
+            /* 7. FOOTER POWERED BY */
             .absolute-footer {{
                 margin-top: auto; 
                 text-align: center;
