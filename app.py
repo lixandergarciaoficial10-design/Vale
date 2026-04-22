@@ -510,12 +510,12 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- CSS CORREGIDO ---
+# --- CSS CORREGIDO (Logo al techo, Footer centrado y despegado) ---
     st.markdown(f"""
         <style>
             /* 1. EXPANSIÓN Y SIDEBAR */
             [data-testid="stSidebar"][aria-expanded="true"] {{
-                min-width: 300px !important; /* Un poco más ancho para que los nombres no sufran */
+                min-width: 300px !important;
                 max-width: 300px !important;
                 background-color: #FBFBFD !important;
             }}
@@ -541,7 +541,7 @@ with st.sidebar:
             /* 3. LOGO AL TECHO ABSOLUTO */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
-                margin-top: -50px !important; /* Subida agresiva para tocar el borde */
+                margin-top: -50px !important; 
             }}
 
             .client-brand-card {{
@@ -571,6 +571,18 @@ with st.sidebar:
                 padding: 6px 0 !important;
             }}
 
+            /* 5. FOOTER CENTRADO Y DESPEGADO */
+            .absolute-footer {{
+                margin-top: 60px !important; /* Espacio extra para diferenciar de Configuración */
+                text-align: center !important;
+                padding: 30px 10px !important;
+                border-top: 1px solid #F2F2F7;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }}
+
             [data-testid="stAppViewBlockContainer"] {{
                 max-width: 100% !important;
             }}
@@ -596,7 +608,7 @@ with st.sidebar:
     # NAVEGACIÓN (Sincronizada con tus ELIF)
     opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     
-    mapeo_visual = {
+    mapeo_visual = {{
         "Panel de Control": "🏠 Panel de Control",
         "Gestión de Cobros": "💰 Gestión de Cobros",
         "👥 Todos mis Clientes": "👥 Todos mis Clientes",
@@ -604,9 +616,9 @@ with st.sidebar:
         "Cuentas por Pagar": "📉 Cuentas por Pagar",
         "IA Predictiva": "🧠 IA Predictiva",
         "Configuración": "⚙️ Configuración"
-    }
+    }}
 
-    # ARREGLO DEL VALUE ERROR: Validación de seguridad
+    # ARREGLO DEL VALUE ERROR
     menu_actual = st.session_state.get('menu_principal', "Panel de Control")
     idx_seguro = opciones.index(menu_actual) if menu_actual in opciones else 0
 
@@ -619,14 +631,14 @@ with st.sidebar:
     )
     st.session_state.menu_principal = menu
 
-    # FOOTER
+    # FOOTER DESPEGADO Y CENTRADO
     st.sidebar.markdown(f"""
         <div class="absolute-footer">
             <p style='font-size: 0.65rem; color: #86868B; margin: 0; font-weight: 700; letter-spacing: 1px;'>
                 POWERED BY LIXANDER GARCÍA
             </p>
-            <div style="margin-top: 15px;">
-                <img src="{URL_LOGO_COBROYA}" style="width:110px;">
+            <div style="margin-top: 15px; display: flex; justify-content: center; width: 100%;">
+                <img src="{URL_LOGO_COBROYA}" style="width:110px; height: auto;" onerror="this.style.display='none'">
             </div>
         </div>
     """, unsafe_allow_html=True)
