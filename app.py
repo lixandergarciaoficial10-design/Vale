@@ -500,14 +500,14 @@ with st.sidebar:
     logo_b64 = st.session_state.get("mi_logo")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-# --- CSS TOTAL (Ancho 225px, Botón a la izquierda, Sin recortes) ---
+# --- CSS TOTAL (Ancho 265px, Botón a la izquierda, Sin recortes) ---
     st.markdown(f"""
         <style>
-            /* 1. ANCHO FIJO DE 225PX */
+            /* 1. ANCHO FIJO DE 265PX */
             [data-testid="stSidebar"] {{
-                min-width: 225px !important;
-                max-width: 225px !important;
-                width: 225px !important;
+                min-width: 265px !important;
+                max-width: 265px !important;
+                width: 265px !important;
                 background-color: #FBFBFD !important;
                 border-right: 1px solid #E5E5EA;
             }}
