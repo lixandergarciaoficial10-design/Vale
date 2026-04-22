@@ -500,10 +500,10 @@ with st.sidebar:
     logo_b64 = st.session_state.get("mi_logo")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-# --- CSS TOTAL (Ancho 240px, Alineado Izquierda, Sin Botón Salir) ---
+# --- CSS TOTAL (Ancho 240px, Alineado Izquierda, Header Centrado) ---
     st.markdown(f"""
         <style>
-            /* 1. ANCHO FIJO DE 240PX (Ideal para nombres largos en una línea) */
+            /* 1. ANCHO FIJO DE 240PX */
             [data-testid="stSidebar"] {{
                 min-width: 240px !important;
                 max-width: 240px !important;
@@ -515,7 +515,7 @@ with st.sidebar:
             /* 2. BLOQUEO DE AJUSTE MANUAL */
             [data-testid="stSidebarResizer"] {{ display: none !important; }}
 
-            /* 3. BOTÓN HAMBURGUESA PEGADO A LA IZQUIERDA */
+            /* 3. BOTÓN HAMBURGUESA */
             [data-testid="stSidebarCollapseButton"] {{
                 left: 5px !important;
                 top: 5px !important;
@@ -531,43 +531,42 @@ with st.sidebar:
                 height: 98vh !important;
             }}
 
-            /* Card del Cliente */
+            /* Card del Cliente - CENTRADA */
             .client-brand-card {{
-                text-align: left; /* Alineado a la izquierda */
+                text-align: center; 
                 padding: 12px 15px;
                 background: white;
                 border-radius: 15px;
                 border: 1px solid #E5E5EA;
                 margin-top: 40px; 
-                margin-bottom: 20px;
+                margin-bottom: 25px;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             }}
             .client-logo-img {{
-                max-width: 80%;
+                max-width: 85%;
                 height: 55px;
                 object-fit: contain;
                 margin-bottom: 8px;
-                display: block;
-                margin-left: 0;
+                display: inline-block; /* Cambiado para permitir centrado */
             }}
             
-            /* Estilo Menú Radio (ALINEADO IZQUIERDA Y MÁS SEPARADOS) */
+            /* Menú Radio - IZQUIERDA Y SEPARADOS */
             div[data-testid="stRadio"] > label {{ display: none !important; }}
             div[role="radiogroup"] {{
                 display: flex;
                 flex-direction: column;
-                align-items: flex-start; /* Todo a la izquierda */
-                gap: 12px; /* <--- Mayor separación entre botones */
+                align-items: flex-start; 
+                gap: 14px; /* <--- Mayor separación entre botones */
                 padding-left: 10px;
             }}
             div[role="radio"] {{ 
                 padding: 10px 15px !important; 
                 border-radius: 12px !important; 
-                white-space: nowrap !important; /* FUERZA UNA SOLA LÍNEA */
+                white-space: nowrap !important;
                 width: 95% !important;
                 display: flex;
-                justify-content: flex-start; /* Texto a la izquierda */
-                margin-bottom: 6px !important;
+                justify-content: flex-start;
+                margin-bottom: 4px !important;
             }}
             div[role="radio"][aria-checked="true"] {{ 
                 background-color: #E8E8ED !important; 
@@ -579,16 +578,13 @@ with st.sidebar:
                 font-weight: 500;
             }}
 
-            /* ELIMINACIÓN DE BOTÓN SALIR (Ocultado por CSS por si acaso) */
-            .stButton {{
-                display: none !important;
-            }}
+            /* Ocultar botón de salir original */
+            .stButton {{ display: none !important; }}
 
             /* Footer Power By */
             .absolute-footer {{
                 margin-top: auto;
-                text-align: left;
-                padding-left: 15px;
+                text-align: center;
                 padding-bottom: 20px;
             }}
             
@@ -596,14 +592,14 @@ with st.sidebar:
         </style>
     """, unsafe_allow_html=True)
 
-    # HEADER CLIENTE
+    # HEADER CLIENTE (CENTRADO por CSS)
     if logo_b64:
         img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
         src_logo = f"data:image/png;base64,{img_data}"
     else:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-    st.markdown(f"""
+    st.sidebar.markdown(f"""
         <div class="client-brand-card">
             <img src="{src_logo}" class="client-logo-img">
             <div style="font-family: sans-serif; line-height: 1.2;">
@@ -618,25 +614,28 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # NAVEGACIÓN (NOMBRES COMPLETOS)
+    # NAVEGACIÓN CON MAPEO DE NOMBRE VISUAL
     opciones = ["Panel de Control", "Gestión de Cobros", "Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
-    iconos = {
+    
+    # Aquí definimos cómo se ve cada opción en pantalla
+    mapeo_nombres = {
         "Panel de Control": "🏠 Panel de Control",
         "Gestión de Cobros": "💰 Gestión de Cobros",
-        "Todos mis Clientes": "👥 Todos mis Clientes",
+        "👥Todos mis Clientes": "👥 Mis Clientes", # <--- VISUALMENTE DIRÁ "Mis Clientes"
         "Nueva Cuenta por Cobrar": "➕ Nueva CxC",
         "Cuentas por Pagar": "📉 Cuentas por Pagar",
         "IA Predictiva": "🧠 IA Predictiva",
         "Configuración": "⚙️ Configuración"
     }
-    
+
+    menu = st.sidebar.radio(
+        "Menu",
+        opciones,
+        format_func=lambda x: mapeo_nombres.get(x, x) # Cambia el nombre en pantalla sin tocar el valor real
+    )
     menu = st.radio("NAV", opciones, index=opciones.index(st.session_state.menu_principal), format_func=lambda x: iconos[x], label_visibility="collapsed")
     st.session_state.menu_principal = menu
 
-    # BOTÓN SALIR
-    if st.button("🚪 Salir"):
-        st.session_state.clear()
-        st.rerun()
 
     # FOOTER AL FONDO
     st.markdown(f"""
