@@ -613,7 +613,7 @@ with st.sidebar:
     logo_b64 = st.session_state.get("mi_logo")
     u_email = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-    # --- CSS MÁGICO PARA RÉPLICA APPLE ---
+# --- CSS MÁGICO PARA RÉPLICA APPLE ---
     st.markdown("""
         <style>
             [data-testid="stSidebar"] {
@@ -622,33 +622,34 @@ with st.sidebar:
             }
             [data-testid="stSidebarHeader"] { display: none; }
 
-            .apple-profile-card {
-                display: flex;
-                align-items: center;
-                padding: 12px;
+            /* Contenedor principal de marca */
+            .apple-brand-section {
+                text-align: center;
+                padding: 20px 10px;
                 background: #FFFFFF;
-                border-radius: 16px;
+                border-radius: 20px;
                 border: 1px solid #E5E5EA;
-                box-shadow: 0 4px 14px rgba(0,0,0,0.03);
-                margin-top: 15px;
-                margin-bottom: 8px;
+                margin-bottom: 15px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.02);
             }
             .apple-logo {
-                width: 46px;
-                height: 46px;
-                border-radius: 12px;
+                width: 70px;
+                height: 70px;
+                border-radius: 14px;
                 object-fit: cover;
-                margin-right: 12px;
+                margin-bottom: 12px;
                 border: 1px solid #F2F2F7;
             }
             .apple-biz-info h3 {
-                margin: 0; font-size: 14px; font-weight: 700; color: #1D1D1F;
-                font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-                white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                margin: 0; font-size: 15px; font-weight: 700; color: #1D1D1F;
+                font-family: -apple-system, sans-serif;
             }
-            .apple-biz-info p {
-                margin: 0; font-size: 12px; color: #86868B;
-                font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            .apple-biz-details {
+                margin-top: 8px;
+                font-size: 11px;
+                color: #86868B;
+                line-height: 1.4;
+                font-family: -apple-system, sans-serif;
             }
 
             /* CSS para Menú Apple */
@@ -667,7 +668,7 @@ with st.sidebar:
             div[role="radio"][aria-checked="true"] p { font-weight: 600 !important; color: #1D1D1F !important; }
             div[role="radio"] p {
                 font-size: 14.5px !important;
-                font-family: -apple-system, BlinkMacSystemFont, sans-serif !important;
+                font-family: -apple-system, sans-serif !important;
                 color: #48484A !important; margin: 0 !important;
             }
 
@@ -681,41 +682,39 @@ with st.sidebar:
             .stButton > button:hover { background-color: #FFF0F0 !important; border-color: #FF3B30 !important; }
 
             /* Footer Branding Logo */
-            .sidebar-footer { margin-top: auto; text-align: center; padding: 20px 0 10px 0; border-top: 1px solid #E5E5EA; display: flex; justify-content: center;}
-            .footer-logo { width: 140px; object-fit: contain; opacity: 0.9; }
-            
-            /* Expander Intuitivo */
-            .st-emotion-cache-p5msec { background-color: transparent !important; border: none !important;}
+            .sidebar-footer { 
+                margin-top: auto; 
+                text-align: center; 
+                padding: 20px 0 10px 0; 
+                border-top: 1px solid #E5E5EA; 
+                display: flex; 
+                flex-direction: column;
+                align-items: center;
+            }
+            .footer-logo { width: 130px; object-fit: contain; margin-top: 8px; }
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 2. HEADER: TARJETA DE PERFIL ---
+    # --- 2. HEADER ESTÁTICO (IDENTIDAD COMPLETA) ---
     src_logo = f"data:image/png;base64,{logo_b64.split(',')[1] if ',' in str(logo_b64) else logo_b64}" if logo_b64 else "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
     
     st.markdown(f"""
-        <div class="apple-profile-card">
+        <div class="apple-brand-section">
             <img src="{src_logo}" class="apple-logo">
             <div class="apple-biz-info">
                 <h3>{biz_name}</h3>
-                <p>{u_email}</p>
+                <div class="apple-biz-details">
+                    <p style='margin:2px 0;'>RNC: {biz_rnc}</p>
+                    <p style='margin:2px 0;'>📍 {biz_dir}</p>
+                    <p style='margin:2px 0;'>📞 {biz_tel}</p>
+                    <hr style='border:0; border-top:1px solid #F2F2F7; margin:8px 0;'>
+                    <p style='color:#1D1D1F; font-weight:500;'>{u_email}</p>
+                </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # --- 3. MENÚ DESPLEGABLE (Expander) ---
-    with st.expander("📄 Ver detalles de empresa", expanded=False):
-        st.markdown(f"""
-            <div style='font-family: -apple-system, sans-serif; font-size: 12px; color: #86868B; padding: 8px 12px; background: #FFFFFF; border-radius: 8px; border: 1px solid #E5E5EA;'>
-                <p style='margin: 4px 0;'><b>RNC:</b> {biz_rnc}</p>
-                <p style='margin: 4px 0;'><b>Tel:</b> {biz_tel}</p>
-                <p style='margin: 4px 0;'><b>Dir:</b> {biz_dir}</p>
-            </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
-
-    # --- 4. MENÚ DE NAVEGACIÓN (SEPARANDO LÓGICA DE VISUAL) ---
-    # 1. Textos EXACTOS originales para no romper tu código
+    # --- 4. MENÚ DE NAVEGACIÓN (LÓGICA PROTEGIDA) ---
     opciones_limpias = [
         "Panel de Control", 
         "Gestión de Cobros", 
@@ -726,7 +725,7 @@ with st.sidebar:
         "Configuración"
     ]
     
-    # 2. Diccionario con los iconos que se mostrarán en la pantalla
+    # Iconos exactos según la imagen #1
     diccionario_iconos = {
         "Panel de Control": "🏠 Panel de Control",
         "Gestión de Cobros": "💰 Gestión de Cobros",
@@ -737,7 +736,6 @@ with st.sidebar:
         "Configuración": "⚙️ Configuración"
     }
     
-    # 3. format_func aplica el diseño pero devuelve la opción limpia a tu variable 'menu'
     menu = st.radio(
         "NAVEGACIÓN", 
         opciones_limpias, 
@@ -750,22 +748,20 @@ with st.sidebar:
         st.session_state.clear()
         st.rerun()
 
-    # --- 6. FOOTER BRANDING ---
-    ruta_logo_cobroya = "logo_cobroya.png" 
+    # --- 6. FOOTER BRANDING (LOGO COBROYA LIMPIO) ---
+    ruta_logo_cobroya = "logo_cobroya.png" # Recuerda tener el logo sin el texto de arriba
     
     logo_footer_html = ""
-    try:
-        if os.path.exists(ruta_logo_cobroya):
-            with open(ruta_logo_cobroya, "rb") as image_file:
-                encoded_string = base64.b64encode(image_file.read()).decode()
-                logo_footer_html = f"<img src='data:image/png;base64,{encoded_string}' class='footer-logo'>"
-        else:
-            logo_footer_html = "<p style='font-size: 0.85rem; font-weight: 800; color: #007AFF; margin: 0; font-family: -apple-system, sans-serif;'>CobroYa by Lixander</p>"
-    except Exception as e:
-        logo_footer_html = "<p style='color:red;'>Error cargando logo</p>"
+    if os.path.exists(ruta_logo_cobroya):
+        with open(ruta_logo_cobroya, "rb") as image_file:
+            encoded_string = base64.b64encode(image_file.read()).decode()
+            logo_footer_html = f"<img src='data:image/png;base64,{encoded_string}' class='footer-logo'>"
+    else:
+        logo_footer_html = "<p style='font-size: 1rem; font-weight: 800; color: #007AFF; margin: 0;'>CobroYa</p>"
 
     st.markdown(f"""
         <div class='sidebar-footer'>
+            <p style='font-size: 0.6rem; color: #86868B; margin: 0; letter-spacing: 0.5px;'>POWERED BY LIXANDER GARCIA</p>
             {logo_footer_html}
         </div>
     """, unsafe_allow_html=True)
