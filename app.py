@@ -653,45 +653,102 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
+if menu == "Panel de Control":
+    st.title("💼 Business Intelligence Dashboard")
+    
+    # --- 1. EXTRACCIÓN DE DATOS ---
+    res_c = conn.table("cuentas").select("balance_pendiente, monto_inicial, estado, cliente:clientes(nombre)").eq("user_id", u_id).execute()
+    res_p = conn.table("pagos").select("monto_pagado, fecha_pago").eq("user_id", u_id).execute()
+    res_g_pagados = conn.table("gastos").select("monto").eq("user_id", u_id).eq("estado", "Pagado").eq("visible_usuario", True).execute()
+    res_g_pendientes = conn.table("gastos").select("monto").eq("user_id", u_id).eq("estado", "Pendiente").eq("visible_usuario", True).execute()
 
-with sf2:
-        if res_p.data and len(res_p.data) > 0:
-            df_p = pd.DataFrame(res_p.data)
+    # --- 2. CÁLCULOS ---
+    total_cobrado = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
+    total_gastado_real = sum([g['monto'] for g in res_g_pagados.data]) if res_g_pagados.data else 0
+    total_compromisos = sum([g['monto'] for g in res_g_pendientes.data]) if res_g_pendientes.data else 0
+    capital_en_calle = sum([c['balance_pendiente'] for c in res_c.data if c['estado'] == 'Activo']) if res_c.data else 0
+    caja_actual = total_cobrado - total_gastado_real
+
+    # --- 3. LÓGICA DE RECOBRO (PUNTO DE CORTE VISUAL) ---
+    if 'offset_caja' not in st.session_state: st.session_state.offset_caja = 0
+    if 'offset_calle' not in st.session_state: st.session_state.offset_calle = 0
+    if 'offset_gastos' not in st.session_state: st.session_state.offset_gastos = 0
+
+    # --- 4. MÉTRICAS PRINCIPALES ---
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        val_calle = max(0, capital_en_calle - st.session_state.offset_calle)
+        st.markdown(f"<div class='metric-card'><small>💰 EN LA CALLE</small><h2 style='color:#007AFF;'>RD$ {val_calle:,.0f}</h2></div>", unsafe_allow_html=True)
+        if st.button("🔄 Recobro", key="re_calle"):
+            st.session_state.offset_calle = capital_en_calle
+            st.rerun()
+
+    with c2:
+        val_caja = max(0, caja_actual - st.session_state.offset_caja)
+        st.markdown(f"<div class='metric-card'><small>🏦 CAJA NETO</small><h2 style='color:#34C759;'>RD$ {val_caja:,.0f}</h2></div>", unsafe_allow_html=True)
+        if st.button("🔄 Recobro", key="re_caja"):
+            st.session_state.offset_caja = caja_actual
+            st.rerun()
+
+    with c3:
+        val_gastos = max(0, total_gastado_real - st.session_state.offset_gastos)
+        st.markdown(f"<div class='metric-card'><small>📉 GASTOS</small><h2 style='color:#FF3B30;'>RD$ {val_gastos:,.0f}</h2></div>", unsafe_allow_html=True)
+        if st.button("🔄 Recobro", key="re_gastos"):
+            st.session_state.offset_gastos = total_gastado_real
+            st.rerun()
+
+    st.markdown("---")
+
+    # --- 5. GRÁFICOS (PROTECCIÓN CONTRA ERRORES DE FECHA) ---
+    import pandas as pd
+    import plotly.express as px
+
+    col_l, col_r = st.columns([1.2, 0.8])
+
+    with col_l:
+        st.subheader("🏆 Top 5 Deudores")
+        if res_c.data:
+            df_deudores = pd.DataFrame([{'C': c['cliente']['nombre'], 'D': c['balance_pendiente']} for c in res_c.data if c['estado'] == 'Activo'])
+            if not df_deudores.empty:
+                df_top = df_deudores.groupby('C').sum().sort_values('D', ascending=False).head(5).reset_index()
+                fig_top = px.bar(df_top, x='D', y='C', orientation='h', color='D', color_continuous_scale='Blues', text_auto=',.0f')
+                fig_top.update_layout(showlegend=False, height=350, margin=dict(l=0, r=10, t=20, b=0))
+                st.plotly_chart(fig_top, use_container_width=True)
+
+    with col_r:
+        st.subheader("📊 Recuperación")
+        m_inicial = sum([c['monto_inicial'] for c in res_c.data]) if res_c.data else 0
+        recup = max(0, m_inicial - capital_en_calle)
+        df_pie = pd.DataFrame({'T': ['Recuperado', 'Pendiente'], 'M': [recup, capital_en_calle]})
+        fig_pie = px.pie(df_pie, values='M', names='T', hole=0.6, color_discrete_sequence=['#34C759', '#007AFF'])
+        fig_pie.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=350)
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    # --- 6. ANÁLISIS DE FLUJO (Aquí estaba el ValueError) ---
+    st.markdown("---")
+    st.subheader("📈 Flujo de Recaudación Diario")
+    
+    if res_p.data and len(res_p.data) > 0:
+        df_p = pd.DataFrame(res_p.data)
+        
+        # PASO CRÍTICO: Conversión segura
+        df_p['fecha_pago'] = pd.to_datetime(df_p['fecha_pago'], errors='coerce', utc=True)
+        
+        # Eliminamos nulos producidos por la conversión o la DB
+        df_p = df_p.dropna(subset=['fecha_pago'])
+        
+        if not df_p.empty:
+            # Agrupación por día
+            df_hist = df_p.set_index('fecha_pago').resample('D')['monto_pagado'].sum().reset_index()
             
-            # Verificamos que la columna exista para evitar errores de llave
-            if 'fecha_pago' in df_p.columns:
-                # Convertimos con 'coerce' para que valores raros no rompan el BI
-                df_p['fecha_pago'] = pd.to_datetime(df_p['fecha_pago'], errors='coerce', utc=True)
-                
-                # Eliminamos filas donde la fecha no se pudo procesar
-                df_p = df_p.dropna(subset=['fecha_pago'])
-                
-                if not df_p.empty:
-                    # Agrupamos por día y sumamos el monto
-                    df_hist = df_p.resample('D', on='fecha_pago').sum().reset_index()
-                    
-                    fig_area = px.area(df_hist, x='fecha_pago', y='monto_pagado', 
-                                     title="📈 Flujo de Recaudación Diario")
-                    
-                    # Estilo Apple (Azul San Francisco)
-                    fig_area.update_traces(line_color='#007AFF', 
-                                         fillcolor='rgba(0, 122, 255, 0.1)',
-                                         mode='lines+markers')
-                    
-                    fig_area.update_layout(
-                        height=250, 
-                        margin=dict(l=0, r=0, t=40, b=0),
-                        xaxis_title="",
-                        yaxis_title="RD$",
-                        hovermode="x unified"
-                    )
-                    st.plotly_chart(fig_area, use_container_width=True)
-                else:
-                    st.info("No hay datos históricos suficientes para el gráfico.")
-            else:
-                st.warning("No se encontró la columna de fechas en los registros.")
+            fig_area = px.area(df_hist, x='fecha_pago', y='monto_pagado')
+            fig_area.update_traces(line_color='#007AFF', fillcolor='rgba(0, 122, 255, 0.1)')
+            fig_area.update_layout(height=300, margin=dict(l=0, r=0, t=20, b=0), xaxis_title="", yaxis_title="RD$")
+            st.plotly_chart(fig_area, use_container_width=True)
         else:
-            st.info("Aún no se han registrado cobros para generar el histórico.")
+            st.info("No hay fechas válidas para mostrar el historial.")
+    else:
+        st.info("Aún no hay registros de cobros.")
             
 elif menu == "Gestión de Cobros":
     st.header("⚡ Centro de Recaudación")
