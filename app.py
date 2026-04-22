@@ -510,14 +510,28 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- CSS DEFINITIVO (Sin fallos, nombres claros, botón visible) ---
+# --- CSS DEFINITIVO (Solución aria-expanded + Nombres Claros) ---
     st.markdown(f"""
         <style>
-            /* 1. EL BOTÓN NEGRO (Rescatado y funcional) */
+            /* 1. MANEJO DINÁMICO DEL SIDEBAR (Para que la pantalla se expanda) */
+            /* Cuando está abierto */
+            [data-testid="stSidebar"][aria-expanded="true"] {{
+                min-width: 285px !important;
+                max-width: 285px !important;
+                background-color: #FBFBFD !important;
+            }}
+
+            /* Cuando está colapsado (0px reales) */
+            [data-testid="stSidebar"][aria-expanded="false"] {{
+                min-width: 0px !important;
+                max-width: 0px !important;
+                width: 0px !important;
+            }}
+
+            /* 2. BOTÓN DE MENÚ (Rescatado y funcional) */
             [data-testid="stSidebarHeader"] {{
                 padding: 0px !important;
                 background-color: transparent !important;
-                display: flex !important;
             }}
             
             button[data-testid="stSidebarCollapseButton"] {{
@@ -532,14 +546,7 @@ with st.sidebar:
                 fill: white !important;
             }}
 
-            /* 2. ANCHO DEL SIDEBAR (Para que nada se pegue ni se corte) */
-            [data-testid="stSidebar"] {{
-                min-width: 285px !important;
-                max-width: 285px !important;
-                background-color: #FBFBFD !important;
-            }}
-
-            /* 3. LOGO PEGADO ARRIBA */
+            /* 3. LOGO Y CARD (Pegado arriba) */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
                 margin-top: -10px !important;
@@ -559,24 +566,20 @@ with st.sidebar:
                 object-fit: contain;
             }}
 
-            /* 4. MÓDULOS/BOTONES (Nombres completos y alineados) */
-            div[role="radiogroup"] {{
-                gap: 10px;
-                padding-left: 10px;
-            }}
-            
+            /* 4. MÓDULOS (Sin recortes en los nombres) */
             div[role="radio"] p {{ 
                 font-size: 15px !important; 
-                white-space: nowrap !important; /* Evita que se amontonen las letras */
+                white-space: nowrap !important;
                 color: #1D1D1F !important;
                 font-weight: 500;
                 overflow: visible !important;
             }}
 
-            /* 5. AUTO-AJUSTE DE PANTALLA (Sin pelear con Streamlit) */
+            /* 5. AJUSTE DE PANTALLA PRINCIPAL */
             [data-testid="stAppViewBlockContainer"] {{
-                width: 100% !important;
                 max-width: 100% !important;
+                padding-left: 4rem !important;
+                padding-right: 4rem !important;
             }}
 
             /* 6. FOOTER */
@@ -588,7 +591,7 @@ with st.sidebar:
             }}
         </style>
     """, unsafe_allow_html=True)
-
+    
     # --- 3. CONTENIDO DEL SIDEBAR ---
 
     # HEADER PEGADO ARRIBA
