@@ -637,7 +637,7 @@ with st.sidebar:
                 POWERED BY LIXANDER GARCÍA
             </p>
             <div style="margin-top: 10px; width: 100%; display: flex; justify-content: center; align-items: center;">
-                <img src="{URL_LOGO_COBROYA}" style="width: 100px; height: auto; margin: 0 auto; display: block;" onerror="this.style.display='none'">
+                <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" style="width: 100px; height: auto; margin: 0 auto; display: block;" onerror="this.style.display='none'">
             </div>
         </div>
     """, unsafe_allow_html=True)
