@@ -500,14 +500,14 @@ with st.sidebar:
     logo_b64 = st.session_state.get("mi_logo")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-    # --- CSS TOTAL (Ancho 210px, Botón a la izquierda, Sin recortes) ---
+    # --- CSS TOTAL (Ancho 225px, Botón a la izquierda, Sin recortes) ---
     st.markdown(f"""
         <style>
-            /* 1. ANCHO FIJO DE 210PX */
+            /* 1. ANCHO FIJO DE 225PX */
             [data-testid="stSidebar"] {{
-                min-width: 210px !important;
-                max-width: 210px !important;
-                width: 210px !important;
+                min-width: 225px !important;
+                max-width: 225px !important;
+                width: 225px !important;
                 background-color: #FBFBFD !important;
                 border-right: 1px solid #E5E5EA;
             }}
@@ -565,7 +565,7 @@ with st.sidebar:
 
             /* Botón Salir */
             .stButton > button {{
-                width: 50% !important;
+                width: 100% !important;
                 border-radius: 5px !important;
                 color: #FF3B30 !important;
                 border: 1px solid #FF3B3022 !important;
@@ -620,7 +620,7 @@ with st.sidebar:
     st.session_state.menu_principal = menu
 
     # BOTÓN SALIR
-    if st.button("🚪 Salir del Sistema"):
+    if st.button("🚪 Salir"):
         st.session_state.clear()
         st.rerun()
 
