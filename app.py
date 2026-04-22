@@ -531,7 +531,7 @@ with st.sidebar:
                 height: 98vh !important;
             }}
 
-            /* Card del Cliente (Ajustada para 225px) */
+            /* Card del Cliente */
             .client-brand-card {{
                 text-align: center;
                 padding: 12px 8px;
@@ -539,53 +539,62 @@ with st.sidebar:
                 border-radius: 15px;
                 border: 1px solid #E5E5EA;
                 margin-top: 40px; 
-                margin-bottom: 10px;
+                margin-bottom: 15px;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             }}
             .client-logo-img {{
-                max-width: 95%;
-                height: 65px;
+                max-width: 90%;
+                height: 60px;
                 object-fit: contain;
                 margin-bottom: 5px;
             }}
             
-            /* Estilo Menú Radio (CENTRADOS) */
+            /* Estilo Menú Radio (CENTRADOS Y SEPARADOS) */
             div[data-testid="stRadio"] > label {{ display: none !important; }}
             div[role="radiogroup"] {{
                 display: flex;
                 flex-direction: column;
-                align-items: center; /* Centra los botones de radio horizontalmente */
+                align-items: center;
+                gap: 8px; /* <--- AQUÍ: Espaciado extra entre botones */
             }}
             div[role="radio"] {{ 
-                padding: 6px 12px !important; 
+                padding: 8px 12px !important; 
                 border-radius: 10px !important; 
                 white-space: nowrap !important;
-                width: 90% !important; /* Ajuste para que el fondo gris se vea parejo */
+                width: 92% !important;
                 display: flex;
-                justify-content: center; /* Centra el contenido interno del botón */
+                justify-content: center;
+                margin-bottom: 4px !important; /* <--- Refuerzo de separación */
             }}
             div[role="radio"][aria-checked="true"] {{ background-color: #E8E8ED !important; }}
             div[role="radio"] p {{ 
-                font-size: 13px !important; 
+                font-size: 13.5px !important; 
                 color: #48484A !important; 
-                overflow: visible !important;
-                text-align: center !important; /* Centra el texto del nombre */
+                text-align: center !important;
             }}
 
-            /* Botón Salir (CENTRADO) */
+            /* Botón Salir (PEQUEÑO Y RECTANGULAR) */
             .stButton {{
                 display: flex;
                 justify-content: center;
+                margin-top: 10px;
             }}
             .stButton > button {{
-                width: 90% !important;
-                border-radius: 10px !important;
+                width: 80% !important; /* Más angosto */
+                height: 32px !important; /* Más bajito/rectangular */
+                min-height: 32px !important;
+                padding: 0px 10px !important;
+                border-radius: 8px !important; /* Radio más sutil */
+                font-size: 12px !important;
+                font-weight: 600 !important;
                 color: #FF3B30 !important;
-                border: 1px solid #FF3B3022 !important;
-                transition: 0.2s;
+                border: 1px solid #FF3B3044 !important;
+                background-color: transparent !important;
+                transition: 0.3s;
             }}
             .stButton > button:hover {{
                 background-color: #FF3B3011 !important;
+                border: 1px solid #FF3B30 !important;
             }}
 
             /* Footer Power By */
