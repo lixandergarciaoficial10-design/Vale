@@ -656,114 +656,114 @@ with st.sidebar:
 
 if menu == "Panel de Control":
     st.title("💼 Business Intelligence Dashboard")
-    st.markdown("<p style='color: #86868B; font-size: 1.1rem;'>Análisis en tiempo real de tu cartera de cobros.</p>", unsafe_allow_html=True)
-
-    # --- 1. EXTRACCIÓN DE DATOS ---
-    res_c = conn.table("cuentas").select("balance_pendiente, monto_inicial, estado, cliente:clientes(nombre_completo)").eq("user_id", u_id).execute()
+    
+    # --- 1. EXTRACCIÓN DE DATOS (Nombres de columna corregidos) ---
+    # Cambié 'nombre_completo' por 'nombre' que es lo que tienes en tu JSON de la DB
+    res_c = conn.table("cuentas").select("balance_pendiente, monto_inicial, estado, cliente:clientes(nombre)").eq("user_id", u_id).execute()
     res_p = conn.table("pagos").select("monto_pagado, fecha_pago").eq("user_id", u_id).execute()
     res_g_pagados = conn.table("gastos").select("monto").eq("user_id", u_id).eq("estado", "Pagado").eq("visible_usuario", True).execute()
     res_g_pendientes = conn.table("gastos").select("monto").eq("user_id", u_id).eq("estado", "Pendiente").eq("visible_usuario", True).execute()
 
-    # --- 2. CÁLCULOS ---
+    # --- 2. CÁLCULOS FINANCIEROS ---
     total_cobrado = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
     total_gastado_real = sum([g['monto'] for g in res_g_pagados.data]) if res_g_pagados.data else 0
     total_compromisos = sum([g['monto'] for g in res_g_pendientes.data]) if res_g_pendientes.data else 0
     capital_en_calle = sum([c['balance_pendiente'] for c in res_c.data if c['estado'] == 'Activo']) if res_c.data else 0
     caja_actual = total_cobrado - total_gastado_real
 
-    # --- 3. LÓGICA DE REINICIO VISUAL (PUNTO DE CORTE) ---
-    # Esto no borra datos, solo resta el monto actual de la vista si el usuario lo desea
-    if 'corte_caja' not in st.session_state: st.session_state.corte_caja = 0
-    if 'corte_calle' not in st.session_state: st.session_state.corte_calle = 0
+    # --- 3. LÓGICA DE "RECOBRO" (PUNTO DE CORTE VIRTUAL) ---
+    # Usamos st.session_state para guardar el "offset" sin tocar la base de datos
+    if 'offset_caja' not in st.session_state: st.session_state.offset_caja = 0
+    if 'offset_calle' not in st.session_state: st.session_state.offset_calle = 0
+    if 'offset_gastos' not in st.session_state: st.session_state.offset_gastos = 0
 
-    # --- 4. FILA DE MÉTRICAS PRINCIPALES CON BOTÓN DE RECOBRO ---
+    # --- 4. MÉTRICAS PRINCIPALES CON ESTILO APPLE ---
     c1, c2, c3 = st.columns(3)
 
     with c1:
-        st.markdown(f"""<div class='metric-card'><small>💰 EN LA CALLE</small><h2 style='color:#007AFF;'>RD$ {max(0, capital_en_calle - st.session_state.corte_calle):,.0f}</h2></div>""", unsafe_allow_html=True)
-        if st.button("🔄 Reiniciar Vista", key="reset_calle", help="Establece el monto actual como base 0 para seguimiento"):
-            st.session_state.corte_calle = capital_en_calle
+        val_calle = max(0, capital_en_calle - st.session_state.offset_calle)
+        st.markdown(f"<div class='metric-card'><small>💰 EN LA CALLE</small><h2 style='color:#007AFF;'>RD$ {val_calle:,.0f}</h2></div>", unsafe_allow_html=True)
+        if st.button("🔄 Recobro", key="btn_calle", help="Establecer este monto como punto de inicio (Cero)"):
+            st.session_state.offset_calle = capital_en_calle
             st.rerun()
 
     with c2:
-        st.markdown(f"""<div class='metric-card'><small>🏦 CAJA (NETO)</small><h2 style='color:#34C759;'>RD$ {max(0, caja_actual - st.session_state.corte_caja):,.0f}</h2></div>""", unsafe_allow_html=True)
-        if st.button("🔄 Reiniciar Vista", key="reset_caja", help="Corta la caja actual para empezar a contar de nuevo"):
-            st.session_state.corte_caja = caja_actual
+        val_caja = max(0, caja_actual - st.session_state.offset_caja)
+        st.markdown(f"<div class='metric-card'><small>🏦 EFECTIVO EN CAJA</small><h2 style='color:#34C759;'>RD$ {val_caja:,.0f}</h2></div>", unsafe_allow_html=True)
+        if st.button("🔄 Recobro", key="btn_caja", help="Reiniciar conteo de caja actual"):
+            st.session_state.offset_caja = caja_actual
             st.rerun()
 
     with c3:
-        st.markdown(f"""<div class='metric-card'><small>📉 GASTOS REALES</small><h2 style='color:#FF3B30;'>RD$ {total_gastado_real:,.0f}</h2></div>""", unsafe_allow_html=True)
-        st.write("") # Espacio para alinear
+        val_gastos = max(0, total_gastado_real - st.session_state.offset_gastos)
+        st.markdown(f"<div class='metric-card'><small>📉 GASTOS EFECTUADOS</small><h2 style='color:#FF3B30;'>RD$ {val_gastos:,.0f}</h2></div>", unsafe_allow_html=True)
+        if st.button("🔄 Recobro", key="btn_gastos", help="Reiniciar historial visual de gastos"):
+            st.session_state.offset_gastos = total_gastado_real
+            st.rerun()
 
     st.markdown("---")
 
-    # --- 5. GRÁFICOS DE ALTO IMPACTO ---
+    # --- 5. GRÁFICOS DE INTELIGENCIA DE NEGOCIOS (Plotly) ---
     import pandas as pd
     import plotly.express as px
 
-    col_charts_1, col_charts_2 = st.columns([1.2, 0.8])
+    col_left, col_right = st.columns([1.2, 0.8])
 
-    with col_charts_1:
-        st.subheader("🏆 Top 5 Clientes - Deuda Pendiente")
+    with col_left:
+        st.subheader("🏆 Top 5 Clientes con Mayor Deuda")
         if res_c.data:
-            # Procesar datos para el gráfico
-            df_clientes = pd.DataFrame([
-                {'Cliente': c['cliente']['nombre_completo'], 'Deuda': c['balance_pendiente']} 
+            # Filtramos solo activos y creamos DataFrame con la columna 'nombre'
+            df_deudores = pd.DataFrame([
+                {'Cliente': c['cliente']['nombre'], 'Deuda': c['balance_pendiente']} 
                 for c in res_c.data if c['estado'] == 'Activo'
             ])
-            if not df_clientes.empty:
-                df_top = df_clientes.groupby('Cliente').sum().sort_values('Deuda', ascending=False).head(5).reset_index()
-                
+            if not df_deudores.empty:
+                df_top = df_deudores.groupby('Cliente').sum().sort_values('Deuda', ascending=False).head(5).reset_index()
                 fig_top = px.bar(df_top, x='Deuda', y='Cliente', orientation='h',
                                  color='Deuda', color_continuous_scale='Blues',
-                                 template='plotly_white', text_auto=',.0f')
-                fig_top.update_layout(showlegend=False, height=350, margin=dict(l=0, r=0, t=20, b=0))
+                                 text_auto=',.0f', template='plotly_white')
+                fig_top.update_layout(showlegend=False, height=350, margin=dict(l=0, r=10, t=20, b=0))
                 st.plotly_chart(fig_top, use_container_width=True)
             else:
-                st.info("No hay deudas activas para mostrar.")
+                st.info("No hay deudas activas.")
 
-    with col_charts_2:
-        st.subheader("📊 Estado de Cartera")
-        # Gráfico de Donut: Cobrado vs Pendiente
-        total_inicial_global = sum([c['monto_inicial'] for c in res_c.data]) if res_c.data else 0
-        cobrado_estimado = total_inicial_global - capital_en_calle
+    with col_right:
+        st.subheader("📊 Composición de Cartera")
+        # Comparación: Capital Recuperado vs Pendiente
+        monto_total_prestado = sum([c['monto_inicial'] for c in res_c.data]) if res_c.data else 0
+        capital_recuperado = max(0, monto_total_prestado - capital_en_calle)
         
         df_pie = pd.DataFrame({
-            'Estado': ['Recuperado', 'Pendiente'],
-            'Monto': [max(0, cobrado_estimado), capital_en_calle]
+            'Tipo': ['Recuperado', 'Pendiente'],
+            'Monto': [capital_recuperado, capital_en_calle]
         })
-        
-        fig_pie = px.pie(df_pie, values='Monto', names='Estado', 
-                         color_discrete_sequence=['#34C759', '#007AFF'],
-                         hole=0.6)
-        fig_pie.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=350, showlegend=True)
+        fig_pie = px.pie(df_pie, values='Monto', names='Tipo', hole=0.6,
+                         color_discrete_sequence=['#34C759', '#007AFF'])
+        fig_pie.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=350)
         st.plotly_chart(fig_pie, use_container_width=True)
 
-    # --- 6. SALUD FINANCIERA ---
+    # --- 6. SALUD DEL FLUJO DE CAJA ---
     st.markdown("---")
-    c_f1, c_f2 = st.columns(2)
-
-    with c_f1:
-        st.subheader("💡 Compromisos Próximos")
-        st.warning(f"Tienes **RD$ {total_compromisos:,.2f}** en pagos pendientes a proveedores o gastos.")
+    st.subheader("📈 Análisis de Sostenibilidad")
+    
+    sf1, sf2 = st.columns(2)
+    with sf1:
+        st.info(f"**Compromisos Pendientes:** RD$ {total_compromisos:,.2f}")
         if total_compromisos > 0:
-            cobertura = (caja_actual / total_compromisos)
-            st.progress(min(cobertura / 3, 1.0))
-            st.caption(f"La caja actual cubre **{cobertura:.1f}** veces tus deudas próximas.")
-
-    with c_f2:
-        st.subheader("📈 Rendimiento de Cobro")
-        if res_p.data:
-            df_pagos = pd.DataFrame(res_p.data)
-            df_pagos['fecha_pago'] = pd.to_datetime(df_pagos['fecha_pago'])
-            df_pagos = df_pagos.resample('D', on='fecha_pago').sum().reset_index()
+            ratio = caja_actual / total_compromisos
+            st.progress(min(ratio / 2, 1.0))
+            st.caption(f"Tienes {ratio:.2f}x veces el dinero necesario para cubrir tus gastos próximos.")
             
-            fig_line = px.area(df_pagos, x='fecha_pago', y='monto_pagado', 
-                               line_shape='spline', title="Flujo de Efectivo Diario")
-            fig_line.update_traces(line_color='#34C759', fillcolor='rgba(52, 199, 89, 0.2)')
-            fig_line.update_layout(height=200, margin=dict(l=0, r=0, t=30, b=0))
-            st.plotly_chart(fig_line, use_container_width=True)
-
+    with sf2:
+        if res_p.data:
+            df_p = pd.DataFrame(res_p.data)
+            df_p['fecha_pago'] = pd.to_datetime(df_p['fecha_pago'])
+            df_hist = df_p.resample('D', on='fecha_pago').sum().reset_index()
+            fig_area = px.area(df_hist, x='fecha_pago', y='monto_pagado', title="Recaudación Diaria")
+            fig_area.update_traces(line_color='#007AFF', fillcolor='rgba(0, 122, 255, 0.1)')
+            fig_area.update_layout(height=200, margin=dict(l=0, r=0, t=30, b=0))
+            st.plotly_chart(fig_area, use_container_width=True)
+            
 elif menu == "Gestión de Cobros":
     st.header("⚡ Centro de Recaudación")
     
