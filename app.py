@@ -573,7 +573,7 @@ with st.sidebar:
 
             /* 5. FOOTER CENTRADO Y DESPEGADO */
             .absolute-footer {{
-                margin-top: 60px !important; /* Espacio extra para diferenciar de Configuración */
+                margin-top: 60px !important; 
                 text-align: center !important;
                 padding: 30px 10px !important;
                 border-top: 1px solid #F2F2F7;
@@ -608,7 +608,7 @@ with st.sidebar:
     # NAVEGACIÓN (Sincronizada con tus ELIF)
     opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     
-    mapeo_visual = {{
+    mapeo_visual = {
         "Panel de Control": "🏠 Panel de Control",
         "Gestión de Cobros": "💰 Gestión de Cobros",
         "👥 Todos mis Clientes": "👥 Todos mis Clientes",
@@ -616,9 +616,9 @@ with st.sidebar:
         "Cuentas por Pagar": "📉 Cuentas por Pagar",
         "IA Predictiva": "🧠 IA Predictiva",
         "Configuración": "⚙️ Configuración"
-    }}
+    }
 
-    # ARREGLO DEL VALUE ERROR
+    # ARREGLO DEL VALUE ERROR: Validación de seguridad
     menu_actual = st.session_state.get('menu_principal', "Panel de Control")
     idx_seguro = opciones.index(menu_actual) if menu_actual in opciones else 0
 
@@ -642,7 +642,7 @@ with st.sidebar:
             </div>
         </div>
     """, unsafe_allow_html=True)
-
+    
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 
 if menu == "Panel de Control":
