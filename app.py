@@ -1833,7 +1833,7 @@ elif menu == "Cuentas por Pagar":
             st.write(f"Modificando: **{gasto['descripcion']}**")
             n_desc = st.text_input("Concepto", value=gasto['descripcion'])
             n_monto = st.number_input("Monto RD$", value=float(gasto['monto']), step=100.0)
-            n_sector = st.selectbox("Sector", ["Servicios", "Alquiler", "Sueldos", "Inventario", "Mantenimiento", "Otros"], index=0)
+            n_sector = st.selectbox("Sector", ["Electricidad", "Alquiler", "Sueldos", "Inventario", "Mantenimiento Vehiculo", "Gasolina", "Internet", "Transporte",  "Deuda Incobrable", "Otros"], index=0)
             
             c1, c2 = st.columns(2)
             if c1.form_submit_button("💾 Guardar Cambios", use_container_width=True):
