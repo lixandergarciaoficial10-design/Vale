@@ -510,7 +510,7 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- 1. CSS: Logo al techo, Footer centrado y Navegación segura ---
+# --- 1. CSS: Logo al techo, Footer ajustado y Navegación segura ---
     st.markdown(f"""
         <style>
             /* EXPANSIÓN Y SIDEBAR */
@@ -571,11 +571,11 @@ with st.sidebar:
                 padding: 6px 0 !important;
             }}
 
-            /* FOOTER POWERED BY (Centrado total y nombre más arriba) */
+            /* FOOTER AJUSTADO (Sin espacio de sobra abajo) */
             .absolute-footer {{
-                margin-top: 20px !important; /* REDUCIDO A LA MITAD para subir tu nombre */
+                margin-top: 15px !important; /* Nombre pegado a Configuración */
                 text-align: center !important;
-                padding: 20px 10px !important;
+                padding: 10px 10px 0px 10px !important; /* Padding inferior en 0 */
                 border-top: 1px solid #F2F2F7;
                 display: flex !important;
                 flex-direction: column !important;
@@ -630,14 +630,16 @@ with st.sidebar:
     )
     st.session_state.menu_principal = menu
 
-    # --- 4. FOOTER: CENTRADO TOTAL ---
+    # --- 4. FOOTER: LOGO GRANDE Y PEGADO ABAJO ---
     st.sidebar.markdown(f"""
         <div class="absolute-footer">
             <p style='font-size: 0.65rem; color: #86868B; margin: 0; font-weight: 700; letter-spacing: 1px; width: 100%; text-align: center;'>
                 POWERED BY LIXANDER GARCÍA
             </p>
-            <div style="margin-top: 3px; width: 500%; display: flex; justify-content: center; align-items: center;">
-                <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" style="width: 100px; height: auto; margin: 0 auto; display: block;" onerror="this.style.display='none'">
+            <div style="margin-top: 5px; width: 100%; display: flex; justify-content: center; align-items: center;">
+                <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" 
+                     style="width: 280px; height: auto; display: block; margin-bottom: -15px;" 
+                     onerror="this.style.display='none'">
             </div>
         </div>
     """, unsafe_allow_html=True)
