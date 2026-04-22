@@ -571,11 +571,11 @@ with st.sidebar:
                 padding: 6px 0 !important;
             }}
 
-            /* FOOTER POWERED BY (Centrado y con margen corregido) */
+            /* FOOTER POWERED BY (Centrado total y nombre más arriba) */
             .absolute-footer {{
-                margin-top: 50px !important; /* Espacio justo para separar de Configuración */
+                margin-top: 20px !important; /* REDUCIDO A LA MITAD para subir tu nombre */
                 text-align: center !important;
-                padding: 25px 10px !important;
+                padding: 20px 10px !important;
                 border-top: 1px solid #F2F2F7;
                 display: flex !important;
                 flex-direction: column !important;
@@ -605,7 +605,7 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # --- 3. NAVEGACIÓN: OPCIONES Y LÓGICA ANTI-ERROR ---
+    # --- 3. NAVEGACIÓN ---
     opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     
     mapeo_visual = {
@@ -618,7 +618,6 @@ with st.sidebar:
         "Configuración": "⚙️ Configuración"
     }
 
-    # Validación de seguridad para que el session_state no rompa la app
     menu_actual = st.session_state.get('menu_principal', "Panel de Control")
     idx_seguro = opciones.index(menu_actual) if menu_actual in opciones else 0
 
@@ -631,14 +630,14 @@ with st.sidebar:
     )
     st.session_state.menu_principal = menu
 
-    # --- 4. FOOTER: POWERED BY Y LOGO COBROYA ---
+    # --- 4. FOOTER: CENTRADO TOTAL ---
     st.sidebar.markdown(f"""
         <div class="absolute-footer">
-            <p style='font-size: 0.65rem; color: #86868B; margin: 0; font-weight: 700; letter-spacing: 1px;'>
+            <p style='font-size: 0.65rem; color: #86868B; margin: 0; font-weight: 700; letter-spacing: 1px; width: 100%; text-align: center;'>
                 POWERED BY LIXANDER GARCÍA
             </p>
-            <div style="margin-top: 12px; width: 100%; display: flex; justify-content: center;">
-                <img src="{URL_LOGO_COBROYA}" style="width: 110px; height: auto; display: block;" onerror="this.style.display='none'">
+            <div style="margin-top: 10px; width: 100%; display: flex; justify-content: center; align-items: center;">
+                <img src="{URL_LOGO_COBROYA}" style="width: 100px; height: auto; margin: 0 auto; display: block;" onerror="this.style.display='none'">
             </div>
         </div>
     """, unsafe_allow_html=True)
