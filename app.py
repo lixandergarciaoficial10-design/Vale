@@ -479,12 +479,15 @@ if "user" in st.session_state and st.session_state.user:
         except Exception as e:
             st.error(f"Error técnico: {e}")
 
-# --- 2. SIDEBAR ÚNICO (ESTILO APPLE DEFINITIVO) ---
+# --- 2. SIDEBAR ÚNICO (ESTILO APPLE PREMIUM) ---
 with st.sidebar:
     import base64
     import os
 
-    # Recuperación de datos
+    # 1. URL DE TU LOGO (Pégala aquí abajo)
+    URL_LOGO_COBROYA = "https://tu-url-aqui.com/logo.png" 
+
+    # 2. RECUPERACIÓN DE DATOS
     biz_name = st.session_state.get("nombre_negocio", "SIN NOMBRE").upper()
     biz_rnc  = st.session_state.get("rnc", "---")
     biz_dir  = st.session_state.get("direccion_negocio", "---")
@@ -492,72 +495,127 @@ with st.sidebar:
     logo_b64 = st.session_state.get("mi_logo")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-    # --- CSS ÚNICO (Limpiado y corregido) ---
-    st.markdown("""
+    # --- 3. CSS MÁGICO (IDENTIDAD COMPLETA Y POSICIONAMIENTO) ---
+    st.markdown(f"""
         <style>
-            [data-testid="stSidebar"] { background-color: #FBFBFD !important; border-right: 1px solid #E5E5EA; }
-            [data-testid="stSidebarHeader"] { display: none; }
-
-            .apple-brand-section {
-                text-align: center; padding: 20px 10px; background: #FFFFFF;
-                border-radius: 20px; border: 1px solid #E5E5EA;
-                margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);
-            }
-            .apple-logo {
-                width: 80px; height: 80px; border-radius: 16px;
-                object-fit: cover; margin-bottom: 12px; border: 1px solid #F2F2F7;
-            }
-            .apple-biz-info h3 { margin: 0; font-size: 15px; font-weight: 700; color: #1D1D1F; font-family: -apple-system, sans-serif; }
-            .apple-biz-details { margin-top: 8px; font-size: 11px; color: #86868B; line-height: 1.4; font-family: -apple-system, sans-serif; }
-
-            /* Estilo para el Radio Menú */
-            div[data-testid="stRadio"] > label { display: none !important; }
-            div[role="radiogroup"] { gap: 4px; }
-            div[role="radio"] {
-                padding: 10px 12px !important; border-radius: 10px !important;
-                transition: 0.2s; background-color: transparent; cursor: pointer;
-            }
-            div[role="radio"]:hover { background-color: #F2F2F7 !important; }
-            div[role="radio"][aria-checked="true"] { background-color: #E8E8ED !important; }
-            div[role="radio"] p { font-size: 14.5px !important; color: #48484A !important; margin: 0 !important; }
-            div[role="radio"][aria-checked="true"] p { font-weight: 600 !important; color: #1D1D1F !important; }
+            /* Fondo y Estructura Sidebar */
+            [data-testid="stSidebar"] {{
+                background-color: #FBFBFD !important;
+                border-right: 1px solid #E5E5EA;
+            }}
             
-            /* Ocultar elementos nativos de Streamlit que ensucian */
-            .st-emotion-cache-1vq4pqi, .st-emotion-cache-1210z75, .st-emotion-cache-8zep4i, .st-emotion-cache-1y2tuv6 { display: none !important; }
+            /* Contenedor principal para empujar el footer al fondo */
+            .sidebar-content {{
+                display: flex;
+                flex-direction: column;
+                height: 85vh; /* Ajuste para dejar espacio al footer real */
+            }}
+
+            /* Logo del Cliente (Completo, sin cortes) */
+            .client-brand-card {{
+                text-align: center;
+                padding: 25px 15px;
+                background: #FFFFFF;
+                border-radius: 24px;
+                border: 1px solid #E5E5EA;
+                margin-bottom: 20px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            }}
+            .client-logo-img {{
+                width: 100%;
+                max-width: 140px;
+                height: auto;
+                max-height: 100px;
+                object-fit: contain; /* Esto asegura que el logo se vea COMPLETO */
+                margin-bottom: 15px;
+            }}
+            
+            .client-biz-info h3 {{
+                margin: 0; font-size: 16px; font-weight: 700; color: #1D1D1F;
+                letter-spacing: -0.5px; font-family: -apple-system, sans-serif;
+            }}
+            .client-biz-details {{
+                margin-top: 10px; font-size: 11.5px; color: #86868B;
+                line-height: 1.5; font-family: -apple-system, sans-serif;
+            }}
+
+            /* Botón Salir (Refinado y Minimalista) */
+            .stButton > button {{
+                width: 100% !important;
+                border-radius: 12px !important;
+                border: 1px solid #FF3B3022 !important;
+                background-color: #FFFFFF !important;
+                color: #FF3B30 !important;
+                font-weight: 500 !important;
+                padding: 10px !important;
+                transition: all 0.3s ease !important;
+            }}
+            .stButton > button:hover {{
+                background-color: #FF3B30 !important;
+                color: #FFFFFF !important;
+                border-color: #FF3B30 !important;
+                box-shadow: 0 4px 12px rgba(255, 59, 48, 0.2);
+            }}
+
+            /* Footer al fondo absoluto */
+            .absolute-footer {{
+                margin-top: auto;
+                text-align: center;
+                padding: 30px 10px 10px 10px;
+            }}
+            .footer-cobroya-logo {{
+                width: 130px;
+                margin-top: 8px;
+                filter: drop-shadow(0 2px 4px rgba(0,0,0,0.05));
+            }}
+
+            /* Limpieza de radio buttons */
+            div[data-testid="stRadio"] > label {{ display: none !important; }}
+            div[role="radiogroup"] {{ gap: 5px; }}
+            div[role="radio"] {{
+                padding: 11px 15px !important;
+                border-radius: 12px !important;
+                background-color: transparent;
+                transition: 0.2s;
+            }}
+            div[role="radio"]:hover {{ background-color: #F2F2F7 !important; }}
+            div[role="radio"][aria-checked="true"] {{ background-color: #E8E8ED !important; }}
+            div[role="radio"] p {{ font-size: 15px !important; color: #48484A !important; }}
+            div[role="radio"][aria-checked="true"] p {{ font-weight: 600 !important; color: #1D1D1F !important; }}
+            
+            [data-testid="stSidebarHeader"] {{ display: none; }}
         </style>
     """, unsafe_allow_html=True)
 
-    # --- HEADER: IDENTIDAD ---
-    # Procesar logo
+    # Inicia contenedor de contenido (Top + Menu)
+    st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
+
+    # 4. HEADER: MARCA DEL CLIENTE
     if logo_b64:
         img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
         src_logo = f"data:image/png;base64,{img_data}"
     else:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-    
+
     st.markdown(f"""
-        <div class="apple-brand-section">
-            <img src="{src_logo}" class="apple-logo">
-            <div class="apple-biz-info">
+        <div class="client-brand-card">
+            <img src="{src_logo}" class="client-logo-img">
+            <div class="client-biz-info">
                 <h3>{biz_name}</h3>
-                <div class="apple-biz-details">
-                    <p>RNC: {biz_rnc}</p>
-                    <p>📍 {biz_dir}</p>
-                    <p>📞 {biz_tel}</p>
-                    <hr style='border:0; border-top:1px solid #F2F2F7; margin:8px 0;'>
-                    <p style='color:#1D1D1F; font-weight:500;'>{u_email}</p>
+                <div class="client-biz-details">
+                    <p style='margin:2px 0;'>RNC: {biz_rnc}</p>
+                    <p style='margin:2px 0;'>📍 {biz_dir}</p>
+                    <p style='margin:2px 0;'>📞 {biz_tel}</p>
+                    <hr style='border:0; border-top:1px solid #F2F2F7; margin:10px 0;'>
+                    <p style='color:#1D1D1F; font-weight:600; font-size:12px;'>{u_email}</p>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # --- NAVEGACIÓN ---
-    opciones_limpias = [
-        "Panel de Control", "Gestión de Cobros", "Todos mis Clientes", 
-        "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"
-    ]
-    
-    diccionario_iconos = {
+    # 5. NAVEGACIÓN
+    opciones = ["Panel de Control", "Gestión de Cobros", "Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
+    iconos = {
         "Panel de Control": "🏠 Panel de Control",
         "Gestión de Cobros": "💰 Gestión de Cobros",
         "Todos mis Clientes": "👥 Todos mis Clientes",
@@ -567,41 +625,26 @@ with st.sidebar:
         "Configuración": "⚙️ Configuración"
     }
     
-    menu = st.radio(
-        "NAVEGACIÓN", 
-        opciones_limpias, 
-        format_func=lambda x: diccionario_iconos[x],
-        label_visibility="collapsed"
-    )
+    menu = st.radio("NAV", opciones, format_func=lambda x: iconos[x], label_visibility="collapsed")
 
-    # --- BOTÓN SALIR Y FOOTER ---
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🚪 Salir del Sistema", use_container_width=True):
+    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+    
+    # 6. BOTÓN SALIR
+    if st.button("🚪 Salir del Sistema"):
         st.session_state.clear()
         st.rerun()
 
-    # Footer
-    st.markdown(f"""
-        <div style='text-align:center; margin-top:20px; padding-top:10px; border-top:1px solid #E5E5EA;'>
-            <p style='font-size:0.6rem; color:#86868B; letter-spacing:1px;'>COBROYA BY LIXANDER</p>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    # --- 6. FOOTER BRANDING (LOGO COBROYA LIMPIO) ---
-    ruta_logo_cobroya = "logo_cobroya.png" # Recuerda tener el logo sin el texto de arriba
-    
-    logo_footer_html = ""
-    if os.path.exists(ruta_logo_cobroya):
-        with open(ruta_logo_cobroya, "rb") as image_file:
-            encoded_string = base64.b64encode(image_file.read()).decode()
-            logo_footer_html = f"<img src='data:image/png;base64,{encoded_string}' class='footer-logo'>"
-    else:
-        logo_footer_html = "<p style='font-size: 1rem; font-weight: 800; color: #007AFF; margin: 0;'>CobroYa</p>"
+    # Cierre del contenedor de contenido
+    st.markdown('</div>', unsafe_allow_html=True)
 
+    # 7. FOOTER ABSOLUTO (FONDO DEL SIDEBAR)
     st.markdown(f"""
-        <div class='sidebar-footer'>
-            <p style='font-size: 0.6rem; color: #86868B; margin: 0; letter-spacing: 0.5px;'>POWERED BY LIXANDER GARCIA</p>
-            {logo_footer_html}
+        <div class="absolute-footer">
+            <p style='font-size: 0.65rem; color: #86868B; margin: 0; font-weight: 600; letter-spacing: 0.8px;'>
+                POWERED BY LIXANDER GARCÍA
+            </p>
+            <img src="{URL_LOGO_COBROYA}" class="footer-cobroya-logo" onerror="this.style.display='none'">
+            <p style='font-size: 1.1rem; font-weight: 900; color: #007AFF; margin-top: 5px; font-family: sans-serif;'>CobroYa</p>
         </div>
     """, unsafe_allow_html=True)
     
