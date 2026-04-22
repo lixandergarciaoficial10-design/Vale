@@ -551,22 +551,83 @@ with st.sidebar:
 
 if menu == "Panel de Control":
     st.title("Business Intelligence Dashboard")
-    # Consolidado de datos
+    
+    # --- 1. EXTRACCIÓN DE DATOS CON FILTROS INTELIGENTES ---
+    # Cuentas: Capital que está circulando
     res_c = conn.table("cuentas").select("balance_pendiente, monto_inicial, estado").eq("user_id", u_id).execute()
+    
+    # Pagos: Dinero que ha entrado de verdad
     res_p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
-    res_g = conn.table("gastos").select("monto").eq("user_id", u_id).execute()
+    
+    # Gastos: Filtramos por 'Pagado' para la caja y por 'Pendiente' para la previsión
+    res_g_pagados = conn.table("gastos").select("monto").eq("user_id", u_id).eq("estado", "Pagado").eq("visible_usuario", True).execute()
+    res_g_pendientes = conn.table("gastos").select("monto").eq("user_id", u_id).eq("estado", "Pendiente").eq("visible_usuario", True).execute()
 
+    # --- 2. CÁLCULOS FINANCIEROS ---
     total_cobrado = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
-    total_gastado = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
+    
+    # Solo lo que salió de la bolsa
+    total_gastado_real = sum([g['monto'] for g in res_g_pagados.data]) if res_g_pagados.data else 0
+    
+    # Compromisos futuros (no restan de caja aún)
+    total_compromisos = sum([g['monto'] for g in res_g_pendientes.data]) if res_g_pendientes.data else 0
+    
     capital_en_calle = sum([c['balance_pendiente'] for c in res_c.data if c['estado'] == 'Activo']) if res_c.data else 0
     
-    # LA CAJA REAL: Lo que tienes en el bolsillo ahora mismo
-    caja_actual = total_cobrado - total_gastado
+    # LA CAJA REAL: Lo que queda después de pagar lo que ya se marcó como pagado
+    caja_actual = total_cobrado - total_gastado_real
 
+    # --- 3. DISEÑO VISUAL (ESTILO APPLE BI) ---
+    # Fila Principal de Métricas
     c1, c2, c3 = st.columns(3)
-    c1.markdown(f"<div class='metric-card'><small>DINERO EN CALLE</small><h2>RD$ {capital_en_calle:,.0f}</h2></div>", unsafe_allow_html=True)
-    c2.markdown(f"<div class='metric-card'><small>EFECTIVO EN CAJA</small><h2 style='color:#34C759;'>RD$ {caja_actual:,.0f}</h2></div>", unsafe_allow_html=True)
-    c3.markdown(f"<div class='metric-card'><small>GASTOS TOTALES</small><h2 style='color:#FF3B30;'>RD$ {total_gastado:,.0f}</h2></div>", unsafe_allow_html=True)
+    
+    with c1:
+        st.markdown(f"""
+            <div class='metric-card'>
+                <small>💰 CAPITAL EN LA CALLE</small>
+                <h2 style='color:#007AFF;'>RD$ {capital_en_calle:,.0f}</h2>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with c2:
+        st.markdown(f"""
+            <div class='metric-card'>
+                <small>🏦 EFECTIVO EN CAJA (NETO)</small>
+                <h2 style='color:#34C759;'>RD$ {caja_actual:,.0f}</h2>
+                <p style='font-size: 0.8rem; color: #8E8E93;'>Cobrado menos pagos realizados</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with c3:
+        st.markdown(f"""
+            <div class='metric-card'>
+                <small>📉 GASTOS EFECTUADOS</small>
+                <h2 style='color:#FF3B30;'>RD$ {total_gastado_real:,.0f}</h2>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # Fila Secundaria: Previsión y Salud Financiera
+    col_a, col_b = st.columns(2)
+    
+    with col_a:
+        # Barra de salud de caja
+        st.subheader("💡 Compromisos Próximos")
+        st.info(f"Tienes **RD$ {total_compromisos:,.2f}** en pagos pendientes por procesar.")
+        
+        # Cálculo de cobertura
+        if total_compromisos > 0:
+            cobertura = (caja_actual / total_compromisos)
+            st.caption(f"Tu caja actual cubre {cobertura:.1f} veces tus compromisos pendientes.")
+            st.progress(min(cobertura / 3, 1.0)) # Visualizador de salud de flujo de caja
+            
+    with col_b:
+        st.subheader("📊 Distribución de Cartera")
+        # Aquí puedes meter un gráfico de sectores más adelante
+        st.write("Estado de créditos:")
+        pendientes_count = len([c for c in res_c.data if c['estado'] == 'Activo']) if res_c.data else 0
+        st.write(f"🟢 {pendientes_count} Préstamos Activos")
 
 elif menu == "Gestión de Cobros":
     st.header("⚡ Centro de Recaudación")
