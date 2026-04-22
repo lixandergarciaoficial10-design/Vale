@@ -500,10 +500,10 @@ with st.sidebar:
     logo_b64 = st.session_state.get("mi_logo")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-# --- CSS TOTAL (Ancho 240px, Alineado Izquierda, Header Centrado) ---
+# --- CSS TOTAL ---
     st.markdown(f"""
         <style>
-            /* 1. ANCHO FIJO DE 240PX */
+            /* 1. ANCHO FIJO Y DISEÑO LATERAL */
             [data-testid="stSidebar"] {{
                 min-width: 240px !important;
                 max-width: 240px !important;
@@ -512,18 +512,17 @@ with st.sidebar:
                 border-right: 1px solid #E5E5EA;
             }}
             
-            /* 2. BLOQUEO DE AJUSTE MANUAL */
-            [data-testid="stSidebarResizer"] {{ display: none !important; }}
-
-            /* 3. BOTÓN HAMBURGUESA */
+            /* 2. BOTÓN DE COLAPSAR PERSONALIZADO (El icono de las 3 barras) */
             [data-testid="stSidebarCollapseButton"] {{
-                left: 5px !important;
-                top: 5px !important;
+                left: 10px !important;
+                top: 10px !important;
                 color: #1D1D1F !important;
-                z-index: 100;
+                background-color: white !important;
+                border-radius: 8px !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
             }}
 
-            /* 4. ELIMINAR ESPACIO SUPERIOR */
+            /* 3. CONTENEDOR DE CONTENIDO */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
                 display: flex;
@@ -538,7 +537,7 @@ with st.sidebar:
                 background: white;
                 border-radius: 15px;
                 border: 1px solid #E5E5EA;
-                margin-top: 40px; 
+                margin-top: 50px; 
                 margin-bottom: 25px;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             }}
@@ -547,7 +546,7 @@ with st.sidebar:
                 height: 55px;
                 object-fit: contain;
                 margin-bottom: 8px;
-                display: inline-block; /* Cambiado para permitir centrado */
+                display: inline-block;
             }}
             
             /* Menú Radio - IZQUIERDA Y SEPARADOS */
@@ -556,7 +555,7 @@ with st.sidebar:
                 display: flex;
                 flex-direction: column;
                 align-items: flex-start; 
-                gap: 14px; /* <--- Mayor separación entre botones */
+                gap: 12px; 
                 padding-left: 10px;
             }}
             div[role="radio"] {{ 
@@ -566,7 +565,6 @@ with st.sidebar:
                 width: 95% !important;
                 display: flex;
                 justify-content: flex-start;
-                margin-bottom: 4px !important;
             }}
             div[role="radio"][aria-checked="true"] {{ 
                 background-color: #E8E8ED !important; 
@@ -574,11 +572,10 @@ with st.sidebar:
             div[role="radio"] p {{ 
                 font-size: 14px !important; 
                 color: #1D1D1F !important; 
-                text-align: left !important;
                 font-weight: 500;
             }}
 
-            /* Ocultar botón de salir original */
+            /* Ocultar botón Salir por CSS */
             .stButton {{ display: none !important; }}
 
             /* Footer Power By */
@@ -592,7 +589,7 @@ with st.sidebar:
         </style>
     """, unsafe_allow_html=True)
 
-    # HEADER CLIENTE (CENTRADO por CSS)
+    # HEADER CLIENTE (CENTRADO)
     if logo_b64:
         img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
         src_logo = f"data:image/png;base64,{img_data}"
@@ -614,31 +611,31 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # NAVEGACIÓN CON MAPEO DE NOMBRE VISUAL
+    # NAVEGACIÓN (UNIFICADA PARA EVITAR NAMEERROR)
     opciones = ["Panel de Control", "Gestión de Cobros", "Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     
-    # Aquí definimos cómo se ve cada opción en pantalla
-    mapeo_nombres = {
+    mapeo_visual = {
         "Panel de Control": "🏠 Panel de Control",
         "Gestión de Cobros": "💰 Gestión de Cobros",
-        "👥Todos mis Clientes": "👥 Mis Clientes", # <--- VISUALMENTE DIRÁ "Mis Clientes"
+        "Todos mis Clientes": "👥 Mis Clientes",
         "Nueva Cuenta por Cobrar": "➕ Nueva CxC",
         "Cuentas por Pagar": "📉 Cuentas por Pagar",
         "IA Predictiva": "🧠 IA Predictiva",
         "Configuración": "⚙️ Configuración"
     }
 
+    # Definir el menú una sola vez
     menu = st.sidebar.radio(
-        "Menu",
+        "NAV",
         opciones,
-        format_func=lambda x: mapeo_nombres.get(x, x) # Cambia el nombre en pantalla sin tocar el valor real
+        index=opciones.index(st.session_state.get('menu_principal', "Panel de Control")),
+        format_func=lambda x: mapeo_visual.get(x, x),
+        label_visibility="collapsed"
     )
-    menu = st.radio("NAV", opciones, index=opciones.index(st.session_state.menu_principal), format_func=lambda x: iconos[x], label_visibility="collapsed")
     st.session_state.menu_principal = menu
 
-
-    # FOOTER AL FONDO
-    st.markdown(f"""
+    # FOOTER
+    st.sidebar.markdown(f"""
         <div class="absolute-footer">
             <p style='font-size: 0.55rem; color: #86868B; margin: 0; font-weight: 700; letter-spacing: 0.5px;'>
                 POWERED BY LIXANDER GARCÍA
