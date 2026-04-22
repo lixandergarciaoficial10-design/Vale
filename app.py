@@ -1943,8 +1943,8 @@ elif menu == "Cuentas por Pagar":
                 for a in avisos: st.write(a)
 
     # --- 4. ESTRUCTURA DE PESTAÑAS ---
-    st.title("🏧 Módulo de Salidas")
-    t1, t2, t3 = st.tabs(["⚡ Gasto Rápido", "📅 Compromisos", "📜 Historial Completo"])
+    st.title("Gastos y Compromisos")
+    t1, t2, t3 = st.tabs(["⚡ Gasto Rápido", "📅 Compromisos", "📜 Historial de Gastos"])
 
     # --- PESTAÑA 1: GASTO RÁPIDO ---
     with t1:
@@ -1976,7 +1976,6 @@ elif menu == "Cuentas por Pagar":
             hora = g['fecha_gasto'][11:16] if g.get('fecha_gasto') else "--:--"
             st.text(f"🕒 {hora} | {g['descripcion']} - RD$ {g['monto']:,.0f}")
 
-    # --- PESTAÑA 2: COMPROMISOS ---
 # --- PESTAÑA 2: COMPROMISOS ---
     with t2:
         # 1. MÉTRICA SUPERIOR ESTILO APPLE
