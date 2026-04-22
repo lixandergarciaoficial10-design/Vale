@@ -465,15 +465,14 @@ def obtener_prioridad(dias, balance, impagos=0):
 # --- 1. CARGA DE DATOS DESDE SUPABASE ---
 import streamlit as st
 
-# --- 0. INICIALIZACIÓN (Blindaje contra NameError) ---
+# --- 0. INICIALIZACIÓN (Evita errores de variable no definida) ---
 if "menu_principal" not in st.session_state:
     st.session_state["menu_principal"] = "Panel de Control"
 
-# --- 1. CARGA DE DATOS SUPABASE (Lógica de Datos Completa) ---
+# --- 1. CARGA DE DATOS SUPABASE (Lógica Intacta) ---
 if "user" in st.session_state and st.session_state.user:
     if "datos_validados" not in st.session_state:
         try:
-            # Tu conexión a Supabase se mantiene intacta
             res = conn.table("configuracion").select("*").eq("user_id", st.session_state.user.id).execute()
             if res.data:
                 conf = res.data[0]
@@ -485,46 +484,46 @@ if "user" in st.session_state and st.session_state.user:
                 st.session_state["datos_validados"] = True
                 st.rerun()
         except Exception as e:
-            st.error(f"Error de conexión: {e}")
+            st.error(f"Error: {e}")
 
-# --- 2. SIDEBAR (DISEÑO ULTRA-SLIM CORREGIDO) ---
+# --- 2. SIDEBAR (DISEÑO BLOQUEADO A 200PX) ---
 with st.sidebar:
     import base64
     
     URL_LOGO_COBROYA = "https://tu-url-aqui.com/logo.png" 
 
-    # Recuperación de variables de sesión
-    biz_name = st.session_state.get("nombre_negocio", "SIN NOMBRE").upper()
+    # Variables de sesión
+    biz_name = st.session_state.get("nombre_negocio", "MI NEGOCIO").upper()
     biz_rnc  = st.session_state.get("rnc", "---")
     biz_dir  = st.session_state.get("direccion_negocio", "---")
     biz_tel  = st.session_state.get("telefono_negocio", "---")
     logo_b64 = st.session_state.get("mi_logo")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-    # --- CSS TOTAL (Ancho 220px, Sin espacio arriba, Botón a la izquierda) ---
+    # --- CSS TOTAL (Ancho 200px, Botón a la izquierda, Sin recortes) ---
     st.markdown(f"""
         <style>
-            /* 1. ANCHO ULTRA-SLIM (FLACO) */
+            /* 1. ANCHO FIJO DE 200PX */
             [data-testid="stSidebar"] {{
-                min-width: 220px !important;
-                max-width: 220px !important;
-                width: 220px !important;
+                min-width: 200px !important;
+                max-width: 200px !important;
+                width: 200px !important;
                 background-color: #FBFBFD !important;
                 border-right: 1px solid #E5E5EA;
             }}
             
-            /* 2. BLOQUEO TOTAL DE AJUSTE DE ANCHO */
+            /* 2. BLOQUEO DE AJUSTE MANUAL */
             [data-testid="stSidebarResizer"] {{ display: none !important; }}
 
             /* 3. BOTÓN HAMBURGUESA PEGADO A LA IZQUIERDA */
             [data-testid="stSidebarCollapseButton"] {{
                 left: 5px !important;
-                right: auto !important;
                 top: 5px !important;
                 color: #1D1D1F !important;
+                z-index: 100;
             }}
 
-            /* 4. ELIMINAR ESPACIO SUPERIOR TOTAL */
+            /* 4. ELIMINAR ESPACIO SUPERIOR */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
                 display: flex;
@@ -532,52 +531,58 @@ with st.sidebar:
                 height: 98vh !important;
             }}
 
-            /* Card del Cliente - Ajustada para ancho flaco */
+            /* Card del Cliente (Ajustada para 200px) */
             .client-brand-card {{
                 text-align: center;
-                padding: 10px 5px;
+                padding: 12px 8px;
                 background: white;
                 border-radius: 15px;
                 border: 1px solid #E5E5EA;
-                margin-top: 35px; /* Solo lo necesario para no tapar el botón */
+                margin-top: 40px; 
                 margin-bottom: 10px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             }}
             .client-logo-img {{
-                width: auto;
-                max-width: 90%;
-                height: 60px;
+                max-width: 95%;
+                height: 65px;
                 object-fit: contain;
                 margin-bottom: 5px;
             }}
             
-            /* Navegación Compacta */
+            /* Estilo Menú Radio (NOMBRES COMPLETOS) */
             div[data-testid="stRadio"] > label {{ display: none !important; }}
-            div[role="radio"] {{ padding: 6px 10px !important; border-radius: 8px !important; }}
+            div[role="radio"] {{ 
+                padding: 6px 12px !important; 
+                border-radius: 10px !important; 
+                white-space: nowrap !important; /* Evita que el nombre salte de línea */
+            }}
             div[role="radio"][aria-checked="true"] {{ background-color: #E8E8ED !important; }}
-            div[role="radio"] p {{ font-size: 12.5px !important; color: #48484A !important; }}
+            div[role="radio"] p {{ 
+                font-size: 13px !important; 
+                color: #48484A !important; 
+                overflow: visible !important; 
+            }}
 
-            /* Botón Salir Slim */
+            /* Botón Salir */
             .stButton > button {{
                 width: 100% !important;
-                border-radius: 8px !important;
-                font-size: 13px !important;
+                border-radius: 10px !important;
                 color: #FF3B30 !important;
                 border: 1px solid #FF3B3022 !important;
             }}
 
-            /* Footer al fondo absoluto */
+            /* Footer Power By */
             .absolute-footer {{
                 margin-top: auto;
                 text-align: center;
-                padding-bottom: 10px;
+                padding-bottom: 15px;
             }}
-            .footer-cobroya-logo {{ width: 100px; }}
             
             [data-testid="stSidebarHeader"] {{ display: none; }}
         </style>
     """, unsafe_allow_html=True)
 
-    # HEADER: LOGO Y DATOS
+    # HEADER CLIENTE
     if logo_b64:
         img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
         src_logo = f"data:image/png;base64,{img_data}"
@@ -589,44 +594,43 @@ with st.sidebar:
             <img src="{src_logo}" class="client-logo-img">
             <div style="font-family: sans-serif; line-height: 1.2;">
                 <b style="font-size:12px; color:#1D1D1F;">{biz_name}</b>
-                <div style="font-size:9.5px; color:#86868B; margin-top:3px;">
+                <div style="font-size:9px; color:#86868B; margin-top:4px;">
                     <p style="margin:0;">RNC: {biz_rnc}</p>
-                    <p style="margin:0;">📍 {biz_dir[:20]}...</p>
                     <p style="margin:0;">📞 {biz_tel}</p>
                     <hr style='border:0; border-top:1px solid #F2F2F7; margin:6px 0;'>
-                    <p style='color:#1D1D1F; font-weight:600;'>{u_email[:20]}...</p>
+                    <p style='color:#1D1D1F; font-weight:600;'>{u_email}</p>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # NAVEGACIÓN
+    # NAVEGACIÓN (NOMBRES COMPLETOS)
     opciones = ["Panel de Control", "Gestión de Cobros", "Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     iconos = {
-        "Panel de Control": "🏠 Panel",
-        "Gestión de Cobros": "💰 Cobros",
-        "Todos mis Clientes": "👥 Clientes",
+        "Panel de Control": "🏠 Panel de Control",
+        "Gestión de Cobros": "💰 Gestión de Cobros",
+        "Todos mis Clientes": "👥 Todos mis Clientes",
         "Nueva Cuenta por Cobrar": "➕ Nueva CxC",
-        "Cuentas por Pagar": "📉 CxP",
-        "IA Predictiva": "🧠 IA",
-        "Configuración": "⚙️ Ajustes"
+        "Cuentas por Pagar": "📉 Cuentas por Pagar",
+        "IA Predictiva": "🧠 IA Predictiva",
+        "Configuración": "⚙️ Configuración"
     }
     
     menu = st.radio("NAV", opciones, index=opciones.index(st.session_state.menu_principal), format_func=lambda x: iconos[x], label_visibility="collapsed")
     st.session_state.menu_principal = menu
 
     # BOTÓN SALIR
-    if st.button("🚪 Salir"):
+    if st.button("🚪 Salir del Sistema"):
         st.session_state.clear()
         st.rerun()
 
-    # FOOTER
+    # FOOTER AL FONDO
     st.markdown(f"""
         <div class="absolute-footer">
-            <p style='font-size: 0.5rem; color: #86868B; margin: 0; font-weight: 600;'>
-                BY LIXANDER GARCÍA
+            <p style='font-size: 0.55rem; color: #86868B; margin: 0; font-weight: 700; letter-spacing: 0.5px;'>
+                POWERED BY LIXANDER GARCÍA
             </p>
-            <img src="{URL_LOGO_COBROYA}" class="footer-cobroya-logo" onerror="this.style.display='none'">
+            <img src="{URL_LOGO_COBROYA}" style="width:100px; margin-top:5px;" onerror="this.style.display='none'">
         </div>
     """, unsafe_allow_html=True)
 
