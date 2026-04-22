@@ -510,40 +510,48 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-    # --- 2. CSS TOTAL (Sin recortes, Botón visible y Logo al techo) ---
+# --- CSS TOTAL (Botón Forzado, Logo al Techo y Nombres Claros) ---
     st.markdown(f"""
         <style>
-            /* AJUSTE DEL ANCHO (275px para evitar recortes en nombres largos) */
+            /* 1. AJUSTE DEL SIDEBAR (Ancho suficiente para nombres largos) */
             [data-testid="stSidebar"] {{
-                min-width: 275px !important;
-                max-width: 275px !important;
+                min-width: 280px !important;
+                max-width: 280px !important;
                 background-color: #FBFBFD !important;
                 border-right: 1px solid #E5E5EA;
             }}
 
-            /* EL BOTÓN DE MENÚ (Visible, flotante y estilo minimalista) */
-            [data-testid="stSidebarCollapseButton"] {{
+            /* 2. EL BOTÓN DE MENÚ (FORZADO CON ALTA PRIORIDAD) */
+            /* Lo ponemos oscuro para que lo veas inmediatamente arriba a la izquierda */
+            button[data-testid="stSidebarCollapseButton"] {{
                 left: 10px !important;
                 top: 10px !important;
-                background-color: white !important;
-                border: 1px solid #E5E5EA !important;
-                color: #1D1D1F !important;
+                background-color: #1D1D1F !important; /* Fondo negro Apple */
+                color: white !important; /* Icono blanco */
                 border-radius: 8px !important;
-                padding: 5px !important;
-                z-index: 999999 !important;
+                width: 38px !important;
+                height: 38px !important;
+                z-index: 9999999 !important;
                 display: flex !important;
+                position: fixed !important; /* Mantiene el botón fijo en la esquina */
+            }}
+            
+            /* Asegurar que el icono interno del botón sea blanco */
+            button[data-testid="stSidebarCollapseButton"] svg {{
+                fill: white !important;
+                color: white !important;
             }}
 
-            /* PEGAR TODO AL TECHO (Cero espacio superior) */
+            /* 3. PEGAR TODO AL TECHO */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
                 margin-top: 0px !important;
             }}
 
-            /* CARD DEL CLIENTE (Pegada arriba y centrada) */
+            /* 4. CARD DEL CLIENTE (Pegada arriba y centrada) */
             .client-brand-card {{
                 text-align: center; 
-                padding: 20px 15px;
+                padding: 25px 15px 15px 15px; /* Espacio extra arriba para que el botón no tape el logo */
                 background: white;
                 border-bottom: 1px solid #E5E5EA;
                 margin-top: 0px !important; 
@@ -554,31 +562,34 @@ with st.sidebar:
                 height: 65px;
                 object-fit: contain;
                 margin-bottom: 10px;
+                display: inline-block;
             }}
 
-            /* NAVEGACIÓN (Nombres completos a la izquierda) */
+            /* 5. NAVEGACIÓN (Sin recortes) */
             div[role="radiogroup"] {{
                 gap: 12px;
                 padding-left: 10px;
             }}
             div[role="radio"] p {{ 
-                font-size: 14.5px !important; 
-                white-space: nowrap !important; /* FUERZA UNA SOLA LÍNEA */
+                font-size: 15px !important; 
+                white-space: nowrap !important;
                 overflow: visible !important;
                 color: #1D1D1F !important;
                 text-align: left !important;
+                font-weight: 500;
             }}
 
-            /* FOOTER BIEN SEPARADO */
+            /* 6. FOOTER AL FONDO */
             .absolute-footer {{
-                margin-top: auto; /* Empuja al fondo */
+                margin-top: auto; 
                 text-align: center;
                 padding-bottom: 40px;
                 border-top: 1px solid #F2F2F7;
                 padding-top: 20px;
             }}
             
-            [data-testid="stSidebarHeader"] {{ display: none; }}
+            /* Ocultar header original */
+            [data-testid="stSidebarHeader"] {{ display: none !important; }}
         </style>
     """, unsafe_allow_html=True)
 
