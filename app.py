@@ -608,12 +608,12 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     # NAVEGACIÓN (NOMBRES COMPLETOS - SIN RECORTES)
-    opciones = ["Panel de Control", "Gestión de Cobros", "👥Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
+    opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     
     mapeo_visual = {
         "Panel de Control": "🏠 Panel de Control",
         "Gestión de Cobros": "💰 Gestión de Cobros",
-        "👥Todos mis Clientes": "👥Todos mis Clientes", # Clave exacta
+        "👥 Todos mis Clientes": "👥 Todos mis Clientes", # Clave exacta
         "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
         "Cuentas por Pagar": "📉 Cuentas por Pagar",
         "IA Predictiva": "🧠 IA Predictiva",
