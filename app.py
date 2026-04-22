@@ -500,14 +500,14 @@ with st.sidebar:
     logo_b64 = st.session_state.get("mi_logo")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-# --- CSS TOTAL (Ancho 265px, Botón a la izquierda, Sin recortes) ---
+# --- CSS TOTAL (Ancho 240px, Alineado Izquierda, Sin Botón Salir) ---
     st.markdown(f"""
         <style>
-            /* 1. ANCHO FIJO DE 265PX */
+            /* 1. ANCHO FIJO DE 240PX (Ideal para nombres largos en una línea) */
             [data-testid="stSidebar"] {{
-                min-width: 265px !important;
-                max-width: 265px !important;
-                width: 265px !important;
+                min-width: 240px !important;
+                max-width: 240px !important;
+                width: 240px !important;
                 background-color: #FBFBFD !important;
                 border-right: 1px solid #E5E5EA;
             }}
@@ -533,75 +533,63 @@ with st.sidebar:
 
             /* Card del Cliente */
             .client-brand-card {{
-                text-align: center;
-                padding: 12px 8px;
+                text-align: left; /* Alineado a la izquierda */
+                padding: 12px 15px;
                 background: white;
                 border-radius: 15px;
                 border: 1px solid #E5E5EA;
                 margin-top: 40px; 
-                margin-bottom: 15px;
+                margin-bottom: 20px;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             }}
             .client-logo-img {{
-                max-width: 90%;
-                height: 60px;
+                max-width: 80%;
+                height: 55px;
                 object-fit: contain;
-                margin-bottom: 5px;
+                margin-bottom: 8px;
+                display: block;
+                margin-left: 0;
             }}
             
-            /* Estilo Menú Radio (CENTRADOS Y SEPARADOS) */
+            /* Estilo Menú Radio (ALINEADO IZQUIERDA Y MÁS SEPARADOS) */
             div[data-testid="stRadio"] > label {{ display: none !important; }}
             div[role="radiogroup"] {{
                 display: flex;
                 flex-direction: column;
-                align-items: center;
-                gap: 8px; /* <--- AQUÍ: Espaciado extra entre botones */
+                align-items: flex-start; /* Todo a la izquierda */
+                gap: 12px; /* <--- Mayor separación entre botones */
+                padding-left: 10px;
             }}
             div[role="radio"] {{ 
-                padding: 8px 12px !important; 
-                border-radius: 10px !important; 
-                white-space: nowrap !important;
-                width: 92% !important;
+                padding: 10px 15px !important; 
+                border-radius: 12px !important; 
+                white-space: nowrap !important; /* FUERZA UNA SOLA LÍNEA */
+                width: 95% !important;
                 display: flex;
-                justify-content: center;
-                margin-bottom: 4px !important; /* <--- Refuerzo de separación */
+                justify-content: flex-start; /* Texto a la izquierda */
+                margin-bottom: 6px !important;
             }}
-            div[role="radio"][aria-checked="true"] {{ background-color: #E8E8ED !important; }}
+            div[role="radio"][aria-checked="true"] {{ 
+                background-color: #E8E8ED !important; 
+            }}
             div[role="radio"] p {{ 
-                font-size: 13.5px !important; 
-                color: #48484A !important; 
-                text-align: center !important;
+                font-size: 14px !important; 
+                color: #1D1D1F !important; 
+                text-align: left !important;
+                font-weight: 500;
             }}
 
-            /* Botón Salir (PEQUEÑO Y RECTANGULAR) */
+            /* ELIMINACIÓN DE BOTÓN SALIR (Ocultado por CSS por si acaso) */
             .stButton {{
-                display: flex;
-                justify-content: center;
-                margin-top: 10px;
-            }}
-            .stButton > button {{
-                width: 80% !important; /* Más angosto */
-                height: 32px !important; /* Más bajito/rectangular */
-                min-height: 32px !important;
-                padding: 0px 10px !important;
-                border-radius: 8px !important; /* Radio más sutil */
-                font-size: 12px !important;
-                font-weight: 600 !important;
-                color: #FF3B30 !important;
-                border: 1px solid #FF3B3044 !important;
-                background-color: transparent !important;
-                transition: 0.3s;
-            }}
-            .stButton > button:hover {{
-                background-color: #FF3B3011 !important;
-                border: 1px solid #FF3B30 !important;
+                display: none !important;
             }}
 
             /* Footer Power By */
             .absolute-footer {{
                 margin-top: auto;
-                text-align: center;
-                padding-bottom: 15px;
+                text-align: left;
+                padding-left: 15px;
+                padding-bottom: 20px;
             }}
             
             [data-testid="stSidebarHeader"] {{ display: none; }}
