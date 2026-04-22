@@ -510,7 +510,7 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- 1. CSS: Logo al techo, Footer ajustado y Navegación segura ---
+# --- 1. CSS: Estética Minimalista y Profesional ---
     st.markdown(f"""
         <style>
             /* EXPANSIÓN Y SIDEBAR */
@@ -538,7 +538,7 @@ with st.sidebar:
                 z-index: 100000 !important;
             }}
 
-            /* LOGO AL TECHO ABSOLUTO */
+            /* LOGO AL TECHO */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
                 margin-top: -50px !important; 
@@ -546,42 +546,55 @@ with st.sidebar:
 
             .client-brand-card {{
                 text-align: center; 
-                padding: 10px 15px; 
+                padding: 15px; 
                 background: white;
-                border-bottom: 1px solid #E5E5EA;
+                border-bottom: 1px solid #F2F2F7;
                 margin-bottom: 20px;
             }}
             
             .client-logo-img {{
                 max-width: 90%;
-                height: 65px;
+                height: 55px;
                 object-fit: contain;
             }}
 
-            /* MÓDULOS NAVEGACIÓN */
+            /* NAVEGACIÓN */
             div[role="radiogroup"] {{
                 gap: 12px !important;
                 padding-left: 10px !important;
             }}
             div[role="radio"] p {{ 
-                font-size: 15px !important; 
-                white-space: nowrap !important;
+                font-size: 14px !important; 
                 color: #1D1D1F !important;
-                font-weight: 500;
+                font-weight: 400;
                 padding: 6px 0 !important;
             }}
 
-            /* FOOTER AJUSTADO (Sin espacio de sobra abajo) */
+            /* FOOTER PROFESIONAL (Minimalista) */
             .absolute-footer {{
-                margin-top: 15px !important; /* Nombre pegado a Configuración */
-                text-align: center !important;
-                padding: 10px 10px 0px 10px !important; /* Padding inferior en 0 */
+                margin-top: 40px !important;
+                padding: 20px 0px 10px 0px !important;
                 border-top: 1px solid #F2F2F7;
-                display: flex !important;
-                flex-direction: column !important;
-                align-items: center !important;
-                justify-content: center !important;
-                width: 100% !important;
+                text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                width: 100%;
+            }}
+
+            .powered-by {{
+                font-size: 9px !important;
+                color: #A1A1A6;
+                text-transform: uppercase;
+                letter-spacing: 1.5px;
+                font-weight: 500;
+                margin-bottom: 10px;
+            }}
+
+            .footer-logo-img {{
+                width: 100px; /* Tamaño equilibrado para verse serio */
+                height: auto;
+                opacity: 0.8;
             }}
 
             [data-testid="stAppViewBlockContainer"] {{
@@ -594,12 +607,11 @@ with st.sidebar:
     st.sidebar.markdown(f"""
         <div class="client-brand-card">
             <img src="{src_logo}" class="client-logo-img">
-            <div style="font-family: sans-serif;">
+            <div style="font-family: sans-serif; margin-top: 10px;">
                 <b style="font-size:14px; color:#1D1D1F;">{biz_name}</b>
                 <div style="font-size:10px; color:#86868B; margin-top:5px;">
-                    <p style="margin:0;">RNC: {biz_rnc}</p>
-                    <p style="margin:0;">📞 {biz_tel}</p>
-                    <p style='color:#1D1D1F; font-weight:600; margin-top:5px;'>{u_email}</p>
+                    <p style="margin:0;">RNC: {biz_rnc} | 📞 {biz_tel}</p>
+                    <p style='color:#1D1D1F; font-weight:600; margin-top:3px;'>{u_email}</p>
                 </div>
             </div>
         </div>
@@ -630,17 +642,13 @@ with st.sidebar:
     )
     st.session_state.menu_principal = menu
 
-    # --- 4. FOOTER: LOGO GRANDE Y PEGADO ABAJO ---
+    # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
     st.sidebar.markdown(f"""
         <div class="absolute-footer">
-            <p style='font-size: 0.65rem; color: #86868B; margin: 0; font-weight: 700; letter-spacing: 1px; width: 100%; text-align: center;'>
-                POWERED BY LIXANDER GARCÍA
-            </p>
-            <div style="margin-top: 5px; width: 100%; display: flex; justify-content: center; align-items: center;">
-                <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" 
-                     style="width: 280px; height: auto; display: block; margin-bottom: -15px;" 
-                     onerror="this.style.display='none'">
-            </div>
+            <span class="powered-by">Powered by Lixander García</span>
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" 
+                 class="footer-logo-img" 
+                 onerror="this.style.display='none'">
         </div>
     """, unsafe_allow_html=True)
     
