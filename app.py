@@ -1888,126 +1888,137 @@ elif menu == "Cuentas por Pagar":
     from datetime import datetime, date, timedelta
     hoy = date.today()
 
-    # --- LÓGICA DE NOTIFICACIONES (3-4 DÍAS ANTES) ---
+    # --- 1. LÓGICA DE NOTIFICACIONES PREVENTIVAS (3-4 DÍAS) ---
+    # Consultamos lo pendiente para verificar fechas
     res_alertas = conn.table("gastos").select("*").eq("user_id", u_id).eq("estado", "Pendiente").eq("visible_usuario", True).execute()
     
     if res_alertas.data:
-        notificaciones = []
+        avisos = []
         for g in res_alertas.data:
             if g.get('fecha_gasto'):
-                fecha_v = datetime.strptime(g['fecha_gasto'][:10], "%Y-%m-%d").date()
-                dias_para_vencer = (fecha_v - hoy).days
+                # Convertimos la fecha de la base de datos a objeto date
+                f_venc = datetime.strptime(g['fecha_gasto'][:10], "%Y-%m-%d").date()
+                dias_faltantes = (f_venc - hoy).days
                 
-                # Rango de 0 a 4 días antes
-                if 0 <= dias_para_vencer <= 4:
-                    notificaciones.append(f"⚠️ **{g['descripcion']}** vence en {dias_para_vencer} días (RD$ {g['monto']:,.0f})")
-                elif dias_para_vencer < 0:
-                    notificaciones.append(f"🚨 **{g['descripcion']}** está VENCIDO por {abs(dias_para_vencer)} días.")
+                if 0 <= dias_faltantes <= 4:
+                    avisos.append(f"🔔 **{g['descripcion']}**: Vence en {dias_faltantes} días (RD$ {g['monto']:,.2f})")
+                elif dias_faltantes < 0:
+                    avisos.append(f"🚨 **{g['descripcion']}**: ¡ESTÁ VENCIDO! ({abs(dias_faltantes)} días de atraso)")
 
-        if notificaciones:
+        if avisos:
             with st.container(border=True):
-                st.markdown("### 🔔 Avisos de Pago")
-                for nota in notificaciones:
-                    st.write(nota)
+                st.subheader("Centro de Notificaciones")
+                for mensaje in avisos:
+                    st.write(mensaje)
 
-# --- FUNCIONES DE DECISIÓN (MODAL POST-REGISTRO) ---
-    @st.dialog("🎯 Compromiso Registrado")
-    def preguntar_pago_inmediato(gasto_id, concepto):
-        st.write(f"¿Quieres marcar **{concepto}** como pagado ahora mismo o prefieres dejarlo en la lista de pendientes?")
-        st.caption("Si lo marcas como pagado, se restará de tu balance en el Dashboard inmediatamente.")
+    # --- 2. MODAL DE DECISIÓN (Solo para Compromisos Fijos) ---
+    @st.dialog("🎯 Registro Exitoso")
+    def modal_decision_pago(gasto_id, concepto):
+        st.write(f"Has registrado: **{concepto}**")
+        st.markdown("¿Deseas marcarlo como **PAGADO** ahora mismo o dejarlo en la lista de pendientes?")
+        st.caption("Si lo pagas ahora, se descontará de tus beneficios en el Panel de Control.")
         
         c1, c2 = st.columns(2)
         if c1.button("💵 PAGAR AHORA", type="primary", use_container_width=True):
             conn.table("gastos").update({"estado": "Pagado"}).eq("id", gasto_id).execute()
-            st.success("¡Pago efectuado!")
+            st.success("¡Pago registrado!")
             st.rerun()
-        if c2.button("⏳ LUEGO", use_container_width=True):
-            st.info("Guardado en pendientes.")
+        if c2.button("⏳ PAGAR LUEGO", use_container_width=True):
+            st.info("Guardado en la lista de pendientes.")
             st.rerun()
 
-    # --- INTERFAZ DE REGISTRO ---
-    st.subheader("Registrar Gasto")
-    tab_fast, tab_plan = st.tabs(["⚡ Gasto Rápido", "📅 Compromiso Fijo"])
+    # --- 3. INTERFAZ DE REGISTRO DUAL ---
+    st.title("🏧 Gestión de Gastos y Pagos")
+    
+    tab_rapido, tab_planificado = st.tabs(["⚡ Gasto Rápido (Caja)", "📅 Compromiso Programado"])
 
-    with tab_fast:
-        with st.form("form_rapido", clear_on_submit=True):
-            col1, col2 = st.columns([2, 1])
-            concepto_r = col1.text_input("¿Qué compraste?", placeholder="Ej: Gasolina, Café, Almuerzo...")
-            monto_r = col2.number_input("Monto RD$", min_value=0.0, step=50.0)
+    with tab_rapido:
+        with st.form("form_gasto_rapido", clear_on_submit=True):
+            st.markdown("### Gasto Al Instante")
+            col_r1, col_r2 = st.columns([2, 1])
+            concepto_r = col_r1.text_input("¿En qué gastaste?", placeholder="Ej: Gasolina, Almuerzo, Café...")
+            monto_r = col_r2.number_input("Monto RD$", min_value=0.0, step=50.0)
             
-            if st.form_submit_button("⚡ GUARDAR Y PAGAR YA", use_container_width=True):
+            if st.form_submit_button("🚀 REGISTRAR Y DESCONTAR YA", use_container_width=True):
                 if concepto_r and monto_r > 0:
+                    # Gasto rápido se guarda como 'Pagado' directamente
                     conn.table("gastos").insert({
                         "descripcion": concepto_r,
                         "monto": monto_r,
                         "user_id": u_id,
-                        "estado": "Pagado", # SE SUMA AL DASHBOARD AL INSTANTE
-                        "nombre_suplidor": "Gasto Rápido",
+                        "estado": "Pagado",
+                        "nombre_suplidor": "Gasto de Caja",
                         "sector": "Varios",
                         "fecha_gasto": str(hoy),
                         "visible_usuario": True
                     }).execute()
-                    st.toast("Gasto registrado en caja")
+                    st.toast(f"Gasto de RD$ {monto_r} aplicado a caja.")
                     st.rerun()
 
-    with tab_plan:
-        with st.form("form_detallado", clear_on_submit=True):
-            c_a, c_b = st.columns([2, 1])
-            concepto_p = c_a.text_input("Concepto del compromiso", placeholder="Ej: Pago de Local, Netflix...")
-            monto_p = c_b.number_input("Monto RD$ ", min_value=0.0, step=100.0)
+    with tab_planificado:
+        with st.form("form_compromiso_fijo", clear_on_submit=True):
+            st.markdown("### Programar Pago")
+            c_p1, c_p2 = st.columns([2, 1])
+            concepto_p = c_p1.text_input("Concepto", placeholder="Ej: Local Comercial, Internet, Seguro...")
+            monto_p = c_p2.number_input("Monto RD$ ", min_value=0.0, step=100.0)
             
             st.markdown("---")
-            c_c, c_d = st.columns(2)
-            suplidor = c_c.text_input("Suplidor / Compañía")
-            sector = c_d.selectbox("Sector", ["Servicios", "Alquiler", "Nómina", "Préstamos", "Otros"])
+            c_p3, c_p4 = st.columns(2)
+            suplidor_p = c_p3.text_input("Suplidor / Empresa")
+            sector_p = c_p4.selectbox("Categoría", ["Servicios", "Alquiler", "Sueldos", "Mantenimiento", "Otros"])
             
-            c_e, c_f = st.columns(2)
-            fecha_v = c_e.date_input("Fecha de vencimiento")
-            es_fijo = c_f.checkbox("¿Es recurrente todos los meses?")
+            c_p5, c_p6 = st.columns(2)
+            fecha_venc_p = c_p5.date_input("Fecha de pago", value=hoy)
+            es_recurrente = c_p6.checkbox("¿Es un gasto recurrente mensual?")
 
-            if st.form_submit_button("📋 REGISTRAR COMPROMISO", use_container_width=True):
+            if st.form_submit_button("📋 GUARDAR COMPROMISO", use_container_width=True):
                 if concepto_p and monto_p > 0:
-                    res = conn.table("gastos").insert({
+                    res_ins = conn.table("gastos").insert({
                         "descripcion": concepto_p,
                         "monto": monto_p,
                         "user_id": u_id,
-                        "estado": "Pendiente", # No se suma al dashboard todavía
-                        "nombre_suplidor": suplidor,
-                        "sector": sector,
-                        "fecha_gasto": str(fecha_v),
-                        "es_recurrente": es_fijo,
+                        "estado": "Pendiente", # Se guarda pendiente por defecto
+                        "nombre_suplidor": suplidor_p if suplidor_p else "General",
+                        "sector": sector_p,
+                        "fecha_gasto": str(fecha_venc_p),
+                        "es_recurrente": es_recurrente,
                         "visible_usuario": True
                     }).execute()
                     
-                    if res.data:
-                        # Lanzamos el modal para preguntar si quiere pagar ahora
-                        preguntar_pago_inmediato(res.data[0]['id'], concepto_p)
+                    if res_ins.data:
+                        # Abrimos el modal para preguntar si lo paga ahora o después
+                        modal_decision_pago(res_ins.data[0]['id'], concepto_p)
 
-st.divider()
-    st.subheader("Compromisos Pendientes")
+    # --- 4. LISTADO DE COMPROMISOS PENDIENTES ---
+    st.divider()
+    st.subheader("⏳ Compromisos Pendientes")
     
-    # Consultar solo los pendientes
-    res_p = conn.table("gastos").select("*").eq("user_id", u_id).eq("estado", "Pendiente").eq("visible_usuario", True).order("fecha_gasto").execute()
+    # Consultamos nuevamente para mostrar la lista actualizada
+    res_lista = conn.table("gastos").select("*").eq("user_id", u_id).eq("estado", "Pendiente").eq("visible_usuario", True).order("fecha_gasto").execute()
     
-    if res_p.data:
-        for g in res_p.data:
+    if res_lista.data:
+        for g in res_lista.data:
             with st.container(border=True):
-                col_info, col_monto, col_accion = st.columns([2, 1, 1])
+                c_inf, c_mon, c_btn = st.columns([2, 1, 1])
                 
-                with col_info:
+                with c_inf:
                     st.markdown(f"**{g['descripcion']}**")
-                    st.caption(f"🏢 {g['nombre_suplidor']} | 📅 Vence: {g['fecha_gasto'][:10]}")
+                    st.caption(f"🏢 {g['nombre_suplidor']} | 📁 {g['sector']}")
+                    if g.get('fecha_gasto'):
+                        st.caption(f"📅 Vence: {g['fecha_gasto'][:10]}")
                 
-                with col_monto:
+                with c_mon:
                     st.markdown(f"#### RD$ {float(g['monto']):,.2f}")
                 
-                with col_accion:
-                    if st.button("💵 PAGAR", key=f"btn_pay_{g['id']}", type="primary", use_container_width=True):
+                with c_btn:
+                    st.write("") # Espaciador
+                    if st.button("💵 PAGAR", key=f"pago_list_{g['id']}", type="primary", use_container_width=True):
                         conn.table("gastos").update({"estado": "Pagado"}).eq("id", g['id']).execute()
-                        st.toast(f"Pagado: {g['descripcion']}")
+                        st.toast(f"¡{g['descripcion']} marcado como pagado!")
                         st.rerun()
     else:
-        st.info("No tienes deudas pendientes para hoy.")
+        st.info("No tienes compromisos pendientes. ¡Todo al día!")
+        
 elif menu == "IA Predictiva":
     # ---------------------------------------------------------
     # 1. CSS AVANZADO PARA ESTILO META AI (Tarjetas Flotantes)
