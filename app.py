@@ -636,7 +636,7 @@ with st.sidebar:
             <p style='font-size: 0.65rem; color: #86868B; margin: 0; font-weight: 700; letter-spacing: 1px; width: 100%; text-align: center;'>
                 POWERED BY LIXANDER GARCÍA
             </p>
-            <div style="margin-top: 5px; width: 100%; display: flex; justify-content: center; align-items: center;">
+            <div style="margin-top: 3px; width: 200%; display: flex; justify-content: center; align-items: center;">
                 <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" style="width: 100px; height: auto; margin: 0 auto; display: block;" onerror="this.style.display='none'">
             </div>
         </div>
