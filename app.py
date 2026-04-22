@@ -1885,40 +1885,35 @@ if menu == "👥 Todos mis Clientes":
 
 # --- CAMBIO DE SECCIÓN (FUERA DEL BUCLE) ---
 elif menu == "Cuentas por Pagar":
-    from datetime import datetime, date
-    hoy = date.today()
+    from datetime import datetime, date, timedelta
+    
+    # --- 1. AJUSTE DE ZONA HORARIA (RD: UTC-4) ---
+    # Esto asegura que 'hoy' y 'ahora' sean los de Santo Domingo, no los del servidor
+    ahora_rd = datetime.utcnow() - timedelta(hours=4)
+    hoy = ahora_rd.date()
+    ahora_rd_str = ahora_rd.strftime("%Y-%m-%d %H:%M:%S")
 
-    # --- 1. CONSULTA GLOBAL DE DATOS ---
+    # --- 2. CONSULTA GLOBAL DE DATOS ---
     res_gastos = conn.table("gastos").select("*").eq("user_id", u_id).eq("visible_usuario", True).order("fecha_gasto", desc=True).execute()
     datos_gastos = res_gastos.data if res_gastos.data else []
 
-    # Segmentación de datos para las pestañas
+    # Segmentación de datos
     gastos_rapidos = [g for g in datos_gastos if g.get("nombre_suplidor") == "Gasto de Caja" and g["estado"] == "Pagado"]
     compromisos_pendientes = [g for g in datos_gastos if g["estado"] == "Pendiente"]
     todo_lo_pagado = [g for g in datos_gastos if g["estado"] == "Pagado"]
 
-    # --- 2. MODALES DE CONTROL ---
+    # --- 3. MODALES Y ALERTAS ---
     @st.dialog("⚠️ ADVERTENCIA CRÍTICA")
     def modal_reset_historial():
         st.error("### ¿ESTÁS ABSOLUTAMENTE SEGURO?")
-        st.markdown("""
-        Esta acción **ocultará permanentemente** todos los registros pagados actuales. 
-        * Los contadores volverán a **RD$ 0**.
-        * No podrás recuperar esta vista de historial después de confirmar.
-        """)
         st.write("Escribe **CONFIRMAR** para proceder:")
         confirmacion = st.text_input("Palabra de seguridad")
-        
         if st.button("🔥 BORRAR TODO EL HISTORIAL", type="primary", use_container_width=True):
             if confirmacion == "CONFIRMAR":
-                # Marcamos todos los pagados como no visibles
                 conn.table("gastos").update({"visible_usuario": False}).eq("user_id", u_id).eq("estado", "Pagado").execute()
-                st.success("Historial restablecido.")
                 st.rerun()
-            else:
-                st.warning("Palabra de confirmación incorrecta.")
 
-    @st.dialog("🎯 Compromiso Guardado")
+    @st.dialog("🎯 Registro Exitoso")
     def modal_decision_pago(gasto_id, concepto):
         st.write(f"Registro: **{concepto}**")
         st.markdown("¿Se pagó en este momento?")
@@ -1929,17 +1924,20 @@ elif menu == "Cuentas por Pagar":
         if c2.button("⏳ LUEGO", use_container_width=True):
             st.rerun()
 
-    # --- 3. NOTIFICACIONES PREVENTIVAS ---
+    # Notificaciones preventivas
     if compromisos_pendientes:
         avisos = []
         for g in compromisos_pendientes:
             if g.get('fecha_gasto'):
-                f_venc = datetime.strptime(g['fecha_gasto'][:10], "%Y-%m-%d").date()
-                dias = (f_venc - hoy).days
-                if 0 <= dias <= 4:
-                    avisos.append(f"🔔 **{g['descripcion']}** vence en {dias} días.")
-                elif dias < 0:
-                    avisos.append(f"🚨 **{g['descripcion']}** está vencido.")
+                # Validamos fecha para evitar errores de tipo
+                try:
+                    f_venc = datetime.strptime(g['fecha_gasto'][:10], "%Y-%m-%d").date()
+                    dias = (f_venc - hoy).days
+                    if 0 <= dias <= 4:
+                        avisos.append(f"🔔 **{g['descripcion']}** vence en {dias} días.")
+                    elif dias < 0:
+                        avisos.append(f"🚨 **{g['descripcion']}** está vencido.")
+                except: pass
         if avisos:
             with st.expander("📢 ALERTAS DE PAGO", expanded=True):
                 for a in avisos: st.write(a)
@@ -1955,19 +1953,28 @@ elif menu == "Cuentas por Pagar":
             col1, col2 = st.columns([2, 1])
             concepto_r = col1.text_input("Concepto", placeholder="Gasolina, café, etc.")
             monto_r = col2.number_input("Monto RD$", min_value=0.0, step=50.0)
+            
             if st.form_submit_button("🚀 REGISTRAR Y DESCONTAR", use_container_width=True):
                 if concepto_r and monto_r > 0:
+                    # SE GUARDA CON LA HORA EXACTA DE RD (ahora_rd_str)
                     conn.table("gastos").insert({
-                        "descripcion": concepto_r, "monto": monto_r, "user_id": u_id,
-                        "estado": "Pagado", "nombre_suplidor": "Gasto de Caja",
-                        "sector": "Varios", "fecha_gasto": str(datetime.now()), "visible_usuario": True
+                        "descripcion": concepto_r, 
+                        "monto": monto_r, 
+                        "user_id": u_id,
+                        "estado": "Pagado", 
+                        "nombre_suplidor": "Gasto de Caja",
+                        "sector": "Varios", 
+                        "fecha_gasto": ahora_rd_str, 
+                        "visible_usuario": True
                     }).execute()
                     st.rerun()
         
         st.markdown("---")
-        st.caption("Gastos rápidos recientes")
-        for g in gastos_rapidos[:5]: # Mostrar últimos 5
-            st.text(f"🕒 {g['fecha_gasto'][11:16]} | {g['descripcion']} - RD$ {g['monto']:,.0f}")
+        st.caption("Gastos rápidos recientes (Hoy)")
+        for g in gastos_rapidos[:5]:
+            # Formateamos la hora para que se vea limpia en la lista
+            hora = g['fecha_gasto'][11:16] if g.get('fecha_gasto') else "--:--"
+            st.text(f"🕒 {hora} | {g['descripcion']} - RD$ {g['monto']:,.0f}")
 
     # --- PESTAÑA 2: COMPROMISOS ---
     with t2:
@@ -1979,7 +1986,8 @@ elif menu == "Cuentas por Pagar":
             cp3, cp4 = st.columns(2)
             sup_p = cp3.text_input("Suplidor")
             sec_p = cp4.selectbox("Categoría", ["Servicios", "Alquiler", "Sueldos", "Mantenimiento", "Otros"])
-            f_venc = st.date_input("Fecha límite")
+            f_venc = st.date_input("Fecha límite", value=hoy)
+            
             if st.form_submit_button("📋 GUARDAR COMPROMISO", use_container_width=True):
                 if conc_p and mon_p > 0:
                     res_p = conn.table("gastos").insert({
@@ -2001,12 +2009,15 @@ elif menu == "Cuentas por Pagar":
                     c_i.caption(f"🏢 {g['nombre_suplidor']} | 📅 Vence: {g['fecha_gasto'][:10]}")
                     c_m.markdown(f"#### RD$ {g['monto']:,.0f}")
                     if c_a.button("💵 PAGAR", key=f"p_{g['id']}", type="primary", use_container_width=True):
-                        conn.table("gastos").update({"estado": "Pagado"}).eq("id", g['id']).execute()
+                        # Al pagar un compromiso, actualizamos su fecha a la hora actual de RD
+                        conn.table("gastos").update({
+                            "estado": "Pagado", 
+                            "fecha_gasto": ahora_rd_str
+                        }).eq("id", g['id']).execute()
                         st.rerun()
 
-# --- PESTAÑA 3: HISTORIAL COMPLETO ---
+    # --- PESTAÑA 3: HISTORIAL COMPLETO ---
     with t3:
-        # Métricas de arriba
         total_historial = sum(g["monto"] for g in todo_lo_pagado)
         st.markdown(f"""
             <div style='background-color:#1E1E1E; padding:20px; border-radius:10px; border-left: 5px solid #34C759;'>
@@ -2015,16 +2026,12 @@ elif menu == "Cuentas por Pagar":
             </div>
         """, unsafe_allow_html=True)
 
-        # Filtros
         st.write("")
         c_f1, c_f2 = st.columns(2)
-        
-        # Obtenemos las categorías existentes para el filtro
-        categorias_disponibles = list(set(g["sector"] for g in todo_lo_pagado if g.get("sector")))
-        cat_filtro = c_f1.multiselect("Filtrar por Categoría", options=categorias_disponibles)
-        tipo_filtro = c_f2.selectbox("Origen del gasto", ["Todos", "Gastos Rápidos", "Compromisos Pagados"])
+        categorias = list(set(g["sector"] for g in todo_lo_pagado if g.get("sector")))
+        cat_filtro = c_f1.multiselect("Filtrar por Categoría", options=categorias)
+        tipo_filtro = c_f2.selectbox("Origen", ["Todos", "Gastos Rápidos", "Compromisos Pagados"])
 
-        # Lógica de filtrado
         datos_filtrados = todo_lo_pagado
         if cat_filtro:
             datos_filtrados = [g for g in datos_filtrados if g["sector"] in cat_filtro]
@@ -2033,22 +2040,17 @@ elif menu == "Cuentas por Pagar":
         elif tipo_filtro == "Compromisos Pagados":
             datos_filtrados = [g for g in datos_filtrados if g["nombre_suplidor"] != "Gasto de Caja"]
 
-        # Listado renderizado
         st.markdown("---")
         for g in datos_filtrados:
-            # SOLUCIÓN AL ERROR: Validamos la fecha antes de mostrarla
-            fecha_raw = g.get("fecha_gasto")
-            fecha_mostrar = str(fecha_raw)[:10] if fecha_raw else "S/F"
-            
+            f_raw = g.get("fecha_gasto")
+            f_disp = str(f_raw)[:10] if f_raw else "S/F"
             with st.container():
                 col_f, col_d, col_v = st.columns([1, 3, 1])
-                col_f.caption(f"📅 {fecha_mostrar}")
+                col_f.caption(f"📅 {f_disp}")
                 col_d.write(f"**{g['descripcion']}** ({g.get('sector', 'Varios')})")
                 col_v.write(f"RD$ {float(g['monto']):,.0f}")
                 st.divider()
 
-        # Botón de Reset
-        st.write("")
         if st.button("🗑️ RESTABLECER CONTADORES", use_container_width=True):
             modal_reset_historial()
         
