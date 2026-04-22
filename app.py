@@ -500,18 +500,28 @@ with st.sidebar:
     logo_b64 = st.session_state.get("mi_logo")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-# --- CSS TOTAL (Sin recortes, Botón visible y Logo arriba) ---
+# --- 1. SOLUCIÓN AL NAMEERROR: Definición previa de src_logo ---
+    try:
+        if 'logo_b64' in locals() and logo_b64:
+            img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
+            src_logo = f"data:image/png;base64,{img_data}"
+        else:
+            src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+    except Exception:
+        src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+
+    # --- 2. CSS TOTAL (Sin recortes, Botón visible y Logo al techo) ---
     st.markdown(f"""
         <style>
-            /* 1. AJUSTE DEL ANCHO (Evita que se corten los nombres) */
+            /* AJUSTE DEL ANCHO (275px para evitar recortes en nombres largos) */
             [data-testid="stSidebar"] {{
-                min-width: 260px !important;
-                max-width: 260px !important;
+                min-width: 275px !important;
+                max-width: 275px !important;
                 background-color: #FBFBFD !important;
+                border-right: 1px solid #E5E5EA;
             }}
 
-            /* 2. EL BOTÓN DE MENÚ (Hacerlo visible y estilo minimalista) */
-            /* Este es el que permite esconder/mostrar el menú */
+            /* EL BOTÓN DE MENÚ (Visible, flotante y estilo minimalista) */
             [data-testid="stSidebarCollapseButton"] {{
                 left: 10px !important;
                 top: 10px !important;
@@ -520,24 +530,24 @@ with st.sidebar:
                 color: #1D1D1F !important;
                 border-radius: 8px !important;
                 padding: 5px !important;
-                z-index: 999999;
-                display: flex !important; /* Asegurar que no se oculte */
+                z-index: 999999 !important;
+                display: flex !important;
             }}
 
-            /* 3. PEGAR TODO AL TECHO */
+            /* PEGAR TODO AL TECHO (Cero espacio superior) */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
                 margin-top: 0px !important;
             }}
 
-            /* 4. CARD DEL CLIENTE (Sin margen superior) */
+            /* CARD DEL CLIENTE (Pegada arriba y centrada) */
             .client-brand-card {{
                 text-align: center; 
                 padding: 20px 15px;
                 background: white;
                 border-bottom: 1px solid #E5E5EA;
                 margin-top: 0px !important; 
-                margin-bottom: 20px;
+                margin-bottom: 25px;
             }}
             .client-logo-img {{
                 max-width: 90%;
@@ -546,19 +556,22 @@ with st.sidebar:
                 margin-bottom: 10px;
             }}
 
-            /* 5. NAVEGACIÓN (Nombres completos alineados a la izquierda) */
+            /* NAVEGACIÓN (Nombres completos a la izquierda) */
             div[role="radiogroup"] {{
                 gap: 12px;
                 padding-left: 10px;
             }}
             div[role="radio"] p {{ 
-                font-size: 15px !important; /* Un poco más grande para lectura */
-                white-space: nowrap !important; /* Evita saltos de línea */
+                font-size: 14.5px !important; 
+                white-space: nowrap !important; /* FUERZA UNA SOLA LÍNEA */
+                overflow: visible !important;
+                color: #1D1D1F !important;
+                text-align: left !important;
             }}
 
-            /* 6. FOOTER BIEN SEPARADO */
+            /* FOOTER BIEN SEPARADO */
             .absolute-footer {{
-                margin-top: 50px; /* Mucho más espacio arriba del footer */
+                margin-top: auto; /* Empuja al fondo */
                 text-align: center;
                 padding-bottom: 40px;
                 border-top: 1px solid #F2F2F7;
@@ -568,6 +581,8 @@ with st.sidebar:
             [data-testid="stSidebarHeader"] {{ display: none; }}
         </style>
     """, unsafe_allow_html=True)
+
+    # --- 3. CONTENIDO DEL SIDEBAR ---
 
     # HEADER PEGADO ARRIBA
     st.sidebar.markdown(f"""
@@ -590,7 +605,7 @@ with st.sidebar:
     mapeo_visual = {
         "Panel de Control": "🏠 Panel de Control",
         "Gestión de Cobros": "💰 Gestión de Cobros",
-        "Todos mis Clientes": "👥 Mis Clientes", # Solo este cambia un poco para estética
+        "Todos mis Clientes": "👥 Mis Clientes",
         "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
         "Cuentas por Pagar": "📉 Cuentas por Pagar",
         "IA Predictiva": "🧠 IA Predictiva",
