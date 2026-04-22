@@ -2004,7 +2004,7 @@ elif menu == "Cuentas por Pagar":
                         conn.table("gastos").update({"estado": "Pagado"}).eq("id", g['id']).execute()
                         st.rerun()
 
-    # --- PESTAÑA 3: HISTORIAL COMPLETO (LA NUEVA) ---
+# --- PESTAÑA 3: HISTORIAL COMPLETO ---
     with t3:
         # Métricas de arriba
         total_historial = sum(g["monto"] for g in todo_lo_pagado)
@@ -2018,7 +2018,10 @@ elif menu == "Cuentas por Pagar":
         # Filtros
         st.write("")
         c_f1, c_f2 = st.columns(2)
-        cat_filtro = c_f1.multiselect("Filtrar por Categoría", options=list(set(g["sector"] for g in todo_lo_pagado)))
+        
+        # Obtenemos las categorías existentes para el filtro
+        categorias_disponibles = list(set(g["sector"] for g in todo_lo_pagado if g.get("sector")))
+        cat_filtro = c_f1.multiselect("Filtrar por Categoría", options=categorias_disponibles)
         tipo_filtro = c_f2.selectbox("Origen del gasto", ["Todos", "Gastos Rápidos", "Compromisos Pagados"])
 
         # Lógica de filtrado
@@ -2033,11 +2036,15 @@ elif menu == "Cuentas por Pagar":
         # Listado renderizado
         st.markdown("---")
         for g in datos_filtrados:
+            # SOLUCIÓN AL ERROR: Validamos la fecha antes de mostrarla
+            fecha_raw = g.get("fecha_gasto")
+            fecha_mostrar = str(fecha_raw)[:10] if fecha_raw else "S/F"
+            
             with st.container():
                 col_f, col_d, col_v = st.columns([1, 3, 1])
-                col_f.caption(g["fecha_gasto"][:10])
-                col_d.write(f"**{g['descripcion']}** ({g['sector']})")
-                col_v.write(f"RD$ {g['monto']:,.0f}")
+                col_f.caption(f"📅 {fecha_mostrar}")
+                col_d.write(f"**{g['descripcion']}** ({g.get('sector', 'Varios')})")
+                col_v.write(f"RD$ {float(g['monto']):,.0f}")
                 st.divider()
 
         # Botón de Reset
