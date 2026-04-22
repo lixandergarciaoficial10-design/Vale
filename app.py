@@ -510,94 +510,65 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- CSS TOTAL (Solución al espacio vacío, Botón Rescatado y Logo Arriba) ---
+# --- CSS LIMPIO (Dejando que Streamlit haga su trabajo) ---
     st.markdown(f"""
         <style>
-            /* 1. SOLUCIÓN AL ESPACIO GRIS: Expandir contenido cuando el sidebar se cierra */
-            [data-testid="stAppViewBlockContainer"] {{
-                width: 100% !important;
-                max-width: 100% !important;
-                padding-left: 5rem !important;
-                padding-right: 5rem !important;
-            }}
-            
-            /* Ajuste para que el layout principal no reserve espacio del sidebar si está colapsado */
-            [data-testid="stMain"] {{
-                transition: margin-left 0.3s ease;
-            }}
-
-            /* 2. AJUSTE DEL SIDEBAR */
-            [data-testid="stSidebar"] {{
-                min-width: 280px !important;
-                max-width: 280px !important;
-                background-color: #FBFBFD !important;
-                border-right: 1px solid #E5E5EA;
-            }}
-
-            /* 3. RESCATE DEL BOTÓN (Mantenerlo vivo y visible) */
+            /* 1. BOTÓN SIEMPRE VIVO (Estilizado sin romper el layout) */
             [data-testid="stSidebarHeader"] {{
-                padding: 0px !important;
                 background-color: transparent !important;
-                display: block !important; /* No usar display:none */
+                padding: 0 !important;
             }}
             
             button[data-testid="stSidebarCollapseButton"] {{
-                background-color: #1D1D1F !important; /* Negro elegante */
+                background-color: #1D1D1F !important;
                 color: white !important;
                 border-radius: 8px !important;
                 margin: 10px !important;
-                opacity: 1 !important;
-                z-index: 100000; /* Prioridad máxima */
+                z-index: 10000;
             }}
             
             button[data-testid="stSidebarCollapseButton"] svg {{
                 fill: white !important;
-                color: white !important;
             }}
 
-            /* 4. PEGAR TODO AL TECHO */
+            /* 2. SIDEBAR: Solo ancho y colores, sin bloquear el resto */
+            [data-testid="stSidebar"] {{
+                min-width: 280px !important;
+                background-color: #FBFBFD !important;
+            }}
+
+            /* 3. LOGO AL TECHO */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
-                margin-top: -15px !important;
             }}
 
-            /* 5. CARD DEL CLIENTE */
             .client-brand-card {{
                 text-align: center; 
                 padding: 20px 15px;
                 background: white;
                 border-bottom: 1px solid #E5E5EA;
-                margin-top: 0px !important; 
-                margin-bottom: 25px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                margin-bottom: 20px;
             }}
             .client-logo-img {{
                 max-width: 85%;
                 height: 60px;
                 object-fit: contain;
-                margin-bottom: 10px;
             }}
 
-            /* 6. NAVEGACIÓN SIN RECORTES */
-            div[role="radiogroup"] {{
-                gap: 12px;
-                padding-left: 10px;
-            }}
+            /* 4. NAVEGACIÓN (Sin forzar anchos raros) */
             div[role="radio"] p {{ 
                 font-size: 15px !important; 
                 white-space: nowrap !important;
-                overflow: visible !important;
                 color: #1D1D1F !important;
-                font-weight: 500;
             }}
 
-            /* 7. FOOTER POWERED BY */
+            /* 5. FOOTER */
             .absolute-footer {{
-                margin-top: auto; 
+                margin-top: 30px;
                 text-align: center;
-                padding-bottom: 40px;
+                padding-bottom: 30px;
                 border-top: 1px solid #F2F2F7;
-                padding-top: 20px;
+                padding-top: 15px;
             }}
         </style>
     """, unsafe_allow_html=True)
