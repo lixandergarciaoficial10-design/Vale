@@ -500,96 +500,83 @@ with st.sidebar:
     logo_b64 = st.session_state.get("mi_logo")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-# --- CSS TOTAL ---
+# --- CSS TOTAL (Ajuste Superior, Footer y Botón Minimalista) ---
     st.markdown(f"""
         <style>
-            /* 1. ANCHO FIJO Y DISEÑO LATERAL */
+            /* 1. SIDEBAR Y FONDO */
             [data-testid="stSidebar"] {{
                 min-width: 240px !important;
                 max-width: 240px !important;
-                width: 240px !important;
                 background-color: #FBFBFD !important;
                 border-right: 1px solid #E5E5EA;
             }}
-            
-            /* 2. BOTÓN DE COLAPSAR PERSONALIZADO (El icono de las 3 barras) */
-            [data-testid="stSidebarCollapseButton"] {{
-                left: 10px !important;
-                top: 10px !important;
-                color: #1D1D1F !important;
-                background-color: white !important;
-                border-radius: 8px !important;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
-            }}
 
-            /* 3. CONTENEDOR DE CONTENIDO */
+            /* 2. ELIMINAR ESPACIO SUPERIOR TOTAL (Pegado arriba) */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
                 display: flex;
                 flex-direction: column;
                 height: 98vh !important;
             }}
+            
+            /* 3. BOTÓN DE COLAPSAR (Esquina Superior Izquierda) */
+            [data-testid="stSidebarCollapseButton"] {{
+                left: 5px !important;
+                top: 5px !important;
+                color: #1D1D1F !important;
+                background-color: transparent !important;
+                z-index: 1000;
+            }}
 
-            /* Card del Cliente - CENTRADA */
+            /* 4. CARD DEL CLIENTE (Centrada y pegada al borde superior) */
             .client-brand-card {{
                 text-align: center; 
-                padding: 12px 15px;
+                padding: 15px;
                 background: white;
-                border-radius: 15px;
-                border: 1px solid #E5E5EA;
-                margin-top: 50px; 
-                margin-bottom: 25px;
+                border-radius: 0px 0px 15px 15px; /* Solo redondeado abajo */
+                border-bottom: 1px solid #E5E5EA;
+                margin-top: 0px !important; /* Pegado arriba */
+                margin-bottom: 30px;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             }}
             .client-logo-img {{
                 max-width: 85%;
-                height: 55px;
+                height: 60px;
                 object-fit: contain;
                 margin-bottom: 8px;
-                display: inline-block;
             }}
-            
-            /* Menú Radio - IZQUIERDA Y SEPARADOS */
+
+            /* 5. NAVEGACIÓN (Botones a la izquierda) */
             div[data-testid="stRadio"] > label {{ display: none !important; }}
             div[role="radiogroup"] {{
-                display: flex;
-                flex-direction: column;
-                align-items: flex-start; 
-                gap: 12px; 
+                gap: 15px;
                 padding-left: 10px;
             }}
             div[role="radio"] {{ 
                 padding: 10px 15px !important; 
                 border-radius: 12px !important; 
-                white-space: nowrap !important;
                 width: 95% !important;
-                display: flex;
-                justify-content: flex-start;
-            }}
-            div[role="radio"][aria-checked="true"] {{ 
-                background-color: #E8E8ED !important; 
             }}
             div[role="radio"] p {{ 
                 font-size: 14px !important; 
-                color: #1D1D1F !important; 
                 font-weight: 500;
+                text-align: left !important;
             }}
 
-            /* Ocultar botón Salir por CSS */
-            .stButton {{ display: none !important; }}
-
-            /* Footer Power By */
+            /* 6. FOOTER (Más separado hacia abajo) */
             .absolute-footer {{
                 margin-top: auto;
                 text-align: center;
-                padding-bottom: 20px;
+                padding-bottom: 35px; /* Más espacio al final */
+                border-top: 1px solid #F2F2F7;
+                padding-top: 15px;
             }}
             
             [data-testid="stSidebarHeader"] {{ display: none; }}
         </style>
     """, unsafe_allow_html=True)
 
-    # HEADER CLIENTE (CENTRADO)
+    # CARD SUPERIOR (Sin márgenes arriba)
     if logo_b64:
         img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
         src_logo = f"data:image/png;base64,{img_data}"
@@ -600,31 +587,29 @@ with st.sidebar:
         <div class="client-brand-card">
             <img src="{src_logo}" class="client-logo-img">
             <div style="font-family: sans-serif; line-height: 1.2;">
-                <b style="font-size:12px; color:#1D1D1F;">{biz_name}</b>
-                <div style="font-size:9px; color:#86868B; margin-top:4px;">
+                <b style="font-size:13px; color:#1D1D1F;">{biz_name}</b>
+                <div style="font-size:10px; color:#86868B; margin-top:5px;">
                     <p style="margin:0;">RNC: {biz_rnc}</p>
                     <p style="margin:0;">📞 {biz_tel}</p>
-                    <hr style='border:0; border-top:1px solid #F2F2F7; margin:6px 0;'>
-                    <p style='color:#1D1D1F; font-weight:600;'>{u_email}</p>
+                    <p style='color:#1D1D1F; font-weight:600; margin-top:5px;'>{u_email}</p>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # NAVEGACIÓN (UNIFICADA PARA EVITAR NAMEERROR)
+    # NAVEGACIÓN
     opciones = ["Panel de Control", "Gestión de Cobros", "Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     
     mapeo_visual = {
-        "Panel de Control": "🏠 Panel de Control",
-        "Gestión de Cobros": "💰 Gestión de Cobros",
+        "Panel de Control": "🏠 Panel",
+        "Gestión de Cobros": "💰 Cobros",
         "Todos mis Clientes": "👥 Mis Clientes",
         "Nueva Cuenta por Cobrar": "➕ Nueva CxC",
-        "Cuentas por Pagar": "📉 Cuentas por Pagar",
-        "IA Predictiva": "🧠 IA Predictiva",
-        "Configuración": "⚙️ Configuración"
+        "Cuentas por Pagar": "📉 CxP",
+        "IA Predictiva": "🧠 IA",
+        "Configuración": "⚙️ Ajustes"
     }
 
-    # Definir el menú una sola vez
     menu = st.sidebar.radio(
         "NAV",
         opciones,
@@ -634,13 +619,15 @@ with st.sidebar:
     )
     st.session_state.menu_principal = menu
 
-    # FOOTER
+    # FOOTER POWERED BY (Con espacio extra)
     st.sidebar.markdown(f"""
         <div class="absolute-footer">
-            <p style='font-size: 0.55rem; color: #86868B; margin: 0; font-weight: 700; letter-spacing: 0.5px;'>
+            <p style='font-size: 0.6rem; color: #86868B; margin: 0; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase;'>
                 POWERED BY LIXANDER GARCÍA
             </p>
-            <img src="{URL_LOGO_COBROYA}" style="width:100px; margin-top:5px;" onerror="this.style.display='none'">
+            <div style="margin-top: 10px;">
+                <img src="{URL_LOGO_COBROYA}" style="width:90px;" onerror="this.style.display='none'">
+            </div>
         </div>
     """, unsafe_allow_html=True)
 
