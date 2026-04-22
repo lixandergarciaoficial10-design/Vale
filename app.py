@@ -1825,110 +1825,109 @@ if menu == "👥 Todos mis Clientes":
 # --- CAMBIO DE SECCIÓN (FUERA DEL BUCLE) ---
 # --- SECCIÓN: CUENTAS POR PAGAR (MODO INTELIGENTE) ---
 elif menu == "Cuentas por Pagar":
-    st.header("🏧 Gestión de Compromisos y Gastos")
+    st.header("🏧 Tablero de Compromisos")
 
-    # --- 1. FORMULARIO DE REGISTRO DETALLADO ---
-    with st.expander("🚀 Registrar Nuevo Gasto o Pago Fijo", expanded=True):
+    # --- BLOQUE 1: REGISTRO INTELIGENTE ---
+    with st.expander("📝 Registrar Nuevo Gasto / o compromiso", expanded=True):
         with st.form("form_gastos_premium", clear_on_submit=True):
             col_1, col_2 = st.columns([2, 1])
-            desc = col_1.text_input("Concepto del gasto", placeholder="Ej: Pago de Internet, Local, etc.")
+            concepto = col_1.text_input("¿Qué estás pagando?", placeholder="Ej: Internet del local")
             monto = col_2.number_input("Monto RD$", min_value=0.0, step=100.0)
             
             st.markdown("---")
             
-            # Switch principal de inteligencia
-            es_recurrente = st.toggle("🔄 ¿Es un gasto fijo mensual?", help="Activa esto para suplidores o facturas fijas")
+            # El switch que lo cambia todo
+            es_fijo = st.toggle("🔄 ¿Es un gasto fijo de todos los meses?", help="Activa esto para facturas de luz, internet, alquiler o sueldos.")
             
-            if es_recurrente:
-                # Se activan campos específicos para el dueño
-                st.warning("📋 Detalle del Compromiso Mensual")
+            if es_fijo:
                 c_sup, c_dia = st.columns(2)
-                suplidor = c_sup.text_input("¿A quién se le debe? (Suplidor)", placeholder="Ej: Claro, EDEESTE, Propietario...")
-                dia_pago = c_dia.slider("Día de pago cada mes", 1, 31, 15)
-                # Creamos una fecha para el mes actual basada en ese día
+                suplidor = c_sup.text_input("Nombre del Suplidor / Persona", placeholder="Ej: Claro, Edenorte, Juan Perez...")
+                dia_pago = c_dia.select_slider("Día de pago cada mes", options=list(range(1, 32)), value=15)
+                # Cálculo de fecha automática
                 from datetime import date
                 try:
-                    fecha_vencimiento = date(date.today().year, date.today().month, dia_pago)
-                except: # Por si eligen 31 en un mes de 30
-                    fecha_vencimiento = date(date.today().year, date.today().month, 28)
+                    fecha_final = date(date.today().year, date.today().month, dia_pago)
+                except: fecha_final = date(date.today().year, date.today().month, 28)
             else:
-                # Gasto simple o deuda única
-                c_alerta, c_fecha = st.columns(2)
-                activar_aviso = c_alerta.checkbox("🔔 Programar recordatorio de pago único")
+                c_alert, c_date = st.columns(2)
+                usa_fecha = c_alert.checkbox("Avisarme en una fecha específica")
                 suplidor = "Gasto General"
                 dia_pago = None
-                fecha_vencimiento = c_fecha.date_input("Fecha de pago") if activar_aviso else None
+                fecha_final = c_date.date_input("Fecha de compromiso") if usa_fecha else None
 
             if st.form_submit_button("Guardar Compromiso", use_container_width=True, type="primary"):
-                if desc and monto > 0:
-                    data_insert = {
-                        "descripcion": desc,
+                if concepto and monto > 0:
+                    conn.table("gastos").insert({
+                        "descripcion": concepto,
                         "monto": monto,
                         "user_id": u_id,
                         "nombre_suplidor": suplidor,
-                        "es_recurrente": es_recurrente,
+                        "es_recurrente": es_fijo,
                         "dia_pago_mensual": dia_pago,
-                        "fecha_gasto": str(fecha_vencimiento) if fecha_vencimiento else None,
+                        "fecha_gasto": str(fecha_final) if fecha_final else None,
                         "estado": "Pendiente",
                         "visible_usuario": True
-                    }
-                    conn.table("gastos").insert(data_insert).execute()
-                    st.success(f"✅ Registrado: {desc} para {suplidor}")
+                    }).execute()
+                    st.toast(f"✅ {concepto} guardado correctamente")
                     st.rerun()
 
+    # --- BLOQUE 2: SEMÁFORO DE ALERTAS ---
     st.divider()
-
-    # --- 2. VISTA DE CONTROL ---
-    ver_pagados = st.toggle("Ver historial de Pagados")
     
-    query = conn.table("gastos").select("*").eq("user_id", u_id).eq("visible_usuario", True)
-    query = query.eq("estado", "Pagado" if ver_pagados else "Pendiente")
-    res = query.execute()
+    # Filtro rápido para no abrumar al usuario
+    col_t1, col_t2 = st.columns([3, 1])
+    ver_historico = col_t2.toggle("Ver Pagados")
+    
+    # Consulta de datos
+    res_gastos = conn.table("gastos").select("*").eq("user_id", u_id).eq("visible_usuario", True).eq("estado", "Pagado" if ver_historico else "Pendiente").order("fecha_gasto").execute()
 
-    if res.data:
+    if res_gastos.data:
         from datetime import datetime, date
         hoy = date.today()
 
-        for g in res.data:
+        for g in res_gastos.data:
+            # Lógica de color de la tarjeta
+            status_color = "white"
+            dias_dif = None
+            
+            if g.get('fecha_gasto'):
+                f_v = datetime.strptime(g['fecha_gasto'][:10], "%Y-%m-%d").date()
+                dias_dif = (f_v - hoy).days
+            
+            # Dibujamos la tarjeta (UI Bacana)
             with st.container(border=True):
-                col_det, col_aviso, col_opc = st.columns([1.5, 1, 1])
+                c_info, c_status, c_actions = st.columns([1.5, 1, 1])
                 
-                with col_det:
-                    st.markdown(f"### {g['descripcion']}")
-                    st.markdown(f"👤 **Suplidor:** {g.get('nombre_suplidor', 'N/A')}")
-                    st.markdown(f"💰 **RD$ {float(g['monto']):,.2f}**")
-                    if g['es_recurrente']:
-                        st.caption(f"🔄 Se paga los días {g['dia_pago_mensual']} de cada mes")
-
-                with col_aviso:
-                    if g.get('fecha_gasto'):
-                        f_v = datetime.strptime(g['fecha_gasto'][:10], "%Y-%m-%d").date()
-                        dif = (f_v - hoy).days
-                        
-                        if g['estado'] == "Pagado":
-                            st.success("✅ PAGADO")
-                        elif dif < 0:
-                            st.error(f"🚨 VENCIDO\n({abs(dif)} días de atraso)")
-                        elif dif <= 3:
-                            st.warning(f"⏰ ¡VENCE EN {dif} DÍAS!")
+                with c_info:
+                    st.subheader(f"{g['descripcion']}")
+                    st.write(f"🤝 **Suplidor:** {g['nombre_suplidor']}")
+                    st.write(f"💰 **RD$ {float(g['monto']):,.2f}**")
+                
+                with c_status:
+                    if g['estado'] == "Pagado":
+                        st.success("✅ PAGADO")
+                    elif dias_dif is not None:
+                        if dias_dif < 0:
+                            st.error(f"🚨 ATRASADO\n({abs(dias_dif)} días)")
+                        elif dias_dif <= 3:
+                            st.warning(f"⏰ VENCE EN {dias_dif} DÍAS")
                         else:
-                            st.info(f"⏳ Vence el: {f_v.strftime('%d/%b')}")
+                            st.info(f"⏳ Vence: {f_v.strftime('%d/%m')}")
                     else:
-                        st.write("⚪ Gasto sin fecha límite")
-
-                with col_opc:
+                        st.write("⚪ Gasto Simple")
+                
+                with c_actions:
                     st.write("") # Espaciador
                     if g['estado'] == "Pendiente":
-                        if st.button("💵 Marcar Pagado", key=f"p_{g['id']}", use_container_width=True):
+                        if st.button("💵 Pagué esto", key=f"pay_{g['id']}", use_container_width=True):
                             conn.table("gastos").update({"estado": "Pagado"}).eq("id", g['id']).execute()
                             st.rerun()
                     
-                    if st.button("🗑️ Ocultar", key=f"h_{g['id']}", use_container_width=True):
+                    if st.button("🗑️ Ocultar", key=f"hide_{g['id']}", use_container_width=True, help="Lo quita de tu vista pero se queda en tu historial"):
                         conn.table("gastos").update({"visible_usuario": False}).eq("id", g['id']).execute()
                         st.rerun()
     else:
-        st.info("No hay compromisos pendientes en esta lista.")
-
+        st.info("No hay nada pendiente por aquí. ¡Felicidades!")
 
 elif menu == "IA Predictiva":
     # ---------------------------------------------------------
