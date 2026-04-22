@@ -510,16 +510,15 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- CSS CORREGIDO: Logo al techo y nombres con espacio ---
+# --- CSS CORREGIDO ---
     st.markdown(f"""
         <style>
-            /* 1. MANEJO DEL SIDEBAR Y EXPANSIÓN */
+            /* 1. EXPANSIÓN Y SIDEBAR */
             [data-testid="stSidebar"][aria-expanded="true"] {{
-                min-width: 290px !important; /* Un poco más de ancho para los nombres */
-                max-width: 290px !important;
+                min-width: 300px !important; /* Un poco más ancho para que los nombres no sufran */
+                max-width: 300px !important;
                 background-color: #FBFBFD !important;
             }}
-
             [data-testid="stSidebar"][aria-expanded="false"] {{
                 min-width: 0px !important;
                 max-width: 0px !important;
@@ -531,7 +530,6 @@ with st.sidebar:
                 padding: 0px !important;
                 background-color: transparent !important;
             }}
-            
             button[data-testid="stSidebarCollapseButton"] {{
                 background-color: #1D1D1F !important;
                 color: white !important;
@@ -540,18 +538,18 @@ with st.sidebar:
                 z-index: 100000 !important;
             }}
 
-            /* 3. PEGAR LOGO AL TECHO ABSOLUTO */
+            /* 3. LOGO AL TECHO ABSOLUTO */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
-                margin-top: -35px !important; /* Subimos el logo para que toque el borde */
+                margin-top: -50px !important; /* Subida agresiva para tocar el borde */
             }}
 
             .client-brand-card {{
                 text-align: center; 
-                padding: 15px 15px; /* Menos padding arriba para pegar el logo */
+                padding: 10px 15px; 
                 background: white;
                 border-bottom: 1px solid #E5E5EA;
-                margin-bottom: 25px;
+                margin-bottom: 20px;
             }}
             
             .client-logo-img {{
@@ -560,39 +558,27 @@ with st.sidebar:
                 object-fit: contain;
             }}
 
-            /* 4. MÓDULOS (Nombres con espacio y sin recortes) */
+            /* 4. MÓDULOS SIN RECORTES */
             div[role="radiogroup"] {{
-                gap: 15px !important; /* Más espacio entre botones */
-                padding-left: 12px !important;
+                gap: 12px !important;
+                padding-left: 10px !important;
             }}
-            
             div[role="radio"] p {{ 
                 font-size: 15px !important; 
                 white-space: nowrap !important;
                 color: #1D1D1F !important;
                 font-weight: 500;
-                overflow: visible !important;
-                padding: 5px 0; /* Espacio extra individual */
+                padding: 6px 0 !important;
             }}
 
-            /* 5. AJUSTE DE PANTALLA PRINCIPAL */
             [data-testid="stAppViewBlockContainer"] {{
                 max-width: 100% !important;
             }}
-
-            /* 6. FOOTER */
-            .absolute-footer {{
-                margin-top: auto;
-                text-align: center;
-                padding: 40px 10px;
-                border-top: 1px solid #F2F2F7;
-            }}
         </style>
     """, unsafe_allow_html=True)
-    
+
     # --- 3. CONTENIDO DEL SIDEBAR ---
 
-    # HEADER PEGADO ARRIBA
     st.sidebar.markdown(f"""
         <div class="client-brand-card">
             <img src="{src_logo}" class="client-logo-img">
@@ -607,36 +593,40 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # NAVEGACIÓN (NOMBRES COMPLETOS - SIN RECORTES)
+    # NAVEGACIÓN (Sincronizada con tus ELIF)
     opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     
     mapeo_visual = {
         "Panel de Control": "🏠 Panel de Control",
         "Gestión de Cobros": "💰 Gestión de Cobros",
-        "👥 Todos mis Clientes": "👥 Todos mis Clientes", # Clave exacta
+        "👥 Todos mis Clientes": "👥 Todos mis Clientes",
         "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
         "Cuentas por Pagar": "📉 Cuentas por Pagar",
         "IA Predictiva": "🧠 IA Predictiva",
         "Configuración": "⚙️ Configuración"
     }
 
+    # ARREGLO DEL VALUE ERROR: Validación de seguridad
+    menu_actual = st.session_state.get('menu_principal', "Panel de Control")
+    idx_seguro = opciones.index(menu_actual) if menu_actual in opciones else 0
+
     menu = st.sidebar.radio(
         "NAV",
         opciones,
-        index=opciones.index(st.session_state.get('menu_principal', "Panel de Control")),
+        index=idx_seguro,
         format_func=lambda x: mapeo_visual.get(x, x),
         label_visibility="collapsed"
     )
     st.session_state.menu_principal = menu
 
-    # FOOTER DESPEGADO
+    # FOOTER
     st.sidebar.markdown(f"""
         <div class="absolute-footer">
             <p style='font-size: 0.65rem; color: #86868B; margin: 0; font-weight: 700; letter-spacing: 1px;'>
                 POWERED BY LIXANDER GARCÍA
             </p>
             <div style="margin-top: 15px;">
-                <img src="{URL_LOGO_COBROYA}" style="width:110px;" onerror="this.style.display='none'">
+                <img src="{URL_LOGO_COBROYA}" style="width:110px;">
             </div>
         </div>
     """, unsafe_allow_html=True)
