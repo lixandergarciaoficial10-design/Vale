@@ -500,7 +500,7 @@ with st.sidebar:
     logo_b64 = st.session_state.get("mi_logo")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-    # --- CSS TOTAL (Ancho 225px, Botón a la izquierda, Sin recortes) ---
+# --- CSS TOTAL (Ancho 225px, Botón a la izquierda, Sin recortes) ---
     st.markdown(f"""
         <style>
             /* 1. ANCHO FIJO DE 225PX */
@@ -531,7 +531,7 @@ with st.sidebar:
                 height: 98vh !important;
             }}
 
-            /* Card del Cliente (Ajustada para 200px) */
+            /* Card del Cliente (Ajustada para 225px) */
             .client-brand-card {{
                 text-align: center;
                 padding: 12px 8px;
@@ -549,26 +549,43 @@ with st.sidebar:
                 margin-bottom: 5px;
             }}
             
-            /* Estilo Menú Radio (NOMBRES COMPLETOS) */
+            /* Estilo Menú Radio (CENTRADOS) */
             div[data-testid="stRadio"] > label {{ display: none !important; }}
+            div[role="radiogroup"] {{
+                display: flex;
+                flex-direction: column;
+                align-items: center; /* Centra los botones de radio horizontalmente */
+            }}
             div[role="radio"] {{ 
                 padding: 6px 12px !important; 
                 border-radius: 10px !important; 
-                white-space: nowrap !important; /* Evita que el nombre salte de línea */
+                white-space: nowrap !important;
+                width: 90% !important; /* Ajuste para que el fondo gris se vea parejo */
+                display: flex;
+                justify-content: center; /* Centra el contenido interno del botón */
             }}
             div[role="radio"][aria-checked="true"] {{ background-color: #E8E8ED !important; }}
             div[role="radio"] p {{ 
                 font-size: 13px !important; 
                 color: #48484A !important; 
-                overflow: visible !important; 
+                overflow: visible !important;
+                text-align: center !important; /* Centra el texto del nombre */
             }}
 
-            /* Botón Salir */
+            /* Botón Salir (CENTRADO) */
+            .stButton {{
+                display: flex;
+                justify-content: center;
+            }}
             .stButton > button {{
-                width: 100% !important;
-                border-radius: 5px !important;
+                width: 90% !important;
+                border-radius: 10px !important;
                 color: #FF3B30 !important;
                 border: 1px solid #FF3B3022 !important;
+                transition: 0.2s;
+            }}
+            .stButton > button:hover {{
+                background-color: #FF3B3011 !important;
             }}
 
             /* Footer Power By */
