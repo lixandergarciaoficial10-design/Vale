@@ -462,241 +462,78 @@ def obtener_prioridad(dias, balance, impagos=0):
     score = (dias * 0.5) + ((balance / 1000) * 0.3) + (impagos * 0.2)
     return score
 
-# --- 4. NAVEGACIÓN ---
-# --- 1. CARGA DE DATOS DESDE SUPABASE (Nombres Reales) ---
+# --- 1. CARGA DE DATOS DESDE SUPABASE ---
 if "user" in st.session_state and st.session_state.user:
     if "datos_validados" not in st.session_state:
         try:
-            # Según tu imagen, la columna es 'user_id'
             res = conn.table("configuracion").select("*").eq("user_id", st.session_state.user.id).execute()
-            
             if res.data:
                 conf = res.data[0]
-                # Ajustamos los nombres exactos de tu Table Editor
                 st.session_state["nombre_negocio"] = conf.get("nombre_negocio", "Mi Negocio")
                 st.session_state["rnc"] = conf.get("rnc", "---")
                 st.session_state["telefono_negocio"] = conf.get("telefono", "---")
                 st.session_state["direccion_negocio"] = conf.get("direccion", "---")
-                st.session_state["mi_logo"] = conf.get("logo_base64") # Asegúrate que esta columna exista o ignórala
-                
+                st.session_state["mi_logo"] = conf.get("logo_base64")
                 st.session_state["datos_validados"] = True
-                st.rerun()
+                st.rerun() # Solo corre una vez al validar
         except Exception as e:
             st.error(f"Error técnico: {e}")
-            
-# --- 2. SIDEBAR ULTRA-PROFESIONAL (ESTILO APPLE DEFINITIVO) ---
+
+# --- 2. SIDEBAR ÚNICO (ESTILO APPLE DEFINITIVO) ---
 with st.sidebar:
     import base64
     import os
-    
-    # 1. RECUPERACIÓN DE DATOS (Lógica intacta)
+
+    # Recuperación de datos
     biz_name = st.session_state.get("nombre_negocio", "SIN NOMBRE").upper()
     biz_rnc  = st.session_state.get("rnc", "---")
     biz_dir  = st.session_state.get("direccion_negocio", "---")
     biz_tel  = st.session_state.get("telefono_negocio", "---")
     logo_b64 = st.session_state.get("mi_logo")
-    u_email = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
+    u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-    # --- CSS MÁGICO PARA RÉPLICA APPLE Y OCULTAR RADIO BUTTONS ---
+    # --- CSS ÚNICO (Limpiado y corregido) ---
     st.markdown("""
         <style>
-            /* Fondo general del sidebar */
-            [data-testid="stSidebar"] {
-                background-color: #FBFBFD !important;
-                border-right: 1px solid #E5E5EA;
-            }
+            [data-testid="stSidebar"] { background-color: #FBFBFD !important; border-right: 1px solid #E5E5EA; }
             [data-testid="stSidebarHeader"] { display: none; }
 
-            /* Tarjeta principal de Perfil */
-            .apple-profile-card {
-                display: flex;
-                align-items: center;
-                padding: 12px;
-                background: #FFFFFF;
-                border-radius: 16px;
-                border: 1px solid #E5E5EA;
-                box-shadow: 0 4px 14px rgba(0,0,0,0.03);
-                margin-top: 15px;
-                margin-bottom: 8px;
-            }
-            .apple-logo {
-                width: 46px;
-                height: 46px;
-                border-radius: 12px;
-                object-fit: cover;
-                margin-right: 12px;
-                border: 1px solid #F2F2F7;
-            }
-            .apple-biz-info h3 {
-                margin: 0;
-                font-size: 14px;
-                font-weight: 700;
-                color: #1D1D1F;
-                font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-            .apple-biz-info p {
-                margin: 0;
-                font-size: 12px;
-                color: #86868B;
-                font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-            }
-
-            /* --- CONVERSIÓN DE RADIO A MENÚ APPLE --- */
-            div[data-testid="stRadio"] > label { display: none !important; }
-            .st-emotion-cache-1vq4pqi, .st-emotion-cache-1210z75, .st-emotion-cache-8zep4i, .st-emotion-cache-1y2tuv6 { display: none !important; }
-            div[role="radiogroup"] { gap: 4px; }
-            div[role="radio"] {
-                padding: 10px 12px !important;
-                border-radius: 10px !important;
-                transition: all 0.2s ease !important;
-                background-color: transparent;
-                cursor: pointer;
-            }
-            div[role="radio"]:hover { background-color: #F2F2F7 !important; }
-            div[role="radio"][aria-checked="true"] { background-color: #E8E8ED !important; }
-            div[role="radio"][aria-checked="true"] p { font-weight: 600 !important; color: #1D1D1F !important; }
-            div[role="radio"] p {
-                font-size: 14.5px !important;
-                font-family: -apple-system, BlinkMacSystemFont, sans-serif !important;
-                color: #48484A !important;
-                margin: 0 !important;
-            }
-
-            /* Botón Salir */
-            .stButton > button {
-                border-radius: 12px !important;
-                border: 1px solid #E5E5EA !important;
-                background-color: #FFFFFF !important;
-                color: #FF3B30 !important;
-                font-weight: 500 !important;
-                font-family: -apple-system, sans-serif !important;
-                transition: all 0.2s !important;
-                margin-top: 10px;
-            }
-            .stButton > button:hover { background-color: #FFF0F0 !important; border-color: #FF3B30 !important; }
-
-            /* Footer Branding Logo */
-            .sidebar-footer { margin-top: auto; text-align: center; padding: 20px 0 10px 0; border-top: 1px solid #E5E5EA; display: flex; justify-content: center;}
-            .footer-logo { width: 140px; object-fit: contain; opacity: 0.9; }
-            
-            /* Expander Intuitivo */
-            .st-emotion-cache-p5msec { background-color: transparent !important; border: none !important;}
-        </style>
-    """, unsafe_allow_html=True)
-
-    # --- 2. HEADER: TARJETA DE PERFIL ---
-    src_logo = f"data:image/png;base64,{logo_b64.split(',')[1] if ',' in str(logo_b64) else logo_b64}" if logo_b64 else "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-    
-    st.markdown(f"""
-        <div class="apple-profile-card">
-            <img src="{src_logo}" class="apple-logo">
-            <div class="apple-biz-info">
-                <h3>{biz_name}</h3>
-                <p>{u_email}</p>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-# --- 2. SIDEBAR ULTRA-PROFESIONAL (ESTILO APPLE DEFINITIVO Y CORREGIDO) ---
-with st.sidebar:
-    import base64
-    import os
-    
-    # 1. RECUPERACIÓN DE DATOS (Lógica intacta)
-    biz_name = st.session_state.get("nombre_negocio", "SIN NOMBRE").upper()
-    biz_rnc  = st.session_state.get("rnc", "---")
-    biz_dir  = st.session_state.get("direccion_negocio", "---")
-    biz_tel  = st.session_state.get("telefono_negocio", "---")
-    logo_b64 = st.session_state.get("mi_logo")
-    u_email = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
-
-# --- CSS MÁGICO PARA RÉPLICA APPLE ---
-    st.markdown("""
-        <style>
-            [data-testid="stSidebar"] {
-                background-color: #FBFBFD !important;
-                border-right: 1px solid #E5E5EA;
-            }
-            [data-testid="stSidebarHeader"] { display: none; }
-
-            /* Contenedor principal de marca */
             .apple-brand-section {
-                text-align: center;
-                padding: 20px 10px;
-                background: #FFFFFF;
-                border-radius: 20px;
-                border: 1px solid #E5E5EA;
-                margin-bottom: 15px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+                text-align: center; padding: 20px 10px; background: #FFFFFF;
+                border-radius: 20px; border: 1px solid #E5E5EA;
+                margin-bottom: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.02);
             }
             .apple-logo {
-                width: 70px;
-                height: 70px;
-                border-radius: 14px;
-                object-fit: cover;
-                margin-bottom: 12px;
-                border: 1px solid #F2F2F7;
+                width: 80px; height: 80px; border-radius: 16px;
+                object-fit: cover; margin-bottom: 12px; border: 1px solid #F2F2F7;
             }
-            .apple-biz-info h3 {
-                margin: 0; font-size: 15px; font-weight: 700; color: #1D1D1F;
-                font-family: -apple-system, sans-serif;
-            }
-            .apple-biz-details {
-                margin-top: 8px;
-                font-size: 11px;
-                color: #86868B;
-                line-height: 1.4;
-                font-family: -apple-system, sans-serif;
-            }
+            .apple-biz-info h3 { margin: 0; font-size: 15px; font-weight: 700; color: #1D1D1F; font-family: -apple-system, sans-serif; }
+            .apple-biz-details { margin-top: 8px; font-size: 11px; color: #86868B; line-height: 1.4; font-family: -apple-system, sans-serif; }
 
-            /* CSS para Menú Apple */
+            /* Estilo para el Radio Menú */
             div[data-testid="stRadio"] > label { display: none !important; }
-            .st-emotion-cache-1vq4pqi, .st-emotion-cache-1210z75, .st-emotion-cache-8zep4i, .st-emotion-cache-1y2tuv6 { display: none !important; }
             div[role="radiogroup"] { gap: 4px; }
             div[role="radio"] {
-                padding: 10px 12px !important;
-                border-radius: 10px !important;
-                transition: all 0.2s ease !important;
-                background-color: transparent;
-                cursor: pointer;
+                padding: 10px 12px !important; border-radius: 10px !important;
+                transition: 0.2s; background-color: transparent; cursor: pointer;
             }
             div[role="radio"]:hover { background-color: #F2F2F7 !important; }
             div[role="radio"][aria-checked="true"] { background-color: #E8E8ED !important; }
+            div[role="radio"] p { font-size: 14.5px !important; color: #48484A !important; margin: 0 !important; }
             div[role="radio"][aria-checked="true"] p { font-weight: 600 !important; color: #1D1D1F !important; }
-            div[role="radio"] p {
-                font-size: 14.5px !important;
-                font-family: -apple-system, sans-serif !important;
-                color: #48484A !important; margin: 0 !important;
-            }
-
-            /* Botón Salir */
-            .stButton > button {
-                border-radius: 12px !important; border: 1px solid #E5E5EA !important;
-                background-color: #FFFFFF !important; color: #FF3B30 !important;
-                font-weight: 500 !important; font-family: -apple-system, sans-serif !important;
-                transition: all 0.2s !important; margin-top: 10px;
-            }
-            .stButton > button:hover { background-color: #FFF0F0 !important; border-color: #FF3B30 !important; }
-
-            /* Footer Branding Logo */
-            .sidebar-footer { 
-                margin-top: auto; 
-                text-align: center; 
-                padding: 20px 0 10px 0; 
-                border-top: 1px solid #E5E5EA; 
-                display: flex; 
-                flex-direction: column;
-                align-items: center;
-            }
-            .footer-logo { width: 130px; object-fit: contain; margin-top: 8px; }
+            
+            /* Ocultar elementos nativos de Streamlit que ensucian */
+            .st-emotion-cache-1vq4pqi, .st-emotion-cache-1210z75, .st-emotion-cache-8zep4i, .st-emotion-cache-1y2tuv6 { display: none !important; }
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 2. HEADER ESTÁTICO (IDENTIDAD COMPLETA) ---
-    src_logo = f"data:image/png;base64,{logo_b64.split(',')[1] if ',' in str(logo_b64) else logo_b64}" if logo_b64 else "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+    # --- HEADER: IDENTIDAD ---
+    # Procesar logo
+    if logo_b64:
+        img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
+        src_logo = f"data:image/png;base64,{img_data}"
+    else:
+        src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
     
     st.markdown(f"""
         <div class="apple-brand-section">
@@ -704,9 +541,9 @@ with st.sidebar:
             <div class="apple-biz-info">
                 <h3>{biz_name}</h3>
                 <div class="apple-biz-details">
-                    <p style='margin:2px 0;'>RNC: {biz_rnc}</p>
-                    <p style='margin:2px 0;'>📍 {biz_dir}</p>
-                    <p style='margin:2px 0;'>📞 {biz_tel}</p>
+                    <p>RNC: {biz_rnc}</p>
+                    <p>📍 {biz_dir}</p>
+                    <p>📞 {biz_tel}</p>
                     <hr style='border:0; border-top:1px solid #F2F2F7; margin:8px 0;'>
                     <p style='color:#1D1D1F; font-weight:500;'>{u_email}</p>
                 </div>
@@ -714,18 +551,12 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # --- 4. MENÚ DE NAVEGACIÓN (LÓGICA PROTEGIDA) ---
+    # --- NAVEGACIÓN ---
     opciones_limpias = [
-        "Panel de Control", 
-        "Gestión de Cobros", 
-        "Todos mis Clientes", 
-        "Nueva Cuenta por Cobrar", 
-        "Cuentas por Pagar", 
-        "IA Predictiva", 
-        "Configuración"
+        "Panel de Control", "Gestión de Cobros", "Todos mis Clientes", 
+        "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"
     ]
     
-    # Iconos exactos según la imagen #1
     diccionario_iconos = {
         "Panel de Control": "🏠 Panel de Control",
         "Gestión de Cobros": "💰 Gestión de Cobros",
@@ -739,15 +570,23 @@ with st.sidebar:
     menu = st.radio(
         "NAVEGACIÓN", 
         opciones_limpias, 
-        format_func=lambda opcion: diccionario_iconos[opcion],
+        format_func=lambda x: diccionario_iconos[x],
         label_visibility="collapsed"
     )
 
-    # --- 5. BOTÓN DE SALIDA ---
+    # --- BOTÓN SALIR Y FOOTER ---
+    st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🚪 Salir del Sistema", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
+    # Footer
+    st.markdown(f"""
+        <div style='text-align:center; margin-top:20px; padding-top:10px; border-top:1px solid #E5E5EA;'>
+            <p style='font-size:0.6rem; color:#86868B; letter-spacing:1px;'>COBROYA BY LIXANDER</p>
+        </div>
+    """, unsafe_allow_html=True)
+    
     # --- 6. FOOTER BRANDING (LOGO COBROYA LIMPIO) ---
     ruta_logo_cobroya = "logo_cobroya.png" # Recuerda tener el logo sin el texto de arriba
     
