@@ -1977,44 +1977,117 @@ elif menu == "Cuentas por Pagar":
             st.text(f"🕒 {hora} | {g['descripcion']} - RD$ {g['monto']:,.0f}")
 
     # --- PESTAÑA 2: COMPROMISOS ---
+# --- PESTAÑA 2: COMPROMISOS ---
     with t2:
-        with st.form("f_plan", clear_on_submit=True):
-            st.markdown("### Nuevo Compromiso Programado")
-            cp1, cp2 = st.columns([2, 1])
-            conc_p = cp1.text_input("Concepto")
-            mon_p = cp2.number_input("Monto RD$ ", min_value=0.0)
-            cp3, cp4 = st.columns(2)
-            sup_p = cp3.text_input("Suplidor")
-            sec_p = cp4.selectbox("Categoría", ["Servicios", "Alquiler", "Sueldos", "Mantenimiento", "Otros"])
-            f_venc = st.date_input("Fecha límite", value=hoy)
-            
-            if st.form_submit_button("📋 GUARDAR COMPROMISO", use_container_width=True):
-                if conc_p and mon_p > 0:
-                    res_p = conn.table("gastos").insert({
-                        "descripcion": conc_p, "monto": mon_p, "user_id": u_id,
-                        "estado": "Pendiente", "nombre_suplidor": sup_p if sup_p else "General",
-                        "sector": sec_p, "fecha_gasto": str(f_venc), "visible_usuario": True
-                    }).execute()
-                    if res_p.data: modal_decision_pago(res_p.data[0]['id'], conc_p)
+        # 1. MÉTRICA SUPERIOR ESTILO APPLE
+        total_pendientes_monto = sum(g["monto"] for g in compromisos_pendientes)
+        st.markdown(f"""
+            <div style='background-color:#1E1E1E; padding:15px; border-radius:12px; border: 1px solid #333; margin-bottom:20px;'>
+                <p style='color:#8E8E93; margin:0; font-size:0.8rem;'>TOTAL PENDIENTE</p>
+                <h2 style='color:#FFFFFF; margin:0;'>RD$ {total_pendientes_monto:,.2f}</h2>
+                <p style='color:#FF9F0A; margin:0; font-size:0.7rem;'>{len(compromisos_pendientes)} compromisos activos</p>
+            </div>
+        """, unsafe_allow_html=True)
+
+        # --- FUNCIONES DE EDICIÓN Y BORRADO (MODALES) ---
+        @st.dialog("📝 Editar Compromiso")
+        def editar_compromiso(gasto):
+            with st.form("edit_form"):
+                n_desc = st.text_input("Concepto", value=gasto['descripcion'])
+                n_monto = st.number_input("Monto RD$", value=float(gasto['monto']))
+                n_sup = st.text_input("Suplidor", value=gasto.get('nombre_suplidor', ''))
+                n_fec = st.date_input("Vencimiento", value=datetime.strptime(gasto['fecha_gasto'][:10], "%Y-%m-%d") if gasto.get('fecha_gasto') else hoy)
+                n_rec = st.checkbox("¿Es recurrente mensual?", value=gasto.get('es_recurrente', False))
+                
+                st.caption("Al guardar, se actualizarán los datos del compromiso.")
+                if st.form_submit_button("Guardar Cambios", use_container_width=True):
+                    conn.table("gastos").update({
+                        "descripcion": n_desc, "monto": n_monto, 
+                        "nombre_suplidor": n_sup, "fecha_gasto": str(n_fec),
+                        "es_recurrente": n_rec
+                    }).eq("id", gasto['id']).execute()
+                    st.rerun()
+
+        @st.dialog("🗑️ Eliminar")
+        def eliminar_compromiso(gasto_id, desc):
+            st.write(f"¿Seguro que quieres eliminar **{desc}**?")
+            st.caption("Esta acción quitará el pendiente de tu lista.")
+            if st.button("Sí, eliminar ahora", type="primary", use_container_width=True):
+                conn.table("gastos").update({"visible_usuario": False}).eq("id", gasto_id).execute()
+                st.rerun()
+
+        # --- FORMULARIO DE REGISTRO ---
+        with st.expander("➕ Programar Nuevo Pago", expanded=False):
+            with st.form("f_plan_new", clear_on_submit=True):
+                c1, c2 = st.columns([2, 1])
+                conc = c1.text_input("¿Qué hay que pagar?")
+                mon = c2.number_input("Monto RD$", min_value=0.0)
+                c3, c4 = st.columns(2)
+                sup = c3.text_input("Suplidor")
+                fec = c4.date_input("Fecha límite", value=hoy)
+                rec = st.checkbox("Hacer este gasto recurrente (Todos los meses)")
+                
+                if st.form_submit_button("Guardar Compromiso", use_container_width=True):
+                    if conc and mon > 0:
+                        res = conn.table("gastos").insert({
+                            "descripcion": conc, "monto": mon, "user_id": u_id,
+                            "estado": "Pendiente", "nombre_suplidor": sup if sup else "General",
+                            "sector": "Programado", "fecha_gasto": str(fec), 
+                            "es_recurrente": rec, "visible_usuario": True
+                        }).execute()
+                        if res.data: modal_decision_pago(res.data[0]['id'], conc)
 
         st.markdown("---")
-        st.subheader("Pendientes de Pago")
+
+        # --- LISTADO DE PENDIENTES ---
         if not compromisos_pendientes:
-            st.info("✅ Todo al día. No tienes compromisos pendientes.")
+            st.info("✅ Todo al día.")
         else:
             for g in compromisos_pendientes:
                 with st.container(border=True):
-                    c_i, c_m, c_a = st.columns([2, 1, 1])
-                    c_i.markdown(f"**{g['descripcion']}**")
-                    c_i.caption(f"🏢 {g['nombre_suplidor']} | 📅 Vence: {g['fecha_gasto'][:10]}")
-                    c_m.markdown(f"#### RD$ {g['monto']:,.0f}")
-                    if c_a.button("💵 PAGAR", key=f"p_{g['id']}", type="primary", use_container_width=True):
-                        # Al pagar un compromiso, actualizamos su fecha a la hora actual de RD
-                        conn.table("gastos").update({
-                            "estado": "Pagado", 
-                            "fecha_gasto": ahora_rd_str
-                        }).eq("id", g['id']).execute()
-                        st.rerun()
+                    # Diseño de 4 columnas para que quepan los tres puntitos al final
+                    col_info, col_monto, col_pago, col_menu = st.columns([2, 1, 0.8, 0.4])
+                    
+                    with col_info:
+                        # Etiqueta de recurrencia
+                        rec_tag = "🔄 " if g.get('es_recurrente') else ""
+                        st.markdown(f"**{rec_tag}{g['descripcion']}**")
+                        st.caption(f"🏢 {g['nombre_suplidor']}")
+                        
+                        # Lógica de Vencido vs Próximo
+                        if g.get('fecha_gasto'):
+                            fv = datetime.strptime(g['fecha_gasto'][:10], "%Y-%m-%d").date()
+                            if fv < hoy:
+                                st.markdown(f"<span style='color:#FF4B4B; font-size:0.8rem;'>⚠️ Vencido ({fv})</span>", unsafe_allow_html=True)
+                            else:
+                                st.caption(f"📅 Vence: {fv}")
+
+                    with col_monto:
+                        st.markdown(f"**RD$ {g['monto']:,.0f}**")
+
+                    with col_pago:
+                        if st.button("💵", key=f"pay_btn_{g['id']}", help="Marcar como pagado"):
+                            # Si es recurrente, antes de marcar como pagado, podríamos crear el del mes que viene
+                            if g.get('es_recurrente'):
+                                f_actual = datetime.strptime(g['fecha_gasto'][:10], "%Y-%m-%d").date()
+                                f_siguiente = f_actual + timedelta(days=30)
+                                conn.table("gastos").insert({
+                                    "descripcion": g['descripcion'], "monto": g['monto'], "user_id": u_id,
+                                    "estado": "Pendiente", "nombre_suplidor": g['nombre_suplidor'],
+                                    "sector": g['sector'], "fecha_gasto": str(f_siguiente), 
+                                    "es_recurrente": True, "visible_usuario": True
+                                }).execute()
+
+                            conn.table("gastos").update({"estado": "Pagado", "fecha_gasto": ahora_rd_str}).eq("id", g['id']).execute()
+                            st.rerun()
+
+                    with col_menu:
+                        # LOS TRES PUNTITOS (Menú de opciones)
+                        with st.popover("⋮"):
+                            if st.button("✏️ Editar", key=f"ed_{g['id']}", use_container_width=True):
+                                editar_compromiso(g)
+                            if st.button("🗑️ Borrar", key=f"del_{g['id']}", use_container_width=True):
+                                eliminar_compromiso(g['id'], g['descripcion'])
 
     # --- PESTAÑA 3: HISTORIAL COMPLETO ---
     with t3:
