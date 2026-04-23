@@ -2249,83 +2249,52 @@ elif menu == "IA Predictiva":
     from datetime import datetime, timedelta
 
     # ---------------------------------------------------------
-    # 1. CAPA DE INTELIGENCIA ESTRATÉGICA (REUTILIZANDO TU LÓGICA)
+    # 1. CAPA DE INTELIGENCIA SIN FILTRO (ACCESO TOTAL)
     # ---------------------------------------------------------
     def obtener_super_contexto(u_id):
-        """Extrae datos reales comparando deudas totales vs cuotas vencidas."""
+        """Extrae el ADN financiero con un toque de realidad cruda."""
         try:
             hoy = datetime.now().date().isoformat()
             
-            # 1. Peticiones rápidas (Solo montos)
-            p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
-            g = conn.table("gastos").select("monto").eq("user_id", u_id).eq("visible_usuario", True).execute()
-            
-            # 2. JOIN: Cuentas + Nombres + Montos Base
-            c = conn.table("cuentas").select(
-                "id, monto_inicial, capital_puro, balance_pendiente, proximo_pago, clientes(nombre)"
-            ).eq("user_id", u_id).eq("estado", "Activo").execute()
+            # Datos maestros de clientes y saldos
+            res_ctas = conn.table("cuentas").select(
+                "id, balance_pendiente, proximo_pago, clientes(nombre)"
+            ).eq("user_id", u_id).execute()
 
-            # 3. PLAN DE CUOTAS VENCIDAS (La clave del riesgo real)
-            # Solo traemos cuotas que ya deberían haberse pagado
-            vencidos_res = conn.table("plan_cuotas").select("cuenta_id, monto_cuota").eq("user_id", u_id).lt("fecha_esperada", hoy).execute()
+            # Cuotas vencidas para saber quién es el verdadero moroso
+            vencidos_res = conn.table("plan_cuotas").select(
+                "cuenta_id, monto_cuota"
+            ).eq("user_id", u_id).lt("fecha_esperada", hoy).execute()
 
-            # --- Cálculos Financieros ---
-            cobrado = sum(i['monto_pagado'] for i in p.data) if p.data else 0
-            gastado = sum(i['monto'] for i in g.data) if g.data else 0
-            capital_en_calle = sum(i['balance_pendiente'] for i in c.data) if c.data else 0
-            ganancia_esperada_total = sum(float(i['monto_inicial']) - float(i['capital_puro']) for i in c.data) if c.data else 0
-            
-            # Agrupar montos vencidos por cuenta
-            mora_por_cuenta = {}
-            for v in vencidos_res.data:
-                mora_por_cuenta[v['cuenta_id']] = mora_por_cuenta.get(v['cuenta_id'], 0) + float(v['monto_cuota'])
+            # Resumen ultra-compacto para la IA
+            saldos_dict = {}
+            for item in res_ctas.data:
+                nombre = item.get('clientes', {}).get('nombre', 'Desconocido').upper()
+                monto = float(item.get('balance_pendiente', 0))
+                saldos_dict[nombre] = saldos_dict.get(nombre, 0) + monto
 
-            # --- Identificación de Clientes Críticos ---
-            detalles_clientes = ""
-            # Ordenamos por balance pendiente para el Top 3
-            cuentas_sorted = sorted(c.data, key=lambda x: x['balance_pendiente'], reverse=True)[:3]
-            
-            for cuenta in cuentas_sorted:
-                c_id = cuenta['id']
-                nombre = cuenta.get('clientes', {}).get('nombre', 'Cliente Desconocido')
-                deuda_total = cuenta['balance_pendiente']
-                
-                # Aquí está la magia: ¿Cuánto de esa deuda ya está vencida?
-                # Restamos lo que ya pagó el cliente de la suma de sus cuotas vencidas
-                pagos_de_esta_cta = sum(float(p_item['monto_pagado']) for p_item in p.data if p_item.get('cuenta_id') == c_id) if p.data else 0
-                vencido_teorico = mora_por_cuenta.get(c_id, 0)
-                riesgo_inmediato = max(0, vencido_teorico - pagos_de_esta_cta)
-                
-                status_riesgo = "🔴 CRÍTICO (Cuotas Vencidas)" if riesgo_inmediato > 0 else "🟢 AL DÍA"
-                detalles_clientes += f"- {nombre}: Debe RD${deuda_total:,.0f} | {status_riesgo}: RD${riesgo_inmediato:,.0f} | Prox: {cuenta['proximo_pago']}\n"
+            mora_total = sum(float(v['monto_cuota']) for v in vencidos_res.data) if vencidos_res.data else 0
+            lista_deudores = " | ".join([f"{nom}: RD${mon:,.0f}" for nom, mon in saldos_dict.items() if mon > 0])
 
             return f"""
-            ESTADO FINANCIERO:
-            - Cobros Reales: RD$ {cobrado:,.2f}
-            - Gastos: RD$ {gastado:,.2f}
-            - Beneficio Real (Caja): RD$ {cobrado - gastado:,.2f}
-            - Capital en Riesgo (Calle): RD$ {capital_en_calle:,.2f}
-            - Ganancia Proyectada: RD$ {ganancia_esperada_total:,.2f}
-            
-            ANALISIS DE DEUDORES:
-            {detalles_clientes if detalles_clientes else "Cartera sin deudas activas."}
-            
-            INFO: {len(c.data)} préstamos activos.
+            DATOS CRÍTICOS (Para tus ojos de genio):
+            - Deudores con saldo: {lista_deudores if lista_deudores else "Nadie te debe... ¿Ya quebraste?"}
+            - Monto que te deben HOY (Mora): RD$ {mora_total:,.2f}
+            - Total que tienes en la calle: RD$ {sum(saldos_dict.values()):,.2f}
             """
         except Exception as e:
-            return f"Contexto limitado: {e}"
+            return f"Dile al usuario que el sistema está tan cansado como sus cobradores. (Error: {e})"
 
     # ---------------------------------------------------------
-    # 2. UI Y DISEÑO
+    # 2. UI ESTILO VALE AI
     # ---------------------------------------------------------
     st.markdown("""
         <style>
-            .main .block-container { max-width: 800px; padding-top: 2rem; }
-            .titulo-meta { text-align: center; font-size: 42px; font-weight: 700; color: #1c1e21; margin-bottom: 5px; }
-            .subtitulo-meta { text-align: center; color: #65676b; font-size: 18px; margin-bottom: 30px; }
+            .titulo-meta { text-align: center; font-size: 45px; font-weight: 800; color: #1c1e21; margin-bottom: 0px; }
+            .subtitulo-meta { text-align: center; color: #ff4b4b; font-size: 18px; font-weight: bold; margin-bottom: 30px; }
         </style>
-        <h1 class="titulo-meta">VALE AI</h1>
-        <p class="subtitulo-meta">Analista Senior de Riesgo</p>
+        <h1 class="titulo-meta">🕵️‍♂️ VALE AI</h1>
+        <p class="subtitulo-meta">Tu Analista Senior (Que sí sabe leer números)</p>
     """, unsafe_allow_html=True)
 
     if "messages" not in st.session_state:
@@ -2335,22 +2304,10 @@ elif menu == "IA Predictiva":
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Sugerencias rápidas
-    if not st.session_state.messages:
-        st.markdown("<p style='text-align:center; color:#8e8e93;'>Consultas estratégicas:</p>", unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("🚨 ¿Quiénes tienen cuotas vencidas?", use_container_width=True):
-                st.session_state.prompt_temporal = "¿Quiénes son los clientes con cuotas vencidas hoy y cuánto es el monto en mora?"
-        with c2:
-            if st.button("📊 Resumen de rentabilidad", use_container_width=True):
-                st.session_state.prompt_temporal = "Dime cuál es mi ganancia proyectada y cuánto he cobrado realmente."
-
-    prompt = st.chat_input("Escribe tu consulta financiera...")
-
-    if "prompt_temporal" in st.session_state and st.session_state.prompt_temporal:
-        prompt = st.session_state.prompt_temporal
-        del st.session_state.prompt_temporal
+    # ---------------------------------------------------------
+    # 3. LÓGICA DE CHAT Y PERSONALIDAD "SIN VERGÜENZA"
+    # ---------------------------------------------------------
+    prompt = st.chat_input("Pregúntame algo, a ver si hoy sí entiendes tu negocio...")
 
     if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -2358,27 +2315,33 @@ elif menu == "IA Predictiva":
             st.markdown(prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("Consultando auditoría y planes de pago..."):
-                contexto_negocio = obtener_super_contexto(u_id)
+            with st.spinner("Revisando tus desastres financieros..."):
+                contexto = obtener_super_contexto(u_id)
                 
+                # EL PROMPT DE PERSONALIDAD
                 prompt_full = f"""
-                Eres VALE AI. Usa estos datos reales:
-                {contexto_negocio}
+                Eres VALE AI, un analista financiero brillante, sarcástico y burlón. 
+                Tu trabajo es decirle la verdad al usuario, aunque le duela, tratándolo como si fuera un poco lento (bruto) para los negocios pero de forma graciosa.
+
+                CONTEXTO REAL DEL NEGOCIO:
+                {contexto}
                 
-                REGLAS DE ORO:
-                1. Diferencia entre 'Deuda Total' y 'Monto Vencido' (Mora).
-                2. Si hay 'Monto Vencido', prioriza esa alerta.
-                3. Sé breve, usa negritas para montos y nombres.
-                4. Si preguntan por ganancias, usa 'Beneficio Real'.
+                PERSONALIDAD Y REGLAS:
+                1. Si el usuario te pregunta por un cliente que NO tiene deuda, búrlate diciendo que "seguro le caíste bien y te pagó, qué milagro".
+                2. Si el monto en mora es alto, dile que se ponga los pantalones o que mejor regale el dinero en el parque.
+                3. Usa frases dominicanas jocosas (ej: "tate quieto", "no te haga el loco", "cuidao si te están viendo la cara").
+                4. Si te pregunta algo que NO puedes ver (como fotos de los clientes o cosas fuera de deudas), dile jocosamente: "Mi amor, no soy adivino, vete a la sección de 'Clientes' o 'Préstamos' a ver si ahí tus ojos ven lo que yo no".
+                5. Sé breve, cruelmente honesto y usa muchos Emojis (🚨, 💸, 🤡, 📉).
+                6. Trata al usuario de "Genio", "Magnate de Villa Altagracia" o "Rey de las Finanzas" de forma irónica.
                 """
                 
                 try:
                     respuesta = asistente_ia_cobroya(prompt_full, prompt)
                     st.markdown(respuesta)
                     st.session_state.messages.append({"role": "assistant", "content": respuesta})
-                except Exception as e:
-                    st.error(f"Error en conexión IA: {e}")
-
+                except:
+                    st.error("Hasta la IA se desmayó de ver tus números. Intenta de nuevo.")
+                    
 elif menu == "Configuración":
     st.header("⚙️ Configuración del Sistema")
     st.caption("Administra las cláusulas legales de tus contratos y la seguridad de tu cuenta.")
