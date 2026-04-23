@@ -647,37 +647,35 @@ st.sidebar.markdown(f"""
 """, unsafe_allow_html=True)
 
 # --- 3. NAVEGACIÓN (Corregida para 1 solo clic) ---
-    opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
-    
-    mapeo_visual = {
-        "Panel de Control": "🏠 Panel de Control",
-        "Gestión de Cobros": "💰 Gestión de Cobros",
-        "👥 Todos mis Clientes": "👥 Todos mis Clientes",
-        "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
-        "Cuentas por Pagar": "📉 Cuentas por Pagar",
-        "IA Predictiva": "🧠 IA Predictiva",
-        "Configuración": "⚙️ Configuración"
-    }
+opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
 
-    # Al usar key="menu_principal", el radio lee y escribe 
-    # directamente en st.session_state["menu_principal"]
-    menu = st.sidebar.radio(
-        "NAV",
-        opciones,
-        key="menu_principal",
-        format_func=lambda x: mapeo_visual.get(x, x),
-        label_visibility="collapsed"
-    )
+mapeo_visual = {
+    "Panel de Control": "🏠 Panel de Control",
+    "Gestión de Cobros": "💰 Gestión de Cobros",
+    "👥 Todos mis Clientes": "👥 Todos mis Clientes",
+    "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
+    "Cuentas por Pagar": "📉 Cuentas por Pagar",
+    "IA Predictiva": "🧠 IA Predictiva",
+    "Configuración": "⚙️ Configuración"
+}
 
-    # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
-    st.sidebar.markdown(f"""
-        <div class="absolute-footer">
-            <span class="powered-by">Powered by Lixander García</span>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" 
-                 class="footer-logo-img" 
-                 onerror="this.style.display='none'">
-        </div>
-    """, unsafe_allow_html=True)
+menu = st.sidebar.radio(
+    "NAV",
+    opciones,
+    key="menu_principal",
+    format_func=lambda x: mapeo_visual.get(x, x),
+    label_visibility="collapsed"
+)
+
+# --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
+st.sidebar.markdown(f"""
+    <div class="absolute-footer">
+        <span class="powered-by">Powered by Lixander García</span>
+        <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" 
+             class="footer-logo-img" 
+             onerror="this.style.display='none'">
+    </div>
+""", unsafe_allow_html=True)
     
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 if menu == "Panel de Control":
