@@ -617,7 +617,7 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # --- 3. NAVEGACIÓN ---
+# --- 3. NAVEGACIÓN (Corregida para 1 solo clic) ---
     opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     
     mapeo_visual = {
@@ -630,17 +630,15 @@ with st.sidebar:
         "Configuración": "⚙️ Configuración"
     }
 
-    menu_actual = st.session_state.get('menu_principal', "Panel de Control")
-    idx_seguro = opciones.index(menu_actual) if menu_actual in opciones else 0
-
+    # Al usar key="menu_principal", el radio lee y escribe 
+    # directamente en st.session_state["menu_principal"]
     menu = st.sidebar.radio(
         "NAV",
         opciones,
-        index=idx_seguro,
+        key="menu_principal",
         format_func=lambda x: mapeo_visual.get(x, x),
         label_visibility="collapsed"
     )
-    st.session_state.menu_principal = menu
 
     # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
     st.sidebar.markdown(f"""
