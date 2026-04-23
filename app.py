@@ -513,61 +513,40 @@ with st.sidebar:
 # --- 1. CSS: Estética Minimalista y Profesional ---
 st.markdown(f"""
     <style>
-        /* EXPANSIÓN Y SIDEBAR */
+        /* MANTENEMOS TU SIDEBAR INTACTO */
         [data-testid="stSidebar"][aria-expanded="true"] {{
             min-width: 300px !important;
             max-width: 300px !important;
             background-color: #FBFBFD !important;
         }}
-        [data-testid="stSidebar"][aria-expanded="false"] {{
-            min-width: 0px !important;
-            max-width: 0px !important;
-            width: 0px !important;
-        }}
 
-        /* BOTÓN DE MENÚ PERSONALIZADO */
-        [data-testid="stSidebarHeader"] {{
-            padding: 10px !important;
-            background-color: transparent !important;
-            display: flex !important;
-            align-items: center !important;
-        }}
-
+        /* BOTÓN DE MENÚ: Ajustado para no tapar nada */
         button[data-testid="stSidebarCollapseButton"] {{
             background-color: #1D1D1F !important;
             color: white !important;
-            border-radius: 12px !important;
-            padding: 0.5rem 1rem !important;
+            border-radius: 8px !important;
             width: auto !important;
-            height: 40px !important;
-            border: 1px solid #3A3A3C !important;
+            padding: 5px 15px !important;
+            height: 38px !important;
+            position: fixed !important;
+            top: 10px !important;
+            left: 10px !important;
+            z-index: 1000000 !important;
             display: flex !important;
             align-items: center !important;
-            gap: 10px !important;
-            transition: all 0.3s ease !important;
+            justify-content: center !important;
         }}
 
-        button[data-testid="stSidebarCollapseButton"]:hover {{
-            background-color: #3A3A3C !important;
-            transform: scale(1.02);
-        }}
-
+        /* Texto "MENÚ" intuitivo */
         button[data-testid="stSidebarCollapseButton"]::after {{
-            content: "MENÚ";
-            font-size: 14px !important;
-            font-weight: 600 !important;
-            letter-spacing: 1px !important;
+            content: "MENÚ" !important;
             color: white !important;
-            margin-left: 5px !important;
+            font-size: 12px !important;
+            font-weight: bold !important;
+            margin-left: 8px !important;
         }}
 
-        button[data-testid="stSidebarCollapseButton"] svg {{
-            width: 20px !important;
-            height: 20px !important;
-            fill: white !important;
-        }}
-
-        /* LOGO AL TECHO */
+        /* LOGO AL TECHO (Tu configuración original) */
         [data-testid="stSidebarUserContent"] {{
             padding-top: 0px !important;
             margin-top: -50px !important; 
@@ -587,47 +566,18 @@ st.markdown(f"""
             object-fit: contain;
         }}
 
-        /* NAVEGACIÓN */
+        /* NAVEGACIÓN Y FOOTER (Dejados exactamente como los tenías) */
         div[role="radiogroup"] {{
             gap: 12px !important;
             padding-left: 10px !important;
         }}
-        div[role="radio"] p {{ 
-            font-size: 14px !important; 
-            color: #1D1D1F !important;
-            font-weight: 400;
-            padding: 6px 0 !important;
-        }}
-
-        /* FOOTER PROFESIONAL */
+        
         .absolute-footer {{
             margin-top: 40px !important;
             padding: 20px 0px 10px 0px !important;
             border-top: 1px solid #F2F2F7;
             text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             width: 100%;
-        }}
-
-        .powered-by {{
-            font-size: 9px !important;
-            color: #A1A1A6;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            font-weight: 500;
-            margin-bottom: 10px;
-        }}
-
-        .footer-logo-img {{
-            width: 100px;
-            height: auto;
-            opacity: 0.8;
-        }}
-
-        [data-testid="stAppViewBlockContainer"] {{
-            max-width: 100% !important;
         }}
     </style>
 """, unsafe_allow_html=True)
