@@ -511,64 +511,66 @@ with st.sidebar:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
 # --- 1. CSS: Estética Minimalista y Profesional ---
-    st.markdown(f"""
-        <style>
-            /* EXPANSIÓN Y SIDEBAR */
-            [data-testid="stSidebar"][aria-expanded="true"] {{
-                min-width: 300px !important;
-                max-width: 300px !important;
-                background-color: #FBFBFD !important;
-            }}
-            [data-testid="stSidebar"][aria-expanded="false"] {{
-                min-width: 0px !important;
-                max-width: 0px !important;
-                width: 0px !important;
-            }}
+st.markdown(f"""
+    <style>
+        /* EXPANSIÓN Y SIDEBAR */
+        [data-testid="stSidebar"][aria-expanded="true"] {{
+            min-width: 300px !important;
+            max-width: 300px !important;
+            background-color: #FBFBFD !important;
+        }}
+        [data-testid="stSidebar"][aria-expanded="false"] {{
+            min-width: 0px !important;
+            max-width: 0px !important;
+            width: 0px !important;
+        }}
 
-/* BOTÓN DE MENÚ PERSONALIZADO */
-            [data-testid="stSidebarHeader"] {
-                padding: 10px !important;
-                background-color: transparent !important;
-                display: flex !important;
-                align-items: center !important;
-            }
+        /* BOTÓN DE MENÚ PERSONALIZADO */
+        [data-testid="stSidebarHeader"] {{
+            padding: 10px !important;
+            background-color: transparent !important;
+            display: flex !important;
+            align-items: center !important;
+        }}
 
-            button[data-testid="stSidebarCollapseButton"] {
-                background-color: #1D1D1F !important; /* Negro Apple */
-                color: white !important;
-                border-radius: 12px !important; /* Más redondeado, más moderno */
-                padding: 0.5rem 1rem !important;
-                width: auto !important;
-                height: 40px !important;
-                border: 1px solid #3A3A3C !important;
-                display: flex !important;
-                align-items: center !important;
-                gap: 10px !important;
-                transition: all 0.3s ease !important;
-            }
+        button[data-testid="stSidebarCollapseButton"] {{
+            background-color: #1D1D1F !important; /* Negro Apple */
+            color: white !important;
+            border-radius: 12px !important; /* Más redondeado, más moderno */
+            padding: 0.5rem 1rem !important;
+            width: auto !important;
+            height: 40px !important;
+            border: 1px solid #3A3A3C !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            transition: all 0.3s ease !important;
+        }}
 
-            /* Efecto Hover para que el cliente sienta calidad */
-            button[data-testid="stSidebarCollapseButton"]:hover {
-                background-color: #3A3A3C !important;
-                transform: scale(1.02);
-            }
+        /* Efecto Hover para que el cliente sienta calidad */
+        button[data-testid="stSidebarCollapseButton"]:hover {{
+            background-color: #3A3A3C !important;
+            transform: scale(1.02);
+        }}
 
-            /* Inyectar la palabra MENU al lado del icono */
-            button[data-testid="stSidebarCollapseButton"]::after {
-                content: "MENÚ";
-                font-size: 14px !important;
-                font-weight: 600 !important;
-                letter-spacing: 1px !important;
-                color: white !important;
-                margin-left: 5px !important;
-            }
+        /* Inyectar la palabra MENU al lado del icono */
+        button[data-testid="stSidebarCollapseButton"]::after {{
+            content: "MENÚ";
+            font-size: 14px !important;
+            font-weight: 600 !important;
+            letter-spacing: 1px !important;
+            color: white !important;
+            margin-left: 5px !important;
+        }}
 
-            /* Ajustar el icono interno para que combine con el texto */
-            button[data-testid="stSidebarCollapseButton"] svg {
-                width: 20px !important;
-                height: 20px !important;
-                fill: white !important;
-            }
+        /* Ajustar el icono interno para que combine con el texto */
+        button[data-testid="stSidebarCollapseButton"] svg {{
+            width: 20px !important;
+            height: 20px !important;
+            fill: white !important;
+        }}
+    </style>
+""", unsafe_allow_html=True)
 
             /* LOGO AL TECHO */
             [data-testid="stSidebarUserContent"] {{
