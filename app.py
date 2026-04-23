@@ -511,121 +511,144 @@ with st.sidebar:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
 # --- 1. CSS: Estética Minimalista y Profesional ---
-st.markdown(f"""
-    <style>
-        /* MANTENEMOS TU SIDEBAR INTACTO */
-        [data-testid="stSidebar"][aria-expanded="true"] {{
-            min-width: 300px !important;
-            max-width: 300px !important;
-            background-color: #FBFBFD !important;
-        }}
+    st.markdown(f"""
+        <style>
+            /* EXPANSIÓN Y SIDEBAR */
+            [data-testid="stSidebar"][aria-expanded="true"] {{
+                min-width: 300px !important;
+                max-width: 300px !important;
+                background-color: #FBFBFD !important;
+            }}
+            [data-testid="stSidebar"][aria-expanded="false"] {{
+                min-width: 0px !important;
+                max-width: 0px !important;
+                width: 0px !important;
+            }}
 
-        /* BOTÓN DE MENÚ: Ajustado para no tapar nada */
-        button[data-testid="stSidebarCollapseButton"] {{
-            background-color: #1D1D1F !important;
-            color: white !important;
-            border-radius: 8px !important;
-            width: auto !important;
-            padding: 5px 15px !important;
-            height: 38px !important;
-            position: fixed !important;
-            top: 10px !important;
-            left: 10px !important;
-            z-index: 1000000 !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-        }}
+            /* BOTÓN DE MENÚ */
+            [data-testid="stSidebarHeader"] {{
+                padding: 0px !important;
+                background-color: transparent !important;
+            }}
+            button[data-testid="stSidebarCollapseButton"] {{
+                background-color: #1D1D1F !important;
+                color: white !important;
+                border-radius: 8px !important;
+                margin: 10px !important;
+                z-index: 100000 !important;
+            }}
 
-        /* Texto "MENÚ" intuitivo */
-        button[data-testid="stSidebarCollapseButton"]::after {{
-            content: "MENÚ" !important;
-            color: white !important;
-            font-size: 12px !important;
-            font-weight: bold !important;
-            margin-left: 8px !important;
-        }}
+            /* LOGO AL TECHO */
+            [data-testid="stSidebarUserContent"] {{
+                padding-top: 0px !important;
+                margin-top: -50px !important; 
+            }}
 
-        /* LOGO AL TECHO (Tu configuración original) */
-        [data-testid="stSidebarUserContent"] {{
-            padding-top: 0px !important;
-            margin-top: -50px !important; 
-        }}
+            .client-brand-card {{
+                text-align: center; 
+                padding: 15px; 
+                background: white;
+                border-bottom: 1px solid #F2F2F7;
+                margin-bottom: 20px;
+            }}
+            
+            .client-logo-img {{
+                max-width: 90%;
+                height: 55px;
+                object-fit: contain;
+            }}
 
-        .client-brand-card {{
-            text-align: center; 
-            padding: 15px; 
-            background: white;
-            border-bottom: 1px solid #F2F2F7;
-            margin-bottom: 20px;
-        }}
-        
-        .client-logo-img {{
-            max-width: 90%;
-            height: 55px;
-            object-fit: contain;
-        }}
+            /* NAVEGACIÓN */
+            div[role="radiogroup"] {{
+                gap: 12px !important;
+                padding-left: 10px !important;
+            }}
+            div[role="radio"] p {{ 
+                font-size: 14px !important; 
+                color: #1D1D1F !important;
+                font-weight: 400;
+                padding: 6px 0 !important;
+            }}
 
-        /* NAVEGACIÓN Y FOOTER (Dejados exactamente como los tenías) */
-        div[role="radiogroup"] {{
-            gap: 12px !important;
-            padding-left: 10px !important;
-        }}
-        
-        .absolute-footer {{
-            margin-top: 40px !important;
-            padding: 20px 0px 10px 0px !important;
-            border-top: 1px solid #F2F2F7;
-            text-align: center;
-            width: 100%;
-        }}
-    </style>
-""", unsafe_allow_html=True)
+            /* FOOTER PROFESIONAL (Minimalista) */
+            .absolute-footer {{
+                margin-top: 40px !important;
+                padding: 20px 0px 10px 0px !important;
+                border-top: 1px solid #F2F2F7;
+                text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                width: 100%;
+            }}
 
-# --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
-st.sidebar.markdown(f"""
-    <div class="client-brand-card">
-        <img src="{src_logo}" class="client-logo-img">
-        <div style="font-family: sans-serif; margin-top: 10px;">
-            <b style="font-size:14px; color:#1D1D1F;">{biz_name}</b>
-            <div style="font-size:10px; color:#86868B; margin-top:5px;">
-                <p style="margin:0;">RNC: {biz_rnc} | 📞 {biz_tel}</p>
-                <p style='color:#1D1D1F; font-weight:600; margin-top:3px;'>{u_email}</p>
+            .powered-by {{
+                font-size: 9px !important;
+                color: #A1A1A6;
+                text-transform: uppercase;
+                letter-spacing: 1.5px;
+                font-weight: 500;
+                margin-bottom: 10px;
+            }}
+
+            .footer-logo-img {{
+                width: 100px; /* Tamaño equilibrado para verse serio */
+                height: auto;
+                opacity: 0.8;
+            }}
+
+            [data-testid="stAppViewBlockContainer"] {{
+                max-width: 100% !important;
+            }}
+        </style>
+    """, unsafe_allow_html=True)
+
+    # --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
+    st.sidebar.markdown(f"""
+        <div class="client-brand-card">
+            <img src="{src_logo}" class="client-logo-img">
+            <div style="font-family: sans-serif; margin-top: 10px;">
+                <b style="font-size:14px; color:#1D1D1F;">{biz_name}</b>
+                <div style="font-size:10px; color:#86868B; margin-top:5px;">
+                    <p style="margin:0;">RNC: {biz_rnc} | 📞 {biz_tel}</p>
+                    <p style='color:#1D1D1F; font-weight:600; margin-top:3px;'>{u_email}</p>
+                </div>
             </div>
         </div>
-    </div>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # --- 3. NAVEGACIÓN (Corregida para 1 solo clic) ---
-opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
+    opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
+    
+    mapeo_visual = {
+        "Panel de Control": "🏠 Panel de Control",
+        "Gestión de Cobros": "💰 Gestión de Cobros",
+        "👥 Todos mis Clientes": "👥 Todos mis Clientes",
+        "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
+        "Cuentas por Pagar": "📉 Cuentas por Pagar",
+        "IA Predictiva": "🧠 IA Predictiva",
+        "Configuración": "⚙️ Configuración"
+    }
 
-mapeo_visual = {
-    "Panel de Control": "🏠 Panel de Control",
-    "Gestión de Cobros": "💰 Gestión de Cobros",
-    "👥 Todos mis Clientes": "👥 Todos mis Clientes",
-    "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
-    "Cuentas por Pagar": "📉 Cuentas por Pagar",
-    "IA Predictiva": "🧠 IA Predictiva",
-    "Configuración": "⚙️ Configuración"
-}
+    # Al usar key="menu_principal", el radio lee y escribe 
+    # directamente en st.session_state["menu_principal"]
+    menu = st.sidebar.radio(
+        "NAV",
+        opciones,
+        key="menu_principal",
+        format_func=lambda x: mapeo_visual.get(x, x),
+        label_visibility="collapsed"
+    )
 
-menu = st.sidebar.radio(
-    "NAV",
-    opciones,
-    key="menu_principal",
-    format_func=lambda x: mapeo_visual.get(x, x),
-    label_visibility="collapsed"
-)
-
-# --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
-st.sidebar.markdown(f"""
-    <div class="absolute-footer">
-        <span class="powered-by">Powered by Lixander García</span>
-        <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" 
-             class="footer-logo-img" 
-             onerror="this.style.display='none'">
-    </div>
-""", unsafe_allow_html=True)
+    # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
+    st.sidebar.markdown(f"""
+        <div class="absolute-footer">
+            <span class="powered-by">Powered by Lixander García</span>
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" 
+                 class="footer-logo-img" 
+                 onerror="this.style.display='none'">
+        </div>
+    """, unsafe_allow_html=True)
     
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 if menu == "Panel de Control":
