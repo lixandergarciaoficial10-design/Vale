@@ -525,18 +525,50 @@ with st.sidebar:
                 width: 0px !important;
             }}
 
-            /* BOTÓN DE MENÚ */
-            [data-testid="stSidebarHeader"] {{
-                padding: 0px !important;
+/* BOTÓN DE MENÚ PERSONALIZADO */
+            [data-testid="stSidebarHeader"] {
+                padding: 10px !important;
                 background-color: transparent !important;
-            }}
-            button[data-testid="stSidebarCollapseButton"] {{
-                background-color: #1D1D1F !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+
+            button[data-testid="stSidebarCollapseButton"] {
+                background-color: #1D1D1F !important; /* Negro Apple */
                 color: white !important;
-                border-radius: 8px !important;
-                margin: 10px !important;
-                z-index: 100000 !important;
-            }}
+                border-radius: 12px !important; /* Más redondeado, más moderno */
+                padding: 0.5rem 1rem !important;
+                width: auto !important;
+                height: 40px !important;
+                border: 1px solid #3A3A3C !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 10px !important;
+                transition: all 0.3s ease !important;
+            }
+
+            /* Efecto Hover para que el cliente sienta calidad */
+            button[data-testid="stSidebarCollapseButton"]:hover {
+                background-color: #3A3A3C !important;
+                transform: scale(1.02);
+            }
+
+            /* Inyectar la palabra MENU al lado del icono */
+            button[data-testid="stSidebarCollapseButton"]::after {
+                content: "MENÚ";
+                font-size: 14px !important;
+                font-weight: 600 !important;
+                letter-spacing: 1px !important;
+                color: white !important;
+                margin-left: 5px !important;
+            }
+
+            /* Ajustar el icono interno para que combine con el texto */
+            button[data-testid="stSidebarCollapseButton"] svg {
+                width: 20px !important;
+                height: 20px !important;
+                fill: white !important;
+            }
 
             /* LOGO AL TECHO */
             [data-testid="stSidebarUserContent"] {{
