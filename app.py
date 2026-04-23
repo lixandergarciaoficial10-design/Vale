@@ -2249,31 +2249,35 @@ elif menu == "IA Predictiva":
     from datetime import datetime, timedelta
 
     # ---------------------------------------------------------
-    # 1. CAPA DE INTELIGENCIA (EXTRACCIÓN Y PROCESAMIENTO)
+    # 1. CAPA DE INTELIGENCIA (OPTIMIZADA)
     # ---------------------------------------------------------
     def obtener_super_contexto(u_id):
-        """Extrae un resumen ejecutivo optimizado para que la IA no se ponga lenta."""
+        """Extrae datos reales con una sola petición JOIN (Ahorro masivo de recursos)."""
         try:
-            # Consultas a la base de datos
+            # 1. Traemos solo montos de pagos y gastos (Poco peso en memoria)
             p = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
             g = conn.table("gastos").select("monto").eq("user_id", u_id).eq("visible_usuario", True).execute()
-            c = conn.table("cuentas").select("balance_pendiente, cliente_id, proximo_pago").eq("user_id", u_id).eq("estado", "Activo").execute()
             
-            # Cálculos financieros
-            cobrado = sum([i['monto_pagado'] for i in p.data]) if p.data else 0
-            gastado = sum([i['monto'] for i in g.data]) if g.data else 0
-            riesgo_total = sum([i['balance_pendiente'] for i in c.data]) if c.data else 0
+            # 2. JOIN POTENTE: Traemos deudas y nombres de clientes en UN SOLO viaje a la base de datos
+            # Esto evita el bucle lento que tenías antes
+            c = conn.table("cuentas").select(
+                "balance_pendiente, proximo_pago, clientes(nombre)"
+            ).eq("user_id", u_id).eq("estado", "Activo").execute()
+
+            # Cálculos financieros rápidos en Python
+            cobrado = sum(i['monto_pagado'] for i in p.data) if p.data else 0
+            gastado = sum(i['monto'] for i in g.data) if g.data else 0
+            riesgo_total = sum(i['balance_pendiente'] for i in c.data) if c.data else 0
             beneficio_neto = cobrado - gastado
 
-            # Top 3 Deudores (Uniendo con nombres de clientes)
+            # Top 3 Deudores (Usando los datos que ya trajimos en el JOIN)
             cuentas_sorted = sorted(c.data, key=lambda x: x['balance_pendiente'], reverse=True)[:3]
             detalles_clientes = ""
             for cuenta in cuentas_sorted:
-                cli_res = conn.table("clientes").select("nombre").eq("id", cuenta['cliente_id']).execute()
-                nombre = cli_res.data[0]['nombre'] if cli_res.data else "Cliente Desconocido"
+                # Accedemos al nombre mediante la relación traída
+                nombre = cuenta.get('clientes', {}).get('nombre', 'Cliente Desconocido')
                 detalles_clientes += f"- {nombre}: debe RD${cuenta['balance_pendiente']:,.0f} (Vence: {cuenta['proximo_pago']})\n"
 
-            # Formateo del contexto para la IA
             return f"""
             ESTADO FINANCIERO ACTUAL:
             - Cobros Totales: RD$ {cobrado:,.2f}
@@ -2291,15 +2295,13 @@ elif menu == "IA Predictiva":
             return f"Nota: Los datos financieros están siendo actualizados. (Error técnico: {e})"
 
     # ---------------------------------------------------------
-    # 2. ESTILO CSS (META AI / TARJETAS FLOTANTES)
+    # 2. ESTILO CSS (Sin cambios, respetando tu diseño)
     # ---------------------------------------------------------
     st.markdown("""
         <style>
             .main .block-container { max-width: 800px; padding-top: 2rem; }
             .titulo-meta { text-align: center; font-size: 42px; font-weight: 700; color: #1c1e21; margin-bottom: 5px; }
             .subtitulo-meta { text-align: center; color: #65676b; font-size: 18px; margin-bottom: 30px; }
-            
-            /* Ajuste para que el chat ocupe el centro */
             .stChatMessage { border-radius: 15px; margin-bottom: 10px; }
         </style>
         <h1 class="titulo-meta">VALE AI</h1>
@@ -2307,17 +2309,15 @@ elif menu == "IA Predictiva":
     """, unsafe_allow_html=True)
 
     # ---------------------------------------------------------
-    # 3. GESTIÓN DEL CHAT
+    # 3. GESTIÓN DEL CHAT (Lógica de mensajes)
     # ---------------------------------------------------------
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
-    # Mostrar historial de mensajes
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Sugerencias (Solo aparecen al inicio)
     if not st.session_state.messages:
         st.markdown("<p style='text-align:center; color:#8e8e93;'>Sugerencias de análisis:</p>", unsafe_allow_html=True)
         col1, col2 = st.columns(2)
@@ -2328,27 +2328,21 @@ elif menu == "IA Predictiva":
             if st.button("💸 Calcular beneficio real neto", use_container_width=True):
                 st.session_state.prompt_temporal = "Dime cuánto he ganado realmente restando los gastos de los cobros."
 
-    # Entrada de texto
     prompt = st.chat_input("Pregunta sobre tus cobros, gastos o deudores...")
 
-    # Capturar prompt de botones sugeridos
     if "prompt_temporal" in st.session_state and st.session_state.prompt_temporal:
         prompt = st.session_state.prompt_temporal
         del st.session_state.prompt_temporal
 
     if prompt:
-        # Añadir y mostrar mensaje del usuario
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Generar respuesta de la IA
         with st.chat_message("assistant"):
             with st.spinner("Analizando tu cartera en tiempo real..."):
-                # Obtenemos el contexto procesado (Rápido y potente)
                 contexto_negocio = obtener_super_contexto(u_id)
                 
-                # Instrucciones de sistema integradas
                 prompt_full = f"""
                 Eres VALE AI, un analista financiero experto. 
                 DATOS ACTUALES DEL NEGOCIO:
@@ -2358,14 +2352,12 @@ elif menu == "IA Predictiva":
                 1. Responde de forma profesional, clara y directa.
                 2. Usa los números de arriba para tus cálculos.
                 3. Si el usuario pregunta por riesgo, enfócate en los deudores críticos.
-                4. No menciones que estás leyendo un 'contexto', actúa como si conocieras el negocio perfectamente.
-                5. Sé amable pero firme en las recomendaciones de cobro.
+                4. Actúa como si conocieras el negocio perfectamente.
+                5. Sé amable pero firme en las recomendaciones.
                 """
                 
                 try:
-                    # Llamada a la función del modelo (Asegúrate de que esta función esté definida en tu app)
                     respuesta = asistente_ia_cobroya(prompt_full, prompt)
-                    
                     st.markdown(respuesta)
                     st.session_state.messages.append({"role": "assistant", "content": respuesta})
                 except Exception as e:
