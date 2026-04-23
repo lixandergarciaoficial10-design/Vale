@@ -632,19 +632,19 @@ st.markdown(f"""
     </style>
 """, unsafe_allow_html=True)
 
-    # --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
-    st.sidebar.markdown(f"""
-        <div class="client-brand-card">
-            <img src="{src_logo}" class="client-logo-img">
-            <div style="font-family: sans-serif; margin-top: 10px;">
-                <b style="font-size:14px; color:#1D1D1F;">{biz_name}</b>
-                <div style="font-size:10px; color:#86868B; margin-top:5px;">
-                    <p style="margin:0;">RNC: {biz_rnc} | 📞 {biz_tel}</p>
-                    <p style='color:#1D1D1F; font-weight:600; margin-top:3px;'>{u_email}</p>
-                </div>
+# --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
+st.sidebar.markdown(f"""
+    <div class="client-brand-card">
+        <img src="{src_logo}" class="client-logo-img">
+        <div style="font-family: sans-serif; margin-top: 10px;">
+            <b style="font-size:14px; color:#1D1D1F;">{biz_name}</b>
+            <div style="font-size:10px; color:#86868B; margin-top:5px;">
+                <p style="margin:0;">RNC: {biz_rnc} | 📞 {biz_tel}</p>
+                <p style='color:#1D1D1F; font-weight:600; margin-top:3px;'>{u_email}</p>
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    </div>
+""", unsafe_allow_html=True)
 
 # --- 3. NAVEGACIÓN (Corregida para 1 solo clic) ---
     opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
