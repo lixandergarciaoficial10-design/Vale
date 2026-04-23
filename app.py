@@ -534,9 +534,9 @@ st.markdown(f"""
         }}
 
         button[data-testid="stSidebarCollapseButton"] {{
-            background-color: #1D1D1F !important; /* Negro Apple */
+            background-color: #1D1D1F !important;
             color: white !important;
-            border-radius: 12px !important; /* Más redondeado, más moderno */
+            border-radius: 12px !important;
             padding: 0.5rem 1rem !important;
             width: auto !important;
             height: 40px !important;
@@ -547,13 +547,11 @@ st.markdown(f"""
             transition: all 0.3s ease !important;
         }}
 
-        /* Efecto Hover para que el cliente sienta calidad */
         button[data-testid="stSidebarCollapseButton"]:hover {{
             background-color: #3A3A3C !important;
             transform: scale(1.02);
         }}
 
-        /* Inyectar la palabra MENU al lado del icono */
         button[data-testid="stSidebarCollapseButton"]::after {{
             content: "MENÚ";
             font-size: 14px !important;
@@ -563,79 +561,76 @@ st.markdown(f"""
             margin-left: 5px !important;
         }}
 
-        /* Ajustar el icono interno para que combine con el texto */
         button[data-testid="stSidebarCollapseButton"] svg {{
             width: 20px !important;
             height: 20px !important;
             fill: white !important;
         }}
+
+        /* LOGO AL TECHO */
+        [data-testid="stSidebarUserContent"] {{
+            padding-top: 0px !important;
+            margin-top: -50px !important; 
+        }}
+
+        .client-brand-card {{
+            text-align: center; 
+            padding: 15px; 
+            background: white;
+            border-bottom: 1px solid #F2F2F7;
+            margin-bottom: 20px;
+        }}
+        
+        .client-logo-img {{
+            max-width: 90%;
+            height: 55px;
+            object-fit: contain;
+        }}
+
+        /* NAVEGACIÓN */
+        div[role="radiogroup"] {{
+            gap: 12px !important;
+            padding-left: 10px !important;
+        }}
+        div[role="radio"] p {{ 
+            font-size: 14px !important; 
+            color: #1D1D1F !important;
+            font-weight: 400;
+            padding: 6px 0 !important;
+        }}
+
+        /* FOOTER PROFESIONAL */
+        .absolute-footer {{
+            margin-top: 40px !important;
+            padding: 20px 0px 10px 0px !important;
+            border-top: 1px solid #F2F2F7;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }}
+
+        .powered-by {{
+            font-size: 9px !important;
+            color: #A1A1A6;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }}
+
+        .footer-logo-img {{
+            width: 100px;
+            height: auto;
+            opacity: 0.8;
+        }}
+
+        [data-testid="stAppViewBlockContainer"] {{
+            max-width: 100% !important;
+        }}
     </style>
 """, unsafe_allow_html=True)
-
-            /* LOGO AL TECHO */
-            [data-testid="stSidebarUserContent"] {{
-                padding-top: 0px !important;
-                margin-top: -50px !important; 
-            }}
-
-            .client-brand-card {{
-                text-align: center; 
-                padding: 15px; 
-                background: white;
-                border-bottom: 1px solid #F2F2F7;
-                margin-bottom: 20px;
-            }}
-            
-            .client-logo-img {{
-                max-width: 90%;
-                height: 55px;
-                object-fit: contain;
-            }}
-
-            /* NAVEGACIÓN */
-            div[role="radiogroup"] {{
-                gap: 12px !important;
-                padding-left: 10px !important;
-            }}
-            div[role="radio"] p {{ 
-                font-size: 14px !important; 
-                color: #1D1D1F !important;
-                font-weight: 400;
-                padding: 6px 0 !important;
-            }}
-
-            /* FOOTER PROFESIONAL (Minimalista) */
-            .absolute-footer {{
-                margin-top: 40px !important;
-                padding: 20px 0px 10px 0px !important;
-                border-top: 1px solid #F2F2F7;
-                text-align: center;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                width: 100%;
-            }}
-
-            .powered-by {{
-                font-size: 9px !important;
-                color: #A1A1A6;
-                text-transform: uppercase;
-                letter-spacing: 1.5px;
-                font-weight: 500;
-                margin-bottom: 10px;
-            }}
-
-            .footer-logo-img {{
-                width: 100px; /* Tamaño equilibrado para verse serio */
-                height: auto;
-                opacity: 0.8;
-            }}
-
-            [data-testid="stAppViewBlockContainer"] {{
-                max-width: 100% !important;
-            }}
-        </style>
-    """, unsafe_allow_html=True)
 
     # --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
     st.sidebar.markdown(f"""
