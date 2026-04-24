@@ -737,7 +737,7 @@ if menu == "Panel de Control":
     with c1:
         st.markdown(f"<div class='metric-card'><small>💰 EN LA CALLE</small><h2 style='color:#007AFF;'>RD$ {capital_en_calle:,.0f}</h2></div>", unsafe_allow_html=True)
     with c2:
-        st.markdown(f"<div class='metric-card'><small>🏦 CAJA NETO</small><h2 style='color:#34C759;'>RD$ {caja_actual:,.0f}</h2></div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='metric-card'><small>🏦  RECIBIDO EN CAJA</small><h2 style='color:#34C759;'>RD$ {caja_actual:,.0f}</h2></div>", unsafe_allow_html=True)
     with c3:
         st.markdown(f"<div class='metric-card'><small>📉 GASTOS</small><h2 style='color:#FF3B30;'>RD$ {total_gastado_real:,.0f}</h2></div>", unsafe_allow_html=True)
 
