@@ -47,90 +47,135 @@ st.markdown("""
 conn = st.connection("supabase", type=SupabaseConnection)
 
 
-# --- 2. SISTEMA DE ACCESO Y RECUPERACIÓN (SaaS) ---
+# --- 1. CONFIGURACIÓN DE SESIÓN Y PERSISTENCIA ---
+if 'user' not in st.session_state:
+    st.session_state.user = None
+if 'auth_mode' not in st.session_state:
+    st.session_state.auth_mode = "login"
+
+# --- 2. LÓGICA DE RECUPERACIÓN DE SESIÓN (AUTO-LOGIN) ---
+# Intentamos recuperar la sesión activa de Supabase (por si refrescan la página)
+try:
+    if st.session_state.user is None:
+        session = conn.client.auth.get_session()
+        if session:
+            st.session_state.user = session.user
+except:
+    pass
 
 def login_ui():
-    if 'auth_mode' not in st.session_state:
-        st.session_state.auth_mode = "login"
-
-    # CAPTURA DE TOKENS DE RECUPERACIÓN (URL PARAMS)
+    # 3. CAPTURA SEGURA DE PARÁMETROS (URL)
     params = st.query_params
-    if "type" in params and params["type"] == "recovery":
+    # Manejamos si el parámetro viene como lista o string
+    p_type = params.get("type")
+    if isinstance(p_type, list): p_type = p_type[0]
+
+    if p_type == "recovery":
         st.session_state.auth_mode = "reset_password"
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
-        st.markdown("<h2 style='color: #1D1D1F;'>CobroYa Global</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; color: #1D1D1F;'>VALE AI Global</h2>", unsafe_allow_html=True)
+        
+        # --- LOGIN ---
         if st.session_state.auth_mode == "login":
-            email = st.text_input("Correo Electrónico")
+            email = st.text_input("Correo Electrónico", placeholder="ejemplo@correo.com")
             pwd = st.text_input("Contraseña", type="password")
-            if st.button("Iniciar Sesión"):
+            
+            if st.button("Iniciar Sesión", use_container_width=True, type="primary"):
                 try:
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                    # Verificamos si el usuario realmente entró
-                    if res.user:
+                    if res and res.user:
                         st.session_state.user = res.user
-                        st.success("¡Bienvenido!")
                         st.rerun()
                 except Exception as e:
-                    # Si el error es por falta de confirmación, Supabase lo avisa
-                    error_msg = str(e).lower()
-                    if "email not confirmed" in error_msg:
-                        st.warning("⚠️ Debes confirmar tu correo antes de entrar. Revisa tu bandeja de entrada.")
+                    if "email not confirmed" in str(e).lower():
+                        st.warning("⚠️ Debes confirmar tu correo.")
                     else:
                         st.error("❌ Correo o contraseña incorrectos.")
             
-            st.markdown("---")
+            st.divider()
             c1, c2 = st.columns(2)
-            if c1.button("Olvidé mi contraseña"):
+            if c1.button("Olvidé mi clave", use_container_width=True):
                 st.session_state.auth_mode = "forgot"
                 st.rerun()
-            if c2.button("Registrarme"):
+            if c2.button("Registrarme", use_container_width=True):
                 st.session_state.auth_mode = "signup"
                 st.rerun()
 
+        # --- OLVIDÓ CONTRASEÑA ---
         elif st.session_state.auth_mode == "forgot":
             st.subheader("Recuperar Cuenta")
             f_email = st.text_input("Email de tu cuenta")
-            if st.button("Enviar enlace de restauración"):
+            if st.button("Enviar Enlace de Recuperación", use_container_width=True):
                 try:
-                    conn.client.auth.reset_password_for_email(f_email)
-                    st.success("Enlace enviado. Revisa tu email.")
-                except: st.error("Error al procesar solicitud.")
-            st.button("Regresar", on_click=lambda: st.session_state.update({"auth_mode": "login"}))
+                    # IMPORTANTE: Cambia localhost por tu URL real en producción
+                    redireccion = "http://localhost:8501" 
+                    conn.client.auth.reset_password_for_email(f_email, {"redirect_to": redireccion})
+                    st.success("✅ Enlace enviado. Revisa tu bandeja de entrada.")
+                except:
+                    st.error("Ocurrió un error al enviar el correo.")
+            
+            if st.button("← Regresar"):
+                st.session_state.auth_mode = "login"
+                st.rerun()
 
+        # --- RESET DE CONTRASEÑA (CRÍTICO) ---
         elif st.session_state.auth_mode == "reset_password":
             st.subheader("Nueva Contraseña")
-            new_p = st.text_input("Escribe tu nueva clave", type="password")
-            if st.button("Actualizar y Entrar"):
-                try:
-                    conn.client.auth.update_user({"password": new_p})
-                    st.success("Clave cambiada con éxito.")
-                    st.session_state.auth_mode = "login"
-                    st.rerun()
-                except: st.error("El enlace ha expirado.")
+            nueva_p = st.text_input("Escribe tu nueva clave", type="password", help="Mínimo 6 caracteres")
+            confirmar_p = st.text_input("Confirma tu nueva clave", type="password")
+            
+            if st.button("Actualizar y Entrar", use_container_width=True, type="primary"):
+                if len(nueva_p) < 6:
+                    st.warning("La clave debe tener al menos 6 caracteres.")
+                elif nueva_p != confirmar_p:
+                    st.error("Las contraseñas no coinciden.")
+                else:
+                    try:
+                        # Supabase detecta automáticamente el token en la sesión actual
+                        conn.client.auth.update_user({"password": nueva_p})
+                        st.success("✅ ¡Contraseña actualizada con éxito!")
+                        st.query_params.clear() # Limpiamos la URL
+                        st.session_state.auth_mode = "login"
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"El enlace expiró o es inválido: {e}")
 
+        # --- REGISTRO (SIGNUP) ---
         elif st.session_state.auth_mode == "signup":
-            st.subheader("Registro SaaS")
-            reg_email = st.text_input("Email")
-            reg_pass = st.text_input("Contraseña", type="password")
-            if st.button("Crear mi Empresa"):
+            st.subheader("Registro de Empresa")
+            r_email = st.text_input("Correo corporativo")
+            r_pass = st.text_input("Contraseña (min. 6 carac.)", type="password")
+            if st.button("Crear mi Cuenta", use_container_width=True, type="primary"):
                 try:
-                    conn.client.auth.sign_up({"email": reg_email, "password": reg_pass})
-                    st.info("Revisa tu email para confirmar tu cuenta.")
-                except Exception as e: st.error(f"Error: {e}")
-            st.button("Regresar", on_click=lambda: st.session_state.update({"auth_mode": "login"}))
-        st.markdown("</div>", unsafe_allow_html=True)
+                    conn.client.auth.sign_up({"email": r_email, "password": r_pass})
+                    st.info("📩 Te enviamos un correo de confirmación.")
+                except Exception as e:
+                    st.error(f"Error en registro: {e}")
+            
+            if st.button("← Regresar"):
+                st.session_state.auth_mode = "login"
+                st.rerun()
 
-# Bloqueo de seguridad
-if 'user' not in st.session_state:
+# --- CONTROL DE ACCESO ---
+if st.session_state.user is None:
     login_ui()
     st.stop()
 
+# Si llegamos aquí, el usuario está logueado
 u_id = st.session_state.user.id
-clientes_f = []
+
+# Botón de Logout (Ponlo en el Sidebar)
+with st.sidebar:
+    st.write(f"👤 {st.session_state.user.email}")
+    if st.button("Cerrar Sesión"):
+        conn.client.auth.sign_out()
+        st.session_state.user = None
+        st.rerun()
+        
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
     try:
