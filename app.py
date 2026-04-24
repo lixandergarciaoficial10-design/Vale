@@ -968,128 +968,13 @@ elif menu == "Gestión de Cobros":
                 del st.session_state[key]
                 # No hacemos rerun aquí, dejamos que la modal se procese
 
-# --- 5. CONTROLES SUPERIORES (MANTENIENDO TU LÓGICA) ---
-if 'lista_ruta' not in st.session_state:
-    st.session_state.lista_ruta = []
+    # --- 5. CONTROLES SUPERIORES ---
+    col_search, col_view = st.columns([2, 1])
+    with col_search:
+        search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre, Cédula o Teléfono...").lower()
+    with col_view:
+        modo_analisis = st.toggle("📈 Modo Análisis", help="Ver cuentas saldadas")
 
-# Añadimos una tercera columna para el botón de ruta
-col_search, col_view, col_ruta = st.columns([1.5, 0.8, 1.2])
-
-with col_search:
-    search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre, Cédula o Teléfono...").lower()
-
-with col_view:
-    modo_analisis = st.toggle("📈 Análisis", help="Ver cuentas saldadas")
-
-with col_ruta:
-    # Botón minimalista Popover para gestionar la ruta
-    with st.popover("📍 ¿A quién cobro hoy?", use_container_width=True):
-        st.subheader("Ruta Seleccionada")
-        if not st.session_state.lista_ruta:
-            st.info("No has seleccionado clientes.")
-        else:
-            for idx, r in enumerate(st.session_state.lista_ruta):
-                c_r1, c_r2 = st.columns([4, 1])
-                c_r1.write(f"• {r['Nombre']}")
-                if c_r2.button("❌", key=f"del_{idx}"):
-                    st.session_state.lista_ruta.pop(idx)
-                    st.rerun()
-            
-            st.divider()
-            
-            # Acción 1: PDF (Requiere fpdf instalado: pip install fpdf)
-            if st.button("📄 Descargar PDF de Ruta", use_container_width=True):
-                # Aquí puedes integrar una función de PDF simple
-                st.success("PDF Listo para descargar (Simulado)")
-
-            # Acción 2: Google Maps
-            con_gps = [r for r in st.session_state.lista_ruta if r['lat'] and r['lon']]
-            sin_gps = [r for r in st.session_state.lista_ruta if not r['lat'] or not r['lon']]
-            
-            if sin_gps:
-                st.warning(f"Sin GPS: {', '.join([s['Nombre'] for s in sin_gps])}")
-            
-            if con_gps:
-                # Creamos link de navegación paso a paso
-                puntos = "/".join([f"{p['lat']},{p['lon']}" for p in con_gps])
-                # Corregido a formato estándar de Google Maps para múltiples paradas
-                url_maps = f"https://www.google.com/maps/dir/{puntos}"
-                st.markdown(f'<a href="{url_maps}" target="_blank"><button style="width:100%;background-color:#4285F4;color:white;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;">🚗 Iniciar Ruta en Maps</button></a>', unsafe_allow_html=True)
-
-# --- 6. CONSULTA DE DATOS (ORDENADOS POR RECIENTES) ---
-query = conn.table("cuentas").select("*, clientes(nombre, cedula, telefono, latitud, longitud), plan_cuotas(id, estado)").eq("user_id", u_id)
-
-if modo_analisis:
-    query = query.lte("balance_pendiente", 0)
-else:
-    query = query.gt("balance_pendiente", 0)
-    # CORRECCIÓN: El argumento correcto es 'desc'
-    query = query.order("fecha_creacion", desc=True)
-
-res = query.execute()
-
-if res.data:
-    # --- CABECERA TIPO EXCEL ---
-    st.markdown("""
-        <div style='display: grid; grid-template-columns: 2fr 1fr 1fr 1.2fr; background-color: #f0f2f6; padding: 12px; font-weight: bold; border-radius: 8px; margin-bottom: 10px; border: 1px solid #d1d1d6;'>
-            <div>Nombre Cliente</div>
-            <div style='text-align:center;'>Deuda Total</div>
-            <div style='text-align:center;'>Facturas</div>
-            <div style='text-align:center;'>Acción</div>
-        </div>
-    """, unsafe_allow_html=True)
-
-    for item in res.data:
-        cliente = item.get('clientes', {})
-        nombre = cliente.get('nombre', 'Sin Nombre')
-        cedula = cliente.get('cedula', 'S/C')
-        
-        # Filtro de búsqueda existente
-        if search_term and search_term not in nombre.lower() and search_term not in str(cedula):
-            continue
-
-        # Conteo de facturas pendientes reales del plan
-        facturas_pend = len([p for p in item.get('plan_cuotas', []) if p['estado'] != 'Saldado'])
-        m_pend = float(item.get('balance_pendiente', 0))
-
-        # --- FILA TIPO EXCEL ---
-        col_n, col_d, col_f, col_b = st.columns([2, 1, 1, 1.2])
-        
-        with col_n:
-            st.markdown(f"**{nombre}**")
-            st.caption(f"ID: {item['id'][:8]}")
-        
-        with col_d:
-            st.markdown(f"<p style='text-align:center;'>RD$ {m_pend:,.0f}</p>", unsafe_allow_html=True)
-        
-        with col_f:
-            st.markdown(f"<p style='text-align:center;'>{facturas_pend}</p>", unsafe_allow_html=True)
-        
-        with col_b:
-            if not modo_analisis:
-                # Lógica de botón dinámico
-                en_ruta = any(r['id_cuenta'] == item['id'] for r in st.session_state.lista_ruta)
-                if not en_ruta:
-                    if st.button("➕ Cobrar Hoy", key=f"btn_ruta_{item['id']}", use_container_width=True):
-                        st.session_state.lista_ruta.append({
-                            "id_cuenta": item['id'],
-                            "Nombre": nombre,
-                            "cedula": cedula,
-                            "lat": cliente.get('latitud'),
-                            "lon": cliente.get('longitud'),
-                            "monto": m_pend
-                        })
-                        st.rerun()
-                else:
-                    st.button("✅ En Lista", key=f"ready_{item['id']}", disabled=True, use_container_width=True)
-            else:
-                if st.button("📄 Ver", key=f"ver_{item['id']}", use_container_width=True):
-                    item['aux_nombre'] = nombre
-                    mostrar_historial_modal(item, u_id)
-        st.divider()
-else:
-    st.info("No hay registros que coincidan.")
-    
     # --- 6. CONSULTA DE DATOS PARA LA LISTA ---
     # Ahora sí consultamos para mostrar en pantalla según el modo
     query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula)").eq("user_id", u_id)
