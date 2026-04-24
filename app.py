@@ -77,11 +77,18 @@ def login_ui():
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
         st.markdown("<h2 style='color: #1D1D1F; margin-bottom: 20px;'>VALE AI Global</h2>", unsafe_allow_html=True)
         
-        # --- BOTÓN DE GOOGLE (CORREGIDO SIN ICONO DE MATERIAL) ---
+        # --- EL BENDITO BOTÓN DE GOOGLE (HTML PARA EVITAR ERRORS) ---
         if st.session_state.auth_mode in ["login", "signup"]:
-            # Usamos un emoji de red para representar Google o simplemente el texto 
-            # para evitar que el validador de Streamlit tire error de nuevo.
-            if st.button("🌐 Continuar con Google", use_container_width=True):
+            # Dibujamos el logo de Google con HTML puro
+            st.markdown("""
+                <div style="display: flex; align-items: center; justify-content: center; background-color: white; border: 1px solid #dadce0; border-radius: 4px; padding: 5px; margin-bottom: 10px;">
+                    <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" width="20px" style="margin-right: 10px;">
+                    <span style="color: #3c4043; font-weight: 500; font-family: 'Roboto',arial,sans-serif; font-size: 14px;">Cuenta de Google</span>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Botón de Streamlit sin icono para que no explote la app
+            if st.button("Continuar con Google", use_container_width=True):
                 try:
                     conn.client.auth.sign_in_with_oauth({
                         "provider": "google",
@@ -168,6 +175,7 @@ def login_ui():
                     st.warning("Mínimo 6 caracteres.")
                 else:
                     try:
+                        # Registro con entrada directa (Asegúrate de apagar Confirm Email en Supabase)
                         res = conn.client.auth.sign_up({"email": r_email, "password": r_pass})
                         if res and res.user:
                             st.session_state.user = res.user
