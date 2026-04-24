@@ -652,50 +652,101 @@ with st.sidebar:
     
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 if menu == "Panel de Control":
-    st.title("💼 Business Intelligence Dashboard")
+    from datetime import datetime, timedelta
+
+    st.markdown("<h1 style='text-align: center;'>💼 Business Intelligence</h1>", unsafe_allow_html=True)
     
-    # --- 1. EXTRACCIÓN DE DATOS ---
-    res_c = conn.table("cuentas").select("balance_pendiente, monto_inicial, estado, cliente:clientes(nombre)").eq("user_id", u_id).execute()
-    res_p = conn.table("pagos").select("monto_pagado, fecha_pago").eq("user_id", u_id).execute()
-    res_g_pagados = conn.table("gastos").select("monto").eq("user_id", u_id).eq("estado", "Pagado").eq("visible_usuario", True).execute()
-    res_g_pendientes = conn.table("gastos").select("monto").eq("user_id", u_id).eq("estado", "Pendiente").eq("visible_usuario", True).execute()
+    # --- 1. SELECTOR ESTRATÉGICO (MÍNIMO IMPACTO VISUAL) ---
+    # Lo ponemos en una columna pequeña a la derecha para que se vea Pro
+    _, col_filtro = st.columns([2, 1])
+    with col_filtro:
+        filtro_tiempo = st.selectbox(
+            "📅 Período de Análisis",
+            ["Todo el tiempo", "Últimos 7 días", "Últimos 15 días", "Este mes", "Últimos 3 meses", "Último año"],
+            index=0
+        )
 
-    # --- 2. CÁLCULOS ---
+    # --- 2. CÁLCULO DE FECHAS (LÓGICA DE FILTRO) ---
+    hoy = datetime.now()
+    fecha_inicio = None
+
+    if filtro_tiempo == "Últimos 7 días": fecha_inicio = hoy - timedelta(days=7)
+    elif filtro_tiempo == "Últimos 15 días": fecha_inicio = hoy - timedelta(days=15)
+    elif filtro_tiempo == "Este mes": fecha_inicio = hoy.replace(day=1)
+    elif filtro_tiempo == "Últimos 3 meses": fecha_inicio = hoy - timedelta(days=90)
+    elif filtro_tiempo == "Último año": fecha_inicio = hoy - timedelta(days=365)
+
+    # --- 3. EXTRACCIÓN OPTIMIZADA (FILTRADO DESDE EL SERVIDOR) ---
+    # Definimos las queries base
+    q_cuentas = conn.table("cuentas").select("balance_pendiente, created_at").eq("user_id", u_id).eq("estado", "Activo")
+    q_pagos = conn.table("pagos").select("monto_pagado, fecha_pago").eq("user_id", u_id)
+    q_gastos = conn.table("gastos").select("monto, fecha_gasto").eq("user_id", u_id).eq("estado", "Pagado").eq("visible_usuario", True)
+
+    # Aplicamos el filtro de fecha solo si no es "Todo el tiempo"
+    if fecha_inicio:
+        fecha_iso = fecha_inicio.date().isoformat()
+        # En Supabase usamos .gte (Greater Than or Equal) para filtrar desde esa fecha
+        q_cuentas = q_cuentas.gte("created_at", fecha_iso)
+        q_pagos = q_pagos.gte("fecha_pago", fecha_iso)
+        q_gastos = q_gastos.gte("fecha_gasto", fecha_iso)
+
+    # Ejecutamos las peticiones (Ya vienen filtradas, ahorro masivo de recursos)
+    res_c = q_cuentas.execute()
+    res_p = q_pagos.execute()
+    res_g = q_gastos.execute()
+
+    # --- 4. CÁLCULOS RÁPIDOS ---
+    capital_en_calle = sum([c['balance_pendiente'] for c in res_c.data]) if res_c.data else 0
     total_cobrado = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
-    total_gastado_real = sum([g['monto'] for g in res_g_pagados.data]) if res_g_pagados.data else 0
-    total_compromisos = sum([g['monto'] for g in res_g_pendientes.data]) if res_g_pendientes.data else 0
-    capital_en_calle = sum([c['balance_pendiente'] for c in res_c.data if c['estado'] == 'Activo']) if res_c.data else 0
-    caja_actual = total_cobrado - total_gastado_real
+    total_gastado = sum([g['monto'] for g in res_g.data]) if res_g.data else 0
+    caja_neto = total_cobrado - total_gastado
 
-    # --- 3. LÓGICA DE RECOBRO (PUNTO DE CORTE VISUAL) ---
-    if 'offset_caja' not in st.session_state: st.session_state.offset_caja = 0
-    if 'offset_calle' not in st.session_state: st.session_state.offset_calle = 0
-    if 'offset_gastos' not in st.session_state: st.session_state.offset_gastos = 0
+    # --- 5. MÉTRICAS CON ESTILO MINIMALISTA ---
+    # Eliminamos botones de recobro y dejamos el diseño limpio
+    st.markdown("""
+        <style>
+            .metric-card {
+                background-color: #ffffff;
+                padding: 20px;
+                border-radius: 15px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+                text-align: center;
+                border: 1px solid #f0f0f5;
+            }
+            .metric-card small { color: #8e8e93; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+            .metric-card h2 { margin-top: 10px; font-size: 28px; margin-bottom: 0; }
+        </style>
+    """, unsafe_allow_html=True)
 
-    # --- 4. MÉTRICAS PRINCIPALES ---
     c1, c2, c3 = st.columns(3)
+    
     with c1:
-        val_calle = max(0, capital_en_calle - st.session_state.offset_calle)
-        st.markdown(f"<div class='metric-card'><small>💰 EN LA CALLE</small><h2 style='color:#007AFF;'>RD$ {val_calle:,.0f}</h2></div>", unsafe_allow_html=True)
-        if st.button("🔄 Recobro", key="re_calle"):
-            st.session_state.offset_calle = capital_en_calle
-            st.rerun()
+        st.markdown(f"""
+            <div class='metric-card'>
+                <small>💰 Dinero en Calle</small>
+                <h2 style='color:#007AFF;'>RD$ {capital_en_calle:,.0f}</h2>
+            </div>
+        """, unsafe_allow_html=True)
 
     with c2:
-        val_caja = max(0, caja_actual - st.session_state.offset_caja)
-        st.markdown(f"<div class='metric-card'><small>🏦 CAJA NETO</small><h2 style='color:#34C759;'>RD$ {val_caja:,.0f}</h2></div>", unsafe_allow_html=True)
-        if st.button("🔄 Recobro", key="re_caja"):
-            st.session_state.offset_caja = caja_actual
-            st.rerun()
+        st.markdown(f"""
+            <div class='metric-card'>
+                <small>🏦 Caja Neto</small>
+                <h2 style='color:#34C759;'>RD$ {caja_neto:,.0f}</h2>
+            </div>
+        """, unsafe_allow_html=True)
 
     with c3:
-        val_gastos = max(0, total_gastado_real - st.session_state.offset_gastos)
-        st.markdown(f"<div class='metric-card'><small>📉 GASTOS</small><h2 style='color:#FF3B30;'>RD$ {val_gastos:,.0f}</h2></div>", unsafe_allow_html=True)
-        if st.button("🔄 Recobro", key="re_gastos"):
-            st.session_state.offset_gastos = total_gastado_real
-            st.rerun()
+        st.markdown(f"""
+            <div class='metric-card'>
+                <small>📉 Gastos</small>
+                <h2 style='color:#FF3B30;'>RD$ {total_gastado:,.0f}</h2>
+            </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown("---")
+    st.markdown("<br>", unsafe_allow_html=True)
+    # Aquí puedes añadir una pequeña nota informativa
+    st.info(f"📊 Mostrando datos de: **{filtro_tiempo}**")
 
     # --- 5. GRÁFICOS (PROTECCIÓN CONTRA ERRORES DE FECHA) ---
     import pandas as pd
