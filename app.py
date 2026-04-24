@@ -65,7 +65,7 @@ def login_ui():
         st.markdown("<h2 style='color: #1D1D1F;'>VALE AI Global</h2>", unsafe_allow_html=True)
         
         if st.session_state.auth_mode in ["login", "signup"]:
-            # --- BOTÓN DE GOOGLE ESTILO OFICIAL (HTML Limpio) ---
+            # --- BOTÓN DE GOOGLE ESTILO OFICIAL ---
             st.markdown("""
                 <div class="google-container" style="display: flex; align-items: center; justify-content: center; background-color: white; border: 1px solid #dadce0; border-radius: 12px; padding: 10px; margin-bottom: 10px;">
                     <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" width="18px" style="margin-right: 10px;">
@@ -73,10 +73,8 @@ def login_ui():
                 </div>
             """, unsafe_allow_html=True)
             
-            # Botón funcional minimalista (Se activa al hacer clic en el área)
             if st.button("Validar acceso con Google", use_container_width=True):
                 try:
-                    # Cambiar a tu URL real en producción (ej. https://tu-app.streamlit.app)
                     redirect_url = "http://localhost:8501" 
                     res = conn.client.auth.sign_in_with_oauth({
                         "provider": "google",
@@ -97,7 +95,7 @@ def login_ui():
             if st.button("Entrar", use_container_width=True):
                 try:
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                    if res.user:
+                    if res.session:
                         st.session_state.user = res.user
                         st.rerun()
                 except: st.error("Datos incorrectos")
@@ -121,7 +119,8 @@ def login_ui():
                 try:
                     res = conn.client.auth.sign_up({"email": r_email, "password": r_pass})
                     if res.user:
-                        st.session_state.user = res.user
+                        st.info("Cuenta creada. Revisa tu correo o intenta loguearte.")
+                        st.session_state.auth_mode = "login"
                         st.rerun()
                 except Exception as e: st.error(f"Error: {e}")
             if st.button("Volver al inicio", use_container_width=True):
@@ -130,13 +129,15 @@ def login_ui():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 3. CONTROL DE ACCESO ---
+# --- 3. CONTROL DE ACCESO (FIX: Persistencia forzada) ---
 if st.session_state.user is None:
     try:
-        session = conn.client.auth.get_session()
-        if session:
-            st.session_state.user = session.user
+        # Recuperamos la sesión actual de Supabase
+        session_data = conn.client.auth.get_session()
+        if session_data:
+            st.session_state.user = session_data.user
         else:
+            # Si no hay sesión real, mostramos UI y paramos ejecución
             login_ui()
             st.stop()
     except:
