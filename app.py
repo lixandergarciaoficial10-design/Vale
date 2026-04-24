@@ -30,173 +30,121 @@ st.markdown("""
         box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
         text-align: center; max-width: 450px; margin: auto; border: 1px solid #F0F0F0;
     }
-    .metric-card {
-        background-color: white; padding: 25px; border-radius: 20px;
-        border: 1px solid #E5E7EB; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-    }
+    /* Estilo botones Apple Blue */
     div.stButton > button:first-child {
         background-color: #007AFF; color: white; border-radius: 12px; border: none;
         padding: 0.7rem 2rem; font-weight: bold; width: 100%;
     }
-    .status-badge {
-        padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold;
+    /* Estilo Contenedor Google (Limpio) */
+    .google-container {
+        display: flex; align-items: center; justify-content: center;
+        background-color: white; border: 1px solid #dadce0; border-radius: 12px;
+        padding: 8px; margin-bottom: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
 
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# --- 1. CONFIGURACIÓN DE SESIÓN Y PERSISTENCIA ---
+# --- 1. CONFIGURACIÓN DE SESIÓN ---
 if 'user' not in st.session_state:
     st.session_state.user = None
 if 'auth_mode' not in st.session_state:
     st.session_state.auth_mode = "login"
 
-# --- 2. LÓGICA DE RECUPERACIÓN DE SESIÓN (AUTO-LOGIN) ---
-try:
-    if st.session_state.user is None:
-        session = conn.client.auth.get_session()
-        if session:
-            st.session_state.user = session.user
-except:
-    pass
-
+# --- 2. LÓGICA DE LOGIN ---
 def login_ui():
-    # 3. CAPTURA SEGURA DE PARÁMETROS (URL)
     params = st.query_params
-    p_type = params.get("type")
-    if isinstance(p_type, list): p_type = p_type[0]
-
-    if p_type == "recovery":
+    if params.get("type") == "recovery":
         st.session_state.auth_mode = "reset_password"
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<div class='auth-card' style='text-align: center;'>", unsafe_allow_html=True)
-        # LOGO DE LA APP
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
-        st.markdown("<h2 style='color: #1D1D1F; margin-bottom: 20px;'>VALE AI Global</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='color: #1D1D1F;'>VALE AI Global</h2>", unsafe_allow_html=True)
         
-        # --- EL BENDITO BOTÓN DE GOOGLE (HTML PARA EVITAR ERRORS) ---
         if st.session_state.auth_mode in ["login", "signup"]:
-            # Dibujamos el logo de Google con HTML puro
+            # --- BOTÓN DE GOOGLE ESTILO OFICIAL (HTML Limpio) ---
             st.markdown("""
-                <div style="display: flex; align-items: center; justify-content: center; background-color: white; border: 1px solid #dadce0; border-radius: 4px; padding: 5px; margin-bottom: 10px;">
-                    <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" width="20px" style="margin-right: 10px;">
-                    <span style="color: #3c4043; font-weight: 500; font-family: 'Roboto',arial,sans-serif; font-size: 14px;">Cuenta de Google</span>
+                <div class="google-container" style="display: flex; align-items: center; justify-content: center; background-color: white; border: 1px solid #dadce0; border-radius: 12px; padding: 10px; margin-bottom: 10px;">
+                    <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" width="18px" style="margin-right: 10px;">
+                    <span style="color: #3c4043; font-weight: 500; font-family: 'Roboto',arial,sans-serif; font-size: 14px;">Continuar con Google</span>
                 </div>
             """, unsafe_allow_html=True)
             
-            # Botón de Streamlit sin icono para que no explote la app
-            if st.button("Continuar con Google", use_container_width=True):
+            # Botón funcional minimalista (Se activa al hacer clic en el área)
+            if st.button("Validar acceso con Google", use_container_width=True):
                 try:
-                    conn.client.auth.sign_in_with_oauth({
+                    # Cambiar a tu URL real en producción (ej. https://tu-app.streamlit.app)
+                    redirect_url = "http://localhost:8501" 
+                    res = conn.client.auth.sign_in_with_oauth({
                         "provider": "google",
-                        "options": {
-                            "redirect_to": "http://localhost:8501" # Cambiar a tu URL real en producción
-                        }
+                        "options": {"redirect_to": redirect_url}
                     })
+                    if res.url:
+                        st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
                 except Exception as e:
-                    st.error(f"Error con Google: {e}")
+                    st.error(f"Error: {e}")
             
-            st.markdown("<p style='color: gray; font-size: 0.8em; margin: 15px 0;'>o usa tu correo electrónico</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #8E8E93; font-size: 0.9rem; margin-top: 10px;'>o usa tu correo electrónico</p>", unsafe_allow_html=True)
 
-        # --- MODO: LOGIN ---
+        # --- LOGIN TRADICIONAL ---
         if st.session_state.auth_mode == "login":
-            email = st.text_input("Correo Electrónico", placeholder="ejemplo@correo.com", key="login_email")
-            pwd = st.text_input("Contraseña", type="password", key="login_pwd")
+            email = st.text_input("Email", key="l_email", placeholder="ejemplo@correo.com")
+            pwd = st.text_input("Clave", type="password", key="l_pwd", placeholder="••••••••")
             
-            if st.button("Iniciar Sesión", use_container_width=True, type="primary"):
+            if st.button("Entrar", use_container_width=True):
                 try:
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                    if res and res.user:
+                    if res.user:
                         st.session_state.user = res.user
                         st.rerun()
-                except Exception as e:
-                    st.error("❌ Correo o contraseña incorrectos.")
+                except: st.error("Datos incorrectos")
             
-            st.divider()
+            st.markdown("---")
             c1, c2 = st.columns(2)
-            if c1.button("Olvidé mi clave", use_container_width=True):
-                st.session_state.auth_mode = "forgot"
-                st.rerun()
-            if c2.button("Registrarme", use_container_width=True):
-                st.session_state.auth_mode = "signup"
-                st.rerun()
+            with c1:
+                if st.button("Olvidé clave", use_container_width=True):
+                    st.session_state.auth_mode = "forgot"
+                    st.rerun()
+            with c2:
+                if st.button("Registrarme", use_container_width=True):
+                    st.session_state.auth_mode = "signup"
+                    st.rerun()
 
-        # --- MODO: OLVIDÓ CONTRASEÑA ---
-        elif st.session_state.auth_mode == "forgot":
-            st.subheader("Recuperar Cuenta")
-            f_email = st.text_input("Email de tu cuenta")
-            if st.button("Enviar Enlace de Recuperación", use_container_width=True, type="primary"):
-                try:
-                    redireccion = "http://localhost:8501" 
-                    conn.client.auth.reset_password_for_email(f_email, {"redirect_to": redireccion})
-                    st.success("✅ Enlace enviado. Revisa tu bandeja de entrada.")
-                except:
-                    st.error("Ocurrió un error al enviar el correo.")
-            
-            if st.button("← Regresar", use_container_width=True):
-                st.session_state.auth_mode = "login"
-                st.rerun()
-
-        # --- MODO: RESET DE CONTRASEÑA ---
-        elif st.session_state.auth_mode == "reset_password":
-            st.subheader("Nueva Contraseña")
-            nueva_p = st.text_input("Escribe tu nueva clave", type="password")
-            confirmar_p = st.text_input("Confirma tu nueva clave", type="password")
-            
-            if st.button("Actualizar y Entrar", use_container_width=True, type="primary"):
-                if len(nueva_p) < 6:
-                    st.warning("La clave debe tener al menos 6 caracteres.")
-                elif nueva_p != confirmar_p:
-                    st.error("Las contraseñas no coinciden.")
-                else:
-                    try:
-                        conn.client.auth.update_user({"password": nueva_p})
-                        st.success("✅ ¡Contraseña actualizada!")
-                        st.query_params.clear() 
-                        st.session_state.auth_mode = "login"
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"El enlace expiró o es inválido: {e}")
-
-        # --- MODO: REGISTRO (SIGNUP) ---
+        # --- REGISTRO DIRECTO ---
         elif st.session_state.auth_mode == "signup":
-            st.subheader("Registro de Empresa")
-            r_email = st.text_input("Correo corporativo", key="reg_email")
-            r_pass = st.text_input("Contraseña (min. 6 carac.)", type="password", key="reg_pass")
-            r_pass_conf = st.text_input("Confirma tu contraseña", type="password", key="reg_pass_conf")
-            
-            if st.button("Crear mi Cuenta y Entrar", use_container_width=True, type="primary"):
-                if r_pass != r_pass_conf:
-                    st.error("Las contraseñas no coinciden.")
-                elif len(r_pass) < 6:
-                    st.warning("Mínimo 6 caracteres.")
-                else:
-                    try:
-                        # Registro con entrada directa (Asegúrate de apagar Confirm Email en Supabase)
-                        res = conn.client.auth.sign_up({"email": r_email, "password": r_pass})
-                        if res and res.user:
-                            st.session_state.user = res.user
-                            st.rerun()
-                    except Exception as e:
-                        st.error(f"Error en registro: {e}")
-            
-            if st.button("← Regresar", use_container_width=True):
+            r_email = st.text_input("Nuevo Email", placeholder="tu@email.com")
+            r_pass = st.text_input("Nueva Clave", type="password", placeholder="Mínimo 6 caracteres")
+            if st.button("Crear Cuenta", use_container_width=True):
+                try:
+                    res = conn.client.auth.sign_up({"email": r_email, "password": r_pass})
+                    if res.user:
+                        st.session_state.user = res.user
+                        st.rerun()
+                except Exception as e: st.error(f"Error: {e}")
+            if st.button("Volver al inicio", use_container_width=True):
                 st.session_state.auth_mode = "login"
                 st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- CONTROL DE ACCESO ---
+# --- 3. CONTROL DE ACCESO ---
 if st.session_state.user is None:
-    login_ui()
-    st.stop()
+    try:
+        session = conn.client.auth.get_session()
+        if session:
+            st.session_state.user = session.user
+        else:
+            login_ui()
+            st.stop()
+    except:
+        login_ui()
+        st.stop()
 
-# --- AQUÍ SIGUE TU LÓGICA ORIGINAL ---
+# --- LÓGICA DE LA APP ---
 u_id = st.session_state.user.id
-clientes_f = []
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
