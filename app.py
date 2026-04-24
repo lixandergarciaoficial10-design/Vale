@@ -968,106 +968,116 @@ elif menu == "Gestión de Cobros":
     if 'ruta_set' not in st.session_state:
         st.session_state.ruta_set = set()
 
-    # --- 2. CONTROLES SUPERIORES EN POPOVER (DESPLEGABLE) ---
+    # --- 2. CONTROLES SUPERIORES (EL DESPLEGABLE DE MAPS) ---
     col_search, col_view, col_ruta = st.columns([1.5, 0.8, 1.2])
 
     with col_search:
-        search_term = st.text_input("🔍 Buscar...", placeholder="Nombre o Cédula...", key="search_c").lower()
+        search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre, Cédula...", key="search_cobros").lower()
 
     with col_view:
-        modo_analisis = st.toggle("📈 Saldados", help="Ver cuentas en 0")
+        modo_analisis = st.toggle("📈 Análisis", help="Ver cuentas saldadas")
 
     with col_ruta:
+        # AQUÍ ES DONDE VA EL DESPLEGABLE PARA LA RUTA
         with st.popover("📍 Ver Ruta de Hoy", use_container_width=True):
+            st.subheader("Clientes Seleccionados")
             if st.session_state.ruta_set:
-                # Consultamos datos de clientes seleccionados
+                # Obtenemos los nombres y GPS de los clientes marcados
                 res_ruta = conn.table("clientes").select("nombre, latitud, longitud").in_("id", list(st.session_state.ruta_set)).execute()
+                
                 puntos_gps = []
                 for r in res_ruta.data:
                     st.write(f"• {r['nombre']}")
                     if r.get('latitud') and r.get('longitud'):
-                        puntos_gps.append(f"{r['latitud']},{r['longitud']}")
+                        # Validamos que no sea 0,0
+                        if float(r['latitud']) != 0:
+                            puntos_gps.append(f"{r['latitud']},{r['longitud']}")
                 
                 st.divider()
                 if puntos_gps:
-                    # Ordenamos por coordenadas para optimizar combustible (lógica simple de cercanía)
-                    puntos_gps.sort() 
+                    puntos_gps.sort() # Orden básico para optimizar ruta
+                    # URL de navegación multipunto corregida
                     url_maps = f"https://www.google.com/maps/dir/{'/'.join(puntos_gps)}"
-                    st.markdown(f'<a href="{url_maps}" target="_blank"><button style="width:100%;background-color:#4285F4;color:white;border:none;padding:12px;border-radius:10px;font-weight:bold;cursor:pointer;">🚗 Abrir Google Maps</button></a>', unsafe_allow_html=True)
+                    st.markdown(f'<a href="{url_maps}" target="_blank"><button style="width:100%;background-color:#4285F4;color:white;border:none;padding:12px;border-radius:10px;font-weight:bold;cursor:pointer;">🚗 Iniciar Ruta en Google Maps</button></a>', unsafe_allow_html=True)
                 
-                if st.button("🗑️ Limpiar Todo", use_container_width=True):
+                if st.button("🗑️ Limpiar Lista", use_container_width=True):
                     st.session_state.ruta_set = set()
                     st.rerun()
             else:
-                st.info("Selecciona clientes en la lista.")
+                st.info("No hay clientes en la ruta.")
 
-    # --- 3. LÓGICA DE AGRUPACIÓN (EL CORAZÓN DEL CAMBIO) ---
-    # Traemos todo y agrupamos en memoria para no repetir nombres
-    res = conn.table("cuentas").select("*, clientes(*)").eq("user_id", u_id).execute()
+    # --- 3. CONSULTA DE DATOS PARA TUS TARJETAS ---
+    query = conn.table("cuentas").select("*, clientes(id, nombre, cedula, telefono, latitud, longitud)").eq("user_id", u_id)
+    if modo_analisis:
+        query = query.lte("balance_pendiente", 0)
+    else:
+        query = query.gt("balance_pendiente", 0).order("fecha_creacion", desc=True)
+
+    res = query.execute()
 
     if res.data:
-        dict_clientes = {}
-
         for item in res.data:
-            c = item.get('clientes')
-            if not c: continue
+            cliente = item.get('clientes', {})
+            nombre = cliente.get('nombre', 'Sin Nombre')
+            cedula = str(cliente.get('cedula', ''))
+            c_id = cliente.get('id')
             
-            c_id = c['id']
+            # Filtro de búsqueda
+            if search_term and search_term not in nombre.lower() and search_term not in cedula:
+                continue
+
             m_pend = float(item.get('balance_pendiente', 0))
+            token = item['id']
 
-            # Filtros de Modo y Búsqueda
-            if (modo_analisis and m_pend > 0) or (not modo_analisis and m_pend <= 0): continue
-            if search_term and (search_term not in c['nombre'].lower() and search_term not in str(c['cedula'])): continue
+            # --- RENDERIZADO DE TU TARJETA (INTACTA) ---
+            with st.container(border=True):
+                # Fila extra pequeña para el checkbox de ruta sin romper tu diseño
+                c_ruta_check, _ = st.columns([0.1, 0.9])
+                with c_ruta_check:
+                    # Agrega el cliente al set de la ruta (No se duplica por el ID de cliente)
+                    en_ruta = st.checkbox(" ", key=f"route_{token}", value=(c_id in st.session_state.ruta_set), label_visibility="collapsed")
+                    if en_ruta:
+                        st.session_state.ruta_set.add(c_id)
+                    else:
+                        st.session_state.ruta_set.discard(c_id)
 
-            if c_id not in dict_clientes:
-                dict_clientes[c_id] = {
-                    "nombre": c['nombre'],
-                    "monto_total": 0,
-                    "facturas": [],
-                    "count": 0
-                }
-            
-            dict_clientes[c_id]["monto_total"] += m_pend
-            dict_clientes[c_id]["count"] += 1
-            dict_clientes[c_id]["facturas"].append(item)
-
-        # --- 4. RENDERIZADO DE LA LISTA GRUPAL ---
-        if dict_clientes:
-            # Cabecera Estilo Tabla
-            st.markdown("""<div style='display: grid; grid-template-columns: 0.5fr 2fr 1fr 1fr; background-color: #f0f2f6; padding: 10px; font-weight: bold; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 5px;'><div>Ruta</div><div>Cliente</div><div style='text-align:center;'>Docs</div><div style='text-align:center;'>Total</div></div>""", unsafe_allow_html=True)
-
-            for cid, info in dict_clientes.items():
-                col_ch, col_nom, col_docs, col_tot = st.columns([0.5, 2, 1, 1])
+                # TUS COLUMNAS ORIGINALES
+                c_nom, c_status, c_inputs, c_btn = st.columns([1.2, 1, 1.2, 0.8])
                 
-                with col_ch:
-                    # Checkbox sin RERUN (se guarda en el set de session_state)
-                    checked = st.checkbox(" ", key=f"ch_{cid}", value=(cid in st.session_state.ruta_set), label_visibility="collapsed")
-                    if checked: st.session_state.ruta_set.add(cid)
-                    else: st.session_state.ruta_set.discard(cid)
+                with c_nom:
+                    st.markdown(f"**{nombre}**")
+                    st.caption(f"Debe: RD$ {m_pend:,.2f}")
+                    if st.button("🔍 Historial", key=f"hist_{token}", use_container_width=True):
+                        mostrar_historial_modal(item, u_id)
 
-                with col_nom:
-                    st.write(f"**{info['nombre']}**")
+                with c_status:
+                    if modo_analisis: st.info("✅ SALDADO")
+                    else:
+                        # Aquí va tu lógica de calcular_atraso_dinamico que ya tenías
+                        txt_atr, dias = calcular_atraso_dinamico(item.get('proximo_pago'))
+                        if dias > 0: st.error(f"⚠️ {dias} días")
+                        else: st.success("🟢 Al día")
+                        
+                with c_inputs:
+                    if not modo_analisis:
+                        cuota = float(item.get('cuota_esperada', 0))
+                        st.caption(f"Cuota: RD$ {cuota:,.0f}")
+                        abono = st.number_input("Monto", min_value=0.0, value=float(min(cuota, m_pend) if cuota > 0 else m_pend), key=f"val_{token}", label_visibility="collapsed")
+                        prox = st.date_input("Próxima", key=f"date_{token}", label_visibility="collapsed")
                 
-                with col_docs:
-                    st.markdown(f"<p style='text-align:center;'>{info['count']}</p>", unsafe_allow_html=True)
+                with c_btn:
+                    if not modo_analisis:
+                        st.write("") # Espaciador
+                        if st.button("💵 COBRAR", key=f"reg_{token}", type="primary", use_container_width=True):
+                            v_mora = st.session_state.get(f"mora_{token}", 0.0)
+                            confirmar_cobro_modal(item, abono, prox, v_mora, u_id)
                 
-                with col_tot:
-                    st.markdown(f"<p style='text-align:center; color:#d32f2f; font-weight:bold;'>RD$ {info['monto_total']:,.0f}</p>", unsafe_allow_html=True)
+                if not modo_analisis:
+                    with st.expander("⚖️ Mora"):
+                        st.number_input("Monto", min_value=0.0, key=f"mora_{token}")
 
-                # --- DESPLEGABLE DE FACTURAS ---
-                with st.expander(f"Ver detalles de {info['nombre']}"):
-                    for f in info['facturas']:
-                        c1, c2, c3 = st.columns([2, 1, 1])
-                        c1.caption(f"Préstamo: {f['id'][:8]}")
-                        c2.write(f"RD$ {float(f['balance_pendiente']):,.0f}")
-                        if c3.button("💵 Cobrar", key=f"cob_{f['id']}"):
-                            f['aux_nombre'] = info['nombre']
-                            confirmar_cobro_modal(f, float(f['balance_pendiente']), f.get('proximo_pago'), 0, u_id)
-                st.divider()
-        else:
-            st.info("No hay clientes pendientes.")
     else:
-        st.warning("No hay datos en la base de datos.")
+        st.info("No hay registros.")
         
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
