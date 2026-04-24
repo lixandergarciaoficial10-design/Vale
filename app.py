@@ -2341,8 +2341,8 @@ elif menu == "IA Predictiva":
             .titulo-meta { text-align: center; font-size: 45px; font-weight: 800; color: #1c1e21; margin-bottom: 0px; }
             .subtitulo-meta { text-align: center; color: #ff4b4b; font-size: 18px; font-weight: bold; margin-bottom: 30px; }
         </style>
-        <h1 class="titulo-meta">🕵️‍♂️ VALE AI</h1>
-        <p class="subtitulo-meta">Tu Analista Senior (Que sí sabe leer números)</p>
+        <h1 class="titulo-meta">🕵️‍♂️ CobroYA AI</h1>
+        <p class="subtitulo-meta">Tu Analista de datos Senior (Que sí sabe leer números). Pregúntame lo que sea</p>
     """, unsafe_allow_html=True)
 
     if "messages" not in st.session_state:
