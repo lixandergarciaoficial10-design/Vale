@@ -964,188 +964,132 @@ elif menu == "Gestión de Cobros":
                 mostrar_recibo_modal(item_recibo, st.session_state[key], u_id)
                 del st.session_state[key]
 
-    # --- 5. CONTROLES SUPERIORES (MANTENIENDO TU LÓGICA) ---
-    if 'lista_ruta' not in st.session_state:
-        st.session_state.lista_ruta = []
+# --- 5. CONTROLES SUPERIORES Y RUTA ---
+    if 'ruta_set' not in st.session_state:
+        st.session_state.ruta_set = set()
 
-    # Añadimos una tercera columna para el botón de ruta
     col_search, col_view, col_ruta = st.columns([1.5, 0.8, 1.2])
 
     with col_search:
-        search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre, Cédula o Teléfono...", key="search_cobros").lower()
+        search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre, Cédula...", key="search_cobros").lower()
 
     with col_view:
         modo_analisis = st.toggle("📈 Análisis", help="Ver cuentas saldadas")
 
     with col_ruta:
-        # Botón minimalista Popover para gestionar la ruta
-        with st.popover("📍 ¿A quién cobro hoy?", use_container_width=True):
-            st.subheader("Ruta Seleccionada")
-            if not st.session_state.lista_ruta:
-                st.info("No has seleccionado clientes.")
-            else:
-                for idx, r in enumerate(st.session_state.lista_ruta):
-                    c_r1, c_r2 = st.columns([4, 1])
-                    c_r1.write(f"• {r['Nombre']}")
-                    if c_r2.button("❌", key=f"del_{idx}"):
-                        st.session_state.lista_ruta.pop(idx)
-                        st.rerun()
-                
-                st.divider()
-                
-                if st.button("📄 Descargar PDF de Ruta", use_container_width=True):
-                    st.success("PDF Listo para descargar (Simulado)")
+        with st.popover("📍 Plan de Ruta de Hoy", use_container_width=True):
+            st.subheader("Clientes en Lista")
+            if st.session_state.ruta_set:
+                # Consultamos solo los seleccionados para la ruta
+                res_ruta = conn.table("cuentas").select("id, balance_pendiente, clientes(nombre, latitud, longitud)").in_("id", list(st.session_state.ruta_set)).execute()
+                lista_final = []
+                for r in res_ruta.data:
+                    lat, lon = r['clientes'].get('latitud'), r['clientes'].get('longitud')
+                    lista_final.append({
+                        "nombre": r['clientes']['nombre'],
+                        "lat": float(lat) if lat else None,
+                        "lon": float(lon) if lon else None,
+                        "monto": float(r['balance_pendiente'])
+                    })
+                    st.write(f"• {r['clientes']['nombre']}")
 
-                # Acción 2: Google Maps
-                con_gps = [r for r in st.session_state.lista_ruta if r['lat'] and r['lon']]
-                sin_gps = [r for r in st.session_state.lista_ruta if not r['lat'] or not r['lon']]
-                
-                if sin_gps:
-                    st.warning(f"Sin GPS: {', '.join([s['Nombre'] for s in sin_gps])}")
-                
+                if st.button("🗑️ Limpiar Lista", use_container_width=True):
+                    st.session_state.ruta_set = set()
+                    st.rerun()
+
+                st.divider()
+                con_gps = [p for p in lista_final if p['lat'] and p['lon']]
                 if con_gps:
+                    con_gps.sort(key=lambda x: (x['lat'], x['lon'])) # Optimización combustible
                     puntos = "/".join([f"{p['lat']},{p['lon']}" for p in con_gps])
                     url_maps = f"https://www.google.com/maps/dir/{puntos}"
-                    st.markdown(f'<a href="{url_maps}" target="_blank"><button style="width:100%;background-color:#4285F4;color:white;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;">🚗 Iniciar Ruta en Maps</button></a>', unsafe_allow_html=True)
+                    st.markdown(f'<a href="{url_maps}" target="_blank"><button style="width:100%;background-color:#4285F4;color:white;border:none;padding:12px;border-radius:10px;font-weight:bold;cursor:pointer;">🚗 Iniciar Ruta Optimizada</button></a>', unsafe_allow_html=True)
+                
+                if st.button("📄 Generar PDF de Ruta", use_container_width=True):
+                    try:
+                        pdf_ruta = generar_pdf_recibo_pro("LISTA DE RUTA", sum(p['monto'] for p in lista_final), 0, u_id)
+                        st.download_button("⬇️ Descargar PDF", data=pdf_ruta, file_name="Ruta_Cobros.pdf", mime="application/pdf")
+                    except:
+                        st.error("Error en PDF. Verifica la función 'generar_pdf_recibo_pro'")
+            else:
+                st.info("No hay clientes seleccionados.")
 
-    # --- 6. CONSULTA DE DATOS (ORDENADOS POR RECIENTES) ---
+    # --- 6. CONSULTA ÚNICA Y PROCESAMIENTO ---
     query = conn.table("cuentas").select("*, clientes(nombre, cedula, telefono, latitud, longitud), plan_cuotas(id, estado)").eq("user_id", u_id)
-
-    if modo_analisis:
-        query = query.lte("balance_pendiente", 0)
-    else:
-        query = query.gt("balance_pendiente", 0).order("fecha_creacion", desc=True)
-
-    res = query.execute()
-
-    if res.data:
-        # --- CABECERA TIPO EXCEL ---
-        st.markdown("""
-            <div style='display: grid; grid-template-columns: 2fr 1fr 1fr 1.2fr; background-color: #f0f2f6; padding: 12px; font-weight: bold; border-radius: 8px; margin-bottom: 10px; border: 1px solid #d1d1d6;'>
-                <div>Nombre Cliente</div>
-                <div style='text-align:center;'>Deuda Total</div>
-                <div style='text-align:center;'>Facturas</div>
-                <div style='text-align:center;'>Acción</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        for item in res.data:
-            cliente = item.get('clientes', {})
-            nombre = cliente.get('nombre', 'Sin Nombre')
-            cedula = cliente.get('cedula', 'S/C')
-            
-            if search_term and search_term not in nombre.lower() and search_term not in str(cedula):
-                continue
-
-            facturas_pend = len([p for p in item.get('plan_cuotas', []) if p['estado'] != 'Saldado'])
-            m_pend = float(item.get('balance_pendiente', 0))
-
-            # --- FILA TIPO EXCEL ---
-            col_n, col_d, col_f, col_b = st.columns([2, 1, 1, 1.2])
-            
-            with col_n:
-                st.markdown(f"**{nombre}**")
-                st.caption(f"ID: {item['id'][:8]}")
-            
-            with col_d:
-                st.markdown(f"<p style='text-align:center;'>RD$ {m_pend:,.0f}</p>", unsafe_allow_html=True)
-            
-            with col_f:
-                st.markdown(f"<p style='text-align:center;'>{facturas_pend}</p>", unsafe_allow_html=True)
-            
-            with col_b:
-                if not modo_analisis:
-                    en_ruta = any(r['id_cuenta'] == item['id'] for r in st.session_state.lista_ruta)
-                    if not en_ruta:
-                        if st.button("➕ Cobrar Hoy", key=f"btn_ruta_{item['id']}", use_container_width=True):
-                            st.session_state.lista_ruta.append({
-                                "id_cuenta": item['id'],
-                                "Nombre": nombre,
-                                "cedula": cedula,
-                                "lat": cliente.get('latitud'),
-                                "lon": cliente.get('longitud'),
-                                "monto": m_pend
-                            })
-                            st.rerun()
-                    else:
-                        st.button("✅ En Lista", key=f"ready_{item['id']}", disabled=True, use_container_width=True)
-                else:
-                    if st.button("📄 Ver", key=f"ver_{item['id']}", use_container_width=True):
-                        item['aux_nombre'] = nombre
-                        mostrar_historial_modal(item, u_id)
-            st.divider()
-    else:
-        st.info("No hay registros que coincidan.")
-    
-# --- 6. CONSULTA DE DATOS PARA LA LISTA ---
-    # Ahora sí consultamos para mostrar en pantalla según el modo
-    query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula)").eq("user_id", u_id)
     if modo_analisis:
         query = query.lte("balance_pendiente", 0)
     else:
         query = query.gt("balance_pendiente", 0)
-        
+
     res = query.execute()
 
     if res.data:
-        datos_procesados = []
+        datos_listado = []
         for c in res.data:
-            cliente_info = c.get('clientes', {})
-            nombre = cliente_info.get('nombre', 'Cliente')
-            cedula = cliente_info.get('cedula', '')
-            telefono = cliente_info.get('telefono', '')
+            cliente = c.get('clientes', {})
+            nombre, cedula, tel = cliente.get('nombre', ''), str(cliente.get('cedula', '')), str(cliente.get('telefono', ''))
             
-            if (search_term in nombre.lower() or 
-                search_term in str(cedula).lower() or 
-                search_term in str(telefono).lower()):
-                
-                txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
+            if search_term in nombre.lower() or search_term in cedula or search_term in tel:
+                txt_atraso, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
                 c['aux_nombre'] = nombre
-                c['aux_atraso_txt'] = f"Atraso: {dias_num} días" if dias_num > 0 else txt_atraso_base
                 c['aux_dias_num'] = dias_num
+                c['aux_atraso_txt'] = f"Atraso: {dias_num} días" if dias_num > 0 else txt_atraso
                 c['aux_prioridad'] = obtener_prioridad(dias_num, float(c.get('balance_pendiente', 0)))
-                datos_procesados.append(c)
+                datos_listado.append(c)
 
-        datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
+        # Ordenar por prioridad (más urgentes arriba)
+        datos_listado = sorted(datos_listado, key=lambda x: x['aux_prioridad'], reverse=True)
 
-        for item in datos_procesados:
+        # --- VISTA 1: TABLA TIPO EXCEL (RESUMIDA) ---
+        st.subheader("📊 Resumen de Cartera")
+        st.markdown("""<div style='display: grid; grid-template-columns: 0.6fr 2fr 1fr 1.2fr; background-color: #f0f2f6; padding: 12px; font-weight: bold; border-radius: 8px; border: 1px solid #d1d1d6;'><div>Ruta</div><div>Cliente</div><div style='text-align:center;'>Deuda</div><div style='text-align:center;'>Acción</div></div>""", unsafe_allow_html=True)
+
+        for item in datos_listado:
+            col_check, col_n, col_d, col_b = st.columns([0.6, 2, 1, 1.2])
+            with col_check:
+                sel = st.checkbox(" ", key=f"check_{item['id']}", value=(item['id'] in st.session_state.ruta_set), label_visibility="collapsed")
+                if sel: st.session_state.ruta_set.add(item['id'])
+                else: st.session_state.ruta_set.discard(item['id'])
+            with col_n:
+                st.write(f"**{item['aux_nombre']}**")
+            with col_d:
+                st.write(f"RD$ {float(item['balance_pendiente']):,.0f}")
+            with col_b:
+                if st.button("🔍 Tarjeta", key=f"scroll_{item['id']}", use_container_width=True):
+                    st.toast(f"Desliza hacia abajo para ver a {item['aux_nombre']}")
+
+        st.divider()
+
+        # --- VISTA 2: TARJETAS DE COBRO (DETALLADAS) ---
+        st.subheader("💵 Gestión de Cobros")
+        for item in datos_listado:
             token = item['id']
             m_pend = float(item.get('balance_pendiente', 0))
-
+            
             with st.container(border=True):
                 c_nom, c_status, c_inputs, c_btn = st.columns([1.2, 1, 1.2, 0.8])
-                
                 with c_nom:
                     st.markdown(f"**{item['aux_nombre']}**")
                     st.caption(f"Debe: RD$ {m_pend:,.2f}")
-                    if st.button("🔍 Ver Historial", key=f"hist_{token}", use_container_width=True):
-                        mostrar_historial_modal(item, u_id)
-
                 with c_status:
                     if modo_analisis: st.info("✅ SALDADO")
                     elif item['aux_dias_num'] > 0: st.error(f"⚠️ {item['aux_atraso_txt']}")
                     else: st.success("🟢 Al día")
-                        
                 with c_inputs:
                     if not modo_analisis:
-                        cuota_acordada = float(item.get('cuota_esperada', 0))
-                        valor_default = min(cuota_acordada, m_pend) if cuota_acordada > 0 else m_pend
-                        st.caption(f"Cuota: RD$ {cuota_acordada:,.2f}")
-                        abono_input = st.number_input("Monto", min_value=0.0, value=float(valor_default), key=f"val_{token}", label_visibility="collapsed")
-                        f_prox_input = st.date_input("Próxima", key=f"date_{token}", label_visibility="collapsed")
-                    else:
-                        st.write(f"Saldó el: {item.get('proximo_pago')}")
-
+                        cuota = float(item.get('cuota_esperada', 0))
+                        abono = st.number_input("Monto", min_value=0.0, value=float(min(cuota, m_pend) if cuota > 0 else m_pend), key=f"val_{token}", label_visibility="collapsed")
+                        prox = st.date_input("Próxima", key=f"date_{token}", label_visibility="collapsed")
+                    else: st.write(f"Saldó el: {item.get('proximo_pago')}")
                 with c_btn:
                     if not modo_analisis:
-                        st.write("") 
                         if st.button("💵 COBRAR", key=f"reg_{token}", type="primary", use_container_width=True):
                             v_mora = st.session_state.get(f"mora_{token}", 0.0)
-                            confirmar_cobro_modal(item, abono_input, f_prox_input, v_mora, u_id)
+                            confirmar_cobro_modal(item, abono, prox, v_mora, u_id)
                     else:
-                        if st.button("📄 Detalles", key=f"det_{token}", use_container_width=True):
+                        if st.button("📄 Historial", key=f"det_{token}", use_container_width=True):
                             mostrar_historial_modal(item, u_id)
-
+                
                 if not modo_analisis:
                     with st.expander("⚖️ Penalidad (Mora)"):
                         st.number_input("Monto de Mora", min_value=0.0, key=f"mora_{token}")
