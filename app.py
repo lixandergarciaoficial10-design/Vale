@@ -77,15 +77,16 @@ def login_ui():
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
         st.markdown("<h2 style='color: #1D1D1F; margin-bottom: 20px;'>VALE AI Global</h2>", unsafe_allow_html=True)
         
-        # --- BOTÓN DE GOOGLE (ESTILO OFICIAL AL INICIO) ---
+        # --- BOTÓN DE GOOGLE (CORREGIDO SIN ICONO DE MATERIAL) ---
         if st.session_state.auth_mode in ["login", "signup"]:
-            # Botón con logo de Google
-            if st.button("Continue with Google", use_container_width=True, icon=":material/google:"):
+            # Usamos un emoji de red para representar Google o simplemente el texto 
+            # para evitar que el validador de Streamlit tire error de nuevo.
+            if st.button("🌐 Continuar con Google", use_container_width=True):
                 try:
                     conn.client.auth.sign_in_with_oauth({
                         "provider": "google",
                         "options": {
-                            "redirect_to": "http://localhost:8501" # CAMBIAR A TU URL REAL EN PRODUCCIÓN
+                            "redirect_to": "http://localhost:8501" # Cambiar a tu URL real en producción
                         }
                     })
                 except Exception as e:
@@ -116,13 +117,12 @@ def login_ui():
                 st.session_state.auth_mode = "signup"
                 st.rerun()
 
-        # --- MODO: OLVIDÓ CONTRASEÑA (ENVÍO DE CORREO) ---
+        # --- MODO: OLVIDÓ CONTRASEÑA ---
         elif st.session_state.auth_mode == "forgot":
             st.subheader("Recuperar Cuenta")
             f_email = st.text_input("Email de tu cuenta")
             if st.button("Enviar Enlace de Recuperación", use_container_width=True, type="primary"):
                 try:
-                    # Este es el único correo que sí se envía
                     redireccion = "http://localhost:8501" 
                     conn.client.auth.reset_password_for_email(f_email, {"redirect_to": redireccion})
                     st.success("✅ Enlace enviado. Revisa tu bandeja de entrada.")
@@ -133,7 +133,7 @@ def login_ui():
                 st.session_state.auth_mode = "login"
                 st.rerun()
 
-        # --- MODO: RESET DE CONTRASEÑA (URL RECOVERY) ---
+        # --- MODO: RESET DE CONTRASEÑA ---
         elif st.session_state.auth_mode == "reset_password":
             st.subheader("Nueva Contraseña")
             nueva_p = st.text_input("Escribe tu nueva clave", type="password")
@@ -154,7 +154,7 @@ def login_ui():
                     except Exception as e:
                         st.error(f"El enlace expiró o es inválido: {e}")
 
-        # --- MODO: REGISTRO (SIGNUP) - DIRECTO Y RÁPIDO ---
+        # --- MODO: REGISTRO (SIGNUP) ---
         elif st.session_state.auth_mode == "signup":
             st.subheader("Registro de Empresa")
             r_email = st.text_input("Correo corporativo", key="reg_email")
@@ -168,7 +168,6 @@ def login_ui():
                     st.warning("Mínimo 6 caracteres.")
                 else:
                     try:
-                        # Registro con login automático (Requiere "Confirm Email" OFF en Supabase)
                         res = conn.client.auth.sign_up({"email": r_email, "password": r_pass})
                         if res and res.user:
                             st.session_state.user = res.user
@@ -182,7 +181,7 @@ def login_ui():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- CONTROL DE ACCESO (EL BLOQUEO) ---
+# --- CONTROL DE ACCESO ---
 if st.session_state.user is None:
     login_ui()
     st.stop()
