@@ -654,89 +654,81 @@ with st.sidebar:
 if menu == "Panel de Control":
     from datetime import datetime, timedelta
 
-    st.markdown("<h1 style='text-align: center;'>💼 Business Intelligence</h1>", unsafe_allow_html=True)
+    st.title("💼 Business Intelligence Dashboard")
     
-    # --- 1. BOTÓN DE FILTRADO MINIMALISTA (POPOVER) ---
-    # Lo colocamos alineado a la derecha para que se vea estratégico
-    _, col_btn = st.columns([3, 1])
-    with col_btn:
-        with st.popover("🔍 Filtrar Período", use_container_width=True):
-            filtro_tiempo = st.radio(
-                "Selecciona el rango:",
-                ["Hoy", "Últimos 7 días", "Este mes", "Últimos 3 meses", "Último año", "Todo el tiempo"],
-                index=5  # Por defecto "Todo el tiempo"
-            )
+    # --- 1. BOTÓN DE FILTRADO (ÚNICA MODIFICACIÓN SOLICITADA) ---
+    with st.popover("🔍 Filtrar Período"):
+        filtro_tiempo = st.radio(
+            "Selecciona el rango:",
+            ["Hoy", "Últimos 7 días", "Este mes", "Últimos 3 meses", "Último año", "Todo el tiempo"],
+            index=5
+        )
 
-    # --- 2. LÓGICA DE FECHAS (SIN FALLOS) ---
+    # --- LÓGICA DE FECHAS PARA EL FILTRO ---
     hoy = datetime.now()
     fecha_inicio = None
+    if filtro_tiempo == "Hoy": fecha_inicio = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif filtro_tiempo == "Últimos 7 días": fecha_inicio = hoy - timedelta(days=7)
+    elif filtro_tiempo == "Este mes": fecha_inicio = hoy.replace(day=1, hour=0, minute=0, second=0)
+    elif filtro_tiempo == "Últimos 3 meses": fecha_inicio = hoy - timedelta(days=90)
+    elif filtro_tiempo == "Último año": fecha_inicio = hoy - timedelta(days=365)
 
-    if filtro_tiempo == "Hoy": 
-        fecha_inicio = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif filtro_tiempo == "Últimos 7 días": 
-        fecha_inicio = hoy - timedelta(days=7)
-    elif filtro_tiempo == "Este mes": 
-        fecha_inicio = hoy.replace(day=1, hour=0, minute=0, second=0)
-    elif filtro_tiempo == "Últimos 3 meses": 
-        fecha_inicio = hoy - timedelta(days=90)
-    elif filtro_tiempo == "Último año": 
-        fecha_inicio = hoy - timedelta(days=365)
+    # --- 2. EXTRACCIÓN DE DATOS (TUS QUERIES ORIGINALES) ---
+    q_c = conn.table("cuentas").select("balance_pendiente, monto_inicial, estado, fecha_creacion, cliente:clientes(nombre)").eq("user_id", u_id)
+    q_p = conn.table("pagos").select("monto_pagado, fecha_pago").eq("user_id", u_id)
+    q_g_pagados = conn.table("gastos").select("monto, fecha_gasto").eq("user_id", u_id).eq("estado", "Pagado").eq("visible_usuario", True)
+    q_g_pendientes = conn.table("gastos").select("monto, fecha_gasto").eq("user_id", u_id).eq("estado", "Pendiente").eq("visible_usuario", True)
 
-    # --- 3. EXTRACCIÓN ESTRATÉGICA (FILTRADO EN SERVIDOR) ---
-    # Queries base con tus columnas reales: fecha_creacion, fecha_pago, fecha_gasto
-    q_cuentas = conn.table("cuentas").select("balance_pendiente").eq("user_id", u_id).eq("estado", "Activo")
-    q_pagos = conn.table("pagos").select("monto_pagado").eq("user_id", u_id)
-    q_gastos = conn.table("gastos").select("monto").eq("user_id", u_id).eq("estado", "Pagado").eq("visible_usuario", True)
-
+    # Aplicación del filtro temporal si corresponde
     if fecha_inicio:
-        fecha_iso = fecha_inicio.isoformat()
-        q_cuentas = q_cuentas.gte("fecha_creacion", fecha_iso)
-        q_pagos = q_pagos.gte("fecha_pago", fecha_iso)
-        q_gastos = q_gastos.gte("fecha_gasto", fecha_iso)
+        f_iso = fecha_inicio.isoformat()
+        q_c = q_c.gte("fecha_creacion", f_iso)
+        q_p = q_p.gte("fecha_pago", f_iso)
+        q_g_pagados = q_g_pagados.gte("fecha_gasto", f_iso)
+        q_g_pendientes = q_g_pendientes.gte("fecha_gasto", f_iso)
 
-    try:
-        # Ejecución única para ahorrar recursos
-        res_c = q_cuentas.execute()
-        res_p = q_pagos.execute()
-        res_g = q_gastos.execute()
+    res_c = q_c.execute()
+    res_p = q_p.execute()
+    res_g_pagados = q_g_pagados.execute()
+    res_g_pendientes = q_g_pendientes.execute()
 
-        # Cálculos ultra-rápidos
-        capital_en_calle = sum([float(c['balance_pendiente']) for c in res_c.data]) if res_c.data else 0
-        total_cobrado = sum([float(p['monto_pagado']) for p in res_p.data]) if res_p.data else 0
-        total_gastado = sum([float(g['monto']) for g in res_g.data]) if res_g.data else 0
-        caja_neto = total_cobrado - total_gastado
+    # --- 3. CÁLCULOS (TUS VARIABLES ORIGINALES) ---
+    total_cobrado = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
+    total_gastado_real = sum([g['monto'] for g in res_g_pagados.data]) if res_g_pagados.data else 0
+    total_compromisos = sum([g['monto'] for g in res_g_pendientes.data]) if res_g_pendientes.data else 0
+    capital_en_calle = sum([c['balance_pendiente'] for c in res_c.data if c['estado'] == 'Activo']) if res_c.data else 0
+    caja_actual = total_cobrado - total_gastado_real
 
-        # --- 4. UI DE TARJETAS (ESTILO IOS/MINIMALISTA) ---
-        st.markdown("""
-            <style>
-                .metric-card {
-                    background-color: #ffffff;
-                    padding: 25px 15px;
-                    border-radius: 20px;
-                    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-                    text-align: center;
-                    border: 1px solid #f0f0f5;
-                    transition: transform 0.3s ease;
-                }
-                .metric-card:hover { transform: translateY(-5px); }
-                .metric-card small { color: #8e8e93; font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 1px; }
-                .metric-card h2 { margin-top: 8px; font-size: 30px; font-weight: 700; margin-bottom: 0; }
-            </style>
-        """, unsafe_allow_html=True)
+    # --- 4. MÉTRICAS PRINCIPALES (CON TU DISEÑO ORIGINAL) ---
+    st.markdown("""
+        <style>
+            .metric-card {
+                background-color: #ffffff;
+                padding: 20px;
+                border-radius: 15px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+                text-align: center;
+                border: 1px solid #f0f0f5;
+                margin-bottom: 10px;
+            }
+            .metric-card small { color: #8e8e93; font-weight: 600; text-transform: uppercase; }
+            .metric-card h2 { margin-top: 10px; font-size: 26px; }
+        </style>
+    """, unsafe_allow_html=True)
 
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.markdown(f"<div class='metric-card'><small>💰 Dinero en Calle</small><h2 style='color:#007AFF;'>RD$ {capital_en_calle:,.0f}</h2></div>", unsafe_allow_html=True)
-        with c2:
-            st.markdown(f"<div class='metric-card'><small>🏦 Caja Neto</small><h2 style='color:#34C759;'>RD$ {caja_neto:,.0f}</h2></div>", unsafe_allow_html=True)
-        with c3:
-            st.markdown(f"<div class='metric-card'><small>📉 Gastos</small><h2 style='color:#FF3B30;'>RD$ {total_gastado:,.0f}</h2></div>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown(f"<div class='metric-card'><small>💰 EN LA CALLE</small><h2 style='color:#007AFF;'>RD$ {capital_en_calle:,.0f}</h2></div>", unsafe_allow_html=True)
 
-        # Indicador de estado actual
-        st.markdown(f"<p style='text-align:center; color:#8e8e93; margin-top:20px; font-size:14px;'>Resultados basados en: <b>{filtro_tiempo}</b></p>", unsafe_allow_html=True)
+    with c2:
+        st.markdown(f"<div class='metric-card'><small>🏦 CAJA NETO</small><h2 style='color:#34C759;'>RD$ {caja_actual:,.0f}</h2></div>", unsafe_allow_html=True)
 
-    except Exception as e:
-        st.error(f"Oye 'Cerebro', hubo un error: {e}")
+    with c3:
+        st.markdown(f"<div class='metric-card'><small>📉 GASTOS</small><h2 style='color:#FF3B30;'>RD$ {total_gastado_real:,.0f}</h2></div>", unsafe_allow_html=True)
+
+    st.markdown(f"<p style='text-align:center; color:gray;'>Filtro aplicado: {filtro_tiempo}</p>", unsafe_allow_html=True)
+    st.markdown("---")
+    
 
     # --- 5. GRÁFICOS (PROTECCIÓN CONTRA ERRORES DE FECHA) ---
     import pandas as pd
