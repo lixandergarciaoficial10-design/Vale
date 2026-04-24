@@ -866,7 +866,7 @@ elif menu == "Gestión de Cobros":
             else:
                 st.info("Aún no se han registrado pagos reales.")
 
-# --- 2. FUNCIÓN DE CONFIRMACIÓN CON GENERACIÓN DE CÓDIGO ---
+    # --- 2. FUNCIÓN DE CONFIRMACIÓN CON GENERACIÓN DE CÓDIGO ---
     @st.dialog("⚠️ VERIFICAR TRANSACCIÓN")
     def confirmar_cobro_modal(item, monto, fecha, mora, u_id):
         import random
@@ -950,10 +950,13 @@ elif menu == "Gestión de Cobros":
         if st.button("✅ FINALIZAR", use_container_width=True):
             st.rerun()
 
-    # --- 4. DETECTOR MAESTRO DE RECIBOS (FUERA DE TODO BUCLE) ---
+# --- 4. DETECTOR MAESTRO DE RECIBOS (FUERA DE TODO BUCLE) ---
+    # Esto debe ejecutarse antes que cualquier filtro para que no importe si la cuenta se saldó
     for key in list(st.session_state.keys()):
         if key.startswith("recibo_"):
             id_para_recibo = key.replace("recibo_", "")
+            # Buscamos la data directamente en la tabla para asegurar que tenemos el nombre
+            # sin importar si está saldada o no
             res_recibo = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("id", id_para_recibo).single().execute()
             
             if res_recibo.data:
@@ -963,6 +966,7 @@ elif menu == "Gestión de Cobros":
                 # Lanzamos la modal y limpiamos el estado
                 mostrar_recibo_modal(item_recibo, st.session_state[key], u_id)
                 del st.session_state[key]
+                # No hacemos rerun aquí, dejamos que la modal se procese
 
 # --- 5. CONTROLES SUPERIORES (MANTENIENDO TU LÓGICA) ---
 if 'lista_ruta' not in st.session_state:
@@ -1086,80 +1090,80 @@ if res.data:
 else:
     st.info("No hay registros que coincidan.")
     
-# --- 6. CONSULTA DE DATOS PARA LA LISTA ---
-# Ahora sí consultamos para mostrar en pantalla según el modo
-query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula)").eq("user_id", u_id)
-if modo_analisis:
-    query = query.lte("balance_pendiente", 0)
-else:
-    query = query.gt("balance_pendiente", 0)
-    
-res = query.execute()
-
-if res.data:
-    datos_procesados = []
-    for c in res.data:
-        cliente_info = c.get('clientes', {})
-        nombre = cliente_info.get('nombre', 'Cliente')
-        cedula = cliente_info.get('cedula', '')
-        telefono = cliente_info.get('telefono', '')
+    # --- 6. CONSULTA DE DATOS PARA LA LISTA ---
+    # Ahora sí consultamos para mostrar en pantalla según el modo
+    query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula)").eq("user_id", u_id)
+    if modo_analisis:
+        query = query.lte("balance_pendiente", 0)
+    else:
+        query = query.gt("balance_pendiente", 0)
         
-        if (search_term in nombre.lower() or 
-            search_term in str(cedula).lower() or 
-            search_term in str(telefono).lower()):
+    res = query.execute()
+    
+    if res.data:
+        datos_procesados = []
+        for c in res.data:
+            cliente_info = c.get('clientes', {})
+            nombre = cliente_info.get('nombre', 'Cliente')
+            cedula = cliente_info.get('cedula', '')
+            telefono = cliente_info.get('telefono', '')
             
-            txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
-            c['aux_nombre'] = nombre
-            c['aux_atraso_txt'] = f"Atraso: {dias_num} días" if dias_num > 0 else txt_atraso_base
-            c['aux_dias_num'] = dias_num
-            c['aux_prioridad'] = obtener_prioridad(dias_num, float(c.get('balance_pendiente', 0)))
-            datos_procesados.append(c)
+            if (search_term in nombre.lower() or 
+                search_term in str(cedula).lower() or 
+                search_term in str(telefono).lower()):
+                
+                txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
+                c['aux_nombre'] = nombre
+                c['aux_atraso_txt'] = f"Atraso: {dias_num} días" if dias_num > 0 else txt_atraso_base
+                c['aux_dias_num'] = dias_num
+                c['aux_prioridad'] = obtener_prioridad(dias_num, float(c.get('balance_pendiente', 0)))
+                datos_procesados.append(c)
 
-    datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
+        datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
 
-    for item in datos_procesados:
-        token = item['id']
-        m_pend = float(item.get('balance_pendiente', 0))
+        for item in datos_procesados:
+            token = item['id']
+            m_pend = float(item.get('balance_pendiente', 0))
 
-        with st.container(border=True):
-            c_nom, c_status, c_inputs, c_btn = st.columns([1.2, 1, 1.2, 0.8])
-            
-            with c_nom:
-                st.markdown(f"**{item['aux_nombre']}**")
-                st.caption(f"Debe: RD$ {m_pend:,.2f}")
-                if st.button("🔍 Ver Historial", key=f"hist_{token}", use_container_width=True):
-                    mostrar_historial_modal(item, u_id)
-
-            with c_status:
-                if modo_analisis: st.info("✅ SALDADO")
-                elif item['aux_dias_num'] > 0: st.error(f"⚠️ {item['aux_atraso_txt']}")
-                else: st.success("🟢 Al día")
-                    
-            with c_inputs:
-                if not modo_analisis:
-                    cuota_acordada = float(item.get('cuota_esperada', 0))
-                    valor_default = min(cuota_acordada, m_pend) if cuota_acordada > 0 else m_pend
-                    st.caption(f"Cuota: RD$ {cuota_acordada:,.2f}")
-                    abono_input = st.number_input("Monto", min_value=0.0, value=float(valor_default), key=f"val_{token}", label_visibility="collapsed")
-                    f_prox_input = st.date_input("Próxima", key=f"date_{token}", label_visibility="collapsed")
-                else:
-                    st.write(f"Saldó el: {item.get('proximo_pago')}")
-
-            with c_btn:
-                if not modo_analisis:
-                    st.write("") 
-                    if st.button("💵 COBRAR", key=f"reg_{token}", type="primary", use_container_width=True):
-                        v_mora = st.session_state.get(f"mora_{token}", 0.0)
-                        confirmar_cobro_modal(item, abono_input, f_prox_input, v_mora, u_id)
-                else:
-                    if st.button("📄 Detalles", key=f"det_{token}", use_container_width=True):
+            with st.container(border=True):
+                c_nom, c_status, c_inputs, c_btn = st.columns([1.2, 1, 1.2, 0.8])
+                
+                with c_nom:
+                    st.markdown(f"**{item['aux_nombre']}**")
+                    st.caption(f"Debe: RD$ {m_pend:,.2f}")
+                    if st.button("🔍 Ver Historial", key=f"hist_{token}", use_container_width=True):
                         mostrar_historial_modal(item, u_id)
 
-            if not modo_analisis:
-                with st.expander("⚖️ Penalidad (Mora)"):
-                    st.number_input("Monto de Mora", min_value=0.0, key=f"mora_{token}")
-else:
-    st.info("No se encontraron registros.")
+                with c_status:
+                    if modo_analisis: st.info("✅ SALDADO")
+                    elif item['aux_dias_num'] > 0: st.error(f"⚠️ {item['aux_atraso_txt']}")
+                    else: st.success("🟢 Al día")
+                        
+                with c_inputs:
+                    if not modo_analisis:
+                        cuota_acordada = float(item.get('cuota_esperada', 0))
+                        valor_default = min(cuota_acordada, m_pend) if cuota_acordada > 0 else m_pend
+                        st.caption(f"Cuota: RD$ {cuota_acordada:,.2f}")
+                        abono_input = st.number_input("Monto", min_value=0.0, value=float(valor_default), key=f"val_{token}", label_visibility="collapsed")
+                        f_prox_input = st.date_input("Próxima", key=f"date_{token}", label_visibility="collapsed")
+                    else:
+                        st.write(f"Saldó el: {item.get('proximo_pago')}")
+
+                with c_btn:
+                    if not modo_analisis:
+                        st.write("") 
+                        if st.button("💵 COBRAR", key=f"reg_{token}", type="primary", use_container_width=True):
+                            v_mora = st.session_state.get(f"mora_{token}", 0.0)
+                            confirmar_cobro_modal(item, abono_input, f_prox_input, v_mora, u_id)
+                    else:
+                        if st.button("📄 Detalles", key=f"det_{token}", use_container_width=True):
+                            mostrar_historial_modal(item, u_id)
+
+                if not modo_analisis:
+                    with st.expander("⚖️ Penalidad (Mora)"):
+                        st.number_input("Monto de Mora", min_value=0.0, key=f"mora_{token}")
+    else:
+        st.info("No se encontraron registros.")
         
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
