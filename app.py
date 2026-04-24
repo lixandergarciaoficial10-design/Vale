@@ -656,15 +656,33 @@ if menu == "Panel de Control":
 
     st.title("💼 Business Intelligence Dashboard")
     
-    # --- 1. BOTÓN DE FILTRADO (ÚNICA MODIFICACIÓN SOLICITADA) ---
-    with st.popover("🔍 Filtrar Período"):
-        filtro_tiempo = st.radio(
-            "Selecciona el rango:",
-            ["Hoy", "Últimos 7 días", "Este mes", "Últimos 3 meses", "Último año", "Todo el tiempo"],
-            index=5
-        )
+    # --- 1. MEMORIA DEL FILTRO (SESSION STATE) ---
+    # Si es la primera vez que entra, por defecto ponemos "Todo el tiempo"
+    if 'filtro_bi_default' not in st.session_state:
+        st.session_state.filtro_bi_default = "Todo el tiempo"
 
-    # --- LÓGICA DE FECHAS PARA EL FILTRO ---
+    # --- 2. BOTÓN DE FILTRADO CON MEMORIA ---
+    with st.popover(f"🔍 Filtro: {st.session_state.filtro_bi_default}"):
+        opciones = ["Hoy", "Últimos 7 días", "Este mes", "Últimos 3 meses", "Último año", "Todo el tiempo"]
+        
+        # El index se calcula buscando dónde está guardado nuestro filtro actual
+        idx_actual = opciones.index(st.session_state.filtro_bi_default)
+        
+        seleccion = st.radio(
+            "Selecciona el rango para mantener fijado:",
+            opciones,
+            index=idx_actual
+        )
+        
+        # Si el usuario cambia la selección, actualizamos la memoria y refrescamos
+        if seleccion != st.session_state.filtro_bi_default:
+            st.session_state.filtro_bi_default = seleccion
+            st.rerun()
+
+    # Usamos la variable guardada para toda la lógica siguiente
+    filtro_tiempo = st.session_state.filtro_bi_default
+
+    # --- 3. LÓGICA DE FECHAS (SIN FALLOS) ---
     hoy = datetime.now()
     fecha_inicio = None
     if filtro_tiempo == "Hoy": fecha_inicio = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -673,13 +691,12 @@ if menu == "Panel de Control":
     elif filtro_tiempo == "Últimos 3 meses": fecha_inicio = hoy - timedelta(days=90)
     elif filtro_tiempo == "Último año": fecha_inicio = hoy - timedelta(days=365)
 
-    # --- 2. EXTRACCIÓN DE DATOS (TUS QUERIES ORIGINALES) ---
+    # --- 4. EXTRACCIÓN DE DATOS (TUS QUERIES ORIGINALES) ---
     q_c = conn.table("cuentas").select("balance_pendiente, monto_inicial, estado, fecha_creacion, cliente:clientes(nombre)").eq("user_id", u_id)
     q_p = conn.table("pagos").select("monto_pagado, fecha_pago").eq("user_id", u_id)
     q_g_pagados = conn.table("gastos").select("monto, fecha_gasto").eq("user_id", u_id).eq("estado", "Pagado").eq("visible_usuario", True)
     q_g_pendientes = conn.table("gastos").select("monto, fecha_gasto").eq("user_id", u_id).eq("estado", "Pendiente").eq("visible_usuario", True)
 
-    # Aplicación del filtro temporal si corresponde
     if fecha_inicio:
         f_iso = fecha_inicio.isoformat()
         q_c = q_c.gte("fecha_creacion", f_iso)
@@ -692,14 +709,14 @@ if menu == "Panel de Control":
     res_g_pagados = q_g_pagados.execute()
     res_g_pendientes = q_g_pendientes.execute()
 
-    # --- 3. CÁLCULOS (TUS VARIABLES ORIGINALES) ---
+    # --- 5. CÁLCULOS ---
     total_cobrado = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
     total_gastado_real = sum([g['monto'] for g in res_g_pagados.data]) if res_g_pagados.data else 0
     total_compromisos = sum([g['monto'] for g in res_g_pendientes.data]) if res_g_pendientes.data else 0
     capital_en_calle = sum([c['balance_pendiente'] for c in res_c.data if c['estado'] == 'Activo']) if res_c.data else 0
     caja_actual = total_cobrado - total_gastado_real
 
-    # --- 4. MÉTRICAS PRINCIPALES (CON TU DISEÑO ORIGINAL) ---
+    # --- 6. UI DE TARJETAS ---
     st.markdown("""
         <style>
             .metric-card {
@@ -719,14 +736,12 @@ if menu == "Panel de Control":
     c1, c2, c3 = st.columns(3)
     with c1:
         st.markdown(f"<div class='metric-card'><small>💰 EN LA CALLE</small><h2 style='color:#007AFF;'>RD$ {capital_en_calle:,.0f}</h2></div>", unsafe_allow_html=True)
-
     with c2:
         st.markdown(f"<div class='metric-card'><small>🏦 CAJA NETO</small><h2 style='color:#34C759;'>RD$ {caja_actual:,.0f}</h2></div>", unsafe_allow_html=True)
-
     with c3:
         st.markdown(f"<div class='metric-card'><small>📉 GASTOS</small><h2 style='color:#FF3B30;'>RD$ {total_gastado_real:,.0f}</h2></div>", unsafe_allow_html=True)
 
-    st.markdown(f"<p style='text-align:center; color:gray;'>Filtro aplicado: {filtro_tiempo}</p>", unsafe_allow_html=True)
+    st.markdown(f"<p style='text-align:right; color:gray; font-size:12px;'>Vista fijada: {filtro_tiempo}</p>", unsafe_allow_html=True)
     st.markdown("---")
     
 
