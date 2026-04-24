@@ -95,7 +95,8 @@ def login_ui():
             if st.button("Entrar", use_container_width=True):
                 try:
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                    if res.session:
+                    # Verificación estricta: debe existir la sesión y el usuario
+                    if res.session and res.user:
                         st.session_state.user = res.user
                         st.rerun()
                 except: st.error("Datos incorrectos")
@@ -104,47 +105,50 @@ def login_ui():
             c1, c2 = st.columns(2)
             with c1:
                 if st.button("Olvidé clave", use_container_width=True):
-                    st.session_state.auth_mode = "forgot"
-                    st.rerun()
+                    st.session_state.auth_mode = "forgot"; st.rerun()
             with c2:
                 if st.button("Registrarme", use_container_width=True):
-                    st.session_state.auth_mode = "signup"
-                    st.rerun()
+                    st.session_state.auth_mode = "signup"; st.rerun()
 
-        # --- REGISTRO DIRECTO ---
+        # --- REGISTRO ---
         elif st.session_state.auth_mode == "signup":
-            r_email = st.text_input("Nuevo Email", placeholder="tu@email.com")
-            r_pass = st.text_input("Nueva Clave", type="password", placeholder="Mínimo 6 caracteres")
+            r_email = st.text_input("Nuevo Email")
+            r_pass = st.text_input("Nueva Clave", type="password")
             if st.button("Crear Cuenta", use_container_width=True):
                 try:
                     res = conn.client.auth.sign_up({"email": r_email, "password": r_pass})
                     if res.user:
-                        st.info("Cuenta creada. Revisa tu correo o intenta loguearte.")
-                        st.session_state.auth_mode = "login"
-                        st.rerun()
+                        st.info("Revisa tu correo para confirmar la cuenta.")
+                        st.session_state.auth_mode = "login"; st.rerun()
                 except Exception as e: st.error(f"Error: {e}")
-            if st.button("Volver al inicio", use_container_width=True):
-                st.session_state.auth_mode = "login"
-                st.rerun()
+            if st.button("Volver", use_container_width=True):
+                st.session_state.auth_mode = "login"; st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 3. CONTROL DE ACCESO (FIX: Persistencia forzada) ---
+# --- 3. CONTROL DE ACCESO (MÁXIMA SEGURIDAD) ---
 if st.session_state.user is None:
     try:
-        # Recuperamos la sesión actual de Supabase
+        # Intentamos recuperar la sesión
         session_data = conn.client.auth.get_session()
-        if session_data:
+        
+        # EL CANDADO: Verificamos que session_data exista Y que tenga un usuario con ID
+        if session_data and hasattr(session_data, 'user') and session_data.user is not None:
             st.session_state.user = session_data.user
         else:
-            # Si no hay sesión real, mostramos UI y paramos ejecución
+            # Si no hay un ID de usuario real, BLOQUEO TOTAL
             login_ui()
-            st.stop()
-    except:
+            st.stop() # Mata la ejecución de las 1300 líneas de abajo
+    except Exception:
+        # Si falla la conexión o hay error, BLOQUEO por seguridad
         login_ui()
         st.stop()
 
-# --- LÓGICA DE LA APP ---
+# --- LÓGICA DE LA APP (SOLO ACCESIBLE SI HAY LOGIN) ---
+# Doble validación final
+if not st.session_state.user or not hasattr(st.session_state.user, 'id'):
+    st.stop()
+
 u_id = st.session_state.user.id
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
