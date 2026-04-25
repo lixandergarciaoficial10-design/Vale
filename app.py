@@ -47,7 +47,7 @@ st.markdown("""
 conn = st.connection("supabase", type=SupabaseConnection)
 
 
-# --- 2. SISTEMA DE ACCESO Y RECUPERACIÓN (SaaS) ACTUALIZADO ---
+# --- 2. SISTEMA DE ACCESO Y RECUPERACIÓN (SaaS) ---
 
 def login_ui():
     if 'auth_mode' not in st.session_state:
@@ -63,127 +63,72 @@ def login_ui():
         st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
         st.markdown("<h2 style='color: #1D1D1F;'>CobroYa Global</h2>", unsafe_allow_html=True)
-
-        # --- [NUEVO] LOGIN CON GOOGLE OAUTH ---
-        if st.session_state.auth_mode in ["login", "signup"]:
-            if st.button("Continuar con Google", width="stretch"):
-                try:
-                    # Sustituir localhost por tu URL real en producción
-                    redirect_url = "http://localhost:8501" 
-                    res = conn.client.auth.sign_in_with_oauth({
-                        "provider": "google",
-                        "options": {"redirect_to": redirect_url}
-                    })
-                    if res.url:
-                        st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
-                        st.stop()
-                except Exception as e:
-                    st.error(f"Error de conexión con Google: {e}")
-            
-            st.markdown("<p style='text-align:center; color:gray;'>- o -</p>", unsafe_allow_html=True)
-
-        # --- MODO LOGIN ---
         if st.session_state.auth_mode == "login":
-            email = st.text_input("Correo Electrónico", key="login_email")
-            pwd = st.text_input("Contraseña", type="password", key="login_pwd")
-            if st.button("Iniciar Sesión", width="stretch"):
+            email = st.text_input("Correo Electrónico")
+            pwd = st.text_input("Contraseña", type="password")
+            if st.button("Iniciar Sesión"):
                 try:
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
+                    # Verificamos si el usuario realmente entró
                     if res.user:
                         st.session_state.user = res.user
                         st.success("¡Bienvenido!")
                         st.rerun()
                 except Exception as e:
-                    st.error("❌ Correo o contraseña incorrectos.")
+                    # Si el error es por falta de confirmación, Supabase lo avisa
+                    error_msg = str(e).lower()
+                    if "email not confirmed" in error_msg:
+                        st.warning("⚠️ Debes confirmar tu correo antes de entrar. Revisa tu bandeja de entrada.")
+                    else:
+                        st.error("❌ Correo o contraseña incorrectos.")
             
             st.markdown("---")
             c1, c2 = st.columns(2)
-            # Actualizado width='stretch' para cumplir con estándar 2026
-            if c1.button("Olvidé mi contraseña", width="stretch"):
+            if c1.button("Olvidé mi contraseña"):
                 st.session_state.auth_mode = "forgot"
                 st.rerun()
-            if c2.button("Registrarme", width="stretch"):
+            if c2.button("Registrarme"):
                 st.session_state.auth_mode = "signup"
                 st.rerun()
 
-        # --- MODO RECUPERACIÓN (FORGOT) ---
         elif st.session_state.auth_mode == "forgot":
             st.subheader("Recuperar Cuenta")
             f_email = st.text_input("Email de tu cuenta")
-            if st.button("Enviar enlace de restauración", width="stretch"):
+            if st.button("Enviar enlace de restauración"):
                 try:
-                    # Se especifica la URL de redirección para asegurar que el correo llegue y redirija bien
-                    conn.client.auth.reset_password_for_email(f_email, {"redirect_to": "http://localhost:8501"})
-                    st.success("Si el correo existe, recibirás un enlace en breve.")
-                except: 
-                    st.error("Error al procesar solicitud.")
-            if st.button("Regresar", width="stretch"):
-                st.session_state.update({"auth_mode": "login"})
-                st.rerun()
+                    conn.client.auth.reset_password_for_email(f_email)
+                    st.success("Enlace enviado. Revisa tu email.")
+                except: st.error("Error al procesar solicitud.")
+            st.button("Regresar", on_click=lambda: st.session_state.update({"auth_mode": "login"}))
 
-        # --- MODO NUEVA CONTRASEÑA (RESET) ---
         elif st.session_state.auth_mode == "reset_password":
             st.subheader("Nueva Contraseña")
-            new_p = st.text_input("Escribe tu nueva clave", type="password", key="reset_1")
-            conf_p = st.text_input("Confirma tu nueva clave", type="password", key="reset_2")
-            
-            if st.button("Actualizar y Entrar", width="stretch"):
-                if new_p == conf_p:
-                    try:
-                        conn.client.auth.update_user({"password": new_p})
-                        st.success("Clave cambiada con éxito.")
-                        st.session_state.auth_mode = "login"
-                        st.rerun()
-                    except: 
-                        st.error("El enlace ha expirado o es inválido.")
-                else:
-                    st.warning("Las contraseñas no coinciden.")
+            new_p = st.text_input("Escribe tu nueva clave", type="password")
+            if st.button("Actualizar y Entrar"):
+                try:
+                    conn.client.auth.update_user({"password": new_p})
+                    st.success("Clave cambiada con éxito.")
+                    st.session_state.auth_mode = "login"
+                    st.rerun()
+                except: st.error("El enlace ha expirado.")
 
-        # --- MODO REGISTRO (SIGNUP) ---
         elif st.session_state.auth_mode == "signup":
             st.subheader("Registro SaaS")
             reg_email = st.text_input("Email")
             reg_pass = st.text_input("Contraseña", type="password")
-            reg_pass_conf = st.text_input("Confirmar Contraseña", type="password")
-            
-            if st.button("Crear mi Empresa", width="stretch"):
-                if reg_pass == reg_pass_conf:
-                    try:
-                        # Se asume que 'Confirm Email' está OFF en Supabase para entrada inmediata
-                        res = conn.client.auth.sign_up({"email": reg_email, "password": reg_pass})
-                        if res.user:
-                            st.session_state.user = res.user
-                            st.success("¡Cuenta creada con éxito!")
-                            st.rerun()
-                    except Exception as e: 
-                        st.error(f"Error al crear cuenta: {e}")
-                else:
-                    st.warning("Las contraseñas no coinciden.")
-            
-            if st.button("Regresar", width="stretch"):
-                st.session_state.update({"auth_mode": "login"})
-                st.rerun()
-        
+            if st.button("Crear mi Empresa"):
+                try:
+                    conn.client.auth.sign_up({"email": reg_email, "password": reg_pass})
+                    st.info("Revisa tu email para confirmar tu cuenta.")
+                except Exception as e: st.error(f"Error: {e}")
+            st.button("Regresar", on_click=lambda: st.session_state.update({"auth_mode": "login"}))
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 3. FILTRO DE SEGURIDAD Y AISLAMIENTO (CRÍTICO) ---
+# Bloqueo de seguridad
+if 'user' not in st.session_state:
+    login_ui()
+    st.stop()
 
-if 'user' not in st.session_state or st.session_state.user is None:
-    try:
-        # get_user() valida el token en el servidor de Supabase. 
-        # Esto previene que una sesión de otro usuario se quede "pegada" en el servidor.
-        response = conn.client.auth.get_user()
-        if response and response.user:
-            st.session_state.user = response.user
-        else:
-            login_ui()
-            st.stop()
-    except:
-        login_ui()
-        st.stop()
-
-# --- 4. IDENTIFICADOR ÚNICO DE USUARIO ---
-# A partir de aquí, u_id es la ÚNICA variable permitida para filtrar tablas.
 u_id = st.session_state.user.id
 clientes_f = []
         
