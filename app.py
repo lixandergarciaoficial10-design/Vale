@@ -17,747 +17,109 @@ import base64
 from fpdf import FPDF
 from datetime import datetime
 import streamlit as st
+# --- 2. SISTEMA DE ACCESO (ESTILO PREMIUM CLAUDE + LÓGICA SUPABASE) ---
 
-"""
-CobroYa Pro — Sistema de Autenticación Moderno
-Requiere: streamlit, supabase, st-supabase-connection
-Instalar: pip install streamlit supabase st-supabase-connection
-"""
-
-import streamlit as st
-from st_supabase_connection import SupabaseConnection
-import time
-
-# ─────────────────────────────────────────────
-# 1. CONFIG DE PÁGINA
-# ─────────────────────────────────────────────
-st.set_page_config(
-    page_title="CobroYa Pro",
-    page_icon="💼",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
-# ─────────────────────────────────────────────
-# 2. ESTILOS GLOBALES — DISEÑO OSCURO PREMIUM
-# ─────────────────────────────────────────────
+# Inyectar Estilos Premium de Claude
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+    
+    .stApp { background: #0A0A0F; font-family: 'DM Sans', sans-serif; }
+    
+    /* Contenedor tipo Tarjeta Neumórfica Oscura */
+    .auth-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 40px;
+        border-radius: 24px;
+        backdrop-filter: blur(10px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
+    
+    /* Inputs Estilizados */
+    div[data-testid="stTextInput"] > div > div > input {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 12px !important;
+        color: white !important;
+        padding: 12px !important;
+    }
 
-/* Reset global */
-html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif;
-}
-
-.stApp {
-    background: #0A0A0F;
-}
-
-/* Ocultar elementos de Streamlit */
-#MainMenu, footer, header { visibility: hidden; }
-.block-container {
-    padding: 0 !important;
-    max-width: 100% !important;
-}
-
-/* ── LAYOUT DE DOS COLUMNAS ── */
-.auth-wrapper {
-    display: flex;
-    min-height: 100vh;
-    width: 100%;
-}
-
-/* Panel izquierdo: branding */
-.brand-panel {
-    flex: 1;
-    background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 60px;
-    position: relative;
-    overflow: hidden;
-    border-right: 1px solid rgba(255,255,255,0.06);
-}
-
-.brand-panel::before {
-    content: '';
-    position: absolute;
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
-    top: -100px;
-    right: -100px;
-    border-radius: 50%;
-}
-
-.brand-panel::after {
-    content: '';
-    position: absolute;
-    width: 350px;
-    height: 350px;
-    background: radial-gradient(circle, rgba(16,185,129,0.1) 0%, transparent 70%);
-    bottom: 50px;
-    left: 30px;
-    border-radius: 50%;
-}
-
-.brand-logo {
-    font-size: 2rem;
-    font-weight: 600;
-    color: #ffffff;
-    margin-bottom: 16px;
-    position: relative;
-    z-index: 1;
-}
-
-.brand-logo span {
-    color: #6366F1;
-}
-
-.brand-tagline {
-    font-size: 2.8rem;
-    font-weight: 600;
-    color: #ffffff;
-    line-height: 1.2;
-    margin-bottom: 24px;
-    position: relative;
-    z-index: 1;
-}
-
-.brand-tagline em {
-    color: #6366F1;
-    font-style: normal;
-}
-
-.brand-desc {
-    font-size: 1rem;
-    color: rgba(255,255,255,0.5);
-    line-height: 1.7;
-    max-width: 380px;
-    position: relative;
-    z-index: 1;
-}
-
-.brand-stats {
-    display: flex;
-    gap: 40px;
-    margin-top: 60px;
-    position: relative;
-    z-index: 1;
-}
-
-.stat-item .stat-number {
-    font-size: 1.6rem;
-    font-weight: 600;
-    color: #ffffff;
-}
-
-.stat-item .stat-label {
-    font-size: 0.8rem;
-    color: rgba(255,255,255,0.4);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-}
-
-/* Panel derecho: formulario */
-.form-panel {
-    width: 480px;
-    min-width: 480px;
-    background: #0A0A0F;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 60px 50px;
-}
-
-.form-header {
-    margin-bottom: 36px;
-}
-
-.form-title {
-    font-size: 1.6rem;
-    font-weight: 600;
-    color: #ffffff;
-    margin-bottom: 8px;
-}
-
-.form-subtitle {
-    font-size: 0.9rem;
-    color: rgba(255,255,255,0.4);
-}
-
-/* ── INPUTS CUSTOM ── */
-.input-group {
-    margin-bottom: 16px;
-}
-
-.input-label {
-    display: block;
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: rgba(255,255,255,0.6);
-    margin-bottom: 8px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-}
-
-/* Override Streamlit inputs */
-div[data-testid="stTextInput"] > div > div > input,
-div[data-testid="stTextInput"] > div > div > div > input {
-    background: rgba(255,255,255,0.05) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 12px !important;
-    color: #ffffff !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.95rem !important;
-    padding: 14px 16px !important;
-    transition: all 0.2s ease !important;
-    height: auto !important;
-}
-
-div[data-testid="stTextInput"] > div > div > input:focus {
-    border-color: #6366F1 !important;
-    background: rgba(99,102,241,0.08) !important;
-    box-shadow: 0 0 0 3px rgba(99,102,241,0.15) !important;
-    outline: none !important;
-}
-
-div[data-testid="stTextInput"] label {
-    color: rgba(255,255,255,0.6) !important;
-    font-size: 0.8rem !important;
-    font-weight: 500 !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.04em !important;
-}
-
-/* ── BOTONES ── */
-div.stButton > button {
-    background: #6366F1 !important;
-    color: white !important;
-    border: none !important;
-    border-radius: 12px !important;
-    padding: 14px 24px !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.95rem !important;
-    font-weight: 600 !important;
-    width: 100% !important;
-    cursor: pointer !important;
-    transition: all 0.2s ease !important;
-    letter-spacing: 0.01em !important;
-}
-
-div.stButton > button:hover {
-    background: #4F46E5 !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 8px 24px rgba(99,102,241,0.35) !important;
-}
-
-div.stButton > button:active {
-    transform: translateY(0px) !important;
-}
-
-/* Botón secundario (texto) */
-.btn-ghost > div.stButton > button {
-    background: transparent !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    color: rgba(255,255,255,0.6) !important;
-    font-weight: 400 !important;
-}
-
-.btn-ghost > div.stButton > button:hover {
-    background: rgba(255,255,255,0.05) !important;
-    box-shadow: none !important;
-    border-color: rgba(255,255,255,0.2) !important;
-    color: #ffffff !important;
-}
-
-/* ── ALERTS ── */
-div[data-testid="stAlert"] {
-    border-radius: 12px !important;
-    border: none !important;
-    font-size: 0.9rem !important;
-}
-
-/* ── DIVIDER ── */
-.auth-divider {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin: 20px 0;
-}
-
-.auth-divider hr {
-    flex: 1;
-    border: none;
-    border-top: 1px solid rgba(255,255,255,0.08);
-}
-
-.auth-divider span {
-    font-size: 0.8rem;
-    color: rgba(255,255,255,0.3);
-    white-space: nowrap;
-}
-
-/* ── LINK ACCIÓN ── */
-.action-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 20px;
-}
-
-.auth-link {
-    font-size: 0.85rem;
-    color: rgba(255,255,255,0.4);
-}
-
-.auth-link a, .auth-link span {
-    color: #6366F1;
-    cursor: pointer;
-    text-decoration: none;
-}
-
-/* ── RESPONSIVE ── */
-@media (max-width: 900px) {
-    .brand-panel { display: none; }
-    .form-panel { width: 100%; min-width: 100%; padding: 40px 24px; }
-}
-
-/* ── PASSWORD STRENGTH ── */
-.strength-bar {
-    height: 4px;
-    border-radius: 2px;
-    background: rgba(255,255,255,0.1);
-    margin-top: 8px;
-    overflow: hidden;
-}
-
-.strength-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.3s ease;
-}
-
-/* ── USER INFO (logged in) ── */
-.user-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(99,102,241,0.15);
-    border: 1px solid rgba(99,102,241,0.3);
-    border-radius: 100px;
-    padding: 6px 14px;
-    font-size: 0.85rem;
-    color: #a5b4fc;
-}
-
-.user-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: #6366F1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: white;
-}
-
-/* Sidebar override */
-section[data-testid="stSidebar"] {
-    background: #0F172A !important;
-    border-right: 1px solid rgba(255,255,255,0.06) !important;
-}
-
-section[data-testid="stSidebar"] * {
-    color: rgba(255,255,255,0.8) !important;
-}
-
+    /* Botón Principal */
+    div.stButton > button {
+        background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%) !important;
+        border: none !important;
+        padding: 10px 24px !important;
+        border-radius: 12px !important;
+        font-weight: 600 !important;
+        transition: all 0.3s ease !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────
-# 3. CONEXIÓN SUPABASE
-# ─────────────────────────────────────────────
-# En secrets.toml debes tener:
-# [connections.supabase]
-# SUPABASE_URL = "https://xxx.supabase.co"
-# SUPABASE_KEY = "tu_anon_key"
-
-conn = st.connection("supabase", type=SupabaseConnection)
-
-
-# ─────────────────────────────────────────────
-# 4. HELPERS
-# ─────────────────────────────────────────────
-def get_initials(email: str) -> str:
-    """Extrae iniciales del email para el avatar."""
-    parts = email.split("@")[0].replace(".", " ").replace("_", " ").split()
-    if len(parts) >= 2:
-        return (parts[0][0] + parts[1][0]).upper()
-    return email[:2].upper()
-
-
-def validate_password(pwd: str) -> tuple[bool, str]:
-    """Valida requisitos mínimos de seguridad."""
-    if len(pwd) < 8:
-        return False, "Mínimo 8 caracteres"
-    if not any(c.isupper() for c in pwd):
-        return False, "Necesita al menos una mayúscula"
-    if not any(c.isdigit() for c in pwd):
-        return False, "Necesita al menos un número"
-    return True, "ok"
-
-
-def show_brand_panel():
-    """Panel izquierdo de branding."""
-    st.markdown("""
-    <div class="brand-panel">
-        <div class="brand-logo">Cobro<span>Ya</span> Pro</div>
-        <div class="brand-tagline">Gestión de cobros<br><em>inteligente</em> y ágil</div>
-        <div class="brand-desc">
-            Controla tus cuentas por cobrar, automatiza recordatorios
-            y recibe pagos más rápido. Todo en un solo lugar.
-        </div>
-        <div class="brand-stats">
-            <div class="stat-item">
-                <div class="stat-number">1,000+</div>
-                <div class="stat-label">Clientes activos</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number">98%</div>
-                <div class="stat-label">Tasa de cobro</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-number">24/7</div>
-                <div class="stat-label">Disponibilidad</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-# ─────────────────────────────────────────────
-# 5. UI DE AUTENTICACIÓN
-# ─────────────────────────────────────────────
-def login_ui():
-    """Pantalla de autenticación completa."""
-    if "auth_mode" not in st.session_state:
-        st.session_state.auth_mode = "login"
-    if "auth_error" not in st.session_state:
-        st.session_state.auth_error = None
-    if "auth_success" not in st.session_state:
-        st.session_state.auth_success = None
-
-    # Detecta flujo de recuperación de contraseña por URL
-    params = st.query_params
-    if params.get("type") == "recovery":
-        st.session_state.auth_mode = "reset_password"
-
-    # Layout de dos columnas
-    col_brand, col_form = st.columns([1.1, 0.9])
-
-    with col_brand:
-        show_brand_panel()
-
-    with col_form:
-        st.markdown('<div class="form-panel">', unsafe_allow_html=True)
-        _render_auth_form()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-
-def _render_auth_form():
-    """Renderiza el formulario según el modo activo."""
-    mode = st.session_state.auth_mode
-
-    # Mensajes de estado
-    if st.session_state.auth_error:
-        st.error(st.session_state.auth_error)
-        st.session_state.auth_error = None
-
-    if st.session_state.auth_success:
-        st.success(st.session_state.auth_success)
-        st.session_state.auth_success = None
-
-    # ── MODO: INICIAR SESIÓN ──
-    if mode == "login":
-        st.markdown("""
-        <div class="form-header">
-            <div class="form-title">Bienvenido de vuelta</div>
-            <div class="form-subtitle">Ingresa tus credenciales para continuar</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        email = st.text_input(
-            "Correo electrónico",
-            key="login_email",
-            placeholder="tu@empresa.com"
-        ).strip().lower()
-
-        pwd = st.text_input(
-            "Contraseña",
-            type="password",
-            key="login_pwd",
-            placeholder="••••••••"
-        )
-
-        st.markdown("<div style='height: 8px'></div>", unsafe_allow_html=True)
-
-        if st.button("Iniciar sesión", key="btn_login", use_container_width=True):
-            if not email or not pwd:
-                st.session_state.auth_error = "Por favor completa todos los campos."
-                st.rerun()
-
-            with st.spinner("Verificando..."):
-                try:
-                    res = conn.client.auth.sign_in_with_password(
-                        {"email": email, "password": pwd}
-                    )
-                    if res.user:
-                        st.session_state.user = res.user
-                        st.session_state.auth_error = None
-                        st.rerun()
-                    else:
-                        st.session_state.auth_error = "Autenticación fallida. Intenta de nuevo."
-                        st.rerun()
-                except Exception as e:
-                    err_str = str(e).lower()
-                    if "invalid" in err_str or "credentials" in err_str:
-                        st.session_state.auth_error = "Email o contraseña incorrectos."
-                    elif "email not confirmed" in err_str:
-                        st.session_state.auth_error = "Confirma tu email antes de iniciar sesión."
-                    else:
-                        st.session_state.auth_error = "Error de conexión. Intenta más tarde."
-                    st.rerun()
-
-        st.markdown('<div class="auth-divider"><hr><span>o</span><hr></div>', unsafe_allow_html=True)
-
-        col_a, col_b = st.columns(2)
-        with col_a:
-            st.markdown('<div class="btn-ghost">', unsafe_allow_html=True)
-            if st.button("¿Olvidé mi clave?", key="btn_to_forgot", use_container_width=True):
-                st.session_state.auth_mode = "forgot"
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with col_b:
-            st.markdown('<div class="btn-ghost">', unsafe_allow_html=True)
-            if st.button("Crear cuenta", key="btn_to_signup", use_container_width=True):
-                st.session_state.auth_mode = "signup"
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    # ── MODO: REGISTRO ──
-    elif mode == "signup":
-        st.markdown("""
-        <div class="form-header">
-            <div class="form-title">Crea tu cuenta</div>
-            <div class="form-subtitle">Únete a más de 1,000 empresas en CobroYa</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        new_email = st.text_input(
-            "Correo electrónico",
-            key="reg_email",
-            placeholder="tu@empresa.com"
-        ).strip().lower()
-
-        new_pwd = st.text_input(
-            "Contraseña",
-            type="password",
-            key="reg_pwd",
-            placeholder="Mín. 8 caracteres, 1 número, 1 mayúscula"
-        )
-
-        conf_pwd = st.text_input(
-            "Confirmar contraseña",
-            type="password",
-            key="reg_conf",
-            placeholder="Repite tu contraseña"
-        )
-
-        st.markdown("<div style='height: 8px'></div>", unsafe_allow_html=True)
-
-        if st.button("Crear cuenta gratis", key="btn_signup", use_container_width=True):
-            # Validaciones en cadena
-            if not new_email or not new_pwd or not conf_pwd:
-                st.session_state.auth_error = "Todos los campos son obligatorios."
-                st.rerun()
-
-            if "@" not in new_email or "." not in new_email.split("@")[-1]:
-                st.session_state.auth_error = "Ingresa un email válido."
-                st.rerun()
-
-            valid_pwd, pwd_msg = validate_password(new_pwd)
-            if not valid_pwd:
-                st.session_state.auth_error = f"Contraseña débil: {pwd_msg}."
-                st.rerun()
-
-            if new_pwd != conf_pwd:
-                st.session_state.auth_error = "Las contraseñas no coinciden."
-                st.rerun()
-
-            with st.spinner("Creando tu cuenta..."):
-                try:
-                    res = conn.client.auth.sign_up({
-                        "email": new_email,
-                        "password": new_pwd
-                    })
-                    if res.user:
-                        # Supabase puede requerir confirmación de email
-                        if res.user.confirmed_at or res.session:
-                            st.session_state.user = res.user
-                            st.rerun()
-                        else:
-                            st.session_state.auth_success = (
-                                "¡Cuenta creada! Revisa tu email para confirmar tu cuenta."
-                            )
-                            st.session_state.auth_mode = "login"
-                            st.rerun()
-                except Exception as e:
-                    err_str = str(e).lower()
-                    if "already registered" in err_str or "already exists" in err_str:
-                        st.session_state.auth_error = "Este email ya está registrado."
-                    else:
-                        st.session_state.auth_error = f"Error al registrar: {e}"
-                    st.rerun()
-
-        st.markdown("<div style='height: 12px'></div>", unsafe_allow_html=True)
-
-        st.markdown('<div class="btn-ghost">', unsafe_allow_html=True)
-        if st.button("← Volver al inicio de sesión", key="btn_back_signup", use_container_width=True):
-            st.session_state.auth_mode = "login"
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # ── MODO: RECUPERAR CLAVE ──
-    elif mode == "forgot":
-        st.markdown("""
-        <div class="form-header">
-            <div class="form-title">Recupera tu acceso</div>
-            <div class="form-subtitle">Te enviamos un enlace para resetear tu contraseña</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        f_email = st.text_input(
-            "Tu correo electrónico",
-            key="forgot_email",
-            placeholder="tu@empresa.com"
-        ).strip().lower()
-
-        st.markdown("<div style='height: 8px'></div>", unsafe_allow_html=True)
-
-        if st.button("Enviar enlace de recuperación", key="btn_forgot", use_container_width=True):
-            if not f_email or "@" not in f_email:
-                st.session_state.auth_error = "Ingresa un email válido."
-                st.rerun()
-
-            with st.spinner("Enviando..."):
-                try:
-                    conn.client.auth.reset_password_for_email(
-                        f_email,
-                        options={"redirect_to": "https://tu-app.streamlit.app/?type=recovery"}
-                        # ⚠️ Cambia la URL por la de tu app desplegada
-                    )
-                    st.session_state.auth_success = (
-                        "✓ Enlace enviado. Revisa tu bandeja de entrada (y spam)."
-                    )
-                    st.session_state.auth_mode = "login"
-                    st.rerun()
-                except Exception:
-                    # No revelar si el email existe (seguridad)
-                    st.session_state.auth_success = (
-                        "Si el email existe, recibirás un enlace de recuperación."
-                    )
-                    st.session_state.auth_mode = "login"
-                    st.rerun()
-
-        st.markdown("<div style='height: 12px'></div>", unsafe_allow_html=True)
-
-        st.markdown('<div class="btn-ghost">', unsafe_allow_html=True)
-        if st.button("← Volver al inicio de sesión", key="btn_back_forgot", use_container_width=True):
-            st.session_state.auth_mode = "login"
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # ── MODO: RESETEAR CONTRASEÑA (desde email) ──
-    elif mode == "reset_password":
-        st.markdown("""
-        <div class="form-header">
-            <div class="form-title">Nueva contraseña</div>
-            <div class="form-subtitle">Elige una contraseña segura para tu cuenta</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        new_pwd = st.text_input(
-            "Nueva contraseña",
-            type="password",
-            key="reset_pwd",
-            placeholder="Mín. 8 caracteres"
-        )
-
-        conf_pwd = st.text_input(
-            "Confirmar nueva contraseña",
-            type="password",
-            key="reset_conf",
-            placeholder="Repite la contraseña"
-        )
-
-        if st.button("Guardar nueva contraseña", key="btn_reset", use_container_width=True):
-            valid_pwd, pwd_msg = validate_password(new_pwd)
-            if not valid_pwd:
-                st.session_state.auth_error = f"Contraseña débil: {pwd_msg}."
-                st.rerun()
-
-            if new_pwd != conf_pwd:
-                st.session_state.auth_error = "Las contraseñas no coinciden."
-                st.rerun()
-
-            with st.spinner("Actualizando..."):
-                try:
-                    conn.client.auth.update_user({"password": new_pwd})
-                    st.session_state.auth_success = "✓ Contraseña actualizada. Ya puedes iniciar sesión."
-                    st.session_state.auth_mode = "login"
-                    st.query_params.clear()
-                    st.rerun()
-                except Exception as e:
-                    st.session_state.auth_error = f"Error al actualizar: {e}"
-                    st.rerun()
-
-
-# ─────────────────────────────────────────────
-# 6. GATEKEEPER — PROTECCIÓN DE ACCESO
-# ─────────────────────────────────────────────
-def check_auth() -> bool:
-    """
-    Retorna True si el usuario está autenticado.
-    Intenta recuperar sesión activa antes de pedir login.
-    """
-    # Ya tenemos usuario en sesión
-    if st.session_state.get("user"):
-        return True
-
-    # Intenta recuperar sesión técnica de Supabase
+# ─── LÓGICA DE SESIÓN (EL CEREBRO DE CLAUDE) ───
+if "user" not in st.session_state:
+    st.session_state.user = None
+    # Intentar recuperar sesión persistente automáticamente
     try:
-        check = conn.client.auth.get_user()
-        if check and check.user:
-            st.session_state.user = check.user
-            return True
-    except Exception:
+        user_check = conn.client.auth.get_user()
+        if user_check and user_check.user:
+            st.session_state.user = user_check.user
+    except:
         pass
 
-    return False
+# ─── INTERFAZ DE LOGIN ───
+if st.session_state.user is None:
+    _, center_col, _ = st.columns([1, 2, 1])
+    
+    with center_col:
+        st.markdown('<div class="auth-card">', unsafe_allow_html=True)
+        st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=70)
+        st.markdown("<h1 style='color: white; margin-bottom: 0;'>CobroYa Global</h1>", unsafe_allow_html=True)
+        st.markdown("<p style='color: #888; margin-bottom: 30px;'>Acceso Seguro al Sistema</p>", unsafe_allow_html=True)
+        
+        email = st.text_input("Email", key="login_email_v3", placeholder="correo@ejemplo.com").strip().lower()
+        pwd = st.text_input("Contraseña", type="password", key="login_pwd_v3", placeholder="••••••••")
+        
+        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+        
+        btn_col1, btn_col2 = st.columns(2)
+        
+        # Botón Entrar con la lógica de Claude
+        if btn_col1.button("Entrar", use_container_width=True):
+            if not email or not pwd:
+                st.warning("Escribe tus credenciales")
+            else:
+                try:
+                    res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
+                    if res.user:
+                        st.session_state.user = res.user
+                        st.success("Sesión iniciada")
+                        time.sleep(0.5)
+                        st.rerun()
+                except Exception:
+                    st.error("Credenciales inválidas")
 
-
-# ─────────────────────────────────────────────
-# 7. PUNTO DE ENTRADA
-# ─────────────────────────────────────────────
-if not check_auth():
-    login_ui()
+        # Botón Registrarse
+        if btn_col2.button("Registrarme", use_container_width=True):
+            if email and pwd:
+                try:
+                    res = conn.client.auth.sign_up({"email": email, "password": pwd})
+                    if res.user:
+                        st.session_state.user = res.user
+                        st.success("Cuenta creada")
+                        time.sleep(0.5)
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+            else:
+                st.warning("Completa los datos")
+        
+        st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
+
+# Si llegó aquí, todo CobroYa funciona con este ID
+u_id = st.session_state.user.id
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
