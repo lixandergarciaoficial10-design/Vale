@@ -18,109 +18,134 @@ from fpdf import FPDF
 from datetime import datetime
 import streamlit as st
 
-import streamlit as st
-from st_supabase_connection import SupabaseConnection
-
-# --- 1. CONFIGURACIÓN INICIAL ---
+# 1. CONFIGURACIÓN Y ESTILO APPLE-ENTERPRISE
 st.set_page_config(page_title="CobroYa Pro", layout="wide", page_icon="📈")
 
-# Estilos Apple-Enterprise
 st.markdown("""
     <style>
     .main { background-color: #F8F9FA; }
-    .auth-card { 
-        background-color: white; padding: 40px; border-radius: 24px; 
-        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); 
-        text-align: center; max-width: 450px; margin: auto; border: 1px solid #F0F0F0; 
+    .stTextInput > div > div > input { border-radius: 12px; }
+    .auth-card {
+        background-color: white; padding: 40px; border-radius: 24px;
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+        text-align: center; max-width: 450px; margin: auto; border: 1px solid #F0F0F0;
     }
-    div.stButton > button { 
-        background-color: #007AFF; color: white; border-radius: 12px; 
-        font-weight: bold; width: 100%; 
+    /* Estilo botones Apple Blue */
+    div.stButton > button:first-child {
+        background-color: #007AFF; color: white; border-radius: 12px; border: none;
+        padding: 0.7rem 2rem; font-weight: bold; width: 100%;
+    }
+    /* Estilo Contenedor Google (Limpio) */
+    .google-container {
+        display: flex; align-items: center; justify-content: center;
+        background-color: white; border: 1px solid #dadce0; border-radius: 12px;
+        padding: 8px; margin-bottom: 10px;
     }
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
-# --- 2. CONEXIÓN ---
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# --- 3. GESTIÓN DE SESIÓN ---
+# --- 1. CONFIGURACIÓN DE SESIÓN ---
 if 'user' not in st.session_state:
     st.session_state.user = None
+if 'auth_mode' not in st.session_state:
+    st.session_state.auth_mode = "login"
 
-def logout():
-    conn.client.auth.sign_out()
-    st.session_state.user = None
-    st.query_params.clear()
-    st.rerun()
-
-# --- 4. INTERFAZ DE LOGIN ---
+# --- 2. LÓGICA DE LOGIN ---
 def login_ui():
+    params = st.query_params
+    if params.get("type") == "recovery":
+        st.session_state.auth_mode = "reset_password"
+
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
+        st.markdown("<div class='auth-card' style='text-align: center;'>", unsafe_allow_html=True)
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
-        st.title("VALE AI Global")
+        st.markdown("<h2 style='color: #1D1D1F;'>VALE AI Global</h2>", unsafe_allow_html=True)
         
-        # Google Auth
-        if st.button("Continuar con Google", use_container_width=True):
-            # Cambia localhost por tu URL real cuando subas a la nube
-            redirect_url = "http://localhost:8501" 
-            res = conn.client.auth.sign_in_with_oauth({
-                "provider": "google", "options": {"redirect_to": redirect_url}
-            })
-            if res.url:
-                st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
-                st.stop()
+        if st.session_state.auth_mode in ["login", "signup"]:
+            # --- BOTÓN DE GOOGLE ESTILO OFICIAL ---
+            st.markdown("""
+                <div class="google-container" style="display: flex; align-items: center; justify-content: center; background-color: white; border: 1px solid #dadce0; border-radius: 12px; padding: 10px; margin-bottom: 10px;">
+                    <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" width="18px" style="margin-right: 10px;">
+                    <span style="color: #3c4043; font-weight: 500; font-family: 'Roboto',arial,sans-serif; font-size: 14px;">Continuar con Google</span>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button("Validar acceso con Google", use_container_width=True):
+                try:
+                    redirect_url = "http://localhost:8501" 
+                    res = conn.client.auth.sign_in_with_oauth({
+                        "provider": "google",
+                        "options": {"redirect_to": redirect_url}
+                    })
+                    if res.url:
+                        st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
+                except Exception as e:
+                    st.error(f"Error: {e}")
+            
+            st.markdown("<p style='color: #8E8E93; font-size: 0.9rem; margin-top: 10px;'>o usa tu correo electrónico</p>", unsafe_allow_html=True)
 
-        st.markdown("---")
-        
-        # Email Login
-        email = st.text_input("Email", placeholder="tu@correo.com", key="login_email")
-        pwd = st.text_input("Contraseña", type="password", placeholder="••••••••", key="login_pwd")
-        
-        if st.button("Entrar"):
-            try:
-                res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                if res.user:
-                    st.session_state.user = res.user
+        # --- LOGIN TRADICIONAL ---
+        if st.session_state.auth_mode == "login":
+            email = st.text_input("Email", key="l_email", placeholder="ejemplo@correo.com")
+            pwd = st.text_input("Clave", type="password", key="l_pwd", placeholder="••••••••")
+            
+            if st.button("Entrar", use_container_width=True):
+                try:
+                    res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
+                    if res.session:
+                        st.session_state.user = res.user
+                        st.rerun()
+                except: st.error("Datos incorrectos")
+            
+            st.markdown("---")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("Olvidé clave", use_container_width=True):
+                    st.session_state.auth_mode = "forgot"
                     st.rerun()
-            except:
-                st.error("Credenciales inválidas")
+            with c2:
+                if st.button("Registrarme", use_container_width=True):
+                    st.session_state.auth_mode = "signup"
+                    st.rerun()
+
+        # --- REGISTRO DIRECTO ---
+        elif st.session_state.auth_mode == "signup":
+            r_email = st.text_input("Nuevo Email", placeholder="tu@email.com")
+            r_pass = st.text_input("Nueva Clave", type="password", placeholder="Mínimo 6 caracteres")
+            if st.button("Crear Cuenta", use_container_width=True):
+                try:
+                    res = conn.client.auth.sign_up({"email": r_email, "password": r_pass})
+                    if res.user:
+                        st.info("Cuenta creada. Revisa tu correo o intenta loguearte.")
+                        st.session_state.auth_mode = "login"
+                        st.rerun()
+                except Exception as e: st.error(f"Error: {e}")
+            if st.button("Volver al inicio", use_container_width=True):
+                st.session_state.auth_mode = "login"
+                st.rerun()
+
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 5. CONTROL DE ACCESO (EL FILTRO DEFINITIVO) ---
+# --- 3. CONTROL DE ACCESO (FIX: Persistencia forzada) ---
 if st.session_state.user is None:
     try:
-        # Validamos directamente con el servidor de Supabase
-        check_user = conn.client.auth.get_user()
-        if check_user and check_user.user:
-            st.session_state.user = check_user.user
+        # Recuperamos la sesión actual de Supabase
+        session_data = conn.client.auth.get_session()
+        if session_data:
+            st.session_state.user = session_data.user
         else:
+            # Si no hay sesión real, mostramos UI y paramos ejecución
             login_ui()
-            st.stop() # Bloqueo total: nada abajo de aquí se ejecuta
+            st.stop()
     except:
         login_ui()
         st.stop()
 
-# --- 6. VALIDACIÓN FINAL Y DEFINICIÓN DE VARIABLES ---
-if not st.session_state.user or not hasattr(st.session_state.user, 'id'):
-    st.session_state.user = None
-    st.rerun()
-
-# AQUÍ DEFINIMOS LO QUE TE DABA ERROR:
+# --- LÓGICA DE LA APP ---
 u_id = st.session_state.user.id
-u_email = st.session_state.user.email
-
-# --- 7. LÓGICA DE LA APP (TUS 1,300 LÍNEAS) ---
-
-# Ejemplo de Sidebar para confirmar que funciona
-st.sidebar.success(f"Usuario: {u_email}")
-if st.sidebar.button("Cerrar Sesión"):
-    logout()
-
-# Tu query de la línea 666 ahora funcionará perfectamente:
-# q_c = conn.table("cuentas").select("...").eq("user_id", u_id)
-st.write(f"Bienvenido al panel. Tu ID de acceso es: **{u_id}**")
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
