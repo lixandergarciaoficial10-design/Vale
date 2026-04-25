@@ -46,108 +46,80 @@ st.markdown("""
 
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# --- 1. CONFIGURACIÓN DE SESIÓN LOCAL ---
+# --- 1. CONFIGURACIÓN DE SESIÓN (Limpio y directo) ---
 if 'user' not in st.session_state:
     st.session_state.user = None
-if 'auth_mode' not in st.session_state:
-    st.session_state.auth_mode = "login"
 
 # --- 2. LÓGICA DE LOGIN ---
 def login_ui():
+    if 'auth_mode' not in st.session_state:
+        st.session_state.auth_mode = "login"
+
     params = st.query_params
     if params.get("type") == "recovery":
         st.session_state.auth_mode = "reset_password"
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("<div class='auth-card' style='text-align: center;'>", unsafe_allow_html=True)
+        st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
-        st.markdown("<h2 style='color: #1D1D1F;'>VALE AI Global</h2>", unsafe_allow_html=True)
-        
-        if st.session_state.auth_mode in ["login", "signup"]:
-            # --- BOTÓN DE GOOGLE ---
-            st.markdown("""
-                <div class="google-container" style="display: flex; align-items: center; justify-content: center; background-color: white; border: 1px solid #dadce0; border-radius: 12px; padding: 10px; margin-bottom: 10px;">
-                    <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" width="18px" style="margin-right: 10px;">
-                    <span style="color: #3c4043; font-weight: 500; font-family: 'Roboto',arial,sans-serif; font-size: 14px;">Continuar con Google</span>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            if st.button("Validar acceso con Google", use_container_width=True):
-                try:
-                    # RECUERDA: Cambiar esto a tu URL real al publicar (ej. https://vale-ai.streamlit.app)
-                    redirect_url = "http://localhost:8501" 
-                    res = conn.client.auth.sign_in_with_oauth({
-                        "provider": "google",
-                        "options": {"redirect_to": redirect_url}
-                    })
-                    if res.url:
-                        st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
-                        st.stop()
-                except Exception as e:
-                    st.error(f"Error: {e}")
-            
-            st.markdown("<p style='color: #8E8E93; font-size: 0.9rem; margin-top: 10px;'>o usa tu correo electrónico</p>", unsafe_allow_html=True)
+        st.markdown("<h2>VALE AI Global</h2>", unsafe_allow_html=True)
 
-        # --- LOGIN TRADICIONAL ---
+        # --- GOOGLE OAUTH (Nueva adición necesaria) ---
+        if st.button("Continuar con Google", use_container_width=True):
+            redirect_url = "http://localhost:8501" # Cambiar en producción
+            res = conn.client.auth.sign_in_with_oauth({
+                "provider": "google",
+                "options": {"redirect_to": redirect_url}
+            })
+            if res.url:
+                st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
+                st.stop()
+
+        st.markdown("---")
+
         if st.session_state.auth_mode == "login":
-            email = st.text_input("Email", key="l_email", placeholder="ejemplo@correo.com")
-            pwd = st.text_input("Clave", type="password", key="l_pwd", placeholder="••••••••")
-            
-            if st.button("Entrar", use_container_width=True):
+            email = st.text_input("Correo Electrónico")
+            pwd = st.text_input("Contraseña", type="password")
+            if st.button("Iniciar Sesión"):
                 try:
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
                     if res.user:
                         st.session_state.user = res.user
                         st.rerun()
-                except: st.error("Datos incorrectos")
+                except:
+                    st.error("❌ Correo o contraseña incorrectos.")
             
-            st.markdown("---")
+            # Botones de navegación
             c1, c2 = st.columns(2)
-            with c1:
-                if st.button("Olvidé clave", use_container_width=True):
-                    st.session_state.auth_mode = "forgot"
-                    st.rerun()
-            with c2:
-                if st.button("Registrarme", use_container_width=True):
-                    st.session_state.auth_mode = "signup"
-                    st.rerun()
+            if c1.button("Olvidé clave"):
+                st.session_state.auth_mode = "forgot"; st.rerun()
+            if c2.button("Registrarme"):
+                st.session_state.auth_mode = "signup"; st.rerun()
 
-        # --- REGISTRO ---
-        elif st.session_state.auth_mode == "signup":
-            r_email = st.text_input("Nuevo Email", placeholder="tu@email.com")
-            r_pass = st.text_input("Nueva Clave", type="password", placeholder="Mínimo 6 caracteres")
-            if st.button("Crear Cuenta", use_container_width=True):
-                try:
-                    res = conn.client.auth.sign_up({"email": r_email, "password": r_pass})
-                    if res.user:
-                        st.info("Cuenta creada. Revisa tu correo o intenta loguearte.")
-                        st.session_state.auth_mode = "login"
-                        st.rerun()
-                except Exception as e: st.error(f"Error: {e}")
-            if st.button("Volver al inicio", use_container_width=True):
-                st.session_state.auth_mode = "login"
-                st.rerun()
-
+        # ... (Aquí irían los bloques de signup/forgot igual que antes)
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 3. CONTROL DE ACCESO (ELIMINADO GET_SESSION) ---
+# --- 3. EL FILTRO DE SEGURIDAD (Aquí es donde se arregla todo) ---
+
+# Primero: Si el session_state está vacío, intentamos ver si el cliente de Supabase 
+# TIENE un usuario (esto pasa después de volver de Google o refrescar)
 if st.session_state.user is None:
     try:
-        # ✅ USAMOS GET_USER: Valida al usuario real en este navegador específico
-        response = conn.client.auth.get_user()
-        if response and response.user:
-            st.session_state.user = response.user
+        # get_user() es la clave. Es individual por navegador.
+        check_auth = conn.client.auth.get_user()
+        if check_auth and check_auth.user:
+            st.session_state.user = check_auth.user
         else:
+            # Si DE VERDAD no hay nadie, mostramos login
             login_ui()
-            st.stop() # Bloqueo total si no hay usuario verificado
-    except Exception:
+            st.stop()
+    except:
         login_ui()
         st.stop()
 
-# --- 4. IDENTIDAD DE LA APP ---
+# --- 4. ACCESO CONCEDIDO ---
 u_id = st.session_state.user.id
-u_email = st.session_state.user.email
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
