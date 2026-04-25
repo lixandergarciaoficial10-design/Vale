@@ -21,22 +21,29 @@ import streamlit as st
 import streamlit as st
 from st_supabase_connection import SupabaseConnection
 
-# 1. CONFIGURACIÓN INICIAL
+# --- 1. CONFIGURACIÓN INICIAL ---
 st.set_page_config(page_title="CobroYa Pro", layout="wide", page_icon="📈")
 
-# (Aquí pegas tus estilos CSS que ya tienes...)
+# Estilos Apple-Enterprise
 st.markdown("""
     <style>
     .main { background-color: #F8F9FA; }
-    .auth-card { background-color: white; padding: 40px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); text-align: center; max-width: 450px; margin: auto; border: 1px solid #F0F0F0; }
-    div.stButton > button { background-color: #007AFF; color: white; border-radius: 12px; font-weight: bold; width: 100%; }
+    .auth-card { 
+        background-color: white; padding: 40px; border-radius: 24px; 
+        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); 
+        text-align: center; max-width: 450px; margin: auto; border: 1px solid #F0F0F0; 
+    }
+    div.stButton > button { 
+        background-color: #007AFF; color: white; border-radius: 12px; 
+        font-weight: bold; width: 100%; 
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# 2. CONEXIÓN (Sin caché global agresivo)
+# --- 2. CONEXIÓN ---
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# 3. GESTIÓN DE SESIÓN
+# --- 3. GESTIÓN DE SESIÓN ---
 if 'user' not in st.session_state:
     st.session_state.user = None
 
@@ -46,7 +53,7 @@ def logout():
     st.query_params.clear()
     st.rerun()
 
-# 4. INTERFAZ DE LOGIN
+# --- 4. INTERFAZ DE LOGIN ---
 def login_ui():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
@@ -54,9 +61,10 @@ def login_ui():
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
         st.title("VALE AI Global")
         
-        # Botón de Google
+        # Google Auth
         if st.button("Continuar con Google", use_container_width=True):
-            redirect_url = "http://localhost:8501" # CAMBIAR EN PRODUCCIÓN
+            # Cambia localhost por tu URL real cuando subas a la nube
+            redirect_url = "http://localhost:8501" 
             res = conn.client.auth.sign_in_with_oauth({
                 "provider": "google", "options": {"redirect_to": redirect_url}
             })
@@ -66,9 +74,9 @@ def login_ui():
 
         st.markdown("---")
         
-        # Email/Password
-        email = st.text_input("Email", placeholder="tu@correo.com")
-        pwd = st.text_input("Contraseña", type="password", placeholder="••••••••")
+        # Email Login
+        email = st.text_input("Email", placeholder="tu@correo.com", key="login_email")
+        pwd = st.text_input("Contraseña", type="password", placeholder="••••••••", key="login_pwd")
         
         if st.button("Entrar"):
             try:
@@ -80,27 +88,39 @@ def login_ui():
                 st.error("Credenciales inválidas")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 5. CONTROL DE ACCESO DEFINITIVO ---
-
-# Verificamos si hay una sesión activa en Supabase que no hayamos capturado
+# --- 5. CONTROL DE ACCESO (EL FILTRO DEFINITIVO) ---
 if st.session_state.user is None:
     try:
-        # get_user() va al servidor, no usa caché local. Es la prueba de fuego.
+        # Validamos directamente con el servidor de Supabase
         check_user = conn.client.auth.get_user()
         if check_user and check_user.user:
             st.session_state.user = check_user.user
         else:
             login_ui()
-            st.stop() # AQUÍ SE MUERE EL SCRIPT SI NO HAY LOGIN
+            st.stop() # Bloqueo total: nada abajo de aquí se ejecuta
     except:
         login_ui()
         st.stop()
 
-# --- 6. VALIDACIÓN FINAL DE SEGURIDAD ---
-# Si llegamos aquí pero por algún error el objeto no es válido, reiniciamos.
+# --- 6. VALIDACIÓN FINAL Y DEFINICIÓN DE VARIABLES ---
 if not st.session_state.user or not hasattr(st.session_state.user, 'id'):
     st.session_state.user = None
     st.rerun()
+
+# AQUÍ DEFINIMOS LO QUE TE DABA ERROR:
+u_id = st.session_state.user.id
+u_email = st.session_state.user.email
+
+# --- 7. LÓGICA DE LA APP (TUS 1,300 LÍNEAS) ---
+
+# Ejemplo de Sidebar para confirmar que funciona
+st.sidebar.success(f"Usuario: {u_email}")
+if st.sidebar.button("Cerrar Sesión"):
+    logout()
+
+# Tu query de la línea 666 ahora funcionará perfectamente:
+# q_c = conn.table("cuentas").select("...").eq("user_id", u_id)
+st.write(f"Bienvenido al panel. Tu ID de acceso es: **{u_id}**")
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
