@@ -67,21 +67,23 @@ def login_ui():
 
         # --- MODO: LOGIN ---
         if st.session_state.auth_mode == "login":
-            # Sanatización de inputs: .strip() evita que un espacio al final arruine el login
             email = st.text_input("Correo Electrónico", key="cyb_sec_login_email").strip()
             pwd = st.text_input("Contraseña", type="password", key="cyb_sec_login_pwd")
             
             if st.button("Iniciar Sesión", width="stretch", key="cyb_sec_login_btn"):
+                # PARCHE 1: Bloqueo físico de campos vacíos
                 if not email or not pwd:
-                    st.warning("⚠️ Completa todos los campos.")
+                    st.error("⚠️ Acceso denegado: Introduce credenciales.")
+                    st.stop() 
                 else:
                     try:
                         res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
                         if res.user:
                             st.session_state.user = res.user
                             st.rerun()
-                    except Exception as e:
-                        # Práctica Ciberseguridad: Mensaje genérico. NUNCA revelar si falló el correo o la clave.
+                        else:
+                            st.error("❌ Error de autenticación.")
+                    except Exception:
                         st.error("❌ Correo o contraseña incorrectos.")
 
             st.markdown("---")
@@ -93,7 +95,7 @@ def login_ui():
                 st.session_state.auth_mode = "signup"
                 st.rerun()
 
-        # --- MODO: REGISTRO (MVP) ---
+        # --- MODO: REGISTRO ---
         elif st.session_state.auth_mode == "signup":
             st.subheader("Crea tu cuenta")
             new_email = st.text_input("Correo Electrónico", key="cyb_sec_reg_email").strip()
@@ -106,17 +108,16 @@ def login_ui():
                 elif new_pwd != conf_pwd:
                     st.warning("⚠️ Las contraseñas no coinciden.")
                 elif len(new_pwd) < 6:
-                    st.warning("⚠️ La clave debe tener al menos 6 caracteres por seguridad.")
+                    st.warning("⚠️ Mínimo 6 caracteres.")
                 else:
                     try:
                         res = conn.client.auth.sign_up({"email": new_email, "password": new_pwd})
                         if res.user:
                             st.session_state.user = res.user
-                            st.success("¡Cuenta creada de forma segura!")
+                            st.success("¡Cuenta creada!")
                             st.rerun()
                     except Exception as e:
-                        # Aquí sí mostramos el error para que el usuario sepa si el correo ya existe
-                        st.error(f"Error en el registro: {e}")
+                        st.error(f"Error: {e}")
             
             if st.button("Volver", width="stretch", key="cyb_sec_back_signup"):
                 st.session_state.auth_mode = "login"
@@ -126,15 +127,10 @@ def login_ui():
         elif st.session_state.auth_mode == "forgot":
             f_email = st.text_input("Introduce tu email", key="cyb_sec_forgot_email").strip()
             if st.button("Enviar enlace", width="stretch", key="cyb_sec_forgot_btn"):
-                if not f_email:
-                    st.warning("⚠️ Ingresa un correo válido.")
-                else:
-                    try:
-                        conn.client.auth.reset_password_for_email(f_email)
-                        # Prevención de enumeración de usuarios: Siempre decir "Si el correo existe..."
-                        st.info("Si el correo existe en nuestro sistema, recibirás un enlace.")
-                    except Exception:
-                        st.error("Error de comunicación con el servidor.")
+                try:
+                    conn.client.auth.reset_password_for_email(f_email)
+                    st.info("Revisa tu correo.")
+                except: st.error("Error.")
             if st.button("Regresar", width="stretch", key="cyb_sec_back_forgot"):
                 st.session_state.auth_mode = "login"
                 st.rerun()
@@ -142,23 +138,30 @@ def login_ui():
         st.markdown("</div>", unsafe_allow_html=True)
 
 # --- PROTECCIÓN DE ACCESO (GATEKEEPER) ---
+
+# PARCHE 2: Si quieres forzar que SIEMPRE pida clave al cerrar la pestaña, 
+# puedes comentar las líneas del 'try' abajo y dejar solo login_ui() y st.stop()
 if 'user' not in st.session_state or st.session_state.user is None:
     try:
-        # Validación estricta del token contra el servidor de Supabase
+        # Intenta recuperar sesión técnica
         check = conn.client.auth.get_user()
         if check and check.user:
             st.session_state.user = check.user
         else:
             login_ui()
             st.stop()
-    except Exception:
-        # Cierre forzado en caso de manipulación de sesión
+    except:
         login_ui()
         st.stop()
 
-# --- AISLAMIENTO DE DATOS (CRÍTICO) ---
-# Identificador inmutable para consultas en base de datos
+# --- AISLAMIENTO DE DATOS ---
 u_id = st.session_state.user.id
+
+# PARCHE 3: Botón de cierre real (Agrégalo en tu Sidebar para limpiar el token)
+# if st.sidebar.button("Salir"):
+#     conn.client.auth.sign_out()
+#     st.session_state.clear()
+#     st.rerun()
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
