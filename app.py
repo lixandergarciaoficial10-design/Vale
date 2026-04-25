@@ -17,109 +17,116 @@ import base64
 from fpdf import FPDF
 from datetime import datetime
 import streamlit as st
-# --- 2. SISTEMA DE ACCESO (ESTILO PREMIUM CLAUDE + LÓGICA SUPABASE) ---
 
-# Inyectar Estilos Premium de Claude
+# --- 1. BLINDAJE VISUAL: FORZAR MODO CLARO SIEMPRE ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
-    
-    .stApp { background: #0A0A0F; font-family: 'DM Sans', sans-serif; }
-    
-    /* Contenedor tipo Tarjeta Neumórfica Oscura */
-    .auth-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 40px;
-        border-radius: 24px;
-        backdrop-filter: blur(10px);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    /* Forzamos fondo blanco y texto oscuro en toda la app */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: white !important;
+        color: #1A1A1A !important;
     }
-    
-    /* Inputs Estilizados */
-    div[data-testid="stTextInput"] > div > div > input {
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 12px !important;
-        color: white !important;
-        padding: 12px !important;
+    /* Estilo de los inputs */
+    input {
+        background-color: #F8F9FA !important;
+        color: #1A1A1A !important;
+        border: 1px solid #DDE0E3 !important;
     }
-
-    /* Botón Principal */
+    /* Estilo del contenedor del Login */
+    .login-box {
+        background-color: #FFFFFF;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0px 4px 20px rgba(0,0,0,0.1);
+        border: 1px solid #EEE;
+        text-align: center;
+    }
+    /* Botones Pro */
     div.stButton > button {
-        background: linear-gradient(135deg, #6366F1 0%, #4F46E5 100%) !important;
+        background-color: #007AFF !important;
+        color: white !important;
+        border-radius: 8px !important;
         border: none !important;
-        padding: 10px 24px !important;
-        border-radius: 12px !important;
-        font-weight: 600 !important;
-        transition: all 0.3s ease !important;
+        height: 3em !important;
+        width: 100% !important;
+    }
+    /* Forzar color de etiquetas de texto */
+    label, p, h1, h2, h3, span {
+        color: #1A1A1A !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ─── LÓGICA DE SESIÓN (EL CEREBRO DE CLAUDE) ───
+# --- 2. LÓGICA DE SESIÓN SIMPLIFICADA ---
 if "user" not in st.session_state:
     st.session_state.user = None
-    # Intentar recuperar sesión persistente automáticamente
+    # Verificar si ya hay una sesión guardada en el navegador
     try:
-        user_check = conn.client.auth.get_user()
-        if user_check and user_check.user:
-            st.session_state.user = user_check.user
+        check = conn.client.auth.get_user()
+        if check and check.user:
+            st.session_state.user = check.user
     except:
         pass
 
-# ─── INTERFAZ DE LOGIN ───
+# --- 3. INTERFAZ DE LOGIN DESDE CERO ---
 if st.session_state.user is None:
-    _, center_col, _ = st.columns([1, 2, 1])
+    _, col, _ = st.columns([1, 2, 1])
     
-    with center_col:
-        st.markdown('<div class="auth-card">', unsafe_allow_html=True)
+    with col:
+        st.markdown("<div class='login-box'>", unsafe_allow_html=True)
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=70)
-        st.markdown("<h1 style='color: white; margin-bottom: 0;'>CobroYa Global</h1>", unsafe_allow_html=True)
-        st.markdown("<p style='color: #888; margin-bottom: 30px;'>Acceso Seguro al Sistema</p>", unsafe_allow_html=True)
+        st.title("CobroYa Global")
+        st.write("Ingresa para gestionar tus cobros")
+
+        email = st.text_input("Correo Electrónico", key="main_user_email").strip().lower()
+        pwd = st.text_input("Contraseña", type="password", key="main_user_pwd")
+
+        st.markdown("<br>", unsafe_allow_html=True)
         
-        email = st.text_input("Email", key="login_email_v3", placeholder="correo@ejemplo.com").strip().lower()
-        pwd = st.text_input("Contraseña", type="password", key="login_pwd_v3", placeholder="••••••••")
+        c1, c2 = st.columns(2)
         
-        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-        
-        btn_col1, btn_col2 = st.columns(2)
-        
-        # Botón Entrar con la lógica de Claude
-        if btn_col1.button("Entrar", use_container_width=True):
-            if not email or not pwd:
-                st.warning("Escribe tus credenciales")
-            else:
+        # Botón para entrar
+        if c1.button("Iniciar Sesión"):
+            if email and pwd:
                 try:
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
                     if res.user:
                         st.session_state.user = res.user
-                        st.success("Sesión iniciada")
-                        time.sleep(0.5)
                         st.rerun()
-                except Exception:
-                    st.error("Credenciales inválidas")
+                except:
+                    st.error("Correo o clave incorrectos")
+            else:
+                st.warning("Escribe tus datos")
 
-        # Botón Registrarse
-        if btn_col2.button("Registrarme", use_container_width=True):
+        # Botón para registrarse (Entra directo)
+        if c2.button("Crear Cuenta"):
             if email and pwd:
                 try:
                     res = conn.client.auth.sign_up({"email": email, "password": pwd})
                     if res.user:
                         st.session_state.user = res.user
-                        st.success("Cuenta creada")
-                        time.sleep(0.5)
+                        st.success("¡Cuenta creada!")
                         st.rerun()
                 except Exception as e:
                     st.error(f"Error: {e}")
             else:
-                st.warning("Completa los datos")
+                st.warning("Completa los campos")
         
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
-# Si llegó aquí, todo CobroYa funciona con este ID
+# --- 4. AISLAMIENTO TOTAL (LA CLAVE DE TODO) ---
+# Al usar st.session_state.user.id, cualquier filtro que hagas en tus bases de datos
+# DEBE usar esta variable u_id. Así un usuario jamás verá lo del otro.
 u_id = st.session_state.user.id
+u_email = st.session_state.user.email
+
+# Ejemplo de cómo mostrar que el sistema reconoce al usuario
+st.sidebar.success(f"Usuario: {u_email}")
+if st.sidebar.button("Cerrar Sesión"):
+    conn.client.auth.sign_out()
+    st.session_state.user = None
+    st.rerun()
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
