@@ -18,6 +18,9 @@ from fpdf import FPDF
 from datetime import datetime
 import streamlit as st
 
+import streamlit as st
+from st_supabase_connection import SupabaseConnection
+
 # 1. CONFIGURACIÓN Y ESTILO APPLE-ENTERPRISE
 st.set_page_config(page_title="CobroYa Pro", layout="wide", page_icon="📈")
 
@@ -30,122 +33,115 @@ st.markdown("""
         box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
         text-align: center; max-width: 450px; margin: auto; border: 1px solid #F0F0F0;
     }
-    /* Estilo botones Apple Blue */
     div.stButton > button:first-child {
         background-color: #007AFF; color: white; border-radius: 12px; border: none;
         padding: 0.7rem 2rem; font-weight: bold; width: 100%;
     }
-    /* Estilo Contenedor Google (Limpio) */
     .google-container {
         display: flex; align-items: center; justify-content: center;
         background-color: white; border: 1px solid #dadce0; border-radius: 12px;
-        padding: 8px; margin-bottom: 10px;
+        padding: 10px; margin-bottom: 10px; cursor: pointer;
     }
     </style>
     """, unsafe_allow_html=True)
 
+# Inicializar conexión
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# --- 1. CONFIGURACIÓN DE SESIÓN ---
+# --- 2. GESTIÓN DE SESIÓN LOCAL (PRIVADA) ---
 if 'user' not in st.session_state:
     st.session_state.user = None
 if 'auth_mode' not in st.session_state:
     st.session_state.auth_mode = "login"
 
-# --- 2. LÓGICA DE LOGIN ---
-def login_ui():
-    params = st.query_params
-    if params.get("type") == "recovery":
-        st.session_state.auth_mode = "reset_password"
+def logout():
+    conn.client.auth.sign_out()
+    st.session_state.user = None
+    st.rerun()
 
+# --- 3. LÓGICA DE INTERFAZ DE USUARIO ---
+def login_ui():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("<div class='auth-card' style='text-align: center;'>", unsafe_allow_html=True)
+        st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
         st.markdown("<h2 style='color: #1D1D1F;'>VALE AI Global</h2>", unsafe_allow_html=True)
         
         if st.session_state.auth_mode in ["login", "signup"]:
-            # --- BOTÓN DE GOOGLE ESTILO OFICIAL ---
+            # Botón de Google Estilizado
             st.markdown("""
-                <div class="google-container" style="display: flex; align-items: center; justify-content: center; background-color: white; border: 1px solid #dadce0; border-radius: 12px; padding: 10px; margin-bottom: 10px;">
+                <div class="google-container">
                     <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" width="18px" style="margin-right: 10px;">
                     <span style="color: #3c4043; font-weight: 500; font-family: 'Roboto',arial,sans-serif; font-size: 14px;">Continuar con Google</span>
                 </div>
             """, unsafe_allow_html=True)
             
-            if st.button("Validar acceso con Google", use_container_width=True):
-                try:
-                    redirect_url = "http://localhost:8501" 
-                    res = conn.client.auth.sign_in_with_oauth({
-                        "provider": "google",
-                        "options": {"redirect_to": redirect_url}
-                    })
-                    if res.url:
-                        st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
-                except Exception as e:
-                    st.error(f"Error: {e}")
+            if st.button("Validar con Google", use_container_width=True):
+                # IMPORTANTE: Cambia a tu URL de Streamlit Cloud en producción
+                redirect_url = "http://localhost:8501" 
+                res = conn.client.auth.sign_in_with_oauth({
+                    "provider": "google",
+                    "options": {"redirect_to": redirect_url}
+                })
+                if res.url:
+                    st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
+                    st.stop()
             
-            st.markdown("<p style='color: #8E8E93; font-size: 0.9rem; margin-top: 10px;'>o usa tu correo electrónico</p>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #8E8E93; font-size: 0.9rem;'>o usa tu correo</p>", unsafe_allow_html=True)
 
-        # --- LOGIN TRADICIONAL ---
         if st.session_state.auth_mode == "login":
-            email = st.text_input("Email", key="l_email", placeholder="ejemplo@correo.com")
-            pwd = st.text_input("Clave", type="password", key="l_pwd", placeholder="••••••••")
-            
+            email = st.text_input("Email", key="l_email")
+            pwd = st.text_input("Clave", type="password", key="l_pwd")
             if st.button("Entrar", use_container_width=True):
                 try:
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                    if res.session:
+                    if res.user:
                         st.session_state.user = res.user
                         st.rerun()
-                except: st.error("Datos incorrectos")
+                except: st.error("Acceso denegado")
             
             st.markdown("---")
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button("Olvidé clave", use_container_width=True):
-                    st.session_state.auth_mode = "forgot"
-                    st.rerun()
-            with c2:
-                if st.button("Registrarme", use_container_width=True):
-                    st.session_state.auth_mode = "signup"
-                    st.rerun()
+            if st.button("¿No tienes cuenta? Regístrate", use_container_width=True):
+                st.session_state.auth_mode = "signup"; st.rerun()
 
-        # --- REGISTRO DIRECTO ---
         elif st.session_state.auth_mode == "signup":
-            r_email = st.text_input("Nuevo Email", placeholder="tu@email.com")
-            r_pass = st.text_input("Nueva Clave", type="password", placeholder="Mínimo 6 caracteres")
+            r_email = st.text_input("Nuevo Email")
+            r_pass = st.text_input("Nueva Clave", type="password")
             if st.button("Crear Cuenta", use_container_width=True):
                 try:
                     res = conn.client.auth.sign_up({"email": r_email, "password": r_pass})
                     if res.user:
-                        st.info("Cuenta creada. Revisa tu correo o intenta loguearte.")
-                        st.session_state.auth_mode = "login"
-                        st.rerun()
+                        st.success("Cuenta creada. ¡Inicia sesión!")
+                        st.session_state.auth_mode = "login"; st.rerun()
                 except Exception as e: st.error(f"Error: {e}")
-            if st.button("Volver al inicio", use_container_width=True):
-                st.session_state.auth_mode = "login"
-                st.rerun()
+            if st.button("Volver", use_container_width=True):
+                st.session_state.auth_mode = "login"; st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 3. CONTROL DE ACCESO (FIX: Persistencia forzada) ---
+# --- 4. FILTRO DE SEGURIDAD (ANTIBYPASS) ---
 if st.session_state.user is None:
     try:
-        # Recuperamos la sesión actual de Supabase
-        session_data = conn.client.auth.get_session()
-        if session_data:
-            st.session_state.user = session_data.user
+        # get_user() es obligatorio: valida el token real contra el servidor
+        user_response = conn.client.auth.get_user()
+        if user_response and user_response.user:
+            st.session_state.user = user_response.user
         else:
-            # Si no hay sesión real, mostramos UI y paramos ejecución
             login_ui()
             st.stop()
     except:
         login_ui()
         st.stop()
 
-# --- LÓGICA DE LA APP ---
+# --- 5. ENTRADA A LA APP ---
 u_id = st.session_state.user.id
+u_email = st.session_state.user.email
+
+# Sidebar de control
+with st.sidebar:
+    st.write(f"Conectado como: **{u_email}**")
+    if st.button("Cerrar Sesión"):
+        logout()
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
