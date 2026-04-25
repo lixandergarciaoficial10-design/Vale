@@ -758,58 +758,6 @@ def check_auth() -> bool:
 if not check_auth():
     login_ui()
     st.stop()
-
-# ─────────────────────────────────────────────
-# 8. APP PRINCIPAL (solo usuarios autenticados)
-# ─────────────────────────────────────────────
-u_id = st.session_state.user.id
-u_email = st.session_state.user.email
-u_initials = get_initials(u_email)
-
-# ── Sidebar con info de usuario y logout ──
-with st.sidebar:
-    st.markdown(f"""
-    <div style="padding: 16px 0; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="width: 36px; height: 36px; border-radius: 50%; background: #6366F1;
-                        display: flex; align-items: center; justify-content: center;
-                        font-size: 0.85rem; font-weight: 700; color: white; flex-shrink: 0;">
-                {u_initials}
-            </div>
-            <div>
-                <div style="font-size: 0.9rem; font-weight: 500; color: rgba(255,255,255,0.9);">
-                    {u_email.split('@')[0]}
-                </div>
-                <div style="font-size: 0.75rem; color: rgba(255,255,255,0.4);">
-                    {u_email}
-                </div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.page_link("app.py", label="Dashboard", icon="📊")
-    # Agrega tus páginas aquí:
-    # st.page_link("pages/clientes.py", label="Clientes", icon="👥")
-    # st.page_link("pages/cobros.py", label="Cobros", icon="💰")
-
-    st.markdown("<div style='height: 20px'></div>", unsafe_allow_html=True)
-
-    if st.button("Cerrar sesión", key="btn_logout", use_container_width=True):
-        try:
-            conn.client.auth.sign_out()
-        except Exception:
-            pass
-        st.session_state.clear()
-        st.rerun()
-
-# ── Tu aplicación empieza aquí ──
-st.title("Dashboard")
-st.write(f"Bienvenido, `{u_email}` — UID: `{u_id}`")
-
-# TODO: coloca aquí el contenido de tu app
-st.info("✅ Autenticación exitosa. Coloca el contenido de tu app aquí.")
-
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
