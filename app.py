@@ -18,161 +18,162 @@ from fpdf import FPDF
 from datetime import datetime
 import streamlit as st
 
-# ============================================
-# 🎨 1. DISEÑO "BLANCO TOTAL" (AGRESIVO)
-# ============================================
-st.markdown("""
+# ────────────────────────────────────────────────────────────
+# 1. ENLACE DE TU LOGO (PEGA TU URL AQUÍ)
+# ────────────────────────────────────────────────────────────
+LOGO_URL = "https://tu-enlace-de-logo-aqui.png" 
+
+# ────────────────────────────────────────────────────────────
+# 2. CSS: BLANCO TOTAL Y DISEÑO "CLEAN" (IGUAL A LA IMAGEN)
+# ────────────────────────────────────────────────────────────
+st.markdown(f"""
 <style>
-    /* Forzar fondo blanco en toda la app */
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stSidebar"] {
-        background-color: white !important;
-    }
+    /* Forzar fondo blanco y eliminar modo oscuro */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"], [data-testid="stSidebar"] {{
+        background-color: #F8F9FB !important;
+    }}
 
-    /* Texto e Iconos en Negro */
-    h1, h2, h3, p, span, label, div, .stMarkdown {
-        color: #1A1A1A !important;
-    }
-
-    /* Estilo de la Tarjeta de Login */
-    .login-card {
-        background: white;
+    /* Tarjeta Blanca Central */
+    .auth-card {{
+        background-color: #FFFFFF;
         padding: 40px;
         border-radius: 20px;
-        box-shadow: 0px 10px 40px rgba(0,0,0,0.1);
-        border: 1px solid #F0F2F6;
-        margin-bottom: 20px;
-    }
+        box-shadow: 0px 10px 30px rgba(0,0,0,0.05);
+        border: 1px solid #EEEEEE;
+        text-align: center;
+    }}
 
-    /* Inputs Limpios */
-    input {
-        background-color: #F8F9FB !important;
+    /* Inputs Estilizados */
+    div[data-testid="stTextInput"] > div > div > input {{
+        background-color: #FFFFFF !important;
         color: #1A1A1A !important;
-        border: 1px solid #E5E5EA !important;
+        border: 1px solid #D1D5DB !important;
         border-radius: 10px !important;
-        height: 45px !important;
-    }
+        padding: 12px !important;
+    }}
 
-    /* Botón Principal (Azul Apple/Google) */
-    div.stButton > button {
+    /* Botón Azul "Brutal" */
+    div.stButton > button {{
         background-color: #007AFF !important;
         color: white !important;
         border-radius: 10px !important;
         border: none !important;
         font-weight: 600 !important;
-        height: 3.2em !important;
+        height: 3.5em !important;
         width: 100% !important;
-        margin-top: 10px;
-    }
-    
-    /* Radio buttons y otros textos */
-    .stWidgetForm label { color: #1A1A1A !important; }
+        transition: 0.3s;
+    }}
+
+    /* Forzar textos en negro */
+    h1, h2, h3, p, label, span, .stMarkdown {{
+        color: #1A1A1A !important;
+    }}
 </style>
 """, unsafe_allow_html=True)
 
-# ============================================
-# 🔐 2. LÓGICA DE AUTENTICACIÓN BRUTAL
-# ============================================
+# ────────────────────────────────────────────────────────────
+# 3. LÓGICA DE CONTROL (SUPABASE)
+# ────────────────────────────────────────────────────────────
+if "auth_mode" not in st.session_state:
+    st.session_state.auth_mode = "login"
 
 if "user" not in st.session_state:
     st.session_state.user = None
-    # Intento de recuperación de sesión automática
     try:
+        # Recuperar sesión automática si existe
         check = conn.client.auth.get_user()
         if check and check.user:
             st.session_state.user = check.user
     except:
         pass
 
-# --- INTERFAZ SI NO HAY USUARIO ---
+# ────────────────────────────────────────────────────────────
+# 4. INTERFAZ DE AUTENTICACIÓN (FLUJO EXACTO)
+# ────────────────────────────────────────────────────────────
 if st.session_state.user is None:
-    _, center_col, _ = st.columns([0.5, 2, 0.5])
-    
-    with center_col:
-        st.markdown('<div class="login-card">', unsafe_allow_html=True)
-        
-        # Logo y Título
-        st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=70)
-        st.title("CobroYa Global")
-        st.markdown("<p style='color: #6e6e73;'>Accede rápido y sin complicaciones</p>", unsafe_allow_html=True)
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    _, col_auth, _ = st.columns([0.5, 2, 0.5])
 
-        # 1. Google Login (Opcional, requiere config en Supabase)
-        if st.button("🌐 Continuar con Google"):
-            try:
+    with col_auth:
+        st.markdown('<div class="auth-card">', unsafe_allow_html=True)
+        st.image(LOGO_URL, width=120)
+        
+        # --- PANTALLA: LOGIN ---
+        if st.session_state.auth_mode == "login":
+            st.markdown("<h2>Bienvenido de vuelta</h2>", unsafe_allow_html=True)
+            st.markdown("<p style='color: #6B7280;'>Inicia sesión para continuar</p>", unsafe_allow_html=True)
+            
+            if st.button("🌐 Continuar con Google"):
                 res = conn.client.auth.sign_in_with_oauth({"provider": "google"})
-                st.markdown(f'<meta http-equiv="refresh" content="0;URL=\'{res.url}\'">', unsafe_allow_html=True)
-            except:
-                st.error("Error al conectar con Google")
+            
+            st.markdown("<p style='font-size: 12px; color: #9CA3AF;'>o continúa con tu correo</p>", unsafe_allow_html=True)
+            
+            email = st.text_input("Correo electrónico", key="log_email").strip().lower()
+            pwd = st.text_input("Contraseña", type="password", key="log_pwd")
+            
+            if st.button("¿Olvidaste tu contraseña?", type="secondary"):
+                st.session_state.auth_mode = "forgot"
+                st.rerun()
 
-        st.markdown("<hr style='border-top: 1px solid #EEE;'>", unsafe_allow_html=True)
-
-        # 2. Formulario Tradicional
-        modo = st.radio("Selecciona una opción:", ["Iniciar sesión", "Crear cuenta", "Recuperar clave"], horizontal=True)
-        
-        email = st.text_input("Correo electrónico", key="auth_email").strip().lower()
-        password = st.text_input("Contraseña", type="password", key="auth_pwd")
-
-        # ACCIÓN: LOGIN
-        if modo == "Iniciar sesión":
-            if st.button("ENTRAR"):
-                if email and password:
+            if st.button("Iniciar sesión"):
+                if email and pwd:
                     try:
-                        # EL MACHETE: Cerramos sesión antes de intentar para limpiar errores
-                        conn.client.auth.sign_out() 
-                        res = conn.client.auth.sign_in_with_password({"email": email, "password": password})
+                        conn.client.auth.sign_out() # Limpiar fantasmas
+                        res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
                         if res.user:
                             st.session_state.user = res.user
                             st.rerun()
                     except:
-                        st.error("Credenciales incorrectas. Si el error persiste, borra el usuario duplicado en Supabase.")
-                else:
-                    st.warning("Completa los datos.")
+                        st.error("Credenciales incorrectas")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("¿No tienes cuenta? Crear cuenta"):
+                st.session_state.auth_mode = "signup"
+                st.rerun()
 
-        # ACCIÓN: REGISTRO
-        elif modo == "Crear cuenta":
-            confirm_pwd = st.text_input("Confirmar contraseña", type="password", key="auth_pwd_conf")
-            if st.button("REGISTRARME"):
-                if password != confirm_pwd:
-                    st.error("Las contraseñas no coinciden")
-                elif len(password) < 6:
-                    st.warning("La clave debe tener al menos 6 caracteres")
-                else:
-                    try:
-                        res = conn.client.auth.sign_up({"email": email, "password": password})
-                        if res.user:
-                            st.session_state.user = res.user
-                            st.success("¡Cuenta creada! Revisa tu email si tienes activada la confirmación.")
-                            st.rerun()
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+        # --- PANTALLA: REGISTRO ---
+        elif st.session_state.auth_mode == "signup":
+            st.markdown("<h2>Crear cuenta</h2>", unsafe_allow_html=True)
+            new_email = st.text_input("Correo electrónico", key="reg_email").strip().lower()
+            new_pwd = st.text_input("Contraseña", type="password", key="reg_pwd")
+            
+            if st.button("Registrarme ahora"):
+                try:
+                    res = conn.client.auth.sign_up({"email": new_email, "password": new_pwd})
+                    if res.user:
+                        st.session_state.user = res.user
+                        st.success("¡Cuenta creada!")
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+            
+            if st.button("Volver al login"):
+                st.session_state.auth_mode = "login"
+                st.rerun()
 
-        # ACCIÓN: RECUPERAR
-        elif modo == "Recuperar clave":
-            if st.button("ENVIAR ENLACE"):
-                if email:
-                    try:
-                        conn.client.auth.reset_password_for_email(email)
-                        st.info("Si el correo existe, recibirás un enlace de recuperación.")
-                    except:
-                        st.error("Error al enviar el correo.")
-                else:
-                    st.warning("Introduce tu email.")
+        # --- PANTALLA: RECUPERAR ---
+        elif st.session_state.auth_mode == "forgot":
+            st.markdown("<h2>Recuperar acceso</h2>", unsafe_allow_html=True)
+            f_email = st.text_input("Introduce tu correo", key="for_email")
+            if st.button("Enviar enlace de recuperación"):
+                conn.client.auth.reset_password_for_email(f_email)
+                st.info("Revisa tu bandeja de entrada")
+            
+            if st.button("Volver"):
+                st.session_state.auth_mode = "login"
+                st.rerun()
 
         st.markdown('</div>', unsafe_allow_html=True)
+    
+    # IMPORTANTE: Detenemos la ejecución aquí si no hay usuario
     st.stop()
 
-# ============================================
-# 🚀 3. ACCESO CONCEDIDO (u_id PARA TUS DATOS)
-# ============================================
+# ────────────────────────────────────────────────────────────
+# 5. AISLAMIENTO DE DATOS (PARA TU DASHBOARD ABAJO)
+# ────────────────────────────────────────────────────────────
 u_id = st.session_state.user.id
 u_email = st.session_state.user.email
 
-# Sidebar para salir
-with st.sidebar:
-    st.write(f"👤 **{u_email}**")
-    if st.button("Cerrar sesión"):
-        conn.client.auth.sign_out()
-        st.session_state.user = None
-        st.rerun()
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
