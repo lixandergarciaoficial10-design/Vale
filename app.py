@@ -18,49 +18,63 @@ from fpdf import FPDF
 from datetime import datetime
 import streamlit as st
 
-# --- 1. BLINDAJE VISUAL: FORZAR MODO CLARO SIEMPRE ---
+# --- 1. BLINDAJE VISUAL: FORZAR MODO CLARO ABSOLUTO ---
 st.markdown("""
 <style>
-    /* Forzamos fondo blanco y texto oscuro en toda la app */
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+    /* Forzado de fondo blanco en todos los niveles */
+    html, body, .stApp, [data-testid="stAppViewContainer"], 
+    [data-testid="stHeader"], [data-testid="stSidebar"], 
+    [data-testid="stToolbar"] {
         background-color: white !important;
         color: #1A1A1A !important;
     }
-    /* Estilo de los inputs */
-    input {
-        background-color: #F8F9FA !important;
+
+    /* Forzar que el texto de los inputs y labels sea negro */
+    label, p, h1, h2, h3, span, div {
         color: #1A1A1A !important;
-        border: 1px solid #DDE0E3 !important;
     }
-    /* Estilo del contenedor del Login */
-    .login-box {
-        background-color: #FFFFFF;
-        padding: 30px;
-        border-radius: 15px;
-        box-shadow: 0px 4px 20px rgba(0,0,0,0.1);
-        border: 1px solid #EEE;
-        text-align: center;
+
+    /* Inputs con fondo claro y borde definido */
+    input {
+        background-color: #FFFFFF !important;
+        color: #1A1A1A !important;
+        border: 2px solid #EAEAEA !important;
+        border-radius: 10px !important;
     }
-    /* Botones Pro */
+
+    /* Botones Pro Azul Apple/Google */
     div.stButton > button {
         background-color: #007AFF !important;
         color: white !important;
-        border-radius: 8px !important;
+        border-radius: 12px !important;
         border: none !important;
-        height: 3em !important;
+        height: 3.5em !important;
         width: 100% !important;
+        font-weight: 600 !important;
+        transition: 0.2s;
     }
-    /* Forzar color de etiquetas de texto */
-    label, p, h1, h2, h3, span {
-        color: #1A1A1A !important;
+    
+    div.stButton > button:hover {
+        background-color: #005BBF !important;
+        color: white !important;
+    }
+
+    /* Contenedor del Login */
+    .login-box {
+        background-color: #FFFFFF;
+        padding: 40px;
+        border-radius: 20px;
+        box-shadow: 0px 10px 30px rgba(0,0,0,0.05);
+        border: 1px solid #F0F0F0;
+        text-align: center;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. LÓGICA DE SESIÓN SIMPLIFICADA ---
+# --- 2. LÓGICA DE SESIÓN (SUPABASE + STREAMLIT) ---
 if "user" not in st.session_state:
     st.session_state.user = None
-    # Verificar si ya hay una sesión guardada en el navegador
+    # Recuperación automática si ya hay sesión activa
     try:
         check = conn.client.auth.get_user()
         if check and check.user:
@@ -68,16 +82,21 @@ if "user" not in st.session_state:
     except:
         pass
 
-# --- 3. INTERFAZ DE LOGIN DESDE CERO ---
+# --- 3. INTERFAZ DE LOGIN ---
 if st.session_state.user is None:
-    _, col, _ = st.columns([1, 2, 1])
+    # Espaciado para centrar verticalmente
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    # Columnas con ancho normal para que no se vea pequeño
+    _, col, _ = st.columns([0.5, 2, 0.5])
     
     with col:
         st.markdown("<div class='login-box'>", unsafe_allow_html=True)
-        st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=70)
+        st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
         st.title("CobroYa Global")
-        st.write("Ingresa para gestionar tus cobros")
+        st.write("Bienvenido. Ingresa tus datos para continuar.")
 
+        # Inputs limpios
         email = st.text_input("Correo Electrónico", key="main_user_email").strip().lower()
         pwd = st.text_input("Contraseña", type="password", key="main_user_pwd")
 
@@ -85,48 +104,55 @@ if st.session_state.user is None:
         
         c1, c2 = st.columns(2)
         
-        # Botón para entrar
-        if c1.button("Iniciar Sesión"):
+        # ACCIÓN 1: INICIAR SESIÓN
+        if c1.button("Entrar"):
             if email and pwd:
                 try:
+                    # Forzamos logout previo para limpiar errores de caché de sesión
+                    conn.client.auth.sign_out()
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
                     if res.user:
                         st.session_state.user = res.user
                         st.rerun()
                 except:
-                    st.error("Correo o clave incorrectos")
+                    st.error("Credenciales incorrectas. Verifica tu clave.")
             else:
-                st.warning("Escribe tus datos")
+                st.warning("Escribe tus datos.")
 
-        # Botón para registrarse (Entra directo)
-        if c2.button("Crear Cuenta"):
+        # ACCIÓN 2: REGISTRO
+        if c2.button("Registrarme"):
             if email and pwd:
                 try:
                     res = conn.client.auth.sign_up({"email": email, "password": pwd})
                     if res.user:
+                        # Si el registro es exitoso, lo logueamos de una vez
                         st.session_state.user = res.user
-                        st.success("¡Cuenta creada!")
+                        st.success("¡Cuenta creada exitosamente!")
                         st.rerun()
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"Error al registrar: {e}")
             else:
-                st.warning("Completa los campos")
+                st.warning("Completa los campos para registrarte.")
         
         st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
-# --- 4. AISLAMIENTO TOTAL (LA CLAVE DE TODO) ---
-# Al usar st.session_state.user.id, cualquier filtro que hagas en tus bases de datos
-# DEBE usar esta variable u_id. Así un usuario jamás verá lo del otro.
+# --- 4. AISLAMIENTO DE DATOS POR USUARIO ---
+# Estas variables son sagradas. Úsalas en todos tus filtros de base de datos.
 u_id = st.session_state.user.id
 u_email = st.session_state.user.email
 
-# Ejemplo de cómo mostrar que el sistema reconoce al usuario
-st.sidebar.success(f"Usuario: {u_email}")
-if st.sidebar.button("Cerrar Sesión"):
-    conn.client.auth.sign_out()
-    st.session_state.user = None
-    st.rerun()
+# Sidebar para control de usuario
+with st.sidebar:
+    st.markdown(f"### 👤 Usuario")
+    st.code(u_email)
+    if st.button("Cerrar Sesión", use_container_width=True):
+        conn.client.auth.sign_out()
+        st.session_state.user = None
+        st.rerun()
+
+# A PARTIR DE AQUÍ VA TU DASHBOARD
+# Recuerda filtrar siempre: .eq('user_id', u_id)
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
