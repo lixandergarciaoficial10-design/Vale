@@ -46,7 +46,7 @@ st.markdown("""
 
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# --- 1. CONFIGURACIÓN DE SESIÓN ---
+# --- 1. CONFIGURACIÓN DE SESIÓN LOCAL ---
 if 'user' not in st.session_state:
     st.session_state.user = None
 if 'auth_mode' not in st.session_state:
@@ -65,7 +65,7 @@ def login_ui():
         st.markdown("<h2 style='color: #1D1D1F;'>VALE AI Global</h2>", unsafe_allow_html=True)
         
         if st.session_state.auth_mode in ["login", "signup"]:
-            # --- BOTÓN DE GOOGLE ESTILO OFICIAL ---
+            # --- BOTÓN DE GOOGLE ---
             st.markdown("""
                 <div class="google-container" style="display: flex; align-items: center; justify-content: center; background-color: white; border: 1px solid #dadce0; border-radius: 12px; padding: 10px; margin-bottom: 10px;">
                     <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" width="18px" style="margin-right: 10px;">
@@ -75,6 +75,7 @@ def login_ui():
             
             if st.button("Validar acceso con Google", use_container_width=True):
                 try:
+                    # RECUERDA: Cambiar esto a tu URL real al publicar (ej. https://vale-ai.streamlit.app)
                     redirect_url = "http://localhost:8501" 
                     res = conn.client.auth.sign_in_with_oauth({
                         "provider": "google",
@@ -82,6 +83,7 @@ def login_ui():
                     })
                     if res.url:
                         st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
+                        st.stop()
                 except Exception as e:
                     st.error(f"Error: {e}")
             
@@ -95,7 +97,7 @@ def login_ui():
             if st.button("Entrar", use_container_width=True):
                 try:
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                    if res.session:
+                    if res.user:
                         st.session_state.user = res.user
                         st.rerun()
                 except: st.error("Datos incorrectos")
@@ -111,7 +113,7 @@ def login_ui():
                     st.session_state.auth_mode = "signup"
                     st.rerun()
 
-        # --- REGISTRO DIRECTO ---
+        # --- REGISTRO ---
         elif st.session_state.auth_mode == "signup":
             r_email = st.text_input("Nuevo Email", placeholder="tu@email.com")
             r_pass = st.text_input("Nueva Clave", type="password", placeholder="Mínimo 6 caracteres")
@@ -129,23 +131,23 @@ def login_ui():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 3. CONTROL DE ACCESO (FIX: Persistencia forzada) ---
+# --- 3. CONTROL DE ACCESO (ELIMINADO GET_SESSION) ---
 if st.session_state.user is None:
     try:
-        # Recuperamos la sesión actual de Supabase
-        session_data = conn.client.auth.get_session()
-        if session_data:
-            st.session_state.user = session_data.user
+        # ✅ USAMOS GET_USER: Valida al usuario real en este navegador específico
+        response = conn.client.auth.get_user()
+        if response and response.user:
+            st.session_state.user = response.user
         else:
-            # Si no hay sesión real, mostramos UI y paramos ejecución
             login_ui()
-            st.stop()
-    except:
+            st.stop() # Bloqueo total si no hay usuario verificado
+    except Exception:
         login_ui()
         st.stop()
 
-# --- LÓGICA DE LA APP ---
+# --- 4. IDENTIDAD DE LA APP ---
 u_id = st.session_state.user.id
+u_email = st.session_state.user.email
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
