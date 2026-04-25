@@ -30,96 +30,107 @@ st.markdown("""
         box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
         text-align: center; max-width: 450px; margin: auto; border: 1px solid #F0F0F0;
     }
-    /* Estilo botones Apple Blue */
+    .metric-card {
+        background-color: white; padding: 25px; border-radius: 20px;
+        border: 1px solid #E5E7EB; box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    }
     div.stButton > button:first-child {
         background-color: #007AFF; color: white; border-radius: 12px; border: none;
         padding: 0.7rem 2rem; font-weight: bold; width: 100%;
     }
-    /* Estilo Contenedor Google (Limpio) */
-    .google-container {
-        display: flex; align-items: center; justify-content: center;
-        background-color: white; border: 1px solid #dadce0; border-radius: 12px;
-        padding: 8px; margin-bottom: 10px;
+    .status-badge {
+        padding: 5px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True)
 
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# --- 1. CONFIGURACIÓN DE SESIÓN (Limpio y directo) ---
-if 'user' not in st.session_state:
-    st.session_state.user = None
 
-# --- 2. LÓGICA DE LOGIN ---
+# --- 2. SISTEMA DE ACCESO Y RECUPERACIÓN (SaaS) ---
+
 def login_ui():
     if 'auth_mode' not in st.session_state:
         st.session_state.auth_mode = "login"
 
+    # CAPTURA DE TOKENS DE RECUPERACIÓN (URL PARAMS)
     params = st.query_params
-    if params.get("type") == "recovery":
+    if "type" in params and params["type"] == "recovery":
         st.session_state.auth_mode = "reset_password"
 
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
-        st.markdown("<h2>VALE AI Global</h2>", unsafe_allow_html=True)
-
-        # --- GOOGLE OAUTH (Nueva adición necesaria) ---
-        if st.button("Continuar con Google", use_container_width=True):
-            redirect_url = "http://localhost:8501" # Cambiar en producción
-            res = conn.client.auth.sign_in_with_oauth({
-                "provider": "google",
-                "options": {"redirect_to": redirect_url}
-            })
-            if res.url:
-                st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
-                st.stop()
-
-        st.markdown("---")
-
+        st.markdown("<h2 style='color: #1D1D1F;'>CobroYa Global</h2>", unsafe_allow_html=True)
         if st.session_state.auth_mode == "login":
             email = st.text_input("Correo Electrónico")
             pwd = st.text_input("Contraseña", type="password")
             if st.button("Iniciar Sesión"):
                 try:
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
+                    # Verificamos si el usuario realmente entró
                     if res.user:
                         st.session_state.user = res.user
+                        st.success("¡Bienvenido!")
                         st.rerun()
-                except:
-                    st.error("❌ Correo o contraseña incorrectos.")
+                except Exception as e:
+                    # Si el error es por falta de confirmación, Supabase lo avisa
+                    error_msg = str(e).lower()
+                    if "email not confirmed" in error_msg:
+                        st.warning("⚠️ Debes confirmar tu correo antes de entrar. Revisa tu bandeja de entrada.")
+                    else:
+                        st.error("❌ Correo o contraseña incorrectos.")
             
-            # Botones de navegación
+            st.markdown("---")
             c1, c2 = st.columns(2)
-            if c1.button("Olvidé clave"):
-                st.session_state.auth_mode = "forgot"; st.rerun()
+            if c1.button("Olvidé mi contraseña"):
+                st.session_state.auth_mode = "forgot"
+                st.rerun()
             if c2.button("Registrarme"):
-                st.session_state.auth_mode = "signup"; st.rerun()
+                st.session_state.auth_mode = "signup"
+                st.rerun()
 
-        # ... (Aquí irían los bloques de signup/forgot igual que antes)
+        elif st.session_state.auth_mode == "forgot":
+            st.subheader("Recuperar Cuenta")
+            f_email = st.text_input("Email de tu cuenta")
+            if st.button("Enviar enlace de restauración"):
+                try:
+                    conn.client.auth.reset_password_for_email(f_email)
+                    st.success("Enlace enviado. Revisa tu email.")
+                except: st.error("Error al procesar solicitud.")
+            st.button("Regresar", on_click=lambda: st.session_state.update({"auth_mode": "login"}))
+
+        elif st.session_state.auth_mode == "reset_password":
+            st.subheader("Nueva Contraseña")
+            new_p = st.text_input("Escribe tu nueva clave", type="password")
+            if st.button("Actualizar y Entrar"):
+                try:
+                    conn.client.auth.update_user({"password": new_p})
+                    st.success("Clave cambiada con éxito.")
+                    st.session_state.auth_mode = "login"
+                    st.rerun()
+                except: st.error("El enlace ha expirado.")
+
+        elif st.session_state.auth_mode == "signup":
+            st.subheader("Registro SaaS")
+            reg_email = st.text_input("Email")
+            reg_pass = st.text_input("Contraseña", type="password")
+            if st.button("Crear mi Empresa"):
+                try:
+                    conn.client.auth.sign_up({"email": reg_email, "password": reg_pass})
+                    st.info("Revisa tu email para confirmar tu cuenta.")
+                except Exception as e: st.error(f"Error: {e}")
+            st.button("Regresar", on_click=lambda: st.session_state.update({"auth_mode": "login"}))
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 3. EL FILTRO DE SEGURIDAD (Aquí es donde se arregla todo) ---
+# Bloqueo de seguridad
+if 'user' not in st.session_state:
+    login_ui()
+    st.stop()
 
-# Primero: Si el session_state está vacío, intentamos ver si el cliente de Supabase 
-# TIENE un usuario (esto pasa después de volver de Google o refrescar)
-if st.session_state.user is None:
-    try:
-        # get_user() es la clave. Es individual por navegador.
-        check_auth = conn.client.auth.get_user()
-        if check_auth and check_auth.user:
-            st.session_state.user = check_auth.user
-        else:
-            # Si DE VERDAD no hay nadie, mostramos login
-            login_ui()
-            st.stop()
-    except:
-        login_ui()
-        st.stop()
-
-# --- 4. ACCESO CONCEDIDO ---
 u_id = st.session_state.user.id
+clientes_f = []
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
