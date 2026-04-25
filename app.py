@@ -18,137 +18,89 @@ from fpdf import FPDF
 from datetime import datetime
 import streamlit as st
 
-# 1. CONFIGURACIÓN Y ESTILO APPLE-ENTERPRISE
+import streamlit as st
+from st_supabase_connection import SupabaseConnection
+
+# 1. CONFIGURACIÓN INICIAL
 st.set_page_config(page_title="CobroYa Pro", layout="wide", page_icon="📈")
 
+# (Aquí pegas tus estilos CSS que ya tienes...)
 st.markdown("""
     <style>
     .main { background-color: #F8F9FA; }
-    .stTextInput > div > div > input { border-radius: 12px; }
-    .auth-card {
-        background-color: white; padding: 40px; border-radius: 24px;
-        box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-        text-align: center; max-width: 450px; margin: auto; border: 1px solid #F0F0F0;
-    }
-    /* Estilo botones Apple Blue */
-    div.stButton > button:first-child {
-        background-color: #007AFF; color: white; border-radius: 12px; border: none;
-        padding: 0.7rem 2rem; font-weight: bold; width: 100%;
-    }
-    /* Estilo Contenedor Google (Limpio) */
-    .google-container {
-        display: flex; align-items: center; justify-content: center;
-        background-color: white; border: 1px solid #dadce0; border-radius: 12px;
-        padding: 8px; margin-bottom: 10px;
-    }
+    .auth-card { background-color: white; padding: 40px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); text-align: center; max-width: 450px; margin: auto; border: 1px solid #F0F0F0; }
+    div.stButton > button { background-color: #007AFF; color: white; border-radius: 12px; font-weight: bold; width: 100%; }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
+# 2. CONEXIÓN (Sin caché global agresivo)
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# --- 1. CONFIGURACIÓN DE SESIÓN ---
+# 3. GESTIÓN DE SESIÓN
 if 'user' not in st.session_state:
     st.session_state.user = None
-if 'auth_mode' not in st.session_state:
-    st.session_state.auth_mode = "login"
 
-# --- 2. LÓGICA DE LOGIN ---
+def logout():
+    conn.client.auth.sign_out()
+    st.session_state.user = None
+    st.query_params.clear()
+    st.rerun()
+
+# 4. INTERFAZ DE LOGIN
 def login_ui():
-    params = st.query_params
-    if params.get("type") == "recovery":
-        st.session_state.auth_mode = "reset_password"
-
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown("<div class='auth-card' style='text-align: center;'>", unsafe_allow_html=True)
+        st.markdown("<div class='auth-card'>", unsafe_allow_html=True)
         st.image("https://cdn-icons-png.flaticon.com/512/1053/1053210.png", width=80)
-        st.markdown("<h2 style='color: #1D1D1F;'>VALE AI Global</h2>", unsafe_allow_html=True)
+        st.title("VALE AI Global")
         
-        if st.session_state.auth_mode in ["login", "signup"]:
-            # --- BOTÓN DE GOOGLE ESTILO OFICIAL ---
-            st.markdown("""
-                <div class="google-container" style="display: flex; align-items: center; justify-content: center; background-color: white; border: 1px solid #dadce0; border-radius: 12px; padding: 10px; margin-bottom: 10px;">
-                    <img src="https://fonts.gstatic.com/s/i/productlogos/googleg/v6/24px.svg" width="18px" style="margin-right: 10px;">
-                    <span style="color: #3c4043; font-weight: 500; font-family: 'Roboto',arial,sans-serif; font-size: 14px;">Continuar con Google</span>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            if st.button("Validar acceso con Google", use_container_width=True):
-                try:
-                    # RECUERDA: En producción cambia localhost por tu URL de Streamlit Cloud
-                    redirect_url = "http://localhost:8501" 
-                    res = conn.client.auth.sign_in_with_oauth({
-                        "provider": "google",
-                        "options": {"redirect_to": redirect_url}
-                    })
-                    if res.url:
-                        st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
-                except Exception as e:
-                    st.error(f"Error: {e}")
-            
-            st.markdown("<p style='color: #8E8E93; font-size: 0.9rem; margin-top: 10px;'>o usa tu correo electrónico</p>", unsafe_allow_html=True)
+        # Botón de Google
+        if st.button("Continuar con Google", use_container_width=True):
+            redirect_url = "http://localhost:8501" # CAMBIAR EN PRODUCCIÓN
+            res = conn.client.auth.sign_in_with_oauth({
+                "provider": "google", "options": {"redirect_to": redirect_url}
+            })
+            if res.url:
+                st.markdown(f'<meta http-equiv="refresh" content="0;url={res.url}">', unsafe_allow_html=True)
+                st.stop()
 
-        # --- LOGIN TRADICIONAL ---
-        if st.session_state.auth_mode == "login":
-            email = st.text_input("Email", key="l_email", placeholder="ejemplo@correo.com")
-            pwd = st.text_input("Clave", type="password", key="l_pwd", placeholder="••••••••")
-            
-            if st.button("Entrar", use_container_width=True):
-                try:
-                    res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                    if res.user:
-                        st.session_state.user = res.user
-                        st.rerun()
-                except: st.error("Credenciales inválidas")
-            
-            st.markdown("---")
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button("Olvidé clave", use_container_width=True):
-                    st.session_state.auth_mode = "forgot"; st.rerun()
-            with c2:
-                if st.button("Registrarme", use_container_width=True):
-                    st.session_state.auth_mode = "signup"; st.rerun()
-
-        # --- REGISTRO ---
-        elif st.session_state.auth_mode == "signup":
-            r_email = st.text_input("Nuevo Email")
-            r_pass = st.text_input("Nueva Clave", type="password")
-            if st.button("Crear Cuenta", use_container_width=True):
-                try:
-                    res = conn.client.auth.sign_up({"email": r_email, "password": r_pass})
-                    if res.user:
-                        st.success("¡Cuenta creada! Confirma tu email e inicia sesión.")
-                        st.session_state.auth_mode = "login"; st.rerun()
-                except Exception as e: st.error(f"Error: {e}")
-            if st.button("Volver", use_container_width=True):
-                st.session_state.auth_mode = "login"; st.rerun()
-
+        st.markdown("---")
+        
+        # Email/Password
+        email = st.text_input("Email", placeholder="tu@correo.com")
+        pwd = st.text_input("Contraseña", type="password", placeholder="••••••••")
+        
+        if st.button("Entrar"):
+            try:
+                res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
+                if res.user:
+                    st.session_state.user = res.user
+                    st.rerun()
+            except:
+                st.error("Credenciales inválidas")
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 3. CONTROL DE ACCESO (EL CANDADO REAL) ---
+# --- 5. CONTROL DE ACCESO DEFINITIVO ---
+
+# Verificamos si hay una sesión activa en Supabase que no hayamos capturado
 if st.session_state.user is None:
     try:
-        # get_user() es más seguro que get_session() porque pide validación al server
-        user_data = conn.client.auth.get_user()
-        if user_data and user_data.user:
-            st.session_state.user = user_data.user
+        # get_user() va al servidor, no usa caché local. Es la prueba de fuego.
+        check_user = conn.client.auth.get_user()
+        if check_user and check_user.user:
+            st.session_state.user = check_user.user
         else:
             login_ui()
-            st.stop()
+            st.stop() # AQUÍ SE MUERE EL SCRIPT SI NO HAY LOGIN
     except:
-        # Ante la duda o error de conexión, bloqueamos
         login_ui()
         st.stop()
 
-# --- 4. VERIFICACIÓN DE SEGURIDAD FINAL ---
-# Si llegamos aquí y no hay un ID real, matamos el proceso.
-if not hasattr(st.session_state.user, 'id'):
+# --- 6. VALIDACIÓN FINAL DE SEGURIDAD ---
+# Si llegamos aquí pero por algún error el objeto no es válido, reiniciamos.
+if not st.session_state.user or not hasattr(st.session_state.user, 'id'):
     st.session_state.user = None
     st.rerun()
-
-# --- LÓGICA DE LA APP (VALE AI) ---
-u_id = st.session_state.user.id
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
