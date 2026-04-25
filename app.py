@@ -75,6 +75,7 @@ def login_ui():
             
             if st.button("Validar acceso con Google", use_container_width=True):
                 try:
+                    # RECUERDA: En producción cambia localhost por tu URL de Streamlit Cloud
                     redirect_url = "http://localhost:8501" 
                     res = conn.client.auth.sign_in_with_oauth({
                         "provider": "google",
@@ -95,11 +96,10 @@ def login_ui():
             if st.button("Entrar", use_container_width=True):
                 try:
                     res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                    # Verificación estricta: debe existir la sesión y el usuario
-                    if res.session and res.user:
+                    if res.user:
                         st.session_state.user = res.user
                         st.rerun()
-                except: st.error("Datos incorrectos")
+                except: st.error("Credenciales inválidas")
             
             st.markdown("---")
             c1, c2 = st.columns(2)
@@ -118,7 +118,7 @@ def login_ui():
                 try:
                     res = conn.client.auth.sign_up({"email": r_email, "password": r_pass})
                     if res.user:
-                        st.info("Revisa tu correo para confirmar la cuenta.")
+                        st.success("¡Cuenta creada! Confirma tu email e inicia sesión.")
                         st.session_state.auth_mode = "login"; st.rerun()
                 except Exception as e: st.error(f"Error: {e}")
             if st.button("Volver", use_container_width=True):
@@ -126,29 +126,28 @@ def login_ui():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 3. CONTROL DE ACCESO (MÁXIMA SEGURIDAD) ---
+# --- 3. CONTROL DE ACCESO (EL CANDADO REAL) ---
 if st.session_state.user is None:
     try:
-        # Intentamos recuperar la sesión
-        session_data = conn.client.auth.get_session()
-        
-        # EL CANDADO: Verificamos que session_data exista Y que tenga un usuario con ID
-        if session_data and hasattr(session_data, 'user') and session_data.user is not None:
-            st.session_state.user = session_data.user
+        # get_user() es más seguro que get_session() porque pide validación al server
+        user_data = conn.client.auth.get_user()
+        if user_data and user_data.user:
+            st.session_state.user = user_data.user
         else:
-            # Si no hay un ID de usuario real, BLOQUEO TOTAL
             login_ui()
-            st.stop() # Mata la ejecución de las 1300 líneas de abajo
-    except Exception:
-        # Si falla la conexión o hay error, BLOQUEO por seguridad
+            st.stop()
+    except:
+        # Ante la duda o error de conexión, bloqueamos
         login_ui()
         st.stop()
 
-# --- LÓGICA DE LA APP (SOLO ACCESIBLE SI HAY LOGIN) ---
-# Doble validación final
-if not st.session_state.user or not hasattr(st.session_state.user, 'id'):
-    st.stop()
+# --- 4. VERIFICACIÓN DE SEGURIDAD FINAL ---
+# Si llegamos aquí y no hay un ID real, matamos el proceso.
+if not hasattr(st.session_state.user, 'id'):
+    st.session_state.user = None
+    st.rerun()
 
+# --- LÓGICA DE LA APP (VALE AI) ---
 u_id = st.session_state.user.id
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
