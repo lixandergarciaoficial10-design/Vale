@@ -47,14 +47,15 @@ st.markdown("""
 conn = st.connection("supabase", type=SupabaseConnection)
 
 
-# --- 2. SISTEMA DE ACCESO (MVP - MODO SIMPLE) ---
+# --- 2. SISTEMA DE ACCESO (MVP - SEGURO Y AISLADO) ---
 
 def login_ui():
     if 'auth_mode' not in st.session_state:
         st.session_state.auth_mode = "login"
 
-    # Captura de recuperación por si acaso
-    if st.query_params.get("type") == "recovery":
+    # Captura de recuperación segura
+    params = st.query_params
+    if params.get("type") == "recovery":
         st.session_state.auth_mode = "reset_password"
 
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -66,83 +67,97 @@ def login_ui():
 
         # --- MODO: LOGIN ---
         if st.session_state.auth_mode == "login":
-            email = st.text_input("Correo Electrónico", key="email_log")
-            pwd = st.text_input("Contraseña", type="password", key="pwd_log")
+            # Sanatización de inputs: .strip() evita que un espacio al final arruine el login
+            email = st.text_input("Correo Electrónico", key="cyb_sec_login_email").strip()
+            pwd = st.text_input("Contraseña", type="password", key="cyb_sec_login_pwd")
             
-            if st.button("Iniciar Sesión", width="stretch", key="btn_login"):
-                try:
-                    res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                    if res.user:
-                        st.session_state.user = res.user
-                        st.rerun()
-                except:
-                    st.error("❌ Correo o contraseña incorrectos.")
+            if st.button("Iniciar Sesión", width="stretch", key="cyb_sec_login_btn"):
+                if not email or not pwd:
+                    st.warning("⚠️ Completa todos los campos.")
+                else:
+                    try:
+                        res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
+                        if res.user:
+                            st.session_state.user = res.user
+                            st.rerun()
+                    except Exception as e:
+                        # Práctica Ciberseguridad: Mensaje genérico. NUNCA revelar si falló el correo o la clave.
+                        st.error("❌ Correo o contraseña incorrectos.")
 
             st.markdown("---")
             c1, c2 = st.columns(2)
-            if c1.button("Olvidé clave", width="stretch", key="btn_to_forgot"):
+            if c1.button("Olvidé clave", width="stretch", key="cyb_sec_to_forgot"):
                 st.session_state.auth_mode = "forgot"
                 st.rerun()
-            if c2.button("Registrarme", width="stretch", key="btn_to_signup"):
+            if c2.button("Registrarme", width="stretch", key="cyb_sec_to_signup"):
                 st.session_state.auth_mode = "signup"
                 st.rerun()
 
         # --- MODO: REGISTRO (MVP) ---
         elif st.session_state.auth_mode == "signup":
             st.subheader("Crea tu cuenta")
-            new_email = st.text_input("Correo Electrónico", key="email_reg")
-            new_pwd = st.text_input("Contraseña", type="password", key="pwd_reg")
-            conf_pwd = st.text_input("Repite la Contraseña", type="password", key="pwd_conf")
+            new_email = st.text_input("Correo Electrónico", key="cyb_sec_reg_email").strip()
+            new_pwd = st.text_input("Contraseña", type="password", key="cyb_sec_reg_pwd")
+            conf_pwd = st.text_input("Repite la Contraseña", type="password", key="cyb_sec_reg_conf")
             
-            if st.button("Registrarme y Entrar", width="stretch", key="btn_signup_final"):
-                if new_pwd != conf_pwd:
+            if st.button("Registrarme y Entrar", width="stretch", key="cyb_sec_reg_btn"):
+                if not new_email or not new_pwd:
+                    st.warning("⚠️ No dejes campos vacíos.")
+                elif new_pwd != conf_pwd:
                     st.warning("⚠️ Las contraseñas no coinciden.")
                 elif len(new_pwd) < 6:
-                    st.warning("⚠️ La clave debe tener al menos 6 caracteres.")
+                    st.warning("⚠️ La clave debe tener al menos 6 caracteres por seguridad.")
                 else:
                     try:
-                        # Al estar "Confirm Email" desactivado en Supabase, esto los loguea de una vez
                         res = conn.client.auth.sign_up({"email": new_email, "password": new_pwd})
                         if res.user:
                             st.session_state.user = res.user
-                            st.success("¡Cuenta creada!")
+                            st.success("¡Cuenta creada de forma segura!")
                             st.rerun()
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        # Aquí sí mostramos el error para que el usuario sepa si el correo ya existe
+                        st.error(f"Error en el registro: {e}")
             
-            if st.button("Volver", width="stretch", key="btn_back_signup"):
+            if st.button("Volver", width="stretch", key="cyb_sec_back_signup"):
                 st.session_state.auth_mode = "login"
                 st.rerun()
 
         # --- MODO: OLVIDÉ MI CLAVE ---
         elif st.session_state.auth_mode == "forgot":
-            f_email = st.text_input("Introduce tu email", key="email_forgot")
-            if st.button("Enviar enlace", width="stretch", key="btn_send_forgot"):
-                try:
-                    conn.client.auth.reset_password_for_email(f_email)
-                    st.info("Revisa tu correo para el enlace.")
-                except: st.error("Error al procesar.")
-            if st.button("Regresar", width="stretch", key="btn_back_forgot"):
+            f_email = st.text_input("Introduce tu email", key="cyb_sec_forgot_email").strip()
+            if st.button("Enviar enlace", width="stretch", key="cyb_sec_forgot_btn"):
+                if not f_email:
+                    st.warning("⚠️ Ingresa un correo válido.")
+                else:
+                    try:
+                        conn.client.auth.reset_password_for_email(f_email)
+                        # Prevención de enumeración de usuarios: Siempre decir "Si el correo existe..."
+                        st.info("Si el correo existe en nuestro sistema, recibirás un enlace.")
+                    except Exception:
+                        st.error("Error de comunicación con el servidor.")
+            if st.button("Regresar", width="stretch", key="cyb_sec_back_forgot"):
                 st.session_state.auth_mode = "login"
                 st.rerun()
 
         st.markdown("</div>", unsafe_allow_html=True)
 
-# --- PROTECCIÓN DE ACCESO ---
+# --- PROTECCIÓN DE ACCESO (GATEKEEPER) ---
 if 'user' not in st.session_state or st.session_state.user is None:
     try:
-        # Esto mantiene la sesión si refrescan la página
+        # Validación estricta del token contra el servidor de Supabase
         check = conn.client.auth.get_user()
         if check and check.user:
             st.session_state.user = check.user
         else:
             login_ui()
             st.stop()
-    except:
+    except Exception:
+        # Cierre forzado en caso de manipulación de sesión
         login_ui()
         st.stop()
 
-# --- AISLAMIENTO DE DATOS ---
+# --- AISLAMIENTO DE DATOS (CRÍTICO) ---
+# Identificador inmutable para consultas en base de datos
 u_id = st.session_state.user.id
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
