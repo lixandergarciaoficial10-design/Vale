@@ -21,9 +21,11 @@ import streamlit as st
 
 import streamlit as st
 
+import streamlit as st
+
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. CSS RADICAL (Ajustado para inversión de orden en móvil y estabilidad en laptop)
+# 2. CSS RADICAL (Ajustado para centrado en móvil y separación de paneles)
 st.markdown("""
 <style>
     /* Eliminar el padding de Streamlit por completo */
@@ -59,7 +61,6 @@ st.markdown("""
 
     /* AJUSTES ESPECÍFICOS PARA CELULAR */
     @media (max-width: 768px) {
-        /* Cambiamos el fondo a uno claro para que el login se vea limpio */
         [data-testid="stAppViewContainer"] {
             background: #F8FAFC !important; 
             overflow-y: auto !important;
@@ -67,36 +68,41 @@ st.markdown("""
             height: auto !important;
         }
 
-        /* INVERSIÓN: Poner la segunda columna (Login) arriba y la primera (Azul) abajo */
+        /* INVERSIÓN Y CENTRADO: Login arriba, Azul abajo con espacio */
         [data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: column-reverse !important;
+            align-items: center !important;
             gap: 0px !important;
         }
 
-        /* Forzar que cada columna ocupe el 100% del ancho */
+        /* Forzar que cada columna ocupe el 100% y centrar contenido */
         [data-testid="column"] {
             width: 100% !important;
             flex: 1 1 100% !important;
             min-width: 100% !important;
+            display: flex !important;
+            justify-content: center !important;
         }
 
-        /* Ajustar el panel azul para cuando quede abajo */
+        /* CENTRADO DEL FORMULARIO: Asegura que el contenido interno no se cargue a un lado */
+        [data-testid="column"] > div {
+            width: 100% !important;
+            max-width: 450px !important; /* Limita el ancho en móvil para que se vea estético */
+            margin: 0 auto !important;
+        }
+
+        /* Panel azul (ahora abajo): AGREGAMOS EL ESPACIO ARRIBA */
         .panel-info {
             width: 100vw !important;
             height: auto !important;
-            background-color: #06102B !important; /* Le damos el color sólido aquí */
-            padding: 40px 20px !important;
+            background-color: #06102B !important; 
+            padding: 50px 20px !important;
+            margin-top: 60px !important; /* EL ESPACIO QUE PEDISTE entre el login y el cuadro azul */
         }
 
-        /* Ajustar el panel del formulario arriba */
         .main .block-container {
-            padding: 10px !important;
-        }
-        
-        /* Asegurar que el logo del login no se pierda */
-        img {
-            max-width: 150px !important;
+            padding: 20px 10px !important;
         }
     }
 
@@ -132,7 +138,6 @@ if "page" not in st.session_state:
     st.session_state.page = "login"
 
 # 4. RENDERIZADO DE LA ESTRUCTURA
-# Aunque c_izq esté primero, en móvil el CSS lo enviará al final.
 c_izq, c_der = st.columns([1, 2.03])
 
 with c_izq:
