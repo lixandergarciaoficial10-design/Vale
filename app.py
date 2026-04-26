@@ -20,7 +20,7 @@ from datetime import datetime
 import streamlit as st
 from st_supabase_connection import SupabaseConnection
 
-# 1. CONFIGURACIÓN INICIAL Y CONEXIÓN (Necesaria para que funcione)
+# 1. CONFIGURACIÓN INICIAL Y CONEXIÓN
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 conn = st.connection("supabase", type=SupabaseConnection)
 
@@ -30,11 +30,8 @@ if "authenticated" not in st.session_state:
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# VALIDACIÓN: Si ya está autenticado, definimos u_id y permitimos que corra el resto de tu archivo (Dashboard)
-if st.session_state.authenticated:
-    u_id = st.session_state.user.id
-    # El código del dashboard que sigue después de este bloque funcionará ahora porque u_id y conn existen.
-else:
+# --- LÓGICA DE CONTROL DE ACCESO (EL MURO) ---
+if not st.session_state.authenticated:
     # 2. TU CSS RADICAL (Intacto)
     st.markdown("""
     <style>
@@ -78,7 +75,6 @@ else:
                 height: auto !important;
             }
 
-            /* INVERSIÓN Y CENTRADO: Login arriba, Azul abajo con espacio */
             [data-testid="stHorizontalBlock"] {
                 display: flex !important;
                 flex-direction: column-reverse !important;
@@ -86,7 +82,6 @@ else:
                 gap: 0px !important;
             }
 
-            /* Forzar que cada columna ocupe el 100% y centrar contenido */
             [data-testid="column"] {
                 width: 100% !important;
                 flex: 1 1 100% !important;
@@ -95,14 +90,12 @@ else:
                 justify-content: center !important;
             }
 
-            /* CENTRADO DEL FORMULARIO */
             [data-testid="column"] > div {
                 width: 100% !important;
                 max-width: 450px !important;
                 margin: 0 auto !important;
             }
 
-            /* Panel azul (ahora abajo) */
             .panel-info {
                 width: 100vw !important;
                 height: auto !important;
@@ -116,7 +109,6 @@ else:
             }
         }
 
-        /* Estilos de botones y textos */
         .google-btn {
             display: flex; align-items: center; justify-content: center; gap: 10px;
             width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
@@ -172,7 +164,6 @@ else:
 
     with c_der:
         st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
-        
         _, center, _ = st.columns([1, 2.5, 1])
         
         with center:
@@ -185,7 +176,6 @@ else:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # Acción para Google
                 if st.button("🚀 Continuar con Google", use_container_width=True):
                     conn.auth.sign_in_with_oauth({"provider": "google"})
 
@@ -248,6 +238,14 @@ else:
                 if st.button("Volver", use_container_width=True):
                     st.session_state.page = "login"
                     st.rerun()
+
+    # ESTO DETIENE LA EJECUCIÓN SI NO HAY LOGIN. EL DASHBOARD NUNCA SE CARGARÁ POR ERROR.
+    st.stop()
+
+# --- SI EL CÓDIGO LLEGA AQUÍ ES PORQUE PASÓ EL LOGIN ---
+u_id = st.session_state.user.id
+
+# TU CÓDIGO DEL DASHBOARD SIGUE AQUÍ ABAJO...
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
