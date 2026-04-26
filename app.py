@@ -18,6 +18,8 @@ from fpdf import FPDF
 from datetime import datetime
 
 
+import streamlit as st
+
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
 # 2. CSS RADICAL (Ajustado para alineación superior y simetría)
@@ -35,7 +37,7 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* Fondo dividido */
+    /* Fondo dividido - Lógica para Desktop */
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(90deg, #06102B 33%, #F8FAFC 33%);
         height: 100vh;
@@ -46,7 +48,7 @@ st.markdown("""
     /* Panel Izquierdo: Ajuste de padding superior para pegar arriba */
     .panel-info {
         width: 33vw;
-        padding: 30px 60px; /* Reducido el padding superior de 60 a 30 */
+        padding: 30px 60px;
         color: white;
         height: 100vh;
         display: flex;
@@ -59,8 +61,32 @@ st.markdown("""
         width: 67vw;
         display: flex;
         justify-content: center;
-        align-items: flex-start; /* Cambiado de center a flex-start */
-        padding-top: 30px; /* Alineado con el panel izquierdo */
+        align-items: flex-start;
+        padding-top: 30px;
+    }
+
+    /* AJUSTES PARA CELULAR (MÓVIL) */
+    @media (max-width: 768px) {
+        [data-testid="stAppViewContainer"] {
+            background: #F8FAFC !important; /* Fondo claro en móvil */
+            overflow-y: auto !important;
+        }
+        
+        /* Ocultar la columna azul en móvil para que no estorbe */
+        [data-testid="column"]:nth-child(1) {
+            display: none !important;
+        }
+        
+        /* Hacer que el formulario ocupe todo el ancho en móvil */
+        [data-testid="column"]:nth-child(2) {
+            width: 100% !important;
+            flex: 1 1 100% !important;
+        }
+
+        .main .block-container {
+            padding-left: 1rem !important;
+            padding-right: 1rem !important;
+        }
     }
 
     /* Estilos de botones y textos */
@@ -97,11 +123,9 @@ if "page" not in st.session_state:
     st.session_state.page = "login"
 
 # 4. RENDERIZADO DE LA ESTRUCTURA
-# c_izq para el área azul, c_der para el área clara
 c_izq, c_der = st.columns([1, 2.03])
 
 with c_izq:
-    # Contenido del panel azul (Logo 180px)
     st.markdown(f"""
     <div class="panel-info">
         <div>
@@ -122,14 +146,12 @@ with c_izq:
     """, unsafe_allow_html=True)
 
 with c_der:
-    # Espaciado mínimo para alinear con el logo de la izquierda
     st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
     
-    # Usamos columnas internas para centrar el formulario horizontalmente
+    # En móvil estas columnas se apilan automáticamente gracias al CSS anterior
     _, center, _ = st.columns([1, 2.5, 1])
     
     with center:
-        # --- VISTA: LOGIN ---
         if st.session_state.page == "login":
             st.markdown("""
                 <div style="text-align: center; margin-bottom: 15px;">
@@ -151,7 +173,6 @@ with c_der:
             with col_check:
                 st.checkbox("Recordarme")
             with col_link:
-                # Ajuste visual para que el botón parezca un link
                 if st.button("¿Olvidaste tu contraseña?", key="btn_forgot"):
                     st.session_state.page = "forgot"
                     st.rerun()
@@ -164,7 +185,6 @@ with c_der:
                 st.session_state.page = "signup"
                 st.rerun()
 
-        # --- VISTA: REGISTRO ---
         elif st.session_state.page == "signup":
             st.markdown("""
                 <div style="text-align: center; margin-bottom: 15px;">
@@ -180,7 +200,6 @@ with c_der:
                 st.session_state.page = "login"
                 st.rerun()
 
-        # --- VISTA: RECUPERAR ---
         elif st.session_state.page == "forgot":
             st.markdown("""
                 <div style="text-align: center; margin-bottom: 15px;">
