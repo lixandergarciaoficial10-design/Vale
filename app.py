@@ -18,14 +18,24 @@ from fpdf import FPDF
 from datetime import datetime
 
 import streamlit as st
+from st_supabase_connection import SupabaseConnection
 
-import streamlit as st
-
-import streamlit as st
-
+# 1. CONFIGURACIÓN INICIAL (Tu original)
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. CSS RADICAL (Ajustado para centrado en móvil y separación de paneles)
+# 2. CONEXIÓN A SUPABASE (Solución a 'conn no definido')
+# Nota: Streamlit busca automáticamente las credenciales en .streamlit/secrets.toml
+conn = st.connection("supabase", type=SupabaseConnection)
+
+# 3. LÓGICA DE ESTADOS (Solución a 'redireccionamiento' y 'autenticación')
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "user" not in st.session_state:
+    st.session_state.user = None
+if "page" not in st.session_state:
+    st.session_state.page = "login"
+
+# 4. CSS RADICAL (Tu diseño original intacto)
 st.markdown("""
 <style>
     /* Eliminar el padding de Streamlit por completo */
@@ -40,13 +50,15 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* Fondo dividido - LAPTOP */
+    /* Fondo dividido - LAPTOP (Solo se aplica si no está autenticado para no romper el dashboard) */
+    """ + ("""
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(90deg, #06102B 33%, #F8FAFC 33%);
         height: 100vh;
         width: 100vw;
         overflow: hidden;
     }
+    """ if not st.session_state.authenticated else "") + """
 
     /* Panel Izquierdo (Azul) */
     .panel-info {
@@ -68,7 +80,7 @@ st.markdown("""
             height: auto !important;
         }
 
-        /* INVERSIÓN Y CENTRADO: Login arriba, Azul abajo con espacio */
+        /* INVERSIÓN Y CENTRADO */
         [data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: column-reverse !important;
@@ -76,7 +88,6 @@ st.markdown("""
             gap: 0px !important;
         }
 
-        /* Forzar que cada columna ocupe el 100% y centrar contenido */
         [data-testid="column"] {
             width: 100% !important;
             flex: 1 1 100% !important;
@@ -85,20 +96,18 @@ st.markdown("""
             justify-content: center !important;
         }
 
-        /* CENTRADO DEL FORMULARIO: Asegura que el contenido interno no se cargue a un lado */
         [data-testid="column"] > div {
             width: 100% !important;
-            max-width: 450px !important; /* Limita el ancho en móvil para que se vea estético */
+            max-width: 450px !important;
             margin: 0 auto !important;
         }
 
-        /* Panel azul (ahora abajo): AGREGAMOS EL ESPACIO ARRIBA */
         .panel-info {
             width: 100vw !important;
             height: auto !important;
             background-color: #06102B !important; 
             padding: 50px 20px !important;
-            margin-top: 60px !important; /* EL ESPACIO QUE PEDISTE entre el login y el cuadro azul */
+            margin-top: 60px !important;
         }
 
         .main .block-container {
@@ -106,7 +115,7 @@ st.markdown("""
         }
     }
 
-    /* Estilos de botones y textos (Intactos) */
+    /* Estilos de botones y textos */
     .google-btn {
         display: flex; align-items: center; justify-content: center; gap: 10px;
         width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
@@ -133,103 +142,114 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 3. LÓGICA DE NAVEGACIÓN
-if "page" not in st.session_state:
-    st.session_state.page = "login"
+# 5. RENDERIZADO CONDICIONAL (Login vs Dashboard)
+if not st.session_state.authenticated:
+    # --- TODO TU DISEÑO DE LOGIN ORIGINAL ---
+    c_izq, c_der = st.columns([1, 2.03])
 
-# 4. RENDERIZADO DE LA ESTRUCTURA
-c_izq, c_der = st.columns([1, 2.03])
-
-with c_izq:
-    st.markdown(f"""
-    <div class="panel-info">
-        <div>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="180">
-            <div style="margin-top: 40px;">
-                <h2 style="font-size: 28px; line-height: 1.2;">Tu plataforma inteligente<br>para gestionar cobros y clientes</h2>
-                <div style="margin-top: 30px; color: #CBD5E1; font-size: 15px; line-height: 1.8;">
-                    <p>✔️ Rápido y seguro</p>
-                    <p>✔️ Sin confirmaciones innecesarias</p>
-                    <p>✔️ Acceso desde cualquier lugar</p>
+    with c_izq:
+        st.markdown(f"""
+        <div class="panel-info">
+            <div>
+                <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="180">
+                <div style="margin-top: 40px;">
+                    <h2 style="font-size: 28px; line-height: 1.2;">Tu plataforma inteligente<br>para gestionar cobros y clientes</h2>
+                    <div style="margin-top: 30px; color: #CBD5E1; font-size: 15px; line-height: 1.8;">
+                        <p>✔️ Rápido y seguro</p>
+                        <p>✔️ Sin confirmaciones innecesarias</p>
+                        <p>✔️ Acceso desde cualquier lugar</p>
+                    </div>
                 </div>
             </div>
+            <div style="font-size: 12px; color: #64748B; padding-bottom: 20px;">
+                © 2026 CobroYa. Todos los derechos reservados.
+            </div>
         </div>
-        <div style="font-size: 12px; color: #64748B; padding-bottom: 20px;">
-            © 2026 CobroYa. Todos los derechos reservados.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
 
-with c_der:
-    st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
-    
-    # Columnas internas para el formulario
-    _, center, _ = st.columns([1, 2.5, 1])
-    
-    with center:
-        if st.session_state.page == "login":
-            st.markdown("""
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="180">
-                    <h3 style="margin-top: 15px; color: #0F172A; margin-bottom: 5px;">Bienvenido de vuelta</h3>
-                    <p style="color: #64748B; font-size: 14px;">Inicia sesión para continuar</p>
-                </div>
-                <div class="google-btn">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/3840px-Google_%22G%22_logo.svg.png" width="18">
-                    Continuar con Google
-                </div>
-                <div class="divider">o continúa con tu correo</div>
-            """, unsafe_allow_html=True)
-            
-            st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
-            st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
-            
-            col_check, col_link = st.columns([1, 1])
-            with col_check:
-                st.checkbox("Recordarme")
-            with col_link:
-                if st.button("¿Olvidaste tu contraseña?", key="btn_forgot"):
-                    st.session_state.page = "forgot"
-                    st.rerun()
-            
-            if st.button("Iniciar sesión", type="primary", use_container_width=True):
-                pass 
+    with c_der:
+        st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
+        _, center, _ = st.columns([1, 2.5, 1])
+        
+        with center:
+            if st.session_state.page == "login":
+                st.markdown("""
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="180">
+                        <h3 style="margin-top: 15px; color: #0F172A; margin-bottom: 5px;">Bienvenido de vuelta</h3>
+                        <p style="color: #64748B; font-size: 14px;">Inicia sesión para continuar</p>
+                    </div>
+                    <div class="google-btn">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/3840px-Google_%22G%22_logo.svg.png" width="18">
+                        Continuar con Google
+                    </div>
+                    <div class="divider">o continúa con tu correo</div>
+                """, unsafe_allow_html=True)
                 
-            st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
-            if st.button("Crear cuenta", use_container_width=True):
-                st.session_state.page = "signup"
-                st.rerun()
+                email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
+                password = st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
+                
+                col_check, col_link = st.columns([1, 1])
+                with col_check:
+                    st.checkbox("Recordarme")
+                with col_link:
+                    if st.button("¿Olvidaste tu contraseña?", key="btn_forgot"):
+                        st.session_state.page = "forgot"
+                        st.rerun()
+                
+                if st.button("Iniciar sesión", type="primary", use_container_width=True):
+                    try:
+                        # Lógica de Supabase Auth
+                        res = conn.auth.sign_in_with_password({"email": email, "password": password})
+                        if res.user:
+                            st.session_state.user = res.user
+                            st.session_state.authenticated = True
+                            st.rerun()
+                    except Exception as e:
+                        st.error("Error: Correo o contraseña incorrectos")
+                
+                st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
+                if st.button("Crear cuenta", use_container_width=True):
+                    st.session_state.page = "signup"
+                    st.rerun()
 
-        elif st.session_state.page == "signup":
-            st.markdown("""
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
-                    <h3 style="margin-top: 15px; color: #0F172A;">Crear cuenta</h3>
-                </div>
-            """, unsafe_allow_html=True)
-            st.text_input("Correo electrónico", key="reg_email")
-            st.text_input("Contraseña", type="password", key="reg_pass")
-            if st.button("Registrarse", type="primary", use_container_width=True):
-                pass
-            if st.button("Volver al login", use_container_width=True):
-                st.session_state.page = "login"
-                st.rerun()
+            elif st.session_state.page == "signup":
+                # (Manteniendo tu estructura de Registro)
+                st.markdown('<div style="text-align: center;"><h3>Crear cuenta</h3></div>', unsafe_allow_html=True)
+                reg_email = st.text_input("Correo electrónico", key="reg_email")
+                reg_pass = st.text_input("Contraseña", type="password", key="reg_pass")
+                if st.button("Registrarse", type="primary", use_container_width=True):
+                    try:
+                        conn.auth.sign_up({"email": reg_email, "password": reg_pass})
+                        st.success("¡Registro exitoso! Revisa tu correo de confirmación.")
+                    except:
+                        st.error("Error al registrar usuario.")
+                if st.button("Volver al login", use_container_width=True):
+                    st.session_state.page = "login"
+                    st.rerun()
 
-        elif st.session_state.page == "forgot":
-            st.markdown("""
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
-                    <h3 style="margin-top: 15px; color: #0F172A;">Recuperar acceso</h3>
-                </div>
-            """, unsafe_allow_html=True)
-            st.text_input("Ingresa tu correo", key="reset_email")
-            if st.button("Enviar enlace", type="primary", use_container_width=True):
-                st.success("Enlace enviado al correo")
-            if st.button("Volver", use_container_width=True):
-                st.session_state.page = "login"
-                st.rerun()
+            elif st.session_state.page == "forgot":
+                # (Manteniendo tu estructura de Olvido)
+                st.markdown('<div style="text-align: center;"><h3>Recuperar acceso</h3></div>', unsafe_allow_html=True)
+                st.text_input("Ingresa tu correo", key="reset_email")
+                if st.button("Enviar enlace", type="primary", use_container_width=True):
+                    st.success("Enlace enviado al correo")
+                if st.button("Volver", use_container_width=True):
+                    st.session_state.page = "login"
+                    st.rerun()
 
-st.stop()
+else:
+    # --- AQUÍ EMPIEZA EL DASHBOARD SEGURO (u_id definido) ---
+    u_id = st.session_state.user.id  # Identificador único de Supabase
+    
+    # Barra lateral solo para el Dashboard (Opcional)
+    with st.sidebar:
+        st.write(f"Conectado como: **{st.session_state.user.email}**")
+        if st.button("Cerrar Sesión"):
+            st.session_state.authenticated = False
+            st.session_state.user = None
+            st.rerun()
+
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
