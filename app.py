@@ -19,15 +19,16 @@ from datetime import datetime
 
 import streamlit as st
 
-# 1. CONFIGURACIÓN BASE
+# 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. CSS DE ALTA PRECISIÓN: CLONANDO LA INTERFAZ PROFESIONAL
+# 2. CSS DE ALTA FIDELIDAD (REPLICANDO TU DISEÑO EXACTO)
 st.markdown("""
 <style>
-    /* Reset total y fondo degradado profesional */
+    /* Eliminar cualquier rastro de la interfaz por defecto de Streamlit */
     [data-testid="stHeader"] {display: none !important;}
     
+    /* Fondo Degradado Azul Profundo (Padre) */
     .stApp {
         background: linear-gradient(135deg, #000814 0%, #001d3d 100%) !important;
     }
@@ -36,152 +37,213 @@ st.markdown("""
         padding: 0rem !important;
         max-width: 100vw !important;
         height: 100vh !important;
-        display: flex;
-        align-items: center;
-        justify-content: center;
         overflow: hidden !important;
     }
 
-    /* Columna Izquierda: Informativa */
+    /* Contenedor Principal Flex */
+    .main-container {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+    }
+
+    /* SECCIÓN IZQUIERDA (40%) */
     .info-side {
-        padding: 0 8%;
-        color: white;
+        flex: 0.4;
         display: flex;
         flex-direction: column;
         justify-content: center;
+        padding: 0 5% 0 8%;
+        color: white;
     }
 
-    /* Tarjeta Derecha: El Formulario Flotante */
+    .info-side h1 {
+        font-size: 2.2rem;
+        font-weight: 500;
+        line-height: 1.2;
+        margin-top: 30px;
+        color: rgba(255, 255, 255, 0.95);
+    }
+
+    .features {
+        list-style: none;
+        padding: 0;
+        margin-top: 40px;
+    }
+
+    .features li {
+        margin-bottom: 20px;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        color: rgba(255, 255, 255, 0.85);
+    }
+
+    .side-footer {
+        position: absolute;
+        bottom: 40px;
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* SECCIÓN DERECHA (60%) - EL FORMULARIO FLOTANTE */
+    .form-side {
+        flex: 0.6;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+    }
+
     .login-card {
         background: white;
-        border-radius: 40px; /* Bordes muy redondeados según pedido */
-        padding: 45px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         width: 100%;
         max-width: 480px;
-        margin: auto;
+        height: auto;
+        min-height: 600px;
+        border-radius: 40px; /* Bordes redondeados exactos */
+        padding: 50px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
+        position: relative;
     }
 
-    /* Estilos de botones y divisores */
+    /* Icono Google y Botón Social */
     .google-btn {
-        display: flex; align-items: center; justify-content: center; gap: 10px;
-        width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
-        height: 48px; margin-bottom: 20px; font-weight: 500; color: #334155;
-        background: white; cursor: pointer;
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        gap: 12px;
+        width: 100%; 
+        border: 1px solid #E2E8F0; 
+        border-radius: 12px;
+        height: 50px; 
+        margin: 25px 0; 
+        font-weight: 500; 
+        color: #334155;
+        background: white; 
+        cursor: pointer;
+        transition: 0.2s;
     }
+    .google-btn:hover { background: #F8FAFC; }
 
     .divider {
         display: flex; align-items: center; text-align: center; color: #94A3B8;
-        font-size: 12px; margin: 20px 0;
+        font-size: 12px; margin: 25px 0;
     }
     .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #F1F5F9; }
     .divider:not(:empty)::before { margin-right: 15px; }
     .divider:not(:empty)::after { margin-left: 15px; }
 
-    /* Forzar que los inputs y botones de Streamlit se vean bien dentro de la tarjeta blanca */
-    div[data-testid="stTextInput"] label { color: #1E293B !important; font-weight: 500; }
+    /* Estilos de inputs de Streamlit dentro de la tarjeta */
+    div[data-testid="stTextInput"] label { color: #1E293B !important; font-weight: 600; margin-bottom: 5px;}
     div[data-testid="stTextInput"] input {
         border-radius: 12px !important;
         background-color: #F8FAFC !important;
         border: 1px solid #E2E8F0 !important;
-        color: #1E293B !important;
+        height: 48px !important;
     }
     
+    /* Botón Primario Azul Brillante */
     div.stButton > button {
         border-radius: 12px !important;
-        height: 48px !important;
-        background-color: #1a73e8 !important; /* Azul brillante pedido */
+        height: 52px !important;
+        background-color: #1a73e8 !important;
         color: white !important;
         font-weight: 700 !important;
         border: none !important;
-        width: 100% !important;
+        margin-top: 15px !important;
     }
 
-    /* Estilos de texto */
-    .feature-list { list-style: none; padding: 0; margin-top: 30px; }
-    .feature-list li { margin-bottom: 15px; font-size: 1.1rem; opacity: 0.9; display: flex; align-items: center; gap: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
-# 3. LÓGICA DE ESTADO
+# 3. LÓGICA DE NAVEGACIÓN
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
-# 4. DISTRIBUCIÓN 40/60
-col_info, col_form = st.columns([1, 1.5])
+# 4. RENDERIZADO DE ESTRUCTURA (DIVISIÓN 40/60 REAL)
+col_left, col_right = st.columns([1, 1.5])
 
-# SECCIÓN IZQUIERDA (40%)
-with col_info:
-    st.markdown("""
+with col_left:
+    # PANEL IZQUIERDO INFORMATIVO
+    st.markdown(f"""
     <div class="info-side">
-        <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
-        <h1 style="font-size: 2.5rem; font-weight: 700; margin-top: 40px; line-height: 1.2;">
-            Tu plataforma inteligente para gestionar cobros y clientes
-        </h1>
-        <ul class="feature-list">
+        <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="200">
+        <h1>Tu plataforma inteligente para gestionar cobros y clientes</h1>
+        <ul class="features">
             <li>🛡️ Rápido y seguro</li>
             <li>✅ Sin confirmaciones innecesarias</li>
             <li>📍 Acceso desde cualquier lugar</li>
         </ul>
-        <div style="margin-top: 100px; font-size: 0.9rem; opacity: 0.6;">
+        <div class="side-footer">
             <p>© 2026 CobroYa. Todos los derechos reservados. <br> 🔒 Seguridad garantizada</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-# SECCIÓN DERECHA (60%) - LA TARJETA FLOTANTE
-with col_form:
-    # Este container ayuda a centrar la tarjeta blanca en el espacio de la derecha
+with col_right:
+    # PANEL DERECHO CON TARJETA FLOTANTE
+    st.markdown('<div class="form-side">', unsafe_allow_html=True)
+    
     with st.container():
+        # Aquí inicia la tarjeta blanca
         st.markdown('<div class="login-card">', unsafe_allow_html=True)
         
-        # Selector de idioma simulado arriba a la derecha
-        st.markdown('<div style="text-align: right; color: #64748B; font-size: 14px;">🌐 ES</div>', unsafe_allow_html=True)
+        # Selector de idioma y Logo Card (más grande)
+        st.markdown('<div style="text-align: right; color: #64748B;">🌐 ES</div>', unsafe_allow_html=True)
         
-        # Logo secundario centrado
-        st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=100)
+        # Centrado del logo en la tarjeta
+        _, logo_center, _ = st.columns([1, 1.5, 1])
+        with logo_center:
+            st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", use_container_width=True)
         
         if st.session_state.page == "login":
             st.markdown("""
-                <div style="text-align: center; margin-bottom: 25px;">
-                    <h2 style="color: #0F172A; margin-bottom: 5px;">Bienvenido de vuelta</h2>
-                    <p style="color: #64748B;">Inicia sesión para continuar</p>
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <h2 style="color: #0F172A; font-size: 26px; font-weight: 700; margin-bottom: 0;">Bienvenido de vuelta</h2>
+                    <p style="color: #64748B; font-size: 15px;">Inicia sesión para continuar</p>
                 </div>
+                
                 <div class="google-btn">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" width="18">
-                    <span>Continuar con Google</span>
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" width="20">
+                    <span style="font-family: 'Inter', sans-serif;">Continuar con Google</span>
                 </div>
+                
                 <div class="divider">o continúa con tu correo</div>
             """, unsafe_allow_html=True)
             
-            st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="login_email")
-            st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña", key="login_pass")
+            st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="user_email")
+            st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña", key="user_pass")
             
-            c1, c2 = st.columns([1, 1])
-            with c1: st.checkbox("Recordarme")
-            with c2: 
-                if st.button("¿Olvidaste tu clave?", key="btn_forgot", type="secondary"):
+            # Opciones de formulario
+            c_check, c_link = st.columns([1, 1.2])
+            with c_check: st.checkbox("Recordarme")
+            with c_link: 
+                if st.button("¿Olvidaste tu contraseña?", key="link_forgot", type="secondary"):
                     st.session_state.page = "forgot"
                     st.rerun()
             
-            if st.button("Iniciar sesión", key="main_login_btn"):
+            if st.button("Iniciar sesión", use_container_width=True, key="login_main"):
                 pass
             
-            st.markdown(f"""
-                <p style="text-align: center; color: #64748B; margin-top: 20px;">
-                    ¿No tienes cuenta? <a href="#" style="color: #1a73e8; font-weight: 600;">Crear cuenta</a>
+            st.markdown("""
+                <p style="text-align: center; color: #64748B; margin-top: 25px; font-size: 14px;">
+                    ¿No tienes cuenta? <a href="#" style="color: #1a73e8; font-weight: 700; text-decoration: none;">Crear cuenta</a>
                 </p>
             """, unsafe_allow_html=True)
 
         elif st.session_state.page == "forgot":
-            st.markdown("### Recuperar cuenta")
-            st.text_input("Correo registrado")
-            if st.button("Enviar enlace"): st.success("Enviado")
-            if st.button("Volver"):
+            st.markdown("<h2 style='text-align:center; color:#0F172A;'>Recuperar acceso</h2>", unsafe_allow_html=True)
+            st.text_input("Introduce tu correo electrónico")
+            if st.button("Enviar instrucciones", use_container_width=True):
+                st.success("Enviado.")
+            if st.button("Regresar al login", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
 
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True) # Cierre login-card
+    st.markdown('</div>', unsafe_allow_html=True) # Cierre form-side
 
 st.stop()
         
