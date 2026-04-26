@@ -17,6 +17,16 @@ import base64
 from fpdf import FPDF
 from datetime import datetime
 
+import streamlit as st
+from supabase import create_client, Client
+import re
+
+# Obtener credenciales de secretos de Streamlit
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Configurar página
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
 # 2. CSS RADICAL (Ajustado para centrado en móvil y separación de paneles)
@@ -127,9 +137,16 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 3. LÓGICA DE NAVEGACIÓN
+# 3. INICIALIZAR SESSION STATE
 if "page" not in st.session_state:
     st.session_state.page = "login"
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+# Función auxiliar para validar email
+def is_valid_email(email):
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
 
 # 4. RENDERIZADO DE LA ESTRUCTURA
 c_izq, c_der = st.columns([1, 2.03])
@@ -168,29 +185,49 @@ with c_der:
                     <h3 style="margin-top: 15px; color: #0F172A; margin-bottom: 5px;">Bienvenido de vuelta</h3>
                     <p style="color: #64748B; font-size: 14px;">Inicia sesión para continuar</p>
                 </div>
-                <div class="google-btn">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/3840px-Google_%22G%22_logo.svg.png" width="18">
-                    Continuar con Google
-                </div>
-                <div class="divider">o continúa con tu correo</div>
             """, unsafe_allow_html=True)
             
-            st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
-            st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
+            # Botón Google
+            col1, col2, col3 = st.columns([0.5, 1, 0.5])
+            with col2:
+                if st.button("🔵 Continuar con Google", key="google_login", use_container_width=True):
+                    st.info("🔗 Redirigiendo a Google OAuth...")
+                    # Aquí irá tu lógica de Google OAuth
+            
+            st.markdown('<div class="divider">o continúa con tu correo</div>', unsafe_allow_html=True)
+            
+            email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
+            password = st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
             
             col_check, col_link = st.columns([1, 1])
             with col_check:
-                st.checkbox("Recordarme")
+                st.checkbox("Recordarme", key="remember")
             with col_link:
                 if st.button("¿Olvidaste tu contraseña?", key="btn_forgot"):
                     st.session_state.page = "forgot"
                     st.rerun()
             
-            if st.button("Iniciar sesión", type="primary", use_container_width=True):
-                pass 
+            # BOTÓN LOGIN CON LÓGICA
+            if st.button("Iniciar sesión", type="primary", use_container_width=True, key="btn_login"):
+                if not email or not password:
+                    st.error("❌ Por favor completa todos los campos")
+                elif not is_valid_email(email):
+                    st.error("❌ Email inválido")
+                else:
+                    try:
+                        response = supabase.auth.sign_in_with_password({
+                            "email": email,
+                            "password": password
+                        })
+                        st.session_state.user = response.user
+                        st.success("✅ Sesión iniciada correctamente")
+                        st.balloons()
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error al iniciar sesión: {str(e)}")
                 
             st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
-            if st.button("Crear cuenta", use_container_width=True):
+            if st.button("Crear cuenta", use_container_width=True, key="btn_signup_nav"):
                 st.session_state.page = "signup"
                 st.rerun()
 
@@ -201,11 +238,36 @@ with c_der:
                     <h3 style="margin-top: 15px; color: #0F172A;">Crear cuenta</h3>
                 </div>
             """, unsafe_allow_html=True)
-            st.text_input("Correo electrónico", key="reg_email")
-            st.text_input("Contraseña", type="password", key="reg_pass")
-            if st.button("Registrarse", type="primary", use_container_width=True):
-                pass
-            if st.button("Volver al login", use_container_width=True):
+            
+            reg_email = st.text_input("Correo electrónico", key="reg_email", placeholder="tu@email.com")
+            reg_pass = st.text_input("Contraseña", type="password", key="reg_pass", placeholder="Mínimo 8 caracteres")
+            reg_pass_confirm = st.text_input("Confirmar contraseña", type="password", key="reg_pass_confirm", placeholder="Repite tu contraseña")
+            
+            # BOTÓN REGISTRO CON LÓGICA
+            if st.button("Registrarse", type="primary", use_container_width=True, key="btn_register"):
+                if not reg_email or not reg_pass or not reg_pass_confirm:
+                    st.error("❌ Por favor completa todos los campos")
+                elif not is_valid_email(reg_email):
+                    st.error("❌ Email inválido")
+                elif len(reg_pass) < 8:
+                    st.error("❌ La contraseña debe tener mínimo 8 caracteres")
+                elif reg_pass != reg_pass_confirm:
+                    st.error("❌ Las contraseñas no coinciden")
+                else:
+                    try:
+                        response = supabase.auth.sign_up({
+                            "email": reg_email,
+                            "password": reg_pass
+                        })
+                        st.success("✅ Cuenta creada. Verifica tu email para confirmar")
+                        st.info("📧 Se ha enviado un enlace de confirmación a tu correo")
+                    except Exception as e:
+                        if "already registered" in str(e):
+                            st.error("❌ Este email ya está registrado")
+                        else:
+                            st.error(f"❌ Error: {str(e)}")
+            
+            if st.button("Volver al login", use_container_width=True, key="btn_back_login"):
                 st.session_state.page = "login"
                 st.rerun()
 
@@ -214,12 +276,27 @@ with c_der:
                 <div style="text-align: center; margin-bottom: 15px;">
                     <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
                     <h3 style="margin-top: 15px; color: #0F172A;">Recuperar acceso</h3>
+                    <p style="color: #64748B; font-size: 13px; margin-top: 5px;">Ingresa tu email para recibir un enlace de recuperación</p>
                 </div>
             """, unsafe_allow_html=True)
-            st.text_input("Ingresa tu correo", key="reset_email")
-            if st.button("Enviar enlace", type="primary", use_container_width=True):
-                st.success("Enlace enviado al correo")
-            if st.button("Volver", use_container_width=True):
+            
+            reset_email = st.text_input("Ingresa tu correo", key="reset_email", placeholder="tu@email.com")
+            
+            # BOTÓN RECUPERAR CONTRASEÑA CON LÓGICA
+            if st.button("Enviar enlace", type="primary", use_container_width=True, key="btn_reset"):
+                if not reset_email:
+                    st.error("❌ Por favor ingresa tu correo")
+                elif not is_valid_email(reset_email):
+                    st.error("❌ Email inválido")
+                else:
+                    try:
+                        supabase.auth.reset_password_for_email(reset_email)
+                        st.success("✅ Enlace de recuperación enviado")
+                        st.info("📧 Revisa tu email en los próximos 5 minutos")
+                    except Exception as e:
+                        st.error(f"❌ Error: {str(e)}")
+            
+            if st.button("Volver", use_container_width=True, key="btn_back_forgot"):
                 st.session_state.page = "login"
                 st.rerun()
 
