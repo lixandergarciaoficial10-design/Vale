@@ -340,6 +340,28 @@ def mostrar_login():
 # PÁGINA DEL DASHBOARD
 # ============================================
 def mostrar_dashboard():
+    # Obtener u_id del usuario autenticado
+    u_id = st.session_state.user.id
+    
+    # Cargar configuración del usuario
+    if "config_cargada" not in st.session_state:
+        try:
+            res_c = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
+            if res_c.data:
+                conf = res_c.data[0]
+                st.session_state["mis_clausulas"] = conf.get("clausulas", "Sujeto a términos legales.")
+                st.session_state["mi_logo"] = conf.get("logo_base64", None)
+                st.session_state["nombre_negocio"] = conf.get("nombre_negocio", "CobroYa Pro")
+                st.session_state["direccion_negocio"] = conf.get("direccion_negocio", "Villa Altagracia, RD")
+                st.session_state["telefono_negocio"] = conf.get("telefono_negocio", "829-000-0000")
+                st.session_state["config_cargada"] = True
+            else:
+                st.session_state["mi_logo"] = None
+                st.session_state["nombre_negocio"] = "CobroYa Pro"
+                st.session_state["config_cargada"] = True
+        except Exception as e:
+            st.warning(f"Error cargando config: {e}")
+    
     # Header con logout
     col1, col2 = st.columns([0.9, 0.1])
     with col1:
@@ -349,10 +371,12 @@ def mostrar_dashboard():
             st.session_state.authenticated = False
             st.session_state.user = None
             st.session_state.page = "login"
+            st.session_state.config_cargada = False
             st.rerun()
     
     st.divider()
     st.write(f"✅ **Usuario autenticado:** {st.session_state.user.email}")
+    st.write(f"ID Usuario: `{u_id}`")
     
     # AQUÍ VA TODO TU CÓDIGO DEL DASHBOARD
     # Por ahora es un placeholder
@@ -365,6 +389,11 @@ def mostrar_dashboard():
         st.metric("Deudas Pendientes", "$5,240")
     with col3:
         st.metric("Tasa de Recuperación", "85%")
+    
+    # =====================================================
+    # AGREGA AQUÍ TODO TU CÓDIGO DEL DASHBOARD ORIGINAL
+    # (El que tiene los gráficos, tablas, etc.)
+    # ====================================================="
 
 # ============================================
 # LÓGICA PRINCIPAL
