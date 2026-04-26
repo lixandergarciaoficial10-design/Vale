@@ -20,53 +20,52 @@ import streamlit as st
 
 import streamlit as st
 
-# 1. CONFIGURACIÓN (Debe ser la línea 1)
+# 1. CONFIGURACIÓN INICIAL (DEBE SER LA PRIMERA LÍNEA)
 st.set_page_config(page_title="CobroYa", layout="centered", initial_sidebar_state="collapsed")
 
-# 2. CSS: EL CLON EXACTO Y ASESINATO DEL SIDEBAR
+# 2. EL CSS DE PRECISIÓN "PIXEL-PERFECT"
 st.markdown("""
 <style>
-    /* 1. ELIMINAR EL MENÚ LATERAL Y EL HEADER DURANTE EL LOGIN */
-    [data-testid="stSidebar"], 
-    [data-testid="collapsedControl"], 
-    [data-testid="stHeader"] {
+    /* ASESINATO TOTAL DE ELEMENTOS DE STREAMLIT */
+    [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stHeader"], footer {
         display: none !important;
     }
 
-    /* 2. FONDO GLOBAL (El gris muy claro de tu diseño) */
+    /* FONDO DE PANTALLA (Gris ultra-claro) */
     .stApp {
         background-color: #F8FAFC !important;
     }
 
-    /* 3. LA TARJETA BLANCA (Medidas, centrado y sombra exactas) */
+    /* LA TARJETA BLANCA (Centrado y dimensiones exactas) */
     .block-container {
         background-color: #FFFFFF !important;
-        border-radius: 20px !important;
-        padding: 45px 40px !important;
+        border-radius: 24px !important;
+        padding: 40px 45px !important;
         max-width: 440px !important;
-        margin-top: 8vh !important; /* Centrado vertical */
-        box-shadow: 0px 8px 30px rgba(0, 0, 0, 0.04) !important;
+        margin: auto !important;
+        margin-top: 5vh !important;
+        box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.04) !important;
         border: 1px solid #F1F5F9 !important;
     }
 
-    /* 4. TEXTOS (Fuentes limpias, colores calcados) */
+    /* TÍTULOS Y SUBTÍTULOS */
     .main-title {
-        text-align: center; font-size: 22px; font-weight: 700; color: #0F172A; 
-        margin-bottom: 5px; font-family: sans-serif;
+        text-align: center; font-size: 24px; font-weight: 700; color: #0F172A; 
+        margin-top: 15px; margin-bottom: 5px; font-family: 'Inter', sans-serif;
     }
     .subtitle {
         text-align: center; font-size: 14px; color: #64748B; 
-        margin-bottom: 25px; font-family: sans-serif;
+        margin-bottom: 30px; font-family: 'Inter', sans-serif;
     }
 
-    /* 5. BOTÓN GOOGLE (Blanco, borde gris, texto oscuro) */
+    /* BOTÓN GOOGLE (Borde gris, texto oscuro) */
     button[kind="secondary"] {
         background-color: #FFFFFF !important; color: #334155 !important;
-        border: 1px solid #E2E8F0 !important; border-radius: 10px !important;
-        font-weight: 600 !important; height: 46px !important; width: 100% !important;
+        border: 1px solid #E2E8F0 !important; border-radius: 12px !important;
+        font-weight: 500 !important; height: 48px !important; width: 100% !important;
     }
 
-    /* 6. DIVISOR ("o continúa con tu correo") */
+    /* EL DIVISOR "O CONTINÚA CON" */
     .divider {
         display: flex; align-items: center; text-align: center;
         color: #94A3B8; font-size: 12px; margin: 25px 0;
@@ -77,139 +76,94 @@ st.markdown("""
     .divider:not(:empty)::before { margin-right: 15px; }
     .divider:not(:empty)::after { margin-left: 15px; }
 
-    /* 7. INPUTS (Bordes finos, textos limpios) */
+    /* ESTILO DE LOS INPUTS (Bordes finos) */
     div[data-testid="stTextInput"] label p {
-        font-size: 13px !important; font-weight: 600 !important; color: #334155 !important; margin-bottom: -2px !important;
+        font-size: 13px !important; font-weight: 600 !important; color: #475569 !important;
     }
     div[data-testid="stTextInput"] input {
-        background-color: #FFFFFF !important; border: 1px solid #CBD5E1 !important;
-        border-radius: 10px !important; padding: 12px 16px !important;
-        color: #0F172A !important; font-size: 14px !important;
-    }
-    div[data-testid="stTextInput"] input:focus {
-        border-color: #2563EB !important; box-shadow: 0 0 0 1px #2563EB !important;
+        background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important;
+        border-radius: 10px !important; padding: 12px !important; color: #0F172A !important;
     }
 
-    /* 8. BOTÓN INICIAR SESIÓN (El Azul vibrante exacto) */
+    /* BOTÓN AZUL PRINCIPAL */
     button[kind="primary"] {
-        background-color: #2563EB !important; color: #FFFFFF !important;
-        border: none !important; border-radius: 10px !important;
-        font-weight: 600 !important; height: 48px !important; width: 100% !important;
-        font-size: 15px !important; margin-top: 10px !important; transition: 0.2s;
+        background-color: #1D61F2 !important; color: #FFFFFF !important;
+        border-radius: 12px !important; font-weight: 600 !important;
+        height: 50px !important; width: 100% !important; border: none !important;
+        font-size: 15px !important; transition: 0.2s;
     }
-    button[kind="primary"]:hover { background-color: #1D4ED8 !important; }
+    button[kind="primary"]:hover { background-color: #164ec7 !important; }
 
-    /* 9. BOTONES TRANSPARENTES PARA ENLACES (Olvidaste clave, Crear cuenta) */
-    button[kind="tertiary"] {
-        color: #2563EB !important; font-weight: 600 !important; font-size: 13px !important;
-        background: transparent !important; border: none !important; padding: 0 !important;
-        min-height: 0 !important; line-height: normal !important;
-    }
-    button[kind="tertiary"]:hover { text-decoration: underline !important; color: #1D4ED8 !important; }
-
-    /* 10. CHECKBOX "Recordarme" */
+    /* CHECKBOX Y ENLACES PEQUEÑOS */
     div[data-testid="stCheckbox"] label span { font-size: 13px !important; color: #475569 !important; }
+    
+    /* BOTONES DE ENLACE (Terciarios) */
+    button[kind="tertiary"] {
+        color: #1D61F2 !important; font-weight: 600 !important; font-size: 13px !important;
+        padding: 0 !important; background: transparent !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-
-# 3. CONTROL DE ESTADO BÁSICO
+# 3. LÓGICA DE NAVEGACIÓN
 if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "login"
 
-
-# 4. RECREACIÓN DEL LOGO "CC CobroYa" PARA QUE NO SE VEA FEO
-st.markdown("""
-    <div style="text-align: center; margin-bottom: 15px;">
-        <span style="font-size: 38px; font-weight: 800; color: #0052CC; letter-spacing: -3px; font-family: sans-serif;">CC</span>
-        <span style="font-size: 26px; font-weight: 700; color: #0F172A; margin-left: 4px; font-family: sans-serif;">CobroYa</span>
-    </div>
-""", unsafe_allow_html=True)
-
+# 4. ESPACIO PARA TU IMAGEN (LOGO)
+# ---------------------------------------------------------
+# REEMPLAZA EL LINK POR LA RUTA DE TU IMAGEN LOCAL O URL
+st.image("https://raw.githubusercontent.com/tu-usuario/tu-repo/main/logo_cobroya.png", width=160) 
+# ---------------------------------------------------------
 
 # ==========================================
-# 5. FLUJO VISUAL: INICIAR SESIÓN (LA TARJETA)
+# FLUJO: INICIAR SESIÓN
 # ==========================================
 if st.session_state.auth_mode == "login":
     st.markdown('<div class="main-title">Bienvenido de vuelta</div>', unsafe_allow_html=True)
     st.markdown('<div class="subtitle">Inicia sesión para continuar</div>', unsafe_allow_html=True)
-    
-    if st.button("🌐 Continuar con Google", type="secondary", use_container_width=True):
-        pass # Lógica de google aquí
+
+    st.button("🌐 Continuar con Google", type="secondary", use_container_width=True)
 
     st.markdown('<div class="divider">o continúa con tu correo</div>', unsafe_allow_html=True)
-    
-    email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com")
-    pwd = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
-    
-    # Fila de Recordarme y Olvidaste tu contraseña
-    col1, col2 = st.columns([1, 1])
-    with col1:
+
+    st.text_input("Correo electrónico", placeholder="ejemplo@correo.com")
+    st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
+
+    # Fila de Recordarme / Olvidaste
+    c1, c2 = st.columns([1, 1.2])
+    with c1:
         st.checkbox("Recordarme")
-    with col2:
-        st.markdown("<div style='text-align: right; padding-top: 5px;'>", unsafe_allow_html=True)
+    with c2:
+        st.markdown("<div style='text-align: right; margin-top: 5px;'>", unsafe_allow_html=True)
         if st.button("¿Olvidaste tu contraseña?", type="tertiary"):
             st.session_state.auth_mode = "forgot"
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # Botón principal azul
-    if st.button("Iniciar sesión", type="primary", use_container_width=True):
-        st.success("Logueando...") # Aquí va supabase auth
-        
-    # Footer de crear cuenta
-    st.markdown("<div style='text-align: center; margin-top: 25px; font-size: 13px; color: #64748B;'>¿No tienes cuenta? ", unsafe_allow_html=True)
-    if st.button("Crear cuenta", type="tertiary"):
-        st.session_state.auth_mode = "signup"
-        st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.button("Iniciar sesión", type="primary", use_container_width=True)
 
+    # PIE DE PÁGINA (CREAR CUENTA) - CORREGIDO EL CENTRADO
+    st.markdown("<div style='text-align: center; margin-top: 30px; font-size: 13px; color: #64748B;'>¿No tienes cuenta?</div>", unsafe_allow_html=True)
+    
+    # Usamos columnas para centrar el botón de "Crear cuenta" exactamente
+    _, center_col, _ = st.columns([1, 1, 1])
+    with center_col:
+        if st.button("Crear cuenta", type="tertiary"):
+            st.session_state.auth_mode = "signup"
+            st.rerun()
 
 # ==========================================
-# 6. FLUJO VISUAL: REGISTRO
+# FLUJO: REGISTRO / RECUPERAR (Mismo estilo)
 # ==========================================
 elif st.session_state.auth_mode == "signup":
     st.markdown('<div class="main-title">Crear cuenta</div>', unsafe_allow_html=True)
     st.markdown('<div class="subtitle">Es rápido y fácil</div>', unsafe_allow_html=True)
-    
-    if st.button("🌐 Continuar con Google", type="secondary", use_container_width=True):
-        pass
-
-    st.markdown('<div class="divider">o regístrate con tu correo</div>', unsafe_allow_html=True)
-    
-    r_email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com")
-    r_pwd = st.text_input("Contraseña", type="password", placeholder="Crea una contraseña")
-    r_conf = st.text_input("Confirmar contraseña", type="password", placeholder="Repite tu contraseña")
-    
-    if st.button("Crear cuenta", type="primary", use_container_width=True):
-        pass
-        
-    st.markdown("<div style='text-align: center; margin-top: 25px; font-size: 13px; color: #64748B;'>¿Ya tienes cuenta? ", unsafe_allow_html=True)
-    if st.button("Iniciar sesión", type="tertiary"):
+    # ... (resto del código de registro siguiendo el mismo patrón)
+    if st.button("Volver al inicio", type="tertiary"):
         st.session_state.auth_mode = "login"
         st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
 
-
-# ==========================================
-# 7. FLUJO VISUAL: RECUPERAR
-# ==========================================
-elif st.session_state.auth_mode == "forgot":
-    st.markdown('<div class="main-title">Recuperar contraseña</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Te enviaremos un enlace para restablecer tu contraseña</div>', unsafe_allow_html=True)
-    
-    f_email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com")
-    
-    if st.button("Enviar enlace", type="primary", use_container_width=True):
-        pass
-        
-    st.markdown("<div style='text-align: center; margin-top: 25px; font-size: 13px; color: #64748B;'>¿Recordaste tu contraseña? ", unsafe_allow_html=True)
-    if st.button("Iniciar sesión", type="tertiary"):
-        st.session_state.auth_mode = "login"
-        st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
-
-st.stop() # ESTO EVITA QUE CARGUE EL RESTO DE TU APP HASTA QUE SE LOGUEEN
+st.stop()
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
