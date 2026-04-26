@@ -17,9 +17,9 @@ import base64
 from fpdf import FPDF
 from datetime import datetime
 
-st.set_page_config(page_title="CobroYa", layout="wide", initial_sidebar_state="collapsed") #POR FAVOR NO TOCAR ESTO, FUNCIONA, Y NO SE PORQUE.
+st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. CSS RADICAL (ESTO esta ajustado para que quede centrado en el móvil y que tenga la separación de paneles)
+# 2. CSS RADICAL (Ajustado para centrado en móvil y separación de paneles)
 st.markdown("""
 <style>
     /* Eliminar el padding de Streamlit por completo */
@@ -136,17 +136,19 @@ c_izq, c_der = st.columns([1, 2.03])
 
 with c_izq:
     st.markdown(f"""
-    <div class="panel-info" style="background-color: #1E293B; color: white; padding: 20px; border-radius: 10px; height: 100%;">
-        <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="180">
-        <div style="margin-top: 40px;">
-            <h2 style="font-size: 28px; line-height: 1.2;">Tu plataforma inteligente<br>para gestionar cobros y clientes</h2>
-            <div style="margin-top: 30px; color: #CBD5E1; font-size: 15px; line-height: 1.8;">
-                <p>✔️ Rápido y seguro</p>
-                <p>✔️ Sin confirmaciones innecesarias</p>
-                <p>✔️ Acceso desde cualquier lugar</p>
+    <div class="panel-info">
+        <div>
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="180">
+            <div style="margin-top: 40px;">
+                <h2 style="font-size: 28px; line-height: 1.2;">Tu plataforma inteligente<br>para gestionar cobros y clientes</h2>
+                <div style="margin-top: 30px; color: #CBD5E1; font-size: 15px; line-height: 1.8;">
+                    <p>✔️ Rápido y seguro</p>
+                    <p>✔️ Sin confirmaciones innecesarias</p>
+                    <p>✔️ Acceso desde cualquier lugar</p>
+                </div>
             </div>
         </div>
-        <div style="margin-top: 100px; font-size: 12px; color: #64748B;">
+        <div style="font-size: 12px; color: #64748B; padding-bottom: 20px;">
             © 2026 CobroYa. Todos los derechos reservados.
         </div>
     </div>
@@ -155,27 +157,26 @@ with c_izq:
 with c_der:
     st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
     
+    # Columnas internas para el formulario
     _, center, _ = st.columns([1, 2.5, 1])
     
     with center:
-        # --- PÁGINA DE LOGIN ---
         if st.session_state.page == "login":
             st.markdown("""
                 <div style="text-align: center; margin-bottom: 15px;">
-                    <h3 style="color: #0F172A; margin-bottom: 5px;">Bienvenido de vuelta</h3>
+                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="180">
+                    <h3 style="margin-top: 15px; color: #0F172A; margin-bottom: 5px;">Bienvenido de vuelta</h3>
                     <p style="color: #64748B; font-size: 14px;">Inicia sesión para continuar</p>
                 </div>
+                <div class="google-btn">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/3840px-Google_%22G%22_logo.svg.png" width="18">
+                    Continuar con Google
+                </div>
+                <div class="divider">o continúa con tu correo</div>
             """, unsafe_allow_html=True)
             
-            # Botón de Google Funcional (Convertido a botón de Streamlit para que detecte el click)
-            if st.button("🌐 Continuar con Google", use_container_width=True):
-                st.info("Redirigiendo a Google Auth...")
-                # AQUÍ VA TU LÓGICA: supabase.auth.sign_in_with_oauth({"provider": "google"})
-
-            st.markdown('<div style="text-align:center; color:#64748B; margin: 10px 0;">o continúa con tu correo</div>', unsafe_allow_html=True)
-            
-            email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
-            password = st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
+            st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
+            st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
             
             col_check, col_link = st.columns([1, 1])
             with col_check:
@@ -185,55 +186,45 @@ with c_der:
                     st.session_state.page = "forgot"
                     st.rerun()
             
-            # BOTÓN DE INICIAR SESIÓN
             if st.button("Iniciar sesión", type="primary", use_container_width=True):
-                if email and password:
-                    st.success(f"Intentando entrar con {email}...")
-                    # AQUÍ VA TU LÓGICA DE SUPABASE:
-                    # response = supabase.auth.sign_in_with_password({"email": email, "password": password})
-                else:
-                    st.error("Por favor rellena todos los campos")
+                pass 
                 
             st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
             if st.button("Crear cuenta", use_container_width=True):
                 st.session_state.page = "signup"
                 st.rerun()
 
-        # --- PÁGINA DE REGISTRO ---
         elif st.session_state.page == "signup":
             st.markdown("""
                 <div style="text-align: center; margin-bottom: 15px;">
+                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
                     <h3 style="margin-top: 15px; color: #0F172A;">Crear cuenta</h3>
                 </div>
             """, unsafe_allow_html=True)
-            
-            reg_email = st.text_input("Correo electrónico", key="reg_email")
-            reg_pass = st.text_input("Contraseña", type="password", key="reg_pass")
-            
+            st.text_input("Correo electrónico", key="reg_email")
+            st.text_input("Contraseña", type="password", key="reg_pass")
             if st.button("Registrarse", type="primary", use_container_width=True):
-                if reg_email and reg_pass:
-                    st.success("Cuenta creada exitosamente (Simulado)")
-                    # AQUÍ VA TU LÓGICA DE SUPABASE:
-                    # response = supabase.auth.sign_up({"email": reg_email, "password": reg_pass})
-                else:
-                    st.error("Rellena los datos")
-                    
+                pass
             if st.button("Volver al login", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
 
-        # --- PÁGINA DE RECUPERACIÓN ---
         elif st.session_state.page == "forgot":
-            st.markdown("<h3 style='text-align: center;'>Recuperar acceso</h3>", unsafe_allow_html=True)
-            reset_email = st.text_input("Ingresa tu correo", key="reset_email")
-            
+            st.markdown("""
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
+                    <h3 style="margin-top: 15px; color: #0F172A;">Recuperar acceso</h3>
+                </div>
+            """, unsafe_allow_html=True)
+            st.text_input("Ingresa tu correo", key="reset_email")
             if st.button("Enviar enlace", type="primary", use_container_width=True):
                 st.success("Enlace enviado al correo")
-                
             if st.button("Volver", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
-                
+
+st.stop()
+        
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
     try:
