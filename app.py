@@ -18,21 +18,22 @@ from fpdf import FPDF
 from datetime import datetime
 
 import streamlit as st
+import re
 from st_supabase_connection import SupabaseConnection
 
 # 1. CONFIGURACIÓN INICIAL Y CONEXIÓN
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# Inicializar estados de sesión para que el dashboard funcione
+# Inicializar estados de sesión para el flujo de la aplicación
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# --- LÓGICA DE CONTROL DE ACCESO (EL MURO) ---
+# --- LÓGICA DE CONTROL DE ACCESO (EL MURO DE SEGURIDAD) ---
 if not st.session_state.authenticated:
-    # 2. TU CSS RADICAL (Intacto)
+    # 2. TU DISEÑO CSS (Sin modificaciones, tal como lo definiste)
     st.markdown("""
     <style>
         /* Eliminar el padding de Streamlit por completo */
@@ -75,6 +76,7 @@ if not st.session_state.authenticated:
                 height: auto !important;
             }
 
+            /* INVERSIÓN Y CENTRADO: Login arriba, Azul abajo con espacio */
             [data-testid="stHorizontalBlock"] {
                 display: flex !important;
                 flex-direction: column-reverse !important;
@@ -82,6 +84,7 @@ if not st.session_state.authenticated:
                 gap: 0px !important;
             }
 
+            /* Forzar que cada columna ocupe el 100% y centrar contenido */
             [data-testid="column"] {
                 width: 100% !important;
                 flex: 1 1 100% !important;
@@ -90,12 +93,14 @@ if not st.session_state.authenticated:
                 justify-content: center !important;
             }
 
+            /* CENTRADO DEL FORMULARIO */
             [data-testid="column"] > div {
                 width: 100% !important;
                 max-width: 450px !important;
                 margin: 0 auto !important;
             }
 
+            /* Panel azul (ahora abajo) */
             .panel-info {
                 width: 100vw !important;
                 height: auto !important;
@@ -109,6 +114,7 @@ if not st.session_state.authenticated:
             }
         }
 
+        /* Estilos de botones y textos */
         .google-btn {
             display: flex; align-items: center; justify-content: center; gap: 10px;
             width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
@@ -139,7 +145,7 @@ if not st.session_state.authenticated:
     if "page" not in st.session_state:
         st.session_state.page = "login"
 
-    # 4. RENDERIZADO DE LA ESTRUCTURA
+    # 4. RENDERIZADO DE LA ESTRUCTURA DE COLUMNAS
     c_izq, c_der = st.columns([1, 2.03])
 
     with c_izq:
@@ -167,6 +173,7 @@ if not st.session_state.authenticated:
         _, center, _ = st.columns([1, 2.5, 1])
         
         with center:
+            # --- VISTA: LOGIN ---
             if st.session_state.page == "login":
                 st.markdown("""
                     <div style="text-align: center; margin-bottom: 15px;">
@@ -181,31 +188,27 @@ if not st.session_state.authenticated:
 
                 st.markdown('<div class="divider">o continúa con tu correo</div>', unsafe_allow_html=True)
                 
-                email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
-                password = st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
-                
-                col_check, col_link = st.columns([1, 1])
-                with col_check:
-                    st.checkbox("Recordarme")
-                with col_link:
-                    if st.button("¿Olvidaste tu contraseña?", key="btn_forgot"):
-                        st.session_state.page = "forgot"
-                        st.rerun()
-                
-                if st.button("Iniciar sesión", type="primary", use_container_width=True):
-                    try:
-                        res = conn.auth.sign_in_with_password({"email": email, "password": password})
-                        st.session_state.user = res.user
-                        st.session_state.authenticated = True
-                        st.rerun()
-                    except:
-                        st.error("Usuario o contraseña incorrectos")
+                # Formulario nativo para procesar en un solo clic
+                with st.form("login_form_container"):
+                    email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com")
+                    password = st.text_input("Contraseña", type="password", placeholder="Tu contraseña")
+                    submit_login = st.form_submit_button("Iniciar sesión", type="primary", use_container_width=True)
+                    
+                    if submit_login:
+                        try:
+                            res = conn.auth.sign_in_with_password({"email": email, "password": password})
+                            st.session_state.user = res.user
+                            st.session_state.authenticated = True
+                            st.rerun()
+                        except:
+                            st.error("Usuario o contraseña incorrectos")
                     
                 st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
                 if st.button("Crear cuenta", use_container_width=True):
                     st.session_state.page = "signup"
                     st.rerun()
 
+            # --- VISTA: REGISTRO (CON TUS NUEVOS REQUERIMIENTOS) ---
             elif st.session_state.page == "signup":
                 st.markdown("""
                     <div style="text-align: center; margin-bottom: 15px;">
@@ -213,35 +216,65 @@ if not st.session_state.authenticated:
                         <h3 style="margin-top: 15px; color: #0F172A;">Crear cuenta</h3>
                     </div>
                 """, unsafe_allow_html=True)
-                reg_email = st.text_input("Correo electrónico", key="reg_email")
-                reg_pass = st.text_input("Contraseña", type="password", key="reg_pass")
-                if st.button("Registrarse", type="primary", use_container_width=True):
-                    try:
-                        conn.auth.sign_up({"email": reg_email, "password": reg_pass})
-                        st.success("¡Cuenta creada! Ya puedes iniciar sesión.")
-                    except Exception as e:
-                        st.error(f"Error al registrar: {e}")
+
+                with st.form("signup_form_container"):
+                    reg_company = st.text_input("Nombre de tu Empresa (Empresa)", placeholder="Ej: Mi Negocio S.A.")
+                    reg_phone = st.text_input("Número de Teléfono (Phone)", placeholder="Ej: 8090000000")
+                    reg_email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com")
+                    
+                    st.info("La contraseña debe ser alfanumérica (letras y números).")
+                    reg_pass = st.text_input("Contraseña", type="password")
+                    reg_pass_conf = st.text_input("Confirmar Contraseña", type="password")
+                    
+                    submit_reg = st.form_submit_button("Registrarse", type="primary", use_container_width=True)
+                    
+                    if submit_reg:
+                        # Validaciones solicitadas
+                        if reg_pass != reg_pass_conf:
+                            st.error("Las contraseñas no coinciden.")
+                        elif not (re.search("[a-zA-Z]", reg_pass) and re.search("[0-9]", reg_pass)):
+                            st.error("La contraseña debe contener obligatoriamente letras y números.")
+                        elif not reg_company or not reg_phone or not reg_email:
+                            st.error("Todos los campos son obligatorios.")
+                        else:
+                            try:
+                                # Se guarda en display_name y phone dentro de la metadata de Supabase Auth
+                                conn.auth.sign_up({
+                                    "email": reg_email, 
+                                    "password": reg_pass,
+                                    "options": {
+                                        "data": {
+                                            "display_name": reg_company,
+                                            "phone": reg_phone
+                                        }
+                                    }
+                                })
+                                st.success("¡Cuenta creada con éxito! Ya puedes iniciar sesión.")
+                            except Exception as e:
+                                st.error(f"Error al registrar: {e}")
+
                 if st.button("Volver al login", use_container_width=True):
                     st.session_state.page = "login"
                     st.rerun()
 
+            # --- VISTA: OLVIDÓ CONTRASEÑA ---
             elif st.session_state.page == "forgot":
-                st.markdown("""
-                    <div style="text-align: center; margin-bottom: 15px;">
-                        <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
-                        <h3 style="margin-top: 15px; color: #0F172A;">Recuperar acceso</h3>
-                    </div>
-                """, unsafe_allow_html=True)
-                reset_email = st.text_input("Ingresa tu correo", key="reset_email")
+                st.markdown('<h3 style="text-align: center; color: #0F172A;">Recuperar acceso</h3>', unsafe_allow_html=True)
+                reset_email = st.text_input("Ingresa tu correo")
                 if st.button("Enviar enlace", type="primary", use_container_width=True):
                     st.success("Enlace enviado al correo")
                 if st.button("Volver", use_container_width=True):
                     st.session_state.page = "login"
                     st.rerun()
 
-    # ESTO DETIENE LA EJECUCIÓN SI NO HAY LOGIN. EL DASHBOARD NUNCA SE CARGARÁ POR ERROR.
+    # BLOQUEO CRÍTICO: Detenemos el script aquí si no hay sesión. 
+    # Esto evita que Streamlit intente ejecutar el dashboard y lance el error de 'u_id'.
     st.stop()
 
+# --- SI EL SCRIPT LLEGA A ESTE PUNTO, EL USUARIO YA INICIÓ SESIÓN ---
+u_id = st.session_state.user.id
+
+# A PARTIR DE AQUÍ PUEDES PEGAR TODO TU CÓDIGO DEL DASHBOARD...
 # --- SI EL CÓDIGO LLEGA AQUÍ ES PORQUE PASÓ EL LOGIN ---
 u_id = st.session_state.user.id
 
