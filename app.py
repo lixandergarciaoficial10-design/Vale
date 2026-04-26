@@ -17,185 +17,272 @@ import base64
 from fpdf import FPDF
 from datetime import datetime
 
-import streamlit as st
+import streamlit as st 
+
 
 # 1. CONFIGURACIÓN BASE
+
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. CSS DE ALTA PRECISIÓN (SIN MÁRGENES Y CENTRADO)
+
+# 2. CSS DE ALTA PRECISIÓN (AJUSTADO PARA CENTRADO Y SIN SCROLL)
+
 st.markdown("""
+
 <style>
-    /* ELIMINAR TODO EL ESPACIO SUPERIOR */
+
+    /* ELIMINAR MARGEN SUPERIOR Y HEADER */
+
     [data-testid="stHeader"] {display: none !important;}
-    
-    /* Resetear el contenedor principal para que pegue arriba y no tenga scroll */
+    html, body, [class*="css"]  {
+        height: 100%;
+        overflow: hidden;
+    }
+
     .main .block-container {
+
         padding-top: 0rem !important; 
         padding-bottom: 0rem !important;
         padding-left: 0rem !important;
         padding-right: 0rem !important;
+
         max-width: 100vw !important;
         height: 100vh !important;
+
         display: flex;
-        align-items: center; /* Centrado vertical */
-        justify-content: center; /* Centrado horizontal */
+        align-items: center;
+        justify-content: center;
+
         background-color: #F1F5F9;
-        overflow: hidden !important; /* Prohibido el scroll */
     }
 
-    /* La Tarjeta Maestra Ajustada */
+
+    /* La Tarjeta Maestra */
+
     .master-card {
+
         display: flex;
-        width: 95vw;
-        max-width: 1050px;
-        height: 90vh; /* Ocupa el 90% de la pantalla para evitar scroll */
+
+        width: 90vw;
+        max-width: 1100px;
+
+        height: 95vh;              /* 🔥 Ajustado */
+        max-height: 95vh;          /* 🔥 Ajustado */
+
         background: white;
-        border-radius: 24px;
+        border-radius: 32px;
+
         overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+
+        border: 1px solid rgba(255, 255, 255, 0.3);
     }
+
 
     /* Panel Izquierdo (Branding) */
+
     .panel-branding {
+
         flex: 1;
+
         background: #06102B;
-        padding: 40px;
+
+        padding: 40px;  /* 🔥 Reducido para que todo quepa */
+
         color: white;
+
         display: flex;
         flex-direction: column;
         justify-content: space-between;
     }
 
+
     /* Elementos del Formulario */
+
     .google-btn {
+
         display: flex; align-items: center; justify-content: center; gap: 10px;
+
         width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
-        height: 44px; margin-bottom: 15px; font-weight: 500; color: #334155;
+
+        height: 48px; margin-bottom: 20px; font-weight: 500; color: #334155;
+
         cursor: pointer; transition: all 0.2s;
+
         background: white;
     }
+
     .google-btn:hover { background: #F8FAFC; border-color: #CBD5E1; }
 
-    .divider {
-        display: flex; align-items: center; text-align: center; color: #94A3B8;
-        font-size: 11px; margin: 15px 0;
-    }
-    .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #F1F5F9; }
-    .divider:not(:empty)::before { margin-right: 10px; }
-    .divider:not(:empty)::after { margin-left: 10px; }
 
-    /* Inputs más compactos para evitar scroll */
+    .divider {
+
+        display: flex; align-items: center; text-align: center; color: #94A3B8;
+
+        font-size: 12px; margin: 24px 0;
+    }
+
+    .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #F1F5F9; }
+
+    .divider:not(:empty)::before { margin-right: 15px; }
+    .divider:not(:empty)::after { margin-left: 15px; }
+
+
+    /* Ajuste de Inputs */
+
     div[data-testid="stTextInput"] > div > div > input {
-        border-radius: 10px !important;
-        height: 40px !important;
+
+        border-radius: 12px !important;
+
+        height: 48px !important;
+
+        border: 1px solid #E2E8F0 !important;
+
+        background-color: #F8FAFC !important;
     }
     
     div.stButton > button {
-        border-radius: 10px !important;
-        height: 42px !important;
+
+        border-radius: 12px !important;
+
+        height: 48px !important;
+
         font-weight: 600 !important;
     }
-    
-    /* Ocultar scrollbars de elementos internos */
-    ::-webkit-scrollbar { display: none; }
+
 </style>
+
 """, unsafe_allow_html=True)
 
+
 # 3. LÓGICA DE NAVEGACIÓN
+
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
-# 4. ESTRUCTURA DE COLUMNAS (DENTRO DEL CONTENEDOR CENTRADO)
-col_brand, col_form = st.columns([1, 1.4])
+
+# 🔥 WRAPPER DE LA TARJETA (CLAVE PARA QUE FUNCIONE TODO)
+st.markdown('<div class="master-card">', unsafe_allow_html=True)
+
+
+# 4. ESTRUCTURA DENTRO DE LA TARJETA
+
+col_brand, col_form = st.columns([1, 1.6])
+
 
 # PANEL IZQUIERDO: BRANDING
+
 with col_brand:
+
     st.markdown(f"""
-    <div class="panel-branding" style="height: 90vh;">
+    <div class="panel-branding">
         <div>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="130">
-            <div style="margin-top: 30px;">
-                <h1 style="font-size: 28px; font-weight: 700; line-height: 1.1; color: white;">CobroYa Global</h1>
-                <p style="margin-top: 15px; color: #94A3B8; font-size: 14px; line-height: 1.5;">
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="160">
+            <div style="margin-top: 40px;">
+                <h1 style="font-size: 32px; font-weight: 700; line-height: 1.1; color: white;">CobroYa Global</h1>
+                <p style="margin-top: 20px; color: #94A3B8; font-size: 16px; line-height: 1.6;">
                     Tu plataforma inteligente para gestionar cobros y clientes con eficiencia profesional.
                 </p>
-                <div style="margin-top: 25px; color: #CBD5E1; font-size: 13px;">
+                <div style="margin-top: 30px; color: #CBD5E1; font-size: 14px;">
                     <p style="margin-bottom: 10px;">🚀 <b>Rápido y seguro</b></p>
                     <p style="margin-bottom: 10px;">⚡ <b>Acceso inmediato</b></p>
                     <p>🛡️ <b>Seguridad garantizada</b></p>
                 </div>
             </div>
         </div>
-        <div style="font-size: 11px; color: #64748B; border-top: 1px solid #1E293B; padding-top: 15px;">
-            © 2026 CobroYa. Villa Altagracia, RD.
+
+        <div style="font-size: 12px; color: #64748B; border-top: 1px solid #1E293B; padding-top: 15px;">
+            © 2026 CobroYa. Diseñado para ser rápido.
         </div>
     </div>
     """, unsafe_allow_html=True)
 
+
 # PANEL DERECHO: FORMULARIO
+
 with col_form:
-    # Contenedor interno muy compacto
-    _, inner_center, _ = st.columns([0.1, 0.8, 0.1])
-    
+
+    _, inner_center, _ = st.columns([0.15, 0.7, 0.15])
+
     with inner_center:
+
         # --- VISTA: LOGIN ---
         if st.session_state.page == "login":
-            # LOGO EN LA COLUMNA DERECHA
-            st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=80)
-            
+
+            st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=100)
+
             st.markdown("""
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <h2 style="color: #0F172A; font-size: 22px; font-weight: 700; margin:0;">Bienvenido</h2>
-                    <p style="color: #64748B; font-size: 13px;">Inicia sesión para continuar</p>
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2 style="color: #0F172A; font-size: 24px; font-weight: 700;">Bienvenido de vuelta</h2>
+                    <p style="color: #64748B; font-size: 14px;">Inicia sesión para gestionar tu negocio</p>
                 </div>
+
                 <div class="google-btn">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" width="16">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" width="18">
                     <span>Continuar con Google</span>
                 </div>
-                <div class="divider">o usa tu correo</div>
+
+                <div class="divider">o usa tu correo electrónico</div>
             """, unsafe_allow_html=True)
-            
+
             st.text_input("Correo electrónico", placeholder="nombre@empresa.com", key="email")
             st.text_input("Contraseña", type="password", placeholder="••••••••", key="pass")
-            
-            # Ajuste de espacio para los botones inferiores
-            st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
-            
-            if st.button("Entrar al Panel", type="primary", use_container_width=True):
-                pass
-            
-            col_acc1, col_acc2 = st.columns(2)
-            with col_acc1:
-                if st.button("Crear cuenta", use_container_width=True):
-                    st.session_state.page = "signup"
-                    st.rerun()
-            with col_acc2:
-                if st.button("Olvidé clave", use_container_width=True):
+
+            c1, c2 = st.columns([1, 1])
+            with c1: st.checkbox("Recordarme")
+            with c2:
+                if st.button("¿Olvidaste tu clave?", key="forgot"):
                     st.session_state.page = "forgot"
                     st.rerun()
 
-        # --- VISTA: REGISTRO ---
+            if st.button("Entrar al Panel", type="primary", use_container_width=True):
+                pass
+
+            st.markdown("""
+                <div style="text-align: center; margin-top: 20px;">
+                    <span style="color: #64748B; font-size: 14px;">¿No tienes una cuenta?</span>
+                </div>
+            """, unsafe_allow_html=True)
+
+            if st.button("Crear cuenta ahora", use_container_width=True):
+                st.session_state.page = "signup"
+                st.rerun()
+
+
         elif st.session_state.page == "signup":
-            st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=60)
-            st.markdown('<h3 style="text-align: center; margin:0;">Únete a nosotros</h3>', unsafe_allow_html=True)
-            st.text_input("Nombre completo")
+
+            st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=80)
+            st.markdown('<h2 style="text-align: center;">Únete a CobroYa</h2>', unsafe_allow_html=True)
+
+            st.text_input("Nombre completo", placeholder="Juan Perez")
             st.text_input("Correo electrónico", key="reg_email")
             st.text_input("Contraseña", type="password", key="reg_pass")
+
             if st.button("Registrarse", type="primary", use_container_width=True):
                 pass
-            if st.button("Volver", use_container_width=True):
+
+            if st.button("Volver al inicio de sesión", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
 
-        # --- VISTA: OLVIDO ---
+
         elif st.session_state.page == "forgot":
-            st.markdown('<h3 style="text-align: center;">Recuperar acceso</h3>', unsafe_allow_html=True)
+
+            st.markdown('<h2 style="text-align: center;">Recuperar cuenta</h2>', unsafe_allow_html=True)
+            st.write("Te enviaremos un enlace de recuperación.")
             st.text_input("Correo registrado", key="reset_mail")
+
             if st.button("Enviar enlace", type="primary", use_container_width=True):
-                st.success("Enlace enviado")
+                st.success("Enlace enviado con éxito")
+
             if st.button("Regresar", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
+
+
+# 🔥 CIERRE DEL WRAPPER
+st.markdown('</div>', unsafe_allow_html=True)
 
 st.stop()
         
