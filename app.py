@@ -22,63 +22,60 @@ import streamlit as st
 # 1. CONFIGURACIÓN BASE
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. CSS RADICAL (Elimina márgenes y crea el split-screen real)
+# 2. CSS RADICAL (Ajustado para alineación superior y simetría)
 st.markdown("""
 <style>
     /* Eliminar el padding de Streamlit por completo */
     [data-testid="stHeader"], [data-testid="stSidebar"], footer {display: none !important;}
-    .main .block-container {padding: 0 !important; max-width: 100% !important;}
+    
+    /* Eliminar espacios en blanco superiores de la app */
+    .main .block-container {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 0rem !important;
+        padding-right: 0rem !important;
+        max-width: 100% !important;
+    }
+
+    /* Fondo dividido */
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(90deg, #06102B 33%, #F8FAFC 33%);
         height: 100vh;
         width: 100vw;
+        overflow: hidden;
     }
 
-    /* Contenedor principal para dividir la pantalla */
-    .split-container {
-        display: flex;
-        width: 100vw;
-        height: 100vh;
-    }
-
-    /* Panel Izquierdo: Información */
+    /* Panel Izquierdo: Ajuste de padding superior para pegar arriba */
     .panel-info {
         width: 33vw;
-        padding: 60px;
+        padding: 30px 60px; /* Reducido el padding superior de 60 a 30 */
         color: white;
+        height: 100vh;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
     }
 
-    /* Panel Derecho: Formulario */
+    /* Panel Derecho: Centrado pero pegado arriba */
     .panel-form {
         width: 67vw;
         display: flex;
         justify-content: center;
-        align-items: center;
-    }
-
-    /* La Tarjeta Blanca */
-    .auth-card {
-        background: white;
-        padding: 40px;
-        border-radius: 24px;
-        width: 100%;
-        max-width: 420px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.05);
-        border: 1px solid #F1F5F9;
+        align-items: flex-start; /* Cambiado de center a flex-start */
+        padding-top: 30px; /* Alineado con el panel izquierdo */
     }
 
     /* Estilos de botones y textos */
     .google-btn {
         display: flex; align-items: center; justify-content: center; gap: 10px;
         width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
-        height: 45px; margin-bottom: 20px; font-weight: 500; color: #334155;
+        height: 45px; margin-bottom: 15px; font-weight: 500; color: #334155;
+        cursor: pointer;
     }
+    
     .divider {
         display: flex; align-items: center; text-align: center; color: #94A3B8;
-        font-size: 12px; margin: 20px 0;
+        font-size: 12px; margin: 15px 0;
     }
     .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #F1F5F9; }
     .divider:not(:empty)::before { margin-right: 15px; }
@@ -89,6 +86,11 @@ st.markdown("""
         border-radius: 10px !important;
         border: 1px solid #E2E8F0 !important;
     }
+    
+    /* Eliminar espacio entre widgets de Streamlit */
+    .stElementContainer {
+        margin-bottom: -10px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -97,45 +99,44 @@ if "page" not in st.session_state:
     st.session_state.page = "login"
 
 # 4. RENDERIZADO DE LA ESTRUCTURA
-# Usamos columnas solo como placeholders invisibles para que el contenido caiga donde debe
+# c_izq para el área azul, c_der para el área clara
 c_izq, c_der = st.columns([1, 2.03])
 
 with c_izq:
-    # Contenido del panel azul (Texto e Iconos)
+    # Contenido del panel azul (Logo 180px)
     st.markdown(f"""
     <div class="panel-info">
         <div>
             <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
-            <div style="margin-top: 50px;">
+            <div style="margin-top: 40px;">
                 <h2 style="font-size: 28px; line-height: 1.2;">Tu plataforma inteligente<br>para gestionar cobros y clientes</h2>
-                <div style="margin-top: 40px; color: #CBD5E1; font-size: 15px; line-height: 2;">
+                <div style="margin-top: 30px; color: #CBD5E1; font-size: 15px; line-height: 1.8;">
                     <p>✔️ Rápido y seguro</p>
                     <p>✔️ Sin confirmaciones innecesarias</p>
                     <p>✔️ Acceso desde cualquier lugar</p>
                 </div>
             </div>
         </div>
-        <div style="font-size: 12px; color: #64748B;">
+        <div style="font-size: 12px; color: #64748B; padding-bottom: 20px;">
             © 2026 CobroYa. Todos los derechos reservados.
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 with c_der:
-    # Contenedor central para la tarjeta
-    # Usamos columnas internas para centrar el formulario dentro del área gris
-    _, center, _ = st.columns([1, 3, 1])
+    # Espaciado mínimo para alinear con el logo de la izquierda
+    st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
+    
+    # Usamos columnas internas para centrar el formulario horizontalmente
+    _, center, _ = st.columns([1, 2.5, 1])
     
     with center:
-        st.write("##") # Espacio para bajar la tarjeta
-        st.write("##")
-        
         # --- VISTA: LOGIN ---
         if st.session_state.page == "login":
             st.markdown("""
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="120">
-                    <h3 style="margin-top: 15px; color: #0F172A;">Bienvenido de vuelta</h3>
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
+                    <h3 style="margin-top: 15px; color: #0F172A; margin-bottom: 5px;">Bienvenido de vuelta</h3>
                     <p style="color: #64748B; font-size: 14px;">Inicia sesión para continuar</p>
                 </div>
                 <div class="google-btn">
@@ -148,41 +149,51 @@ with c_der:
             st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
             st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
             
-            # Recordarme y Olvidaste (Usamos columnas para que queden en una línea)
             col_check, col_link = st.columns([1, 1])
             with col_check:
                 st.checkbox("Recordarme")
             with col_link:
+                # Ajuste visual para que el botón parezca un link
                 if st.button("¿Olvidaste tu contraseña?", key="btn_forgot"):
                     st.session_state.page = "forgot"
                     st.rerun()
             
             if st.button("Iniciar sesión", type="primary", use_container_width=True):
-                pass # Aquí va tu lógica de Supabase
+                pass 
                 
-            st.markdown("<p style='text-align: center; margin-top: 20px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
             if st.button("Crear cuenta", use_container_width=True):
                 st.session_state.page = "signup"
                 st.rerun()
 
         # --- VISTA: REGISTRO ---
         elif st.session_state.page == "signup":
-            st.markdown('<h3 style="text-align: center;">Crear cuenta</h3>', unsafe_allow_html=True)
+            st.markdown("""
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
+                    <h3 style="margin-top: 15px; color: #0F172A;">Crear cuenta</h3>
+                </div>
+            """, unsafe_allow_html=True)
             st.text_input("Correo electrónico", key="reg_email")
             st.text_input("Contraseña", type="password", key="reg_pass")
             if st.button("Registrarse", type="primary", use_container_width=True):
                 pass
-            if st.button("Volver al login"):
+            if st.button("Volver al login", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
 
         # --- VISTA: RECUPERAR ---
         elif st.session_state.page == "forgot":
-            st.markdown('<h3 style="text-align: center;">Recuperar acceso</h3>', unsafe_allow_html=True)
+            st.markdown("""
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
+                    <h3 style="margin-top: 15px; color: #0F172A;">Recuperar acceso</h3>
+                </div>
+            """, unsafe_allow_html=True)
             st.text_input("Ingresa tu correo", key="reset_email")
             if st.button("Enviar enlace", type="primary", use_container_width=True):
-                st.success("Enviado")
-            if st.button("Volver"):
+                st.success("Enlace enviado al correo")
+            if st.button("Volver", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
 
