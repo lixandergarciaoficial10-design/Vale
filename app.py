@@ -21,21 +21,31 @@ import streamlit as st
 from supabase import create_client, Client
 import re
 
-# Obtener credenciales de secretos de Streamlit
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# ===== DEBUG: Verificar credenciales =====
+try:
+    SUPABASE_URL = st.secrets["SUPABASE_URL"]
+    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+    st.success(f"✅ Credenciales cargadas correctamente")
+    st.write(f"URL: {SUPABASE_URL[:50]}...")
+    st.write(f"KEY: {SUPABASE_KEY[:50]}...")
+except Exception as e:
+    st.error(f"❌ ERROR al cargar credenciales: {e}")
+    st.stop()
 
-# Configurar página
+# ===== DEBUG: Intentar conectar a Supabase =====
+try:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    st.success("✅ Conexión a Supabase establecida")
+except Exception as e:
+    st.error(f"❌ ERROR al conectar con Supabase: {e}")
+    st.stop()
+
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. CSS RADICAL (Ajustado para centrado en móvil y separación de paneles)
+# CSS (TU DISEÑO INTACTO)
 st.markdown("""
 <style>
-    /* Eliminar el padding de Streamlit por completo */
     [data-testid="stHeader"], [data-testid="stSidebar"], footer {display: none !important;}
-    
-    /* Eliminar espacios en blanco superiores de la app */
     .main .block-container {
         padding-top: 0rem !important;
         padding-bottom: 0rem !important;
@@ -43,16 +53,12 @@ st.markdown("""
         padding-right: 0rem !important;
         max-width: 100% !important;
     }
-
-    /* Fondo dividido - LAPTOP */
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(90deg, #06102B 33%, #F8FAFC 33%);
         height: 100vh;
         width: 100vw;
         overflow: hidden;
     }
-
-    /* Panel Izquierdo (Azul) */
     .panel-info {
         width: 33vw;
         padding: 30px 60px;
@@ -62,8 +68,6 @@ st.markdown("""
         flex-direction: column;
         justify-content: space-between;
     }
-
-    /* AJUSTES ESPECÍFICOS PARA CELULAR */
     @media (max-width: 768px) {
         [data-testid="stAppViewContainer"] {
             background: #F8FAFC !important; 
@@ -71,16 +75,12 @@ st.markdown("""
             overflow-x: hidden !important;
             height: auto !important;
         }
-
-        /* INVERSIÓN Y CENTRADO: Login arriba, Azul abajo con espacio */
         [data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: column-reverse !important;
             align-items: center !important;
             gap: 0px !important;
         }
-
-        /* Forzar que cada columna ocupe el 100% y centrar contenido */
         [data-testid="column"] {
             width: 100% !important;
             flex: 1 1 100% !important;
@@ -88,36 +88,28 @@ st.markdown("""
             display: flex !important;
             justify-content: center !important;
         }
-
-        /* CENTRADO DEL FORMULARIO: Asegura que el contenido interno no se cargue a un lado */
         [data-testid="column"] > div {
             width: 100% !important;
-            max-width: 450px !important; /* Limita el ancho en móvil para que se vea estético */
+            max-width: 450px !important;
             margin: 0 auto !important;
         }
-
-        /* Panel azul (ahora abajo): AGREGAMOS EL ESPACIO ARRIBA */
         .panel-info {
             width: 100vw !important;
             height: auto !important;
             background-color: #06102B !important; 
             padding: 50px 20px !important;
-            margin-top: 60px !important; /* EL ESPACIO QUE PEDISTE entre el login y el cuadro azul */
+            margin-top: 60px !important;
         }
-
         .main .block-container {
             padding: 20px 10px !important;
         }
     }
-
-    /* Estilos de botones y textos (Intactos) */
     .google-btn {
         display: flex; align-items: center; justify-content: center; gap: 10px;
         width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
         height: 45px; margin-bottom: 15px; font-weight: 500; color: #334155;
         cursor: pointer;
     }
-    
     .divider {
         display: flex; align-items: center; text-align: center; color: #94A3B8;
         font-size: 12px; margin: 15px 0;
@@ -125,30 +117,27 @@ st.markdown("""
     .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #F1F5F9; }
     .divider:not(:empty)::before { margin-right: 15px; }
     .divider:not(:empty)::after { margin-left: 15px; }
-
     div[data-testid="stTextInput"] input {
         border-radius: 10px !important;
         border: 1px solid #E2E8F0 !important;
     }
-    
     .stElementContainer {
         margin-bottom: -10px !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 3. INICIALIZAR SESSION STATE
+# INICIALIZAR SESSION STATE
 if "page" not in st.session_state:
     st.session_state.page = "login"
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# Función auxiliar para validar email
 def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
-# 4. RENDERIZADO DE LA ESTRUCTURA
+# RENDERIZADO
 c_izq, c_der = st.columns([1, 2.03])
 
 with c_izq:
@@ -173,8 +162,6 @@ with c_izq:
 
 with c_der:
     st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
-    
-    # Columnas internas para el formulario
     _, center, _ = st.columns([1, 2.5, 1])
     
     with center:
@@ -187,14 +174,21 @@ with c_der:
                 </div>
             """, unsafe_allow_html=True)
             
-            # Botón Google
-            col1, col2, col3 = st.columns([0.5, 1, 0.5])
-            with col2:
-                if st.button("🔵 Continuar con Google", key="google_login", use_container_width=True):
-                    st.info("🔗 Redirigiendo a Google OAuth...")
-                    # Aquí irá tu lógica de Google OAuth
+            # ===== GOOGLE OAUTH (CON LOGO) =====
+            st.markdown("""
+            <button style="display: flex; align-items: center; justify-content: center; gap: 10px;
+                width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
+                height: 45px; margin-bottom: 15px; font-weight: 500; color: #334155;
+                cursor: pointer; background-color: white;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/3840px-Google_%22G%22_logo.svg.png" width="18">
+                Continuar con Google
+            </button>
+            """, unsafe_allow_html=True)
             
             st.markdown('<div class="divider">o continúa con tu correo</div>', unsafe_allow_html=True)
+            
+            # ===== CAMPOS DE LOGIN =====
+            st.subheader("🔐 DEBUG: Prueba tu login aquí", divider="blue")
             
             email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
             password = st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
@@ -207,27 +201,36 @@ with c_der:
                     st.session_state.page = "forgot"
                     st.rerun()
             
-            # BOTÓN LOGIN CON LÓGICA
-            if st.button("Iniciar sesión", type="primary", use_container_width=True, key="btn_login"):
+            # ===== BOTÓN LOGIN CON DEBUG =====
+            if st.button("🔓 Iniciar sesión", type="primary", use_container_width=True, key="btn_login"):
+                st.write("🔍 **DEBUG EN VIVO:**")
+                st.write(f"Email ingresado: `{email}`")
+                st.write(f"Contraseña: `{'*' * len(password) if password else 'vacía'}`")
+                st.write(f"Email válido: {is_valid_email(email)}")
+                
                 if not email or not password:
                     st.error("❌ Por favor completa todos los campos")
                 elif not is_valid_email(email):
                     st.error("❌ Email inválido")
                 else:
+                    st.info("⏳ Intentando autenticar con Supabase...")
                     try:
+                        st.write("📤 Enviando: `supabase.auth.sign_in_with_password({...})`")
                         response = supabase.auth.sign_in_with_password({
                             "email": email,
                             "password": password
                         })
                         st.session_state.user = response.user
                         st.success("✅ Sesión iniciada correctamente")
+                        st.write(f"Usuario: {response.user.email}")
                         st.balloons()
-                        st.rerun()
                     except Exception as e:
-                        st.error(f"❌ Error al iniciar sesión: {str(e)}")
+                        st.error(f"❌ ERROR: {str(e)}")
+                        st.write("**Detalles del error:**")
+                        st.code(str(e))
                 
             st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
-            if st.button("Crear cuenta", use_container_width=True, key="btn_signup_nav"):
+            if st.button("📝 Crear cuenta", use_container_width=True, key="btn_signup_nav"):
                 st.session_state.page = "signup"
                 st.rerun()
 
@@ -239,12 +242,18 @@ with c_der:
                 </div>
             """, unsafe_allow_html=True)
             
+            st.subheader("🔐 DEBUG: Prueba tu registro aquí", divider="blue")
+            
             reg_email = st.text_input("Correo electrónico", key="reg_email", placeholder="tu@email.com")
             reg_pass = st.text_input("Contraseña", type="password", key="reg_pass", placeholder="Mínimo 8 caracteres")
             reg_pass_confirm = st.text_input("Confirmar contraseña", type="password", key="reg_pass_confirm", placeholder="Repite tu contraseña")
             
-            # BOTÓN REGISTRO CON LÓGICA
-            if st.button("Registrarse", type="primary", use_container_width=True, key="btn_register"):
+            if st.button("✅ Registrarse", type="primary", use_container_width=True, key="btn_register"):
+                st.write("🔍 **DEBUG EN VIVO:**")
+                st.write(f"Email: `{reg_email}`")
+                st.write(f"Campos completos: {bool(reg_email and reg_pass and reg_pass_confirm)}")
+                st.write(f"Contraseñas coinciden: {reg_pass == reg_pass_confirm}")
+                
                 if not reg_email or not reg_pass or not reg_pass_confirm:
                     st.error("❌ Por favor completa todos los campos")
                 elif not is_valid_email(reg_email):
@@ -254,20 +263,21 @@ with c_der:
                 elif reg_pass != reg_pass_confirm:
                     st.error("❌ Las contraseñas no coinciden")
                 else:
+                    st.info("⏳ Intentando registrar en Supabase...")
                     try:
+                        st.write("📤 Enviando: `supabase.auth.sign_up({...})`")
                         response = supabase.auth.sign_up({
                             "email": reg_email,
                             "password": reg_pass
                         })
                         st.success("✅ Cuenta creada. Verifica tu email para confirmar")
-                        st.info("📧 Se ha enviado un enlace de confirmación a tu correo")
+                        st.write(f"Usuario creado: {response.user.email}")
                     except Exception as e:
-                        if "already registered" in str(e):
-                            st.error("❌ Este email ya está registrado")
-                        else:
-                            st.error(f"❌ Error: {str(e)}")
+                        st.error(f"❌ ERROR: {str(e)}")
+                        st.write("**Detalles del error:**")
+                        st.code(str(e))
             
-            if st.button("Volver al login", use_container_width=True, key="btn_back_login"):
+            if st.button("← Volver al login", use_container_width=True, key="btn_back_login"):
                 st.session_state.page = "login"
                 st.rerun()
 
@@ -276,27 +286,35 @@ with c_der:
                 <div style="text-align: center; margin-bottom: 15px;">
                     <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
                     <h3 style="margin-top: 15px; color: #0F172A;">Recuperar acceso</h3>
-                    <p style="color: #64748B; font-size: 13px; margin-top: 5px;">Ingresa tu email para recibir un enlace de recuperación</p>
                 </div>
             """, unsafe_allow_html=True)
             
+            st.subheader("🔐 DEBUG: Prueba recuperar contraseña", divider="blue")
+            
             reset_email = st.text_input("Ingresa tu correo", key="reset_email", placeholder="tu@email.com")
             
-            # BOTÓN RECUPERAR CONTRASEÑA CON LÓGICA
-            if st.button("Enviar enlace", type="primary", use_container_width=True, key="btn_reset"):
+            if st.button("📧 Enviar enlace", type="primary", use_container_width=True, key="btn_reset"):
+                st.write("🔍 **DEBUG EN VIVO:**")
+                st.write(f"Email: `{reset_email}`")
+                st.write(f"Email válido: {is_valid_email(reset_email)}")
+                
                 if not reset_email:
                     st.error("❌ Por favor ingresa tu correo")
                 elif not is_valid_email(reset_email):
                     st.error("❌ Email inválido")
                 else:
+                    st.info("⏳ Intentando enviar enlace de recuperación...")
                     try:
+                        st.write("📤 Enviando: `supabase.auth.reset_password_for_email({...})`")
                         supabase.auth.reset_password_for_email(reset_email)
                         st.success("✅ Enlace de recuperación enviado")
                         st.info("📧 Revisa tu email en los próximos 5 minutos")
                     except Exception as e:
-                        st.error(f"❌ Error: {str(e)}")
+                        st.error(f"❌ ERROR: {str(e)}")
+                        st.write("**Detalles del error:**")
+                        st.code(str(e))
             
-            if st.button("Volver", use_container_width=True, key="btn_back_forgot"):
+            if st.button("← Volver", use_container_width=True, key="btn_back_forgot"):
                 st.session_state.page = "login"
                 st.rerun()
 
