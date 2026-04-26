@@ -22,11 +22,13 @@ import streamlit as st
 # 1. CONFIGURACIÓN BASE
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. CSS DE ALTA PRECISIÓN (CORREGIDO PARA ELIMINAR MARGEN SUPERIOR)
+# 2. CSS DE ALTA PRECISIÓN (SIN MÁRGENES Y CENTRADO)
 st.markdown("""
 <style>
-    /* ELIMINAR MARGEN SUPERIOR Y HEADER */
+    /* ELIMINAR TODO EL ESPACIO SUPERIOR */
     [data-testid="stHeader"] {display: none !important;}
+    
+    /* Resetear el contenedor principal para que pegue arriba y no tenga scroll */
     .main .block-container {
         padding-top: 0rem !important; 
         padding-bottom: 0rem !important;
@@ -35,30 +37,29 @@ st.markdown("""
         max-width: 100vw !important;
         height: 100vh !important;
         display: flex;
-        align-items: center;
-        justify-content: center;
+        align-items: center; /* Centrado vertical */
+        justify-content: center; /* Centrado horizontal */
         background-color: #F1F5F9;
+        overflow: hidden !important; /* Prohibido el scroll */
     }
 
-    /* La Tarjeta Maestra Gigante */
+    /* La Tarjeta Maestra Ajustada */
     .master-card {
         display: flex;
-        width: 90vw;
-        max-width: 1100px;
-        height: 85vh;
-        max-height: 700px;
+        width: 95vw;
+        max-width: 1050px;
+        height: 90vh; /* Ocupa el 90% de la pantalla para evitar scroll */
         background: white;
-        border-radius: 32px;
+        border-radius: 24px;
         overflow: hidden;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     }
 
     /* Panel Izquierdo (Branding) */
     .panel-branding {
         flex: 1;
         background: #06102B;
-        padding: 60px;
+        padding: 40px;
         color: white;
         display: flex;
         flex-direction: column;
@@ -69,7 +70,7 @@ st.markdown("""
     .google-btn {
         display: flex; align-items: center; justify-content: center; gap: 10px;
         width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
-        height: 48px; margin-bottom: 20px; font-weight: 500; color: #334155;
+        height: 44px; margin-bottom: 15px; font-weight: 500; color: #334155;
         cursor: pointer; transition: all 0.2s;
         background: white;
     }
@@ -77,25 +78,26 @@ st.markdown("""
 
     .divider {
         display: flex; align-items: center; text-align: center; color: #94A3B8;
-        font-size: 12px; margin: 24px 0;
+        font-size: 11px; margin: 15px 0;
     }
     .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #F1F5F9; }
-    .divider:not(:empty)::before { margin-right: 15px; }
-    .divider:not(:empty)::after { margin-left: 15px; }
+    .divider:not(:empty)::before { margin-right: 10px; }
+    .divider:not(:empty)::after { margin-left: 10px; }
 
-    /* Ajuste de Inputs */
+    /* Inputs más compactos para evitar scroll */
     div[data-testid="stTextInput"] > div > div > input {
-        border-radius: 12px !important;
-        height: 48px !important;
-        border: 1px solid #E2E8F0 !important;
-        background-color: #F8FAFC !important;
+        border-radius: 10px !important;
+        height: 40px !important;
     }
     
     div.stButton > button {
-        border-radius: 12px !important;
-        height: 48px !important;
+        border-radius: 10px !important;
+        height: 42px !important;
         font-weight: 600 !important;
     }
+    
+    /* Ocultar scrollbars de elementos internos */
+    ::-webkit-scrollbar { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -103,101 +105,94 @@ st.markdown("""
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
-# 4. ESTRUCTURA DENTRO DE LA TARJETA
-col_brand, col_form = st.columns([1, 1.6])
+# 4. ESTRUCTURA DE COLUMNAS (DENTRO DEL CONTENEDOR CENTRADO)
+col_brand, col_form = st.columns([1, 1.4])
 
 # PANEL IZQUIERDO: BRANDING
 with col_brand:
     st.markdown(f"""
-    <div class="panel-branding">
+    <div class="panel-branding" style="height: 90vh;">
         <div>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="160">
-            <div style="margin-top: 60px;">
-                <h1 style="font-size: 32px; font-weight: 700; line-height: 1.1; color: white;">CobroYa Global</h1>
-                <p style="margin-top: 20px; color: #94A3B8; font-size: 16px; line-height: 1.6;">
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="130">
+            <div style="margin-top: 30px;">
+                <h1 style="font-size: 28px; font-weight: 700; line-height: 1.1; color: white;">CobroYa Global</h1>
+                <p style="margin-top: 15px; color: #94A3B8; font-size: 14px; line-height: 1.5;">
                     Tu plataforma inteligente para gestionar cobros y clientes con eficiencia profesional.
                 </p>
-                <div style="margin-top: 40px; color: #CBD5E1; font-size: 14px;">
-                    <p style="margin-bottom: 15px;">🚀 <b>Rápido y seguro</b></p>
-                    <p style="margin-bottom: 15px;">⚡ <b>Acceso inmediato</b></p>
+                <div style="margin-top: 25px; color: #CBD5E1; font-size: 13px;">
+                    <p style="margin-bottom: 10px;">🚀 <b>Rápido y seguro</b></p>
+                    <p style="margin-bottom: 10px;">⚡ <b>Acceso inmediato</b></p>
                     <p>🛡️ <b>Seguridad garantizada</b></p>
                 </div>
             </div>
         </div>
-        <div style="font-size: 12px; color: #64748B; border-top: 1px solid #1E293B; padding-top: 20px;">
-            © 2026 CobroYa. Diseñado para ser rápido.
+        <div style="font-size: 11px; color: #64748B; border-top: 1px solid #1E293B; padding-top: 15px;">
+            © 2026 CobroYa. Villa Altagracia, RD.
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 # PANEL DERECHO: FORMULARIO
 with col_form:
-    _, inner_center, _ = st.columns([0.15, 0.7, 0.15])
+    # Contenedor interno muy compacto
+    _, inner_center, _ = st.columns([0.1, 0.8, 0.1])
     
     with inner_center:
-        # Espacio reducido para que empiece arriba
-        st.markdown("<br>", unsafe_allow_html=True)
-        
         # --- VISTA: LOGIN ---
         if st.session_state.page == "login":
             # LOGO EN LA COLUMNA DERECHA
-            st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=100)
+            st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=80)
             
             st.markdown("""
-                <div style="text-align: center; margin-bottom: 30px;">
-                    <h2 style="color: #0F172A; font-size: 24px; font-weight: 700;">Bienvenido de vuelta</h2>
-                    <p style="color: #64748B; font-size: 14px;">Inicia sesión para gestionar tu negocio</p>
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <h2 style="color: #0F172A; font-size: 22px; font-weight: 700; margin:0;">Bienvenido</h2>
+                    <p style="color: #64748B; font-size: 13px;">Inicia sesión para continuar</p>
                 </div>
                 <div class="google-btn">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" width="18">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" width="16">
                     <span>Continuar con Google</span>
                 </div>
-                <div class="divider">o usa tu correo electrónico</div>
+                <div class="divider">o usa tu correo</div>
             """, unsafe_allow_html=True)
             
             st.text_input("Correo electrónico", placeholder="nombre@empresa.com", key="email")
             st.text_input("Contraseña", type="password", placeholder="••••••••", key="pass")
             
-            c1, c2 = st.columns([1, 1])
-            with c1: st.checkbox("Recordarme")
-            with c2: 
-                if st.button("¿Olvidaste tu clave?", key="forgot"):
-                    st.session_state.page = "forgot"
-                    st.rerun()
+            # Ajuste de espacio para los botones inferiores
+            st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
             
-            st.markdown("<br>", unsafe_allow_html=True)
             if st.button("Entrar al Panel", type="primary", use_container_width=True):
                 pass
             
-            st.markdown("""
-                <div style="text-align: center; margin-top: 30px;">
-                    <span style="color: #64748B; font-size: 14px;">¿No tienes una cuenta?</span>
-                </div>
-            """, unsafe_allow_html=True)
-            if st.button("Crear cuenta ahora", use_container_width=True):
-                st.session_state.page = "signup"
-                st.rerun()
+            col_acc1, col_acc2 = st.columns(2)
+            with col_acc1:
+                if st.button("Crear cuenta", use_container_width=True):
+                    st.session_state.page = "signup"
+                    st.rerun()
+            with col_acc2:
+                if st.button("Olvidé clave", use_container_width=True):
+                    st.session_state.page = "forgot"
+                    st.rerun()
 
         # --- VISTA: REGISTRO ---
         elif st.session_state.page == "signup":
-            st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=80)
-            st.markdown('<h2 style="text-align: center;">Únete a CobroYa</h2>', unsafe_allow_html=True)
-            st.text_input("Nombre completo", placeholder="Juan Perez")
+            st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=60)
+            st.markdown('<h3 style="text-align: center; margin:0;">Únete a nosotros</h3>', unsafe_allow_html=True)
+            st.text_input("Nombre completo")
             st.text_input("Correo electrónico", key="reg_email")
             st.text_input("Contraseña", type="password", key="reg_pass")
             if st.button("Registrarse", type="primary", use_container_width=True):
                 pass
-            if st.button("Volver al inicio de sesión", use_container_width=True):
+            if st.button("Volver", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
 
         # --- VISTA: OLVIDO ---
         elif st.session_state.page == "forgot":
-            st.markdown('<h2 style="text-align: center;">Recuperar cuenta</h2>', unsafe_allow_html=True)
-            st.write("Te enviaremos un enlace de recuperación.")
+            st.markdown('<h3 style="text-align: center;">Recuperar acceso</h3>', unsafe_allow_html=True)
             st.text_input("Correo registrado", key="reset_mail")
             if st.button("Enviar enlace", type="primary", use_container_width=True):
-                st.success("Enlace enviado con éxito")
+                st.success("Enlace enviado")
             if st.button("Regresar", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
