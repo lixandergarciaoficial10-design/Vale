@@ -112,7 +112,7 @@ if "auth_mode" not in st.session_state:
 # 4. ESPACIO PARA TU IMAGEN (LOGO)
 # ---------------------------------------------------------
 # REEMPLAZA EL LINK POR LA RUTA DE TU IMAGEN LOCAL O URL
-st.image("https://raw.githubusercontent.com/tu-usuario/tu-repo/main/logo_cobroya.png", width=160) 
+st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=160) 
 # ---------------------------------------------------------
 
 # ==========================================
