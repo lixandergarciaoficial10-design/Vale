@@ -140,7 +140,7 @@ with c_der:
                     <p style="color: #64748B; font-size: 14px;">Inicia sesión para continuar</p>
                 </div>
                 <div class="google-btn">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" width="18">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/3840px-Google_%22G%22_logo.svg.png" width="18">
                     Continuar con Google
                 </div>
                 <div class="divider">o continúa con tu correo</div>
