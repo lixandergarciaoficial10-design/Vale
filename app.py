@@ -17,11 +17,6 @@ import base64
 from fpdf import FPDF
 from datetime import datetime
 
-import streamlit as st
-
-# 1. CONFIGURACIÓN BASE
-st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
-
 # 2. CSS RADICAL (Ajustado para alineación superior y simetría)
 st.markdown("""
 <style>
