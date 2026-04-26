@@ -22,22 +22,25 @@ import streamlit as st
 # 1. CONFIGURACIÓN BASE
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. CSS DE ALTA PRECISIÓN (ESTILO STRIPE/APPLE)
+# 2. CSS DE ALTA PRECISIÓN (CORREGIDO PARA ELIMINAR MARGEN SUPERIOR)
 st.markdown("""
 <style>
-    /* 1. Reset de la página para centrado absoluto */
-    [data-testid="stHeader"], [data-testid="stSidebar"], footer {display: none !important;}
+    /* ELIMINAR MARGEN SUPERIOR Y HEADER */
+    [data-testid="stHeader"] {display: none !important;}
     .main .block-container {
-        padding: 0 !important; 
+        padding-top: 0rem !important; 
+        padding-bottom: 0rem !important;
+        padding-left: 0rem !important;
+        padding-right: 0rem !important;
         max-width: 100vw !important;
         height: 100vh !important;
         display: flex;
         align-items: center;
         justify-content: center;
-        background-color: #F1F5F9; /* Fondo gris claro suave */
+        background-color: #F1F5F9;
     }
 
-    /* 2. La Tarjeta Maestra Gigante */
+    /* La Tarjeta Maestra Gigante */
     .master-card {
         display: flex;
         width: 90vw;
@@ -45,13 +48,13 @@ st.markdown("""
         height: 85vh;
         max-height: 700px;
         background: white;
-        border-radius: 32px; /* Bordes muy redondeados modernos */
+        border-radius: 32px;
         overflow: hidden;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); /* Sombra Apple-style */
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
         border: 1px solid rgba(255, 255, 255, 0.3);
     }
 
-    /* 3. Panel Izquierdo (Branding) */
+    /* Panel Izquierdo (Branding) */
     .panel-branding {
         flex: 1;
         background: #06102B;
@@ -62,28 +65,13 @@ st.markdown("""
         justify-content: space-between;
     }
 
-    /* 4. Panel Derecho (Formulario) */
-    .panel-form-container {
-        flex: 1.6;
-        padding: 40px;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        overflow-y: auto; /* Solo scroll si es MUY necesario */
-    }
-
-    /* 5. Elementos del Formulario */
-    .form-box {
-        width: 100%;
-        max-width: 400px;
-    }
-
+    /* Elementos del Formulario */
     .google-btn {
         display: flex; align-items: center; justify-content: center; gap: 10px;
         width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
         height: 48px; margin-bottom: 20px; font-weight: 500; color: #334155;
         cursor: pointer; transition: all 0.2s;
+        background: white;
     }
     .google-btn:hover { background: #F8FAFC; border-color: #CBD5E1; }
 
@@ -95,7 +83,7 @@ st.markdown("""
     .divider:not(:empty)::before { margin-right: 15px; }
     .divider:not(:empty)::after { margin-left: 15px; }
 
-    /* Ajuste de Inputs de Streamlit para que encajen en el diseño */
+    /* Ajuste de Inputs */
     div[data-testid="stTextInput"] > div > div > input {
         border-radius: 12px !important;
         height: 48px !important;
@@ -103,7 +91,6 @@ st.markdown("""
         background-color: #F8FAFC !important;
     }
     
-    /* Botón Primario Custom */
     div.stButton > button {
         border-radius: 12px !important;
         height: 48px !important;
@@ -112,12 +99,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 3. LÓGICA DE NAVEGACIÓN (Sin cambios)
+# 3. LÓGICA DE NAVEGACIÓN
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
 # 4. ESTRUCTURA DENTRO DE LA TARJETA
-# Usamos columnas pero las estilizamos para que parezcan parte del contenedor
 col_brand, col_form = st.columns([1, 1.6])
 
 # PANEL IZQUIERDO: BRANDING
@@ -138,7 +124,7 @@ with col_brand:
                 </div>
             </div>
         </div>
-        <div style="font-size: 12px; color: #64748B; border-top: 1px solid #1E293B; pt: 20px;">
+        <div style="font-size: 12px; color: #64748B; border-top: 1px solid #1E293B; padding-top: 20px;">
             © 2026 CobroYa. Diseñado para ser rápido.
         </div>
     </div>
@@ -146,14 +132,17 @@ with col_brand:
 
 # PANEL DERECHO: FORMULARIO
 with col_form:
-    # Contenedor interno para centrar el formulario dentro del panel blanco
     _, inner_center, _ = st.columns([0.15, 0.7, 0.15])
     
     with inner_center:
-        st.markdown("<br><br>", unsafe_allow_html=True)
+        # Espacio reducido para que empiece arriba
+        st.markdown("<br>", unsafe_allow_html=True)
         
         # --- VISTA: LOGIN ---
         if st.session_state.page == "login":
+            # LOGO EN LA COLUMNA DERECHA
+            st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=100)
+            
             st.markdown("""
                 <div style="text-align: center; margin-bottom: 30px;">
                     <h2 style="color: #0F172A; font-size: 24px; font-weight: 700;">Bienvenido de vuelta</h2>
@@ -161,7 +150,7 @@ with col_form:
                 </div>
                 <div class="google-btn">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" width="18">
-                    Continuar con Google
+                    <span>Continuar con Google</span>
                 </div>
                 <div class="divider">o usa tu correo electrónico</div>
             """, unsafe_allow_html=True)
@@ -191,6 +180,7 @@ with col_form:
 
         # --- VISTA: REGISTRO ---
         elif st.session_state.page == "signup":
+            st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=80)
             st.markdown('<h2 style="text-align: center;">Únete a CobroYa</h2>', unsafe_allow_html=True)
             st.text_input("Nombre completo", placeholder="Juan Perez")
             st.text_input("Correo electrónico", key="reg_email")
