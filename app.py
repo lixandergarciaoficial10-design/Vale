@@ -19,9 +19,11 @@ from datetime import datetime
 
 import streamlit as st
 
+import streamlit as st
+
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. CSS RADICAL (Ajustado para alineación superior y simetría)
+# 2. CSS RADICAL (Ajustado para inversión de orden en móvil y estabilidad en laptop)
 st.markdown("""
 <style>
     /* Eliminar el padding de Streamlit por completo */
@@ -36,7 +38,7 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* Fondo dividido - Lógica para Desktop */
+    /* Fondo dividido - LAPTOP */
     [data-testid="stAppViewContainer"] {
         background: linear-gradient(90deg, #06102B 33%, #F8FAFC 33%);
         height: 100vh;
@@ -44,7 +46,7 @@ st.markdown("""
         overflow: hidden;
     }
 
-    /* Panel Izquierdo: Ajuste de padding superior para pegar arriba */
+    /* Panel Izquierdo (Azul) */
     .panel-info {
         width: 33vw;
         padding: 30px 60px;
@@ -55,41 +57,50 @@ st.markdown("""
         justify-content: space-between;
     }
 
-    /* Panel Derecho: Centrado pero pegado arriba */
-    .panel-form {
-        width: 67vw;
-        display: flex;
-        justify-content: center;
-        align-items: flex-start;
-        padding-top: 30px;
-    }
-
-    /* AJUSTES EXCLUSIVOS PARA CELULAR - No afectan la Laptop */
+    /* AJUSTES ESPECÍFICOS PARA CELULAR */
     @media (max-width: 768px) {
+        /* Cambiamos el fondo a uno claro para que el login se vea limpio */
         [data-testid="stAppViewContainer"] {
-            background: #F8FAFC !important; /* Fondo limpio en móvil */
+            background: #F8FAFC !important; 
             overflow-y: auto !important;
+            overflow-x: hidden !important;
+            height: auto !important;
         }
-        
-        /* Ocultar la columna de información y el texto vertical en móvil */
-        [data-testid="column"]:nth-child(1) {
-            display: none !important;
+
+        /* INVERSIÓN: Poner la segunda columna (Login) arriba y la primera (Azul) abajo */
+        [data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: column-reverse !important;
+            gap: 0px !important;
         }
-        
-        /* Expandir el formulario al 100% del ancho del teléfono */
-        [data-testid="column"]:nth-child(2) {
+
+        /* Forzar que cada columna ocupe el 100% del ancho */
+        [data-testid="column"] {
             width: 100% !important;
             flex: 1 1 100% !important;
-            padding: 10px !important;
+            min-width: 100% !important;
         }
 
-        /* Forzar que el contenido de la columna de login no tenga márgenes locos */
+        /* Ajustar el panel azul para cuando quede abajo */
+        .panel-info {
+            width: 100vw !important;
+            height: auto !important;
+            background-color: #06102B !important; /* Le damos el color sólido aquí */
+            padding: 40px 20px !important;
+        }
+
+        /* Ajustar el panel del formulario arriba */
         .main .block-container {
             padding: 10px !important;
         }
+        
+        /* Asegurar que el logo del login no se pierda */
+        img {
+            max-width: 150px !important;
+        }
     }
 
-    /* Estilos de botones y textos */
+    /* Estilos de botones y textos (Intactos) */
     .google-btn {
         display: flex; align-items: center; justify-content: center; gap: 10px;
         width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
@@ -105,13 +116,11 @@ st.markdown("""
     .divider:not(:empty)::before { margin-right: 15px; }
     .divider:not(:empty)::after { margin-left: 15px; }
 
-    /* Forzar estilos en inputs de Streamlit */
     div[data-testid="stTextInput"] input {
         border-radius: 10px !important;
         border: 1px solid #E2E8F0 !important;
     }
     
-    /* Eliminar espacio entre widgets de Streamlit */
     .stElementContainer {
         margin-bottom: -10px !important;
     }
@@ -123,6 +132,7 @@ if "page" not in st.session_state:
     st.session_state.page = "login"
 
 # 4. RENDERIZADO DE LA ESTRUCTURA
+# Aunque c_izq esté primero, en móvil el CSS lo enviará al final.
 c_izq, c_der = st.columns([1, 2.03])
 
 with c_izq:
@@ -148,7 +158,7 @@ with c_izq:
 with c_der:
     st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
     
-    # En móvil estas columnas se ajustan mediante el media query de arriba
+    # Columnas internas para el formulario
     _, center, _ = st.columns([1, 2.5, 1])
     
     with center:
