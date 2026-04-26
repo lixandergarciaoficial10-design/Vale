@@ -19,111 +19,96 @@ from datetime import datetime
 
 import streamlit as st
 
-# 1. CONFIGURACIÓN DE PÁGINA (Layout limpio)
+# 1. Configuración base para eliminar márgenes de Streamlit
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. CSS DE ALTA FIDELIDAD
+# 2. CSS Maestro para control total del diseño
 st.markdown("""
 <style>
-    /* ELIMINAR INTERFAZ POR DEFECTO */
-    [data-testid="stHeader"] {display: none !important;}
+    /* Reset total de la interfaz de Streamlit */
+    [data-testid="stHeader"], [data-testid="stToolbar"] {display: none !important;}
+    .main .block-container {padding: 0 !important; max-width: 100% !important;}
     
-    /* Fondo Degradado Profundo */
-    .stApp {
-        background: linear-gradient(135deg, #000814 0%, #001d3d 100%) !important;
-    }
-
-    .main .block-container {
-        padding: 0rem !important;
-        max-width: 100vw !important;
-        height: 100vh !important;
-        overflow: hidden !important;
-    }
-
-    /* Contenedor Principal Flex */
-    .main-container {
+    /* Contenedor Principal (Fondo Azul Marino) */
+    .app-viewport {
+        position: fixed;
+        top: 0; left: 0; width: 100vw; height: 100vh;
+        background: linear-gradient(135deg, #000814 0%, #001d3d 100%);
         display: flex;
-        width: 100vw;
-        height: 100vh;
+        overflow: hidden;
+        font-family: 'Inter', sans-serif;
     }
 
-    /* SECCIÓN IZQUIERDA (40%) */
-    .info-side {
+    /* Lado Izquierdo (40%) */
+    .left-panel {
         flex: 0.4;
+        padding: 60px 0 60px 80px;
         display: flex;
         flex-direction: column;
         justify-content: center;
-        padding: 0 5% 0 8%;
         color: white;
     }
 
-    .info-side h1 {
-        font-size: 2.2rem;
-        font-weight: 500;
+    .left-panel h1 {
+        font-size: 32px;
+        font-weight: 600;
+        margin: 30px 0;
         line-height: 1.2;
-        margin-top: 30px;
+        max-width: 400px;
     }
 
-    .features {
-        list-style: none;
-        padding: 0;
-        margin-top: 40px;
-    }
-
-    .features li {
-        margin-bottom: 20px;
-        font-size: 1.1rem;
+    .feature-item {
         display: flex;
         align-items: center;
         gap: 15px;
-        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 25px;
+        font-size: 18px;
+        color: rgba(255,255,255,0.8);
     }
 
-    .side-footer {
-        position: absolute;
-        bottom: 40px;
-        font-size: 0.85rem;
-        color: rgba(255, 255, 255, 0.4);
-    }
-
-    /* SECCIÓN DERECHA (60%) - EL FORMULARIO FLOTANTE */
-    .form-side {
+    /* Lado Derecho (60%) */
+    .right-panel {
         flex: 0.6;
         display: flex;
         align-items: center;
         justify-content: center;
-        padding: 40px;
-    }
-
-    .login-card {
-        background: white;
-        width: 100%;
-        max-width: 460px;
-        border-radius: 40px; /* Bordes redondeados exactos */
-        padding: 50px;
-        box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5);
         position: relative;
     }
 
-    /* Botón Social de Google con Icono */
-    .google-btn {
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        gap: 12px;
-        width: 100%; 
-        border: 1px solid #E2E8F0; 
-        border-radius: 12px;
-        height: 50px; 
-        margin: 20px 0; 
-        font-weight: 500; 
-        color: #334155;
-        background: white; 
-        cursor: pointer;
-        transition: 0.2s;
-        text-decoration: none;
+    /* LA TARJETA BLANCA (Diseño exacto) */
+    .login-card {
+        background: white;
+        width: 450px;
+        padding: 50px;
+        border-radius: 40px; /* Bordes redondeados de 40px */
+        box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+        text-align: center;
+        position: relative;
     }
-    .google-btn:hover { background: #F8FAFC; }
+
+    .lang-selector {
+        position: absolute;
+        top: 30px; right: 40px;
+        color: #64748B;
+        font-size: 14px;
+    }
+
+    /* Botón de Google con Icono Real */
+    .google-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        width: 100%;
+        height: 48px;
+        border: 1px solid #E2E8F0;
+        border-radius: 12px;
+        margin: 25px 0;
+        color: #334155;
+        font-weight: 500;
+        cursor: pointer;
+        background: white;
+    }
 
     .divider {
         display: flex; align-items: center; text-align: center; color: #94A3B8;
@@ -133,114 +118,81 @@ st.markdown("""
     .divider:not(:empty)::before { margin-right: 15px; }
     .divider:not(:empty)::after { margin-left: 15px; }
 
-    /* Estilos de Inputs */
-    div[data-testid="stTextInput"] label { color: #1E293B !important; font-weight: 600; }
-    div[data-testid="stTextInput"] input {
+    /* Forzar estilos en los inputs de Streamlit */
+    .stTextInput input {
         border-radius: 12px !important;
-        background-color: #F8FAFC !important;
+        background: #F8FAFC !important;
         border: 1px solid #E2E8F0 !important;
-        height: 45px !important;
+        height: 48px !important;
     }
-    
-    /* Botón Primario Azul */
-    div.stButton > button {
-        border-radius: 12px !important;
-        height: 50px !important;
+
+    /* Botón Iniciar Sesión */
+    .stButton button {
         background-color: #1a73e8 !important;
         color: white !important;
+        border-radius: 12px !important;
+        width: 100% !important;
+        height: 50px !important;
         font-weight: 700 !important;
         border: none !important;
-        margin-top: 10px !important;
-        width: 100% !important;
+        margin-top: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# 3. LÓGICA DE NAVEGACIÓN
-if "page" not in st.session_state:
-    st.session_state.page = "login"
-
-# 4. ESTRUCTURA 40/60
-col_info, col_form = st.columns([1, 1.5])
-
-with col_info:
-    # --- INFO LADO IZQUIERDO ---
-    st.markdown(f"""
-    <div class="info-side">
+# 3. Estructura HTML para evitar el desorden de Streamlit
+st.markdown(f"""
+<div class="app-viewport">
+    <div class="left-panel">
         <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
         <h1>Tu plataforma inteligente para gestionar cobros y clientes</h1>
-        <ul class="features">
-            <li>🛡️ Rápido y seguro</li>
-            <li>✅ Sin confirmaciones innecesarias</li>
-            <li>📍 Acceso desde cualquier lugar</li>
-        </ul>
-        <div class="side-footer">
-            <p>© 2026 CobroYa. Todos los derechos reservados. <br> 🔒 Seguridad garantizada</p>
+        <div class="feature-item">🛡️ Rápido y seguro</div>
+        <div class="feature-item">✅ Sin confirmaciones innecesarias</div>
+        <div class="feature-item">📍 Acceso desde cualquier lugar</div>
+        <div style="margin-top: auto; color: rgba(255,255,255,0.4); font-size: 12px;">
+            © 2026 CobroYa. Todos los derechos reservados.<br>🔒 Seguridad garantizada
         </div>
     </div>
-    """, unsafe_allow_html=True)
 
-with col_form:
-    # --- FORMULARIO LADO DERECHO (TARJETA FLOTANTE) ---
-    st.markdown('<div class="form-side">', unsafe_allow_html=True)
-    
-    # Contenedor para que la tarjeta flote
-    st.markdown('<div class="login-card">', unsafe_allow_html=True)
-    
-    # Idioma y Logo
-    st.markdown('<div style="text-align: right; color: #64748B; font-size: 14px;">🌐 ES</div>', unsafe_allow_html=True)
-    
-    # Logo de la tarjeta (proporcional)
-    _, l_mid, _ = st.columns([1, 2, 1])
-    with l_mid:
-        st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", use_container_width=True)
-    
-    if st.session_state.page == "login":
-        st.markdown("""
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h2 style="color: #0F172A; font-size: 24px; font-weight: 700; margin-bottom: 5px;">Bienvenido de vuelta</h2>
-                <p style="color: #64748B; font-size: 14px;">Inicia sesión para continuar</p>
-            </div>
+    <div class="right-panel">
+        <div class="login-card">
+            <div class="lang-selector">🌐 ES</div>
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="160" style="margin-bottom: 20px;">
+            <h2 style="color: #0F172A; margin-bottom: 5px; font-size: 24px;">Bienvenido de vuelta</h2>
+            <p style="color: #64748B; font-size: 14px; margin-bottom: 25px;">Inicia sesión para continuar</p>
             
             <div class="google-btn">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" width="18">
-                <span>Continuar con Google</span>
+                Continuar con Google
             </div>
             
             <div class="divider">o continúa con tu correo</div>
-        """, unsafe_allow_html=True)
+            
+            </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# 4. Colocación de los Inputs (usamos el posicionamiento absoluto para meterlos en la tarjeta)
+# NOTA: En Streamlit puro es difícil "meter" widgets dentro de un string HTML, 
+# por lo que usamos columnas vacías para centrar los widgets sobre el diseño anterior.
+
+placeholder = st.empty()
+with placeholder.container():
+    _, center_col = st.columns([1.6, 1]) # Ajuste manual para que caiga sobre la tarjeta blanca
+    with center_col:
+        st.markdown('<div style="height: 420px;"></div>', unsafe_allow_html=True) # Espacio para bajar los inputs
+        email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", label_visibility="collapsed")
+        password = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña", label_visibility="collapsed")
         
-        st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="l_email")
-        st.text_input("Contraseña", type="password", placeholder="••••••••", key="l_pass")
-        
-        c1, c2 = st.columns([1, 1.2])
+        c1, c2 = st.columns([1, 1])
         with c1: st.checkbox("Recordarme")
-        with c2: 
-            if st.button("¿Olvidaste tu clave?", key="f_pass", type="secondary"):
-                st.session_state.page = "forgot"
-                st.rerun()
+        with c2: st.markdown('<p style="text-align:right; font-size:12px; color:#1a73e8; margin-top:5px; cursor:pointer;">¿Olvidaste tu contraseña?</p>', unsafe_allow_html=True)
         
-        if st.button("Iniciar sesión", key="do_login"):
-            pass
+        if st.button("Iniciar sesión"):
+            st.success("Entrando...")
         
-        st.markdown("""
-            <p style="text-align: center; color: #64748B; margin-top: 25px; font-size: 14px;">
-                ¿No tienes cuenta? <a href="#" style="color: #1a73e8; font-weight: 700; text-decoration: none;">Crear cuenta</a>
-            </p>
-        """, unsafe_allow_html=True)
-
-    elif st.session_state.page == "forgot":
-        st.markdown("<h2 style='text-align:center; color:#0F172A;'>Recuperar clave</h2>", unsafe_allow_html=True)
-        st.text_input("Correo electrónico")
-        if st.button("Enviar enlace"): st.success("Enviado")
-        if st.button("Volver"):
-            st.session_state.page = "login"
-            st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True) # Cierre login-card
-    st.markdown('</div>', unsafe_allow_html=True) # Cierre form-side
-
-st.stop()
+        st.markdown('<p style="font-size:14px; margin-top:20px; color:#64748B;">¿No tienes cuenta? <span style="color:#1a73e8; font-weight:bold; cursor:pointer;">Crear cuenta</span></p>', unsafe_allow_html=True)
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
