@@ -107,7 +107,7 @@ with c_izq:
     st.markdown(f"""
     <div class="panel-info">
         <div>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="180">
             <div style="margin-top: 40px;">
                 <h2 style="font-size: 28px; line-height: 1.2;">Tu plataforma inteligente<br>para gestionar cobros y clientes</h2>
                 <div style="margin-top: 30px; color: #CBD5E1; font-size: 15px; line-height: 1.8;">
@@ -135,7 +135,7 @@ with c_der:
         if st.session_state.page == "login":
             st.markdown("""
                 <div style="text-align: center; margin-bottom: 15px;">
-                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
+                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="180">
                     <h3 style="margin-top: 15px; color: #0F172A; margin-bottom: 5px;">Bienvenido de vuelta</h3>
                     <p style="color: #64748B; font-size: 14px;">Inicia sesión para continuar</p>
                 </div>
