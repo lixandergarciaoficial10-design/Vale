@@ -23,8 +23,6 @@ import streamlit as st
 
 import streamlit as st
 
-import streamlit as st
-
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
 # 2. CSS RADICAL (Ajustado para centrado en móvil y separación de paneles)
@@ -70,6 +68,7 @@ st.markdown("""
             height: auto !important;
         }
 
+        /* INVERSIÓN Y CENTRADO: Login arriba, Azul abajo con espacio */
         [data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: column-reverse !important;
@@ -77,6 +76,7 @@ st.markdown("""
             gap: 0px !important;
         }
 
+        /* Forzar que cada columna ocupe el 100% y centrar contenido */
         [data-testid="column"] {
             width: 100% !important;
             flex: 1 1 100% !important;
@@ -85,18 +85,20 @@ st.markdown("""
             justify-content: center !important;
         }
 
+        /* CENTRADO DEL FORMULARIO: Asegura que el contenido interno no se cargue a un lado */
         [data-testid="column"] > div {
             width: 100% !important;
-            max-width: 450px !important;
+            max-width: 450px !important; /* Limita el ancho en móvil para que se vea estético */
             margin: 0 auto !important;
         }
 
+        /* Panel azul (ahora abajo): AGREGAMOS EL ESPACIO ARRIBA */
         .panel-info {
             width: 100vw !important;
             height: auto !important;
             background-color: #06102B !important; 
             padding: 50px 20px !important;
-            margin-top: 60px !important;
+            margin-top: 60px !important; /* EL ESPACIO QUE PEDISTE entre el login y el cuadro azul */
         }
 
         .main .block-container {
@@ -104,7 +106,14 @@ st.markdown("""
         }
     }
 
-    /* Estilos de botones y textos */
+    /* Estilos de botones y textos (Intactos) */
+    .google-btn {
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
+        height: 45px; margin-bottom: 15px; font-weight: 500; color: #334155;
+        cursor: pointer;
+    }
+    
     .divider {
         display: flex; align-items: center; text-align: center; color: #94A3B8;
         font-size: 12px; margin: 15px 0;
@@ -124,13 +133,9 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 3. LÓGICA DE NAVEGACIÓN Y DATOS
+# 3. LÓGICA DE NAVEGACIÓN
 if "page" not in st.session_state:
     st.session_state.page = "login"
-
-# Base de datos simulada para que las cuentas funcionen mientras la app esté abierta
-if "users_db" not in st.session_state:
-    st.session_state.users_db = {}
 
 # 4. RENDERIZADO DE LA ESTRUCTURA
 c_izq, c_der = st.columns([1, 2.03])
@@ -169,16 +174,15 @@ with c_der:
                     <h3 style="margin-top: 15px; color: #0F172A; margin-bottom: 5px;">Bienvenido de vuelta</h3>
                     <p style="color: #64748B; font-size: 14px;">Inicia sesión para continuar</p>
                 </div>
+                <div class="google-btn">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/3840px-Google_%22G%22_logo.svg.png" width="18">
+                    Continuar con Google
+                </div>
+                <div class="divider">o continúa con tu correo</div>
             """, unsafe_allow_html=True)
-
-            # Botón de Google funcional con estilo similar
-            if st.button("🌐 Continuar con Google", use_container_width=True):
-                st.info("Redirigiendo a Google...")
-
-            st.markdown('<div class="divider">o continúa con tu correo</div>', unsafe_allow_html=True)
             
-            email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
-            password = st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
+            st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
+            st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
             
             col_check, col_link = st.columns([1, 1])
             with col_check:
@@ -188,14 +192,8 @@ with c_der:
                     st.session_state.page = "forgot"
                     st.rerun()
             
-            # LÓGICA DE INICIO DE SESIÓN
             if st.button("Iniciar sesión", type="primary", use_container_width=True):
-                if email in st.session_state.users_db and st.session_state.users_db[email] == password:
-                    st.success(f"¡Bienvenido de nuevo {email}!")
-                elif email == "" or password == "":
-                    st.warning("Por favor rellena todos los campos.")
-                else:
-                    st.error("Correo o contraseña incorrectos.")
+                pass 
                 
             st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
             if st.button("Crear cuenta", use_container_width=True):
@@ -209,18 +207,10 @@ with c_der:
                     <h3 style="margin-top: 15px; color: #0F172A;">Crear cuenta</h3>
                 </div>
             """, unsafe_allow_html=True)
-            
-            reg_email = st.text_input("Correo electrónico", key="reg_email")
-            reg_pass = st.text_input("Contraseña", type="password", key="reg_pass")
-            
-            # LÓGICA DE REGISTRO
+            st.text_input("Correo electrónico", key="reg_email")
+            st.text_input("Contraseña", type="password", key="reg_pass")
             if st.button("Registrarse", type="primary", use_container_width=True):
-                if reg_email and reg_pass:
-                    st.session_state.users_db[reg_email] = reg_pass
-                    st.success("✅ Cuenta creada con éxito. ¡Ya puedes iniciar sesión!")
-                else:
-                    st.error("Por favor rellena los datos.")
-
+                pass
             if st.button("Volver al login", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
@@ -238,6 +228,8 @@ with c_der:
             if st.button("Volver", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
+
+st.stop()
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
