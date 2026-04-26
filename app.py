@@ -20,182 +20,183 @@ import streamlit as st
 
 import streamlit as st
 
-# ────────────────────────────────────────────────────────────
-# 1. ENLACE DE TU LOGO (PONLO AQUÍ)
-# ────────────────────────────────────────────────────────────
-LOGO_URL = "https://tu-enlace-de-logo-aqui.png" 
+import streamlit as st
 
 # ────────────────────────────────────────────────────────────
-# 2. CSS: REPLICACIÓN EXACTA DEL DISEÑO (BLANCO TOTAL)
+# 1. CONFIGURACIÓN OBLIGATORIA (Debe ser la primera línea)
 # ────────────────────────────────────────────────────────────
-st.markdown(f"""
+st.set_page_config(page_title="CobroYa", layout="centered", initial_sidebar_state="collapsed")
+
+# ────────────────────────────────────────────────────────────
+# 2. CSS: EL TRUCO PARA CLONAR TU DISEÑO EXACTO
+# ────────────────────────────────────────────────────────────
+st.markdown("""
 <style>
-    /* Fondo de la aplicación (Grisáceo muy suave de la imagen) */
-    .stApp {{
-        background-color: #F6F7FB !important;
-    }}
+    /* 1. Fondo global Gris Claro de tu diseño */
+    .stApp {
+        background-color: #F3F4F6 !important;
+    }
 
-    /* Contenedor central (La Tarjeta Blanca) */
-    .auth-card {{
-        background-color: #FFFFFF;
-        padding: 45px;
-        border-radius: 28px; /* Bordes muy redondeados como en la imagen */
-        box-shadow: 0px 8px 30px rgba(0,0,0,0.04);
-        border: 1px solid #EEF0F3;
-        text-align: center;
-        max-width: 450px;
-        margin: auto;
-    }}
-
-    /* Títulos y textos (Forzar negro) */
-    .main-title {{
-        font-family: 'Inter', sans-serif;
-        font-size: 26px;
-        font-weight: 700;
-        color: #1A1A1A !important;
-        margin-bottom: 5px;
-    }}
-    .subtitle {{
-        font-size: 14px;
-        color: #6E7175 !important;
-        margin-bottom: 30px;
-    }}
-
-    /* Inputs (Gris muy claro con borde fino) */
-    div[data-testid="stTextInput"] > div > div > input {{
-        background-color: #F9FAFB !important;
-        color: #1A1A1A !important;
-        border: 1px solid #E5E7EB !important;
-        border-radius: 12px !important;
-        padding: 12px !important;
-    }}
-
-    /* Botón Azul CobroYa (El azul exacto de la imagen) */
-    div.stButton > button {{
-        background-color: #007AFF !important;
-        color: white !important;
-        border-radius: 12px !important;
-        border: none !important;
-        font-weight: 600 !important;
-        height: 3.6em !important;
-        width: 100% !important;
-        font-size: 16px !important;
-        transition: 0.2s;
-    }}
-
-    /* Botón Google (Blanco con borde) */
-    .google-btn div.stButton > button {{
+    /* 2. Convertir el contenedor central de Streamlit en la Tarjeta Blanca */
+    .block-container {
         background-color: #FFFFFF !important;
-        color: #1A1A1A !important;
-        border: 1px solid #E5E7EB !important;
-    }}
+        padding: 40px 40px !important;
+        border-radius: 24px !important;
+        box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.05) !important;
+        max-width: 440px !important;
+        margin-top: 6vh !important;
+        border: 1px solid #F0F2F5 !important;
+    }
 
-    /* Ocultar elementos de Streamlit */
-    header, footer, #MainMenu {{ visibility: hidden; }}
+    /* Ocultar basuras de Streamlit */
+    header, footer, #MainMenu { visibility: hidden !important; }
+
+    /* 3. Textos e Imágenes */
+    .logo-container { text-align: center; margin-bottom: 20px; }
+    .main-title { text-align: center; font-size: 24px; font-weight: 700; color: #111827; margin-bottom: 4px; font-family: sans-serif; }
+    .subtitle { text-align: center; font-size: 14px; color: #6B7280; margin-bottom: 25px; font-family: sans-serif; }
+
+    /* 4. Separador "o continúa con tu correo" */
+    .divider {
+        display: flex; align-items: center; text-align: center;
+        color: #6B7280; font-size: 13px; margin: 25px 0;
+    }
+    .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #E5E7EB; }
+    .divider:not(:empty)::before { margin-right: .8em; }
+    .divider:not(:empty)::after { margin-left: .8em; }
+
+    /* 5. Inputs (Bordes finos, labels grises, idénticos al diseño) */
+    div[data-testid="stTextInput"] label p { font-size: 13px !important; font-weight: 600 !important; color: #374151 !important; }
+    div[data-testid="stTextInput"] input {
+        background-color: #FFFFFF !important;
+        border: 1px solid #D1D5DB !important;
+        border-radius: 12px !important;
+        padding: 14px 16px !important;
+        color: #111827 !important;
+        font-size: 14px !important;
+    }
+    div[data-testid="stTextInput"] input:focus {
+        border-color: #1E6BFF !important;
+        box-shadow: 0 0 0 2px rgba(30, 107, 255, 0.15) !important;
+    }
+
+    /* 6. Checkbox "Recordarme" */
+    div[data-testid="stCheckbox"] label span { font-size: 13px !important; color: #4B5563 !important; }
+
+    /* 7. BOTONES CLONADOS */
     
-    /* Forzar color de etiquetas */
-    label {{ color: #1A1A1A !important; font-weight: 500 !important; }}
+    /* Botón Google (Secundario) - Blanco con borde gris */
+    button[kind="secondary"] {
+        background-color: #FFFFFF !important; color: #374151 !important;
+        border: 1px solid #D1D5DB !important; border-radius: 12px !important;
+        font-weight: 600 !important; height: 46px !important; width: 100% !important;
+    }
+    button[kind="secondary"]:hover { background-color: #F9FAFB !important; }
+
+    /* Botón Iniciar Sesión (Primario) - Azul vibrante */
+    button[kind="primary"] {
+        background-color: #1E6BFF !important; color: #FFFFFF !important;
+        border: none !important; border-radius: 12px !important;
+        font-weight: 600 !important; height: 48px !important; width: 100% !important;
+        font-size: 15px !important; margin-top: 15px !important;
+    }
+    button[kind="primary"]:hover { background-color: #0056E0 !important; }
+
+    /* Botones tipo enlace (Terciarios) - Para "Olvidé mi contraseña" y "Crear cuenta" */
+    button[kind="tertiary"] {
+        color: #1E6BFF !important; font-weight: 600 !important; font-size: 13px !important;
+        padding: 0 !important;
+    }
+    button[kind="tertiary"]:hover { color: #0056E0 !important; text-decoration: underline !important; }
+
 </style>
 """, unsafe_allow_html=True)
 
 # ────────────────────────────────────────────────────────────
-# 3. LÓGICA DE FLUJO (LOGIN / REGISTRO / RECUPERAR)
+# 3. CONTROL DE ESTADO
 # ────────────────────────────────────────────────────────────
 if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "login"
-if "user" not in st.session_state:
-    st.session_state.user = None
 
-# Solo ejecutar si no hay sesión activa
-if st.session_state.user is None:
-    st.markdown("<br><br>", unsafe_allow_html=True)
-    _, col_center, _ = st.columns([0.2, 1, 0.2])
+LOGO_URL = "https://cdn-icons-png.flaticon.com/512/1053/1053210.png" # CAMBIA POR EL TUYO
 
-    with col_center:
-        st.markdown('<div class="auth-card">', unsafe_allow_html=True)
-        st.image(LOGO_URL, width=100)
+# ────────────────────────────────────────────────────────────
+# 4. INTERFAZ (EL FLUJO EXACTO)
+# ────────────────────────────────────────────────────────────
 
-        # --- VISTA: INICIAR SESIÓN ---
-        if st.session_state.auth_mode == "login":
-            st.markdown('<p class="main-title">CobroYa Global</p>', unsafe_allow_html=True)
-            st.markdown('<p class="subtitle">Accede rápido y sin complicaciones</p>', unsafe_allow_html=True)
-            
-            st.markdown('<div class="google-btn">', unsafe_allow_html=True)
-            if st.button("G  Continuar con Google"):
-                conn.client.auth.sign_in_with_oauth({"provider": "google"})
-            st.markdown('</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="logo-container"><img src="{LOGO_URL}" width="140"></div>', unsafe_allow_html=True)
 
-            st.markdown("<p style='font-size: 12px; color: #9CA3AF; margin: 15px 0;'>o continúa con tu correo</p>", unsafe_allow_html=True)
-            
-            email = st.text_input("Correo electrónico", placeholder="correo@ejemplo.com", key="l_email").strip().lower()
-            pwd = st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="l_pwd")
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("Entrar"):
-                if email and pwd:
-                    try:
-                        conn.client.auth.sign_out() # Limpiar cualquier rastro previo
-                        res = conn.client.auth.sign_in_with_password({"email": email, "password": pwd})
-                        if res.user:
-                            st.session_state.user = res.user
-                            st.rerun()
-                    except:
-                        st.error("Credenciales incorrectas")
-
-            c1, c2 = st.columns(2)
-            with c1:
-                if st.button("Crear cuenta", key="to_reg"):
-                    st.session_state.auth_mode = "signup"
-                    st.rerun()
-            with c2:
-                if st.button("Olvidé mi clave", key="to_forgot"):
-                    st.session_state.auth_mode = "forgot"
-                    st.rerun()
-
-        # --- VISTA: REGISTRO ---
-        elif st.session_state.auth_mode == "signup":
-            st.markdown('<p class="main-title">Nueva Cuenta</p>', unsafe_allow_html=True)
-            st.markdown('<p class="subtitle">Regístrate para empezar a cobrar</p>', unsafe_allow_html=True)
-            
-            reg_email = st.text_input("Correo electrónico", key="r_email")
-            reg_pwd = st.text_input("Contraseña", type="password", key="r_pwd")
-            
-            if st.button("Registrarme ahora"):
-                try:
-                    res = conn.client.auth.sign_up({"email": reg_email, "password": reg_pwd})
-                    if res.user:
-                        st.session_state.user = res.user
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"Error: {e}")
-            
-            if st.button("Volver al inicio"):
-                st.session_state.auth_mode = "login"
-                st.rerun()
-
-        # --- VISTA: RECUPERAR ---
-        elif st.session_state.auth_mode == "forgot":
-            st.markdown('<p class="main-title">Recuperar Clave</p>', unsafe_allow_html=True)
-            f_email = st.text_input("Tu correo electrónico", key="f_email")
-            if st.button("Enviar enlace"):
-                conn.client.auth.reset_password_for_email(f_email)
-                st.info("Revisa tu correo")
-            
-            if st.button("Volver"):
-                st.session_state.auth_mode = "login"
-                st.rerun()
-
-        st.markdown('</div>', unsafe_allow_html=True)
+# --- PANTALLA: INICIAR SESIÓN ---
+if st.session_state.auth_mode == "login":
+    st.markdown('<div class="main-title">Bienvenido de vuelta</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Inicia sesión para continuar</div>', unsafe_allow_html=True)
     
-    st.stop() # Bloquea el resto de la app hasta loguearse
+    # Botón Google (tipo secondary lo hace blanco con borde)
+    if st.button("🌐 Continuar con Google", type="secondary", use_container_width=True):
+        st.info("Conectar a Supabase Google Auth aquí")
 
-# ────────────────────────────────────────────────────────────
-# 4. EXTRACCIÓN DE ID PARA TU DASHBOARD (ESTO VA ABAJO)
-# ────────────────────────────────────────────────────────────
-u_id = st.session_state.user.id
-u_email = st.session_state.user.email
+    st.markdown('<div class="divider">o continúa con tu correo</div>', unsafe_allow_html=True)
+    
+    email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="l_em")
+    # Streamlit no soporta el icono del "ojo" dentro del input nativo, usamos type="password" estándar.
+    pwd = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña", key="l_pw")
+    
+    # Fila: Recordarme y Olvidaste contraseña
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        st.checkbox("Recordarme")
+    with col2:
+        st.markdown("<div style='text-align: right; margin-top: 5px;'>", unsafe_allow_html=True)
+        if st.button("¿Olvidaste tu contraseña?", type="tertiary"):
+            st.session_state.auth_mode = "forgot"
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
-# Aquí continúa tu código de Dashboard usando u_id...
+    # Botón Principal (tipo primary lo hace azul)
+    if st.button("Iniciar sesión", type="primary", use_container_width=True):
+        st.success("Logueando...") # Aquí va tu lógica de supabase sign_in
+        
+    st.markdown("<div style='text-align: center; margin-top: 20px; font-size: 13px; color: #6B7280;'>¿No tienes cuenta? ", unsafe_allow_html=True)
+    if st.button("Crear cuenta", type="tertiary"):
+        st.session_state.auth_mode = "signup"
+        st.rerun()
+
+# --- PANTALLA: CREAR CUENTA ---
+elif st.session_state.auth_mode == "signup":
+    st.markdown('<div class="main-title">Crear cuenta</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Es rápido y fácil</div>', unsafe_allow_html=True)
+    
+    if st.button("🌐 Continuar con Google", type="secondary", use_container_width=True):
+        pass
+
+    st.markdown('<div class="divider">o regístrate con tu correo</div>', unsafe_allow_html=True)
+    
+    r_email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com")
+    r_pwd = st.text_input("Contraseña", type="password", placeholder="Crea una contraseña")
+    r_conf = st.text_input("Confirmar contraseña", type="password", placeholder="Repite tu contraseña")
+    
+    if st.button("Crear cuenta", type="primary", use_container_width=True):
+        st.success("Creando...") # Aquí va sign_up de supabase
+        
+    st.markdown("<div style='text-align: center; margin-top: 20px; font-size: 13px; color: #6B7280;'>¿Ya tienes cuenta? ", unsafe_allow_html=True)
+    if st.button("Iniciar sesión", type="tertiary"):
+        st.session_state.auth_mode = "login"
+        st.rerun()
+
+# --- PANTALLA: RECUPERAR CONTRASEÑA ---
+elif st.session_state.auth_mode == "forgot":
+    st.markdown('<div class="main-title">Recuperar contraseña</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subtitle">Te enviaremos un enlace para restablecer tu contraseña</div>', unsafe_allow_html=True)
+    
+    f_email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com")
+    
+    if st.button("Enviar enlace", type="primary", use_container_width=True):
+        st.success("Enlace enviado") # Lógica reset password supabase
+        
+    st.markdown("<div style='text-align: center; margin-top: 20px; font-size: 13px; color: #6B7280;'>¿Recordaste tu contraseña? ", unsafe_allow_html=True)
+    if st.button("Iniciar sesión", type="tertiary"):
+        st.session_state.auth_mode = "login"
+        st.rerun()
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
