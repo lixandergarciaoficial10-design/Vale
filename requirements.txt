@@ -12,4 +12,3 @@ streamlit-geolocation
 streamlit-js-eval
 folium
 streamlit-folium
-pip install supabase
