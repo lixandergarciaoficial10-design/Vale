@@ -20,88 +20,93 @@ import streamlit as st
 
 import streamlit as st
 
-# 1. CONFIGURACIÓN INICIAL (DEBE SER LA PRIMERA LÍNEA)
-st.set_page_config(page_title="CobroYa", layout="centered", initial_sidebar_state="collapsed")
+# 1. CONFIGURACIÓN (WIDE para permitir el panel lateral)
+st.set_page_config(page_title="CobroYa", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. EL CSS DE PRECISIÓN "PIXEL-PERFECT"
+# 2. CSS AVANZADO: RECREANDO EL DISEÑO EXACTO
 st.markdown("""
 <style>
-    /* ASESINATO TOTAL DE ELEMENTOS DE STREAMLIT */
-    [data-testid="stSidebar"], [data-testid="collapsedControl"], [data-testid="stHeader"], footer {
-        display: none !important;
+    /* ELIMINAR INTERFAZ DE STREAMLIT */
+    [data-testid="stHeader"], [data-testid="stSidebar"], footer {display: none !important;}
+    .main .block-container {padding: 0 !important; max-width: 100% !important;}
+    
+    /* CONTENEDOR PRINCIPAL DIVIDIDO */
+    .split-screen {
+        display: flex;
+        height: 100vh;
+        width: 100vw;
+        font-family: 'Inter', sans-serif;
     }
 
-    /* FONDO DE PANTALLA (Gris ultra-claro) */
-    .stApp {
-        background-color: #F8FAFC !important;
+    /* PANEL IZQUIERDO (AZUL OSCURO) */
+    .left-panel {
+        background-color: #06102B;
+        width: 35%;
+        padding: 60px;
+        color: white;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    
+    .brand-logo { font-size: 32px; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+    .brand-logo span { color: #0052CC; }
+    
+    .value-prop { margin-top: 50px; }
+    .value-prop h2 { font-size: 24px; font-weight: 600; margin-bottom: 30px; line-height: 1.4; }
+    .feature { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; color: #94A3B8; font-size: 14px; }
+    
+    /* PANEL DERECHO (FORMULARIO) */
+    .right-panel {
+        background-color: #F8FAFC;
+        width: 65%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
 
-    /* LA TARJETA BLANCA (Centrado y dimensiones exactas) */
-    .block-container {
-        background-color: #FFFFFF !important;
-        border-radius: 24px !important;
-        padding: 40px 45px !important;
-        max-width: 440px !important;
-        margin: auto !important;
-        margin-top: 5vh !important;
-        box-shadow: 0px 10px 40px rgba(0, 0, 0, 0.04) !important;
-        border: 1px solid #F1F5F9 !important;
+    /* LA TARJETA BLANCA */
+    .auth-card {
+        background: white;
+        padding: 45px;
+        border-radius: 24px;
+        width: 100%;
+        max-width: 440px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.04);
+        border: 1px solid #F1F5F9;
     }
 
-    /* TÍTULOS Y SUBTÍTULOS */
-    .main-title {
-        text-align: center; font-size: 24px; font-weight: 700; color: #0F172A; 
-        margin-top: 15px; margin-bottom: 5px; font-family: 'Inter', sans-serif;
+    /* ESTILOS DE INPUTS Y BOTONES */
+    .stTextInput input {
+        border-radius: 12px !important;
+        border: 1px solid #E2E8F0 !important;
+        padding: 12px !important;
     }
-    .subtitle {
-        text-align: center; font-size: 14px; color: #64748B; 
-        margin-bottom: 30px; font-family: 'Inter', sans-serif;
-    }
-
-    /* BOTÓN GOOGLE (Borde gris, texto oscuro) */
-    button[kind="secondary"] {
-        background-color: #FFFFFF !important; color: #334155 !important;
-        border: 1px solid #E2E8F0 !important; border-radius: 12px !important;
-        font-weight: 500 !important; height: 48px !important; width: 100% !important;
+    
+    /* BOTÓN GOOGLE */
+    .google-btn {
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
+        height: 48px; background: white; cursor: pointer; font-weight: 500; color: #334155;
     }
 
-    /* EL DIVISOR "O CONTINÚA CON" */
+    /* BOTÓN PRIMARIO AZUL */
+    button[kind="primary"] {
+        background-color: #1D61F2 !important;
+        border-radius: 12px !important;
+        height: 50px !important;
+        width: 100% !important;
+        font-weight: 600 !important;
+    }
+
+    /* DIVISOR */
     .divider {
-        display: flex; align-items: center; text-align: center;
-        color: #94A3B8; font-size: 12px; margin: 25px 0;
+        display: flex; align-items: center; text-align: center; color: #94A3B8;
+        font-size: 12px; margin: 25px 0;
     }
-    .divider::before, .divider::after {
-        content: ''; flex: 1; border-bottom: 1px solid #F1F5F9;
-    }
+    .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #F1F5F9; }
     .divider:not(:empty)::before { margin-right: 15px; }
     .divider:not(:empty)::after { margin-left: 15px; }
-
-    /* ESTILO DE LOS INPUTS (Bordes finos) */
-    div[data-testid="stTextInput"] label p {
-        font-size: 13px !important; font-weight: 600 !important; color: #475569 !important;
-    }
-    div[data-testid="stTextInput"] input {
-        background-color: #FFFFFF !important; border: 1px solid #E2E8F0 !important;
-        border-radius: 10px !important; padding: 12px !important; color: #0F172A !important;
-    }
-
-    /* BOTÓN AZUL PRINCIPAL */
-    button[kind="primary"] {
-        background-color: #1D61F2 !important; color: #FFFFFF !important;
-        border-radius: 12px !important; font-weight: 600 !important;
-        height: 50px !important; width: 100% !important; border: none !important;
-        font-size: 15px !important; transition: 0.2s;
-    }
-    button[kind="primary"]:hover { background-color: #164ec7 !important; }
-
-    /* CHECKBOX Y ENLACES PEQUEÑOS */
-    div[data-testid="stCheckbox"] label span { font-size: 13px !important; color: #475569 !important; }
-    
-    /* BOTONES DE ENLACE (Terciarios) */
-    button[kind="tertiary"] {
-        color: #1D61F2 !important; font-weight: 600 !important; font-size: 13px !important;
-        padding: 0 !important; background: transparent !important;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -109,59 +114,101 @@ st.markdown("""
 if "auth_mode" not in st.session_state:
     st.session_state.auth_mode = "login"
 
-# 4. ESPACIO PARA TU IMAGEN (LOGO)
-# ---------------------------------------------------------
-# REEMPLAZA EL LINK POR LA RUTA DE TU IMAGEN LOCAL O URL
-st.image("https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png", width=160) 
-# ---------------------------------------------------------
+# --- RENDERIZADO DE LA PÁGINA ---
 
-# ==========================================
-# FLUJO: INICIAR SESIÓN
-# ==========================================
-if st.session_state.auth_mode == "login":
-    st.markdown('<div class="main-title">Bienvenido de vuelta</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Inicia sesión para continuar</div>', unsafe_allow_html=True)
+# Simulación del Sidebar Azul a la izquierda usando columnas de Streamlit
+col_izq, col_der = st.columns([1, 1.8])
 
-    st.button("🌐 Continuar con Google", type="secondary", use_container_width=True)
+with col_izq:
+    st.markdown(f"""
+    <div class="left-panel">
+        <div>
+            <div class="brand-logo">
+                <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
+            </div>
+            <div class="value-prop">
+                <h2>Tu plataforma inteligente<br>para gestionar cobros y clientes</h2>
+                <div class="feature">🛡️ Rápido y seguro</div>
+                <div class="feature">⚡ Sin confirmaciones innecesarias</div>
+                <div class="feature">🌍 Acceso desde cualquier lugar</div>
+            </div>
+        </div>
+        <div style="font-size: 12px; color: #64748B;">
+            © 2026 CobroYa. Todos los derechos reservados.<br>
+            🔒 Seguridad garantizada
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown('<div class="divider">o continúa con tu correo</div>', unsafe_allow_html=True)
-
-    st.text_input("Correo electrónico", placeholder="ejemplo@correo.com")
-    st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
-
-    # Fila de Recordarme / Olvidaste
-    c1, c2 = st.columns([1, 1.2])
-    with c1:
-        st.checkbox("Recordarme")
-    with c2:
-        st.markdown("<div style='text-align: right; margin-top: 5px;'>", unsafe_allow_html=True)
-        if st.button("¿Olvidaste tu contraseña?", type="tertiary"):
-            st.session_state.auth_mode = "forgot"
-            st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    st.button("Iniciar sesión", type="primary", use_container_width=True)
-
-    # PIE DE PÁGINA (CREAR CUENTA) - CORREGIDO EL CENTRADO
-    st.markdown("<div style='text-align: center; margin-top: 30px; font-size: 13px; color: #64748B;'>¿No tienes cuenta?</div>", unsafe_allow_html=True)
+with col_der:
+    st.markdown('<div class="right-panel">', unsafe_allow_html=True)
     
-    # Usamos columnas para centrar el botón de "Crear cuenta" exactamente
-    _, center_col, _ = st.columns([1, 1, 1])
-    with center_col:
-        if st.button("Crear cuenta", type="tertiary"):
-            st.session_state.auth_mode = "signup"
+    # --- FLUJO: INICIAR SESIÓN ---
+    if st.session_state.auth_mode == "login":
+        with st.container():
+            st.markdown('<div style="text-align: center; margin-bottom: 20px;"><img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="120"></div>', unsafe_allow_html=True)
+            st.markdown('<h1 style="text-align: center; font-size: 24px; color: #0F172A;">Bienvenido de vuelta</h1>', unsafe_allow_html=True)
+            st.markdown('<p style="text-align: center; color: #64748B; font-size: 14px; margin-bottom: 30px;">Inicia sesión para continuar</p>', unsafe_allow_html=True)
+            
+            # Botón Google Real
+            st.markdown("""
+                <div class="google-btn">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" width="18">
+                    Continuar con Google
+                </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown('<div class="divider">o continúa con tu correo</div>', unsafe_allow_html=True)
+            
+            st.text_input("Correo electrónico", placeholder="ejemplo@correo.com")
+            st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
+            
+            c1, c2 = st.columns(2)
+            with c1: st.checkbox("Recordarme")
+            with c2: 
+                if st.button("¿Olvidaste tu contraseña?", type="link"):
+                    st.session_state.auth_mode = "forgot"
+                    st.rerun()
+            
+            if st.button("Iniciar sesión", type="primary", use_container_width=True):
+                pass
+                
+            st.markdown("<p style='text-align: center; margin-top: 20px; font-size: 14px;'>¿No tienes cuenta? </p>", unsafe_allow_html=True)
+            if st.button("Crear cuenta", type="secondary", use_container_width=True):
+                st.session_state.auth_mode = "signup"
+                st.rerun()
+
+    # --- FLUJO: REGISTRO ---
+    elif st.session_state.auth_mode == "signup":
+        st.markdown('<h1 style="text-align: center; font-size: 24px;">Crear cuenta</h1>', unsafe_allow_html=True)
+        st.markdown('<p style="text-align: center; color: #64748B;">Es rápido y fácil</p>', unsafe_allow_html=True)
+        
+        st.text_input("Correo electrónico")
+        st.text_input("Contraseña", type="password")
+        st.text_input("Confirmar contraseña", type="password")
+        
+        if st.button("Crear cuenta", type="primary", use_container_width=True):
+            pass
+            
+        if st.button("¿Ya tienes cuenta? Iniciar sesión", type="link"):
+            st.session_state.auth_mode = "login"
             st.rerun()
 
-# ==========================================
-# FLUJO: REGISTRO / RECUPERAR (Mismo estilo)
-# ==========================================
-elif st.session_state.auth_mode == "signup":
-    st.markdown('<div class="main-title">Crear cuenta</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Es rápido y fácil</div>', unsafe_allow_html=True)
-    # ... (resto del código de registro siguiendo el mismo patrón)
-    if st.button("Volver al inicio", type="tertiary"):
-        st.session_state.auth_mode = "login"
-        st.rerun()
+    # --- FLUJO: RECUPERAR ---
+    elif st.session_state.auth_mode == "forgot":
+        st.markdown('<h1 style="text-align: center; font-size: 24px;">Recuperar contraseña</h1>', unsafe_allow_html=True)
+        st.markdown('<p style="text-align: center; color: #64748B;">Te enviaremos un enlace de recuperación</p>', unsafe_allow_html=True)
+        
+        st.text_input("Correo electrónico", placeholder="ejemplo@correo.com")
+        
+        if st.button("Enviar enlace", type="primary", use_container_width=True):
+            st.success("Enviado")
+            
+        if st.button("Volver al inicio", type="link"):
+            st.session_state.auth_mode = "login"
+            st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 st.stop()
         
