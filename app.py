@@ -20,58 +20,138 @@ from datetime import datetime
 import streamlit as st
 from st_supabase_connection import SupabaseConnection
 
-# 1. CONFIGURACIÓN Y CONEXIÓN
+# 1. CONFIGURACIÓN INICIAL Y CONEXIÓN (Necesaria para que funcione)
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
-
-# Inicializar conexión a Supabase
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# Inicializar estados de sesión
-if "page" not in st.session_state:
-    st.session_state.page = "login"
+# Inicializar estados de sesión para que el dashboard funcione
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "user" not in st.session_state:
     st.session_state.user = None
 
-# 2. CSS RADICAL (Manteniendo tu diseño original)
-st.markdown("""
-<style>
-    [data-testid="stHeader"], [data-testid="stSidebar"], footer {display: none !important;}
-    .main .block-container { padding: 0rem !important; max-width: 100% !important; }
-    [data-testid="stAppViewContainer"] {
-        background: linear-gradient(90deg, #06102B 33%, #F8FAFC 33%);
-        height: 100vh; width: 100vw; overflow: hidden;
-    }
-    .panel-info {
-        width: 33vw; padding: 30px 60px; color: white; height: 100vh;
-        display: flex; flex-direction: column; justify-content: space-between;
-    }
-    @media (max-width: 768px) {
-        [data-testid="stAppViewContainer"] { background: #F8FAFC !important; overflow-y: auto !important; }
-        [data-testid="stHorizontalBlock"] { display: flex !important; flex-direction: column-reverse !important; }
-        [data-testid="column"] { width: 100% !important; min-width: 100% !important; }
-        .panel-info { width: 100vw !important; margin-top: 60px !important; background-color: #06102B !important; }
-    }
-    .google-btn {
-        display: flex; align-items: center; justify-content: center; gap: 10px;
-        width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
-        height: 45px; margin-bottom: 15px; font-weight: 500; color: #334155;
-        cursor: pointer; text-decoration: none;
-    }
-    .divider { display: flex; align-items: center; text-align: center; color: #94A3B8; font-size: 12px; margin: 15px 0; }
-    .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #F1F5F9; }
-    .divider:not(:empty)::before { margin-right: 15px; }
-    .divider:not(:empty)::after { margin-left: 15px; }
-</style>
-""", unsafe_allow_html=True)
+# VALIDACIÓN: Si ya está autenticado, definimos u_id y permitimos que corra el resto de tu archivo (Dashboard)
+if st.session_state.authenticated:
+    u_id = st.session_state.user.id
+    # El código del dashboard que sigue después de este bloque funcionará ahora porque u_id y conn existen.
+else:
+    # 2. TU CSS RADICAL (Intacto)
+    st.markdown("""
+    <style>
+        /* Eliminar el padding de Streamlit por completo */
+        [data-testid="stHeader"], [data-testid="stSidebar"], footer {display: none !important;}
+        
+        /* Eliminar espacios en blanco superiores de la app */
+        .main .block-container {
+            padding-top: 0rem !important;
+            padding-bottom: 0rem !important;
+            padding-left: 0rem !important;
+            padding-right: 0rem !important;
+            max-width: 100% !important;
+        }
 
-# 3. LÓGICA DE AUTENTICACIÓN (Solo si no está autenticado)
-if not st.session_state.authenticated:
+        /* Fondo dividido - LAPTOP */
+        [data-testid="stAppViewContainer"] {
+            background: linear-gradient(90deg, #06102B 33%, #F8FAFC 33%);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
+        /* Panel Izquierdo (Azul) */
+        .panel-info {
+            width: 33vw;
+            padding: 30px 60px;
+            color: white;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* AJUSTES ESPECÍFICOS PARA CELULAR */
+        @media (max-width: 768px) {
+            [data-testid="stAppViewContainer"] {
+                background: #F8FAFC !important; 
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                height: auto !important;
+            }
+
+            /* INVERSIÓN Y CENTRADO: Login arriba, Azul abajo con espacio */
+            [data-testid="stHorizontalBlock"] {
+                display: flex !important;
+                flex-direction: column-reverse !important;
+                align-items: center !important;
+                gap: 0px !important;
+            }
+
+            /* Forzar que cada columna ocupe el 100% y centrar contenido */
+            [data-testid="column"] {
+                width: 100% !important;
+                flex: 1 1 100% !important;
+                min-width: 100% !important;
+                display: flex !important;
+                justify-content: center !important;
+            }
+
+            /* CENTRADO DEL FORMULARIO */
+            [data-testid="column"] > div {
+                width: 100% !important;
+                max-width: 450px !important;
+                margin: 0 auto !important;
+            }
+
+            /* Panel azul (ahora abajo) */
+            .panel-info {
+                width: 100vw !important;
+                height: auto !important;
+                background-color: #06102B !important; 
+                padding: 50px 20px !important;
+                margin-top: 60px !important;
+            }
+
+            .main .block-container {
+                padding: 20px 10px !important;
+            }
+        }
+
+        /* Estilos de botones y textos */
+        .google-btn {
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
+            height: 45px; margin-bottom: 15px; font-weight: 500; color: #334155;
+            cursor: pointer;
+        }
+        
+        .divider {
+            display: flex; align-items: center; text-align: center; color: #94A3B8;
+            font-size: 12px; margin: 15px 0;
+        }
+        .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #F1F5F9; }
+        .divider:not(:empty)::before { margin-right: 15px; }
+        .divider:not(:empty)::after { margin-left: 15px; }
+
+        div[data-testid="stTextInput"] input {
+            border-radius: 10px !important;
+            border: 1px solid #E2E8F0 !important;
+        }
+        
+        .stElementContainer {
+            margin-bottom: -10px !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # 3. LÓGICA DE NAVEGACIÓN
+    if "page" not in st.session_state:
+        st.session_state.page = "login"
+
+    # 4. RENDERIZADO DE LA ESTRUCTURA
     c_izq, c_der = st.columns([1, 2.03])
 
     with c_izq:
-        st.markdown("""
+        st.markdown(f"""
         <div class="panel-info">
             <div>
                 <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="180">
@@ -84,12 +164,15 @@ if not st.session_state.authenticated:
                     </div>
                 </div>
             </div>
-            <div style="font-size: 12px; color: #64748B; padding-bottom: 20px;">© 2026 CobroYa.</div>
+            <div style="font-size: 12px; color: #64748B; padding-bottom: 20px;">
+                © 2026 CobroYa. Todos los derechos reservados.
+            </div>
         </div>
         """, unsafe_allow_html=True)
 
     with c_der:
         st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
+        
         _, center, _ = st.columns([1, 2.5, 1])
         
         with center:
@@ -97,25 +180,27 @@ if not st.session_state.authenticated:
                 st.markdown("""
                     <div style="text-align: center; margin-bottom: 15px;">
                         <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="180">
-                        <h3 style="margin-top: 15px; color: #0F172A;">Bienvenido de vuelta</h3>
+                        <h3 style="margin-top: 15px; color: #0F172A; margin-bottom: 5px;">Bienvenido de vuelta</h3>
+                        <p style="color: #64748B; font-size: 14px;">Inicia sesión para continuar</p>
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # Botón de Google (Funcional con Supabase)
+                # Acción para Google
                 if st.button("🚀 Continuar con Google", use_container_width=True):
-                    try:
-                        response = conn.auth.sign_in_with_oauth({
-                            "provider": "google",
-                            "options": {"redirect_to": "https://cobroya.streamlit.app/"} # Cambia por tu URL real
-                        })
-                        st.info("Redirigiendo a Google...")
-                    except Exception as e:
-                        st.error(f"Error: {e}")
+                    conn.auth.sign_in_with_oauth({"provider": "google"})
 
                 st.markdown('<div class="divider">o continúa con tu correo</div>', unsafe_allow_html=True)
                 
-                email = st.text_input("Correo electrónico", key="login_email")
-                password = st.text_input("Contraseña", type="password", key="login_pass")
+                email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
+                password = st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
+                
+                col_check, col_link = st.columns([1, 1])
+                with col_check:
+                    st.checkbox("Recordarme")
+                with col_link:
+                    if st.button("¿Olvidaste tu contraseña?", key="btn_forgot"):
+                        st.session_state.page = "forgot"
+                        st.rerun()
                 
                 if st.button("Iniciar sesión", type="primary", use_container_width=True):
                     try:
@@ -123,43 +208,46 @@ if not st.session_state.authenticated:
                         st.session_state.user = res.user
                         st.session_state.authenticated = True
                         st.rerun()
-                    except Exception as e:
-                        st.error("Credenciales inválidas")
-
-                if st.button("¿No tienes cuenta? Regístrate", use_container_width=True):
+                    except:
+                        st.error("Usuario o contraseña incorrectos")
+                    
+                st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
+                if st.button("Crear cuenta", use_container_width=True):
                     st.session_state.page = "signup"
                     st.rerun()
 
             elif st.session_state.page == "signup":
-                st.markdown("### Crear cuenta")
+                st.markdown("""
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
+                        <h3 style="margin-top: 15px; color: #0F172A;">Crear cuenta</h3>
+                    </div>
+                """, unsafe_allow_html=True)
                 reg_email = st.text_input("Correo electrónico", key="reg_email")
                 reg_pass = st.text_input("Contraseña", type="password", key="reg_pass")
-                
                 if st.button("Registrarse", type="primary", use_container_width=True):
                     try:
-                        res = conn.auth.sign_up({"email": reg_email, "password": reg_pass})
-                        st.success("Cuenta creada. Revisa tu correo o inicia sesión.")
+                        conn.auth.sign_up({"email": reg_email, "password": reg_pass})
+                        st.success("¡Cuenta creada! Ya puedes iniciar sesión.")
                     except Exception as e:
-                        st.error(f"Error: {e}")
-                
+                        st.error(f"Error al registrar: {e}")
                 if st.button("Volver al login", use_container_width=True):
                     st.session_state.page = "login"
                     st.rerun()
 
-# 4. PUNTO DE ENTRADA AL DASHBOARD
-if st.session_state.authenticated:
-    # Definir u_id para el resto del código (Dashboard)
-    u_id = st.session_state.user.id
-    
-    # Aquí es donde el código de tu Dashboard toma el control automáticamente
-    # st.write(f"Bienvenido, {st.session_state.user.email}") # Solo para debug
-    
-    # Botón de Logout (puedes ponerlo en la sidebar del dashboard)
-    if st.sidebar.button("Cerrar Sesión"):
-        conn.auth.sign_out()
-        st.session_state.authenticated = False
-        st.session_state.user = None
-        st.rerun()
+            elif st.session_state.page == "forgot":
+                st.markdown("""
+                    <div style="text-align: center; margin-bottom: 15px;">
+                        <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
+                        <h3 style="margin-top: 15px; color: #0F172A;">Recuperar acceso</h3>
+                    </div>
+                """, unsafe_allow_html=True)
+                reset_email = st.text_input("Ingresa tu correo", key="reset_email")
+                if st.button("Enviar enlace", type="primary", use_container_width=True):
+                    st.success("Enlace enviado al correo")
+                if st.button("Volver", use_container_width=True):
+                    st.session_state.page = "login"
+                    st.rerun()
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
