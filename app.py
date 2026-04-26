@@ -17,7 +17,6 @@ import base64
 from fpdf import FPDF
 from datetime import datetime
 
-
 import streamlit as st
 
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
@@ -65,27 +64,28 @@ st.markdown("""
         padding-top: 30px;
     }
 
-    /* AJUSTES PARA CELULAR (MÓVIL) */
+    /* AJUSTES EXCLUSIVOS PARA CELULAR - No afectan la Laptop */
     @media (max-width: 768px) {
         [data-testid="stAppViewContainer"] {
-            background: #F8FAFC !important; /* Fondo claro en móvil */
+            background: #F8FAFC !important; /* Fondo limpio en móvil */
             overflow-y: auto !important;
         }
         
-        /* Ocultar la columna azul en móvil para que no estorbe */
+        /* Ocultar la columna de información y el texto vertical en móvil */
         [data-testid="column"]:nth-child(1) {
             display: none !important;
         }
         
-        /* Hacer que el formulario ocupe todo el ancho en móvil */
+        /* Expandir el formulario al 100% del ancho del teléfono */
         [data-testid="column"]:nth-child(2) {
             width: 100% !important;
             flex: 1 1 100% !important;
+            padding: 10px !important;
         }
 
+        /* Forzar que el contenido de la columna de login no tenga márgenes locos */
         .main .block-container {
-            padding-left: 1rem !important;
-            padding-right: 1rem !important;
+            padding: 10px !important;
         }
     }
 
@@ -148,7 +148,7 @@ with c_izq:
 with c_der:
     st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
     
-    # En móvil estas columnas se apilan automáticamente gracias al CSS anterior
+    # En móvil estas columnas se ajustan mediante el media query de arriba
     _, center, _ = st.columns([1, 2.5, 1])
     
     with center:
