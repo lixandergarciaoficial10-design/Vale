@@ -22,75 +22,97 @@ import streamlit as st
 # 1. CONFIGURACIÓN BASE
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 
-# 2. CSS RADICAL (Ajustado para alineación superior y simetría)
+# 2. CSS PARA EL APP SHELL (DISEÑO PREMIUM)
 st.markdown("""
 <style>
-    /* Eliminar el padding de Streamlit por completo */
+    /* Ocultar elementos de Streamlit */
     [data-testid="stHeader"], [data-testid="stSidebar"], footer {display: none !important;}
     
-    /* Eliminar espacios en blanco superiores de la app */
-    .main .block-container {
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
-        padding-left: 0rem !important;
-        padding-right: 0rem !important;
-        max-width: 100% !important;
-    }
-
-    /* Fondo dividido */
+    /* Fondo externo de la aplicación */
     [data-testid="stAppViewContainer"] {
-        background: linear-gradient(90deg, #06102B 33%, #F8FAFC 33%);
+        background: linear-gradient(135deg, #E2E8F0 0%, #F8FAFC 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
         height: 100vh;
         width: 100vw;
         overflow: hidden;
     }
 
-    /* Panel Izquierdo: Ajuste de padding superior para pegar arriba */
+    /* Contenedor Principal (App Shell) */
+    .block-container {
+        padding: 0 !important;
+        max-width: 85% !important;
+        height: 90vh !important;
+        background-color: white;
+        border-radius: 24px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+        overflow: hidden; /* Evita scrolls externos */
+        display: flex;
+        flex-direction: column;
+        margin: auto;
+    }
+
+    /* Forzar el alto de las columnas de Streamlit para que llenen el contenedor */
+    [data-testid="stHorizontalBlock"] {
+        height: 100% !important;
+        gap: 0 !important;
+    }
+
+    /* Panel Izquierdo (Azul) */
     .panel-info {
-        width: 33vw;
-        padding: 30px 60px; /* Reducido el padding superior de 60 a 30 */
+        background-color: #06102B;
         color: white;
-        height: 100vh;
+        height: 90vh;
+        padding: 50px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
     }
 
-    /* Panel Derecho: Centrado pero pegado arriba */
-    .panel-form {
-        width: 67vw;
+    /* Panel Derecho (Formulario) */
+    .panel-form-container {
+        background-color: #FFFFFF;
+        height: 90vh;
+        padding: 40px;
         display: flex;
+        flex-direction: column;
         justify-content: center;
-        align-items: flex-start; /* Cambiado de center a flex-start */
-        padding-top: 30px; /* Alineado con el panel izquierdo */
+        overflow-y: auto; /* Solo scroll si el contenido crece mucho */
     }
 
-    /* Estilos de botones y textos */
+    /* Estilos de botones y divisores */
     .google-btn {
         display: flex; align-items: center; justify-content: center; gap: 10px;
         width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
-        height: 45px; margin-bottom: 15px; font-weight: 500; color: #334155;
-        cursor: pointer;
+        height: 42px; margin-bottom: 12px; font-weight: 500; color: #334155;
+        cursor: pointer; font-size: 14px;
     }
     
     .divider {
         display: flex; align-items: center; text-align: center; color: #94A3B8;
-        font-size: 12px; margin: 15px 0;
+        font-size: 11px; margin: 12px 0;
     }
     .divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid #F1F5F9; }
     .divider:not(:empty)::before { margin-right: 15px; }
     .divider:not(:empty)::after { margin-left: 15px; }
 
-    /* Forzar estilos en inputs de Streamlit */
+    /* Ajustes de inputs para que sean más compactos */
+    div[data-testid="stTextInput"] > div { margin-bottom: -15px; }
     div[data-testid="stTextInput"] input {
         border-radius: 10px !important;
         border: 1px solid #E2E8F0 !important;
+        padding: 8px 12px !important;
     }
     
-    /* Eliminar espacio entre widgets de Streamlit */
-    .stElementContainer {
-        margin-bottom: -10px !important;
+    /* Botones primarios con estilo moderno */
+    .stButton > button {
+        border-radius: 10px !important;
+        font-weight: 600 !important;
     }
+
+    /* Eliminar espacios innecesarios */
+    .stElementContainer { margin-bottom: 5px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -98,106 +120,104 @@ st.markdown("""
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
-# 4. RENDERIZADO DE LA ESTRUCTURA
-# c_izq para el área azul, c_der para el área clara
-c_izq, c_der = st.columns([1, 2.03])
+# 4. ESTRUCTURA DE COLUMNAS (Dentro del App Shell)
+c_izq, c_der = st.columns([1, 1.5])
 
 with c_izq:
-    # Contenido del panel azul (Logo 180px)
     st.markdown(f"""
     <div class="panel-info">
         <div>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
-            <div style="margin-top: 40px;">
-                <h2 style="font-size: 28px; line-height: 1.2;">Tu plataforma inteligente<br>para gestionar cobros y clientes</h2>
-                <div style="margin-top: 30px; color: #CBD5E1; font-size: 15px; line-height: 1.8;">
-                    <p>✔️ Rápido y seguro</p>
-                    <p>✔️ Sin confirmaciones innecesarias</p>
-                    <p>✔️ Acceso desde cualquier lugar</p>
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="160">
+            <div style="margin-top: 60px;">
+                <h2 style="font-size: 32px; line-height: 1.1; font-weight: 600;">Tu plataforma inteligente<br>para gestionar cobros.</h2>
+                <div style="margin-top: 40px; color: #CBD5E1; font-size: 16px; line-height: 2;">
+                    <p>● Rápido y seguro</p>
+                    <p>● Sin confirmaciones innecesarias</p>
+                    <p>● Acceso global</p>
                 </div>
             </div>
         </div>
-        <div style="font-size: 12px; color: #64748B; padding-bottom: 20px;">
-            © 2026 CobroYa. Todos los derechos reservados.
+        <div style="font-size: 12px; color: #64748B;">
+            © 2026 CobroYa. SaaS Premium.
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 with c_der:
-    # Espaciado mínimo para alinear con el logo de la izquierda
-    st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
-    
-    # Usamos columnas internas para centrar el formulario horizontalmente
-    _, center, _ = st.columns([1, 2.5, 1])
-    
-    with center:
-        # --- VISTA: LOGIN ---
-        if st.session_state.page == "login":
-            st.markdown("""
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
-                    <h3 style="margin-top: 15px; color: #0F172A; margin-bottom: 5px;">Bienvenido de vuelta</h3>
-                    <p style="color: #64748B; font-size: 14px;">Inicia sesión para continuar</p>
-                </div>
-                <div class="google-btn">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" width="18">
-                    Continuar con Google
-                </div>
-                <div class="divider">o continúa con tu correo</div>
-            """, unsafe_allow_html=True)
-            
-            st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
-            st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
-            
-            col_check, col_link = st.columns([1, 1])
-            with col_check:
-                st.checkbox("Recordarme")
-            with col_link:
-                # Ajuste visual para que el botón parezca un link
-                if st.button("¿Olvidaste tu contraseña?", key="btn_forgot"):
-                    st.session_state.page = "forgot"
-                    st.rerun()
-            
-            if st.button("Iniciar sesión", type="primary", use_container_width=True):
-                pass 
+    # Contenedor para centrar el formulario dentro de la columna derecha
+    with st.container():
+        st.markdown('<div class="panel-form-container">', unsafe_allow_html=True)
+        
+        # Usamos una sub-columna para dar aire lateral al formulario
+        _, center_form, _ = st.columns([0.15, 0.7, 0.15])
+        
+        with center_form:
+            # --- VISTA: LOGIN ---
+            if st.session_state.page == "login":
+                st.markdown("""
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h3 style="color: #0F172A; margin-bottom: 5px; font-size: 24px;">Bienvenido</h3>
+                        <p style="color: #64748B; font-size: 14px;">Ingresa tus credenciales para acceder</p>
+                    </div>
+                    <div class="google-btn">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_Logo.svg" width="16">
+                        Continuar con Google
+                    </div>
+                    <div class="divider">O USA TU CORREO</div>
+                """, unsafe_allow_html=True)
                 
-            st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
-            if st.button("Crear cuenta", use_container_width=True):
-                st.session_state.page = "signup"
-                st.rerun()
+                st.text_input("Correo electrónico", placeholder="nombre@empresa.com", key="email")
+                st.text_input("Contraseña", type="password", placeholder="••••••••", key="pass")
+                
+                col_check, col_link = st.columns([1, 1])
+                with col_check:
+                    st.checkbox("Recordarme")
+                with col_link:
+                    if st.button("¿Olvidaste la clave?", key="btn_forgot", use_container_width=True):
+                        st.session_state.page = "forgot"
+                        st.rerun()
+                
+                if st.button("Iniciar sesión", type="primary", use_container_width=True):
+                    pass 
+                    
+                st.markdown("<p style='text-align: center; margin-top: 20px; font-size: 13px; color: #64748B;'>¿Nuevo en la plataforma?</p>", unsafe_allow_html=True)
+                if st.button("Crear una cuenta", use_container_width=True):
+                    st.session_state.page = "signup"
+                    st.rerun()
 
-        # --- VISTA: REGISTRO ---
-        elif st.session_state.page == "signup":
-            st.markdown("""
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
-                    <h3 style="margin-top: 15px; color: #0F172A;">Crear cuenta</h3>
-                </div>
-            """, unsafe_allow_html=True)
-            st.text_input("Correo electrónico", key="reg_email")
-            st.text_input("Contraseña", type="password", key="reg_pass")
-            if st.button("Registrarse", type="primary", use_container_width=True):
-                pass
-            if st.button("Volver al login", use_container_width=True):
-                st.session_state.page = "login"
-                st.rerun()
+            # --- VISTA: REGISTRO ---
+            elif st.session_state.page == "signup":
+                st.markdown("""
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h3 style="color: #0F172A; font-size: 24px;">Crear cuenta</h3>
+                        <p style="color: #64748B; font-size: 14px;">Empieza a gestionar tus cobros hoy</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                st.text_input("Nombre completo", key="reg_name")
+                st.text_input("Correo electrónico", key="reg_email")
+                st.text_input("Contraseña", type="password", key="reg_pass")
+                if st.button("Registrarse ahora", type="primary", use_container_width=True):
+                    pass
+                if st.button("Volver al login", use_container_width=True):
+                    st.session_state.page = "login"
+                    st.rerun()
 
-        # --- VISTA: RECUPERAR ---
-        elif st.session_state.page == "forgot":
-            st.markdown("""
-                <div style="text-align: center; margin-bottom: 15px;">
-                    <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
-                    <h3 style="margin-top: 15px; color: #0F172A;">Recuperar acceso</h3>
-                </div>
-            """, unsafe_allow_html=True)
-            st.text_input("Ingresa tu correo", key="reset_email")
-            if st.button("Enviar enlace", type="primary", use_container_width=True):
-                st.success("Enlace enviado al correo")
-            if st.button("Volver", use_container_width=True):
-                st.session_state.page = "login"
-                st.rerun()
-
-st.stop()
+            # --- VISTA: RECUPERAR ---
+            elif st.session_state.page == "forgot":
+                st.markdown("""
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h3 style="color: #0F172A; font-size: 24px;">Recuperar acceso</h3>
+                        <p style="color: #64748B; font-size: 14px;">Te enviaremos un código de seguridad</p>
+                    </div>
+                """, unsafe_allow_html=True)
+                st.text_input("Correo electrónico vinculado", key="reset_email")
+                if st.button("Enviar instrucciones", type="primary", use_container_width=True):
+                    st.success("Correo enviado")
+                if st.button("Regresar", use_container_width=True):
+                    st.session_state.page = "login"
+                    st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
