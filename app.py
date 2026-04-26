@@ -17,9 +17,6 @@ import base64
 from fpdf import FPDF
 from datetime import datetime
 
-import streamlit as st
-
-# 1. CONFIGURACIÓN BASE
 
 # 2. CSS RADICAL (Ajustado para alineación superior y simetría)
 st.markdown("""
@@ -93,6 +90,20 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
+
+# Generar la URL de Google para el botón
+try:
+    # OJO: Cambia localhost por la URL de tu app en Google Cloud cuando la subas
+    google_auth = supabase.auth.sign_in_with_oauth({
+        "provider": "google",
+        "options": {"redirect_to": "http://localhost:8501"} 
+    })
+    google_url = google_auth.url
+except:
+    google_url = "#"
+
+
 # 3. LÓGICA DE NAVEGACIÓN
 if "page" not in st.session_state:
     st.session_state.page = "login"
@@ -132,21 +143,24 @@ with c_der:
     with center:
         # --- VISTA: LOGIN ---
         if st.session_state.page == "login":
-            st.markdown("""
+            # AJUSTE DE GOOGLE: Se envolvió el div en una etiqueta <a> con la variable {google_url}
+            st.markdown(f"""
                 <div style="text-align: center; margin-bottom: 15px;">
                     <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="180">
                     <h3 style="margin-top: 15px; color: #0F172A; margin-bottom: 5px;">Bienvenido de vuelta</h3>
                     <p style="color: #64748B; font-size: 14px;">Inicia sesión para continuar</p>
                 </div>
-                <div class="google-btn">
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/3840px-Google_%22G%22_logo.svg.png" width="18">
-                    Continuar con Google
-                </div>
+                <a href="{google_url}" target="_self" style="text-decoration: none;">
+                    <div class="google-btn">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/3840px-Google_%22G%22_logo.svg.png" width="18">
+                        Continuar con Google
+                    </div>
+                </a>
                 <div class="divider">o continúa con tu correo</div>
             """, unsafe_allow_html=True)
             
-            st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
-            st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
+            email_login = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="email")
+            pass_login = st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="pass")
             
             col_check, col_link = st.columns([1, 1])
             with col_check:
@@ -158,7 +172,13 @@ with c_der:
                     st.rerun()
             
             if st.button("Iniciar sesión", type="primary", use_container_width=True):
-                pass 
+                # AJUSTE LOGIN: Conexión real con Supabase
+                try:
+                    res = supabase.auth.sign_in_with_password({"email": email_login, "password": pass_login})
+                    st.success("¡Acceso concedido!")
+                    # Redirigir o cambiar de página aquí
+                except Exception as e:
+                    st.error("Usuario o contraseña incorrectos.") 
                 
             st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
             if st.button("Crear cuenta", use_container_width=True):
@@ -173,10 +193,17 @@ with c_der:
                     <h3 style="margin-top: 15px; color: #0F172A;">Crear cuenta</h3>
                 </div>
             """, unsafe_allow_html=True)
-            st.text_input("Correo electrónico", key="reg_email")
-            st.text_input("Contraseña", type="password", key="reg_pass")
+            reg_email = st.text_input("Correo electrónico", key="reg_email")
+            reg_pass = st.text_input("Contraseña", type="password", key="reg_pass")
+            
             if st.button("Registrarse", type="primary", use_container_width=True):
-                pass
+                # AJUSTE REGISTRO: Conexión real con Supabase
+                try:
+                    supabase.auth.sign_up({"email": reg_email, "password": reg_pass})
+                    st.success("¡Cuenta creada exitosamente!")
+                except Exception as e:
+                    st.error(f"Hubo un error: {e}")
+
             if st.button("Volver al login", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
@@ -189,9 +216,16 @@ with c_der:
                     <h3 style="margin-top: 15px; color: #0F172A;">Recuperar acceso</h3>
                 </div>
             """, unsafe_allow_html=True)
-            st.text_input("Ingresa tu correo", key="reset_email")
+            reset_email = st.text_input("Ingresa tu correo", key="reset_email")
+            
             if st.button("Enviar enlace", type="primary", use_container_width=True):
-                st.success("Enlace enviado al correo")
+                # AJUSTE RECUPERAR: Conexión real con Supabase
+                try:
+                    supabase.auth.reset_password_email(reset_email)
+                    st.success("Enlace enviado al correo.")
+                except Exception as e:
+                    st.error("Error al intentar enviar el enlace.")
+
             if st.button("Volver", use_container_width=True):
                 st.session_state.page = "login"
                 st.rerun()
