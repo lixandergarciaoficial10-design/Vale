@@ -23,6 +23,10 @@ from st_supabase_connection import SupabaseConnection
 import streamlit as st
 from st_supabase_connection import SupabaseConnection
 
+import streamlit as st
+import re
+from st_supabase_connection import SupabaseConnection
+
 # 1. CONFIGURACIÓN INICIAL Y CONEXIÓN
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 conn = st.connection("supabase", type=SupabaseConnection)
@@ -158,7 +162,7 @@ if not st.session_state.authenticated:
         </div>
         """, unsafe_allow_html=True)
 
-with c_der:
+    with c_der:
         st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
         _, center, _ = st.columns([1, 2.5, 1])
         
@@ -173,7 +177,7 @@ with c_der:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                # --- ARREGLO DEL BOTÓN DE GOOGLE (Diseño y Funcionalidad) ---
+                # --- ARREGLO DEL BOTÓN DE GOOGLE ---
                 try:
                     res_google = conn.auth.sign_in_with_oauth({"provider": "google"})
                     google_url = res_google.url
@@ -188,7 +192,6 @@ with c_der:
                         </div>
                     </a>
                 """, unsafe_allow_html=True)
-                # -----------------------------------------------------------
 
                 st.markdown('<div class="divider">o continúa con tu correo</div>', unsafe_allow_html=True)
                 
@@ -204,22 +207,18 @@ with c_der:
                         st.session_state.page = "forgot"
                         st.rerun()
                 
-                # --- LÓGICA DE INICIO DE SESIÓN CORREGIDA ---
+                # --- LÓGICA DE INICIO DE SESIÓN ---
                 if st.button("Iniciar sesión", type="primary", use_container_width=True):
                     if email and password:
                         try:
-                            # Ejecutamos la autenticación
                             res = conn.auth.sign_in_with_password({"email": email, "password": password})
-                            
-                            # Si hay usuario, actualizamos el estado y forzamos el reinicio inmediato
                             if res and res.user:
                                 st.session_state.user = res.user
                                 st.session_state.authenticated = True
-                                st.rerun() # Esto rompe el bucle de los 3 clics
+                                st.rerun()
                             else:
                                 st.error("No se pudo obtener la sesión del usuario.")
                         except Exception as e:
-                            # Si el error es de credenciales, lo mostramos directo
                             st.error("Correo o contraseña incorrectos")
                     else:
                         st.warning("Por favor, completa todos los campos")
@@ -229,7 +228,7 @@ with c_der:
                     st.session_state.page = "signup"
                     st.rerun()
 
-            # --- VISTA: REGISTRO (CON TUS NUEVOS REQUISITOS) ---
+            # --- VISTA: REGISTRO ---
             elif st.session_state.page == "signup":
                 st.markdown("""
                     <div style="text-align: center; margin-bottom: 15px;">
@@ -247,7 +246,6 @@ with c_der:
                 reg_pass_conf = st.text_input("Confirmar Contraseña", type="password", key="reg_p2")
                 
                 if st.button("Registrarse", type="primary", use_container_width=True):
-                    # Validaciones
                     if reg_pass != reg_pass_conf:
                         st.error("Las contraseñas no coinciden.")
                     elif not (re.search("[a-zA-Z]", reg_pass) and re.search("[0-9]", reg_pass)):
@@ -256,7 +254,6 @@ with c_der:
                         st.error("Por favor, llena todos los campos.")
                     else:
                         try:
-                            # Se guarda en Supabase: Email, Pass, y los metadatos (display_name y phone)
                             conn.auth.sign_up({
                                 "email": reg_email, 
                                 "password": reg_pass,
@@ -290,7 +287,7 @@ with c_der:
                     st.session_state.page = "login"
                     st.rerun()
 
-    # BLOQUEO DE FLUJO: Si no está autenticado, el código muere aquí.
+    # BLOQUEO DE FLUJO
     st.stop()
 
 # --- SI PASA DE AQUÍ, EL USUARIO ESTÁ DENTRO ---
