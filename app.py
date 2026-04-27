@@ -21,14 +21,13 @@ import re
 from st_supabase_connection import SupabaseConnection
 
 import streamlit as st
-import re
 from st_supabase_connection import SupabaseConnection
 
-# 1. CONFIGURACIÓN INICIAL Y CONEXIÓN (Necesaria para que funcione)
+# 1. CONFIGURACIÓN INICIAL Y CONEXIÓN
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 conn = st.connection("supabase", type=SupabaseConnection)
 
-# Inicializar estados de sesión para que el dashboard funcione
+# Inicializar estados de sesión
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "user" not in st.session_state:
@@ -41,10 +40,8 @@ if not st.session_state.authenticated:
     # 2. TU CSS RADICAL (Intacto y Completo)
     st.markdown("""
     <style>
-        /* Eliminar el padding de Streamlit por completo */
         [data-testid="stHeader"], [data-testid="stSidebar"], footer {display: none !important;}
         
-        /* Eliminar espacios en blanco superiores de la app */
         .main .block-container {
             padding-top: 0rem !important;
             padding-bottom: 0rem !important;
@@ -53,7 +50,6 @@ if not st.session_state.authenticated:
             max-width: 100% !important;
         }
 
-        /* Fondo dividido - LAPTOP */
         [data-testid="stAppViewContainer"] {
             background: linear-gradient(90deg, #06102B 33%, #F8FAFC 33%);
             height: 100vh;
@@ -61,7 +57,6 @@ if not st.session_state.authenticated:
             overflow: hidden;
         }
 
-        /* Panel Izquierdo (Azul) */
         .panel-info {
             width: 33vw;
             padding: 30px 60px;
@@ -72,7 +67,6 @@ if not st.session_state.authenticated:
             justify-content: space-between;
         }
 
-        /* AJUSTES ESPECÍFICOS PARA CELULAR */
         @media (max-width: 768px) {
             [data-testid="stAppViewContainer"] {
                 background: #F8FAFC !important; 
@@ -81,7 +75,6 @@ if not st.session_state.authenticated:
                 height: auto !important;
             }
 
-            /* INVERSIÓN Y CENTRADO: Login arriba, Azul abajo con espacio */
             [data-testid="stHorizontalBlock"] {
                 display: flex !important;
                 flex-direction: column-reverse !important;
@@ -89,7 +82,6 @@ if not st.session_state.authenticated:
                 gap: 0px !important;
             }
 
-            /* Forzar que cada columna ocupe el 100% y centrar contenido */
             [data-testid="column"] {
                 width: 100% !important;
                 flex: 1 1 100% !important;
@@ -98,14 +90,12 @@ if not st.session_state.authenticated:
                 justify-content: center !important;
             }
 
-            /* CENTRADO DEL FORMULARIO */
             [data-testid="column"] > div {
                 width: 100% !important;
                 max-width: 450px !important;
                 margin: 0 auto !important;
             }
 
-            /* Panel azul (ahora abajo) */
             .panel-info {
                 width: 100vw !important;
                 height: auto !important;
@@ -119,7 +109,6 @@ if not st.session_state.authenticated:
             }
         }
 
-        /* Estilos de botones y textos */
         .google-btn {
             display: flex; align-items: center; justify-content: center; gap: 10px;
             width: 100%; border: 1px solid #E2E8F0; border-radius: 12px;
@@ -146,7 +135,7 @@ if not st.session_state.authenticated:
     </style>
     """, unsafe_allow_html=True)
 
-    # 4. RENDERIZADO DE LA ESTRUCTURA (Lixander, aquí empieza el layout)
+    # 4. RENDERIZADO DE LA ESTRUCTURA
     c_izq, c_der = st.columns([1, 2.03])
 
     with c_izq:
@@ -171,7 +160,6 @@ if not st.session_state.authenticated:
 
     with c_der:
         st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
-        
         _, center, _ = st.columns([1, 2.5, 1])
         
         with center:
@@ -190,7 +178,7 @@ if not st.session_state.authenticated:
 
                 st.markdown('<div class="divider">o continúa con tu correo</div>', unsafe_allow_html=True)
                 
-                # Para solucionar los 3 clics: quitamos el form en login para refresco instantáneo
+                # Campos de entrada
                 email = st.text_input("Correo electrónico", placeholder="ejemplo@correo.com", key="login_email")
                 password = st.text_input("Contraseña", type="password", placeholder="Tu contraseña", key="login_pass")
                 
@@ -202,18 +190,25 @@ if not st.session_state.authenticated:
                         st.session_state.page = "forgot"
                         st.rerun()
                 
+                # --- LÓGICA DE INICIO DE SESIÓN CORREGIDA ---
                 if st.button("Iniciar sesión", type="primary", use_container_width=True):
                     if email and password:
                         try:
+                            # Ejecutamos la autenticación
                             res = conn.auth.sign_in_with_password({"email": email, "password": password})
-                            if res.user:
+                            
+                            # Si hay usuario, actualizamos el estado y forzamos el reinicio inmediato
+                            if res and res.user:
                                 st.session_state.user = res.user
                                 st.session_state.authenticated = True
-                                st.rerun() # Salta el muro inmediatamente
-                        except:
-                            st.error("Usuario o contraseña incorrectos")
+                                st.rerun() # Esto rompe el bucle de los 3 clics
+                            else:
+                                st.error("No se pudo obtener la sesión del usuario.")
+                        except Exception as e:
+                            # Si el error es de credenciales, lo mostramos directo
+                            st.error("Correo o contraseña incorrectos")
                     else:
-                        st.warning("Completa los datos")
+                        st.warning("Por favor, completa todos los campos")
                     
                 st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
                 if st.button("Crear cuenta", use_container_width=True):
