@@ -281,9 +281,6 @@ if not st.session_state.authenticated:
 
 # --- SI PASA DE AQUÍ, EL USUARIO ESTÁ DENTRO ---
 u_id = st.session_state.user.id
-
-# COMIENZO DEL DASHBOARD (Todo tu código siguiente...)
-st.write(f"Bienvenido al Dashboard de {st.session_state.user.user_metadata.get('display_name', 'Usuario')}")
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
