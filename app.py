@@ -158,7 +158,7 @@ if not st.session_state.authenticated:
         </div>
         """, unsafe_allow_html=True)
 
-    with c_der:
+with c_der:
         st.markdown('<div style="margin-top: 30px;"></div>', unsafe_allow_html=True)
         _, center, _ = st.columns([1, 2.5, 1])
         
@@ -173,8 +173,22 @@ if not st.session_state.authenticated:
                     </div>
                 """, unsafe_allow_html=True)
                 
-                if st.button("🚀 Continuar con Google", use_container_width=True):
-                    conn.auth.sign_in_with_oauth({"provider": "google"})
+                # --- ARREGLO DEL BOTÓN DE GOOGLE (Diseño y Funcionalidad) ---
+                try:
+                    res_google = conn.auth.sign_in_with_oauth({"provider": "google"})
+                    google_url = res_google.url
+                except Exception:
+                    google_url = "#"
+
+                st.markdown(f"""
+                    <a href="{google_url}" target="_self" style="text-decoration: none;">
+                        <div style="display: flex; justify-content: center; align-items: center; border: 1px solid #CBD5E1; border-radius: 8px; padding: 10px; background-color: white; cursor: pointer; transition: 0.3s;">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" width="20" style="margin-right: 10px;">
+                            <span style="color: #334155; font-weight: 500; font-family: sans-serif; font-size: 15px;">Continuar con Google</span>
+                        </div>
+                    </a>
+                """, unsafe_allow_html=True)
+                # -----------------------------------------------------------
 
                 st.markdown('<div class="divider">o continúa con tu correo</div>', unsafe_allow_html=True)
                 
@@ -209,7 +223,7 @@ if not st.session_state.authenticated:
                             st.error("Correo o contraseña incorrectos")
                     else:
                         st.warning("Por favor, completa todos los campos")
-                    
+                
                 st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
                 if st.button("Crear cuenta", use_container_width=True):
                     st.session_state.page = "signup"
