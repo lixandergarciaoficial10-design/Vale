@@ -20,13 +20,6 @@ import streamlit as st
 import re
 from st_supabase_connection import SupabaseConnection
 
-import streamlit as st
-from st_supabase_connection import SupabaseConnection
-
-import streamlit as st
-import re
-from st_supabase_connection import SupabaseConnection
-
 # 1. CONFIGURACIÓN INICIAL Y CONEXIÓN
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 conn = st.connection("supabase", type=SupabaseConnection)
@@ -592,7 +585,6 @@ def generar_estado_cuenta(nombre, total_prestado, pagado, pendiente, historial_p
         
     return bytes(pdf.output())
 
-
 def calcular_atraso_dinamico(fecha_proximo_pago):
     """Calcula el tiempo de atraso y devuelve un texto amigable y los días totales."""
     if not fecha_proximo_pago:
@@ -652,7 +644,7 @@ if "user" in st.session_state and st.session_state.user:
 with st.sidebar:
     import base64
     
-    URL_LOGO_COBROYA = "https://tu-url-aqui.com/logo.png" 
+    URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
 
     # Variables de sesión
     biz_name = st.session_state.get("nombre_negocio", "MI NEGOCIO").upper()
