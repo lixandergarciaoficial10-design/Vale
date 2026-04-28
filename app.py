@@ -616,8 +616,6 @@ def obtener_prioridad(dias, balance, impagos=0):
     score = (dias * 0.5) + ((balance / 1000) * 0.3) + (impagos * 0.2)
     return score
 
-# --- 1. CARGA DE DATOS DESDE SUPABASE ---
-import streamlit as st
 
 # --- 0. INICIALIZACIÓN (Evita errores de variable no definida) ---
 if "menu_principal" not in st.session_state:
@@ -798,7 +796,7 @@ with st.sidebar:
     st.sidebar.markdown(f"""
         <div class="absolute-footer">
             <span class="powered-by">Powered by Lixander García</span>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" 
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
                  class="footer-logo-img" 
                  onerror="this.style.display='none'">
         </div>
