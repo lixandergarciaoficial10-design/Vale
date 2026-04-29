@@ -285,6 +285,187 @@ if not st.session_state.authenticated:
 
 # --- SI PASA DE AQUÍ, EL USUARIO ESTÁ DENTRO ---
 u_id = st.session_state.user.id
+
+import urllib.parse
+from datetime import datetime
+
+# =====================================================================
+# INICIO DEL BLOQUE A PEGAR (Debajo de: u_id = st.session_state.user.id)
+# =====================================================================
+
+# 1. VERIFICACIÓN DE SUSCRIPCIÓN EN LA BASE DE DATOS
+if "estado_suscripcion" not in st.session_state:
+    try:
+        res_sub = conn.table("configuracion").select("estado_plan, fecha_vencimiento, nombre_negocio, rnc").eq("user_id", u_id).execute()
+        
+        if res_sub.data:
+            datos_plan = res_sub.data[0]
+            estado = datos_plan.get("estado_plan", "inactivo")
+            fecha_v = datos_plan.get("fecha_vencimiento")
+            
+            # Guardamos los datos del usuario para enviarlos por WhatsApp
+            st.session_state["ws_nombre"] = datos_plan.get("nombre_negocio", st.session_state.user.user_metadata.get("display_name", "Usuario"))
+            st.session_state["ws_cedula"] = datos_plan.get("rnc", "No especificada") # Usamos el RNC/Cédula si la tiene
+            
+            if estado == "activo" and fecha_v:
+                fecha_vencimiento = datetime.strptime(fecha_v, "%Y-%m-%d").date()
+                if datetime.now().date() <= fecha_vencimiento:
+                    st.session_state["estado_suscripcion"] = "valido"
+                else:
+                    st.session_state["estado_suscripcion"] = "vencido"
+            else:
+                st.session_state["estado_suscripcion"] = "inactivo"
+        else:
+            st.session_state["estado_suscripcion"] = "inactivo"
+            st.session_state["ws_nombre"] = st.session_state.user.user_metadata.get("display_name", "Usuario Nuevo")
+            st.session_state["ws_cedula"] = "No registrada"
+            
+    except Exception as e:
+        st.error(f"Error al verificar la suscripción: {e}")
+        st.stop()
+
+# 2. RENDERIZADO DEL DISEÑO DE PLANES Y PAYWALL
+if st.session_state.get("estado_suscripcion") != "valido":
+    
+    # --- CONFIGURACIÓN DE WHATSAPP ---
+    numero_whatsapp = "18290000000" # <-- CAMBIA ESTO POR TU NÚMERO REAL
+    
+    # Extraemos variables para el mensaje
+    nombre_ws = st.session_state.get("ws_nombre", "")
+    cedula_ws = st.session_state.get("ws_cedula", "")
+    id_ws = str(u_id)
+    
+    # Creamos los mensajes dinámicos y los codificamos para URL
+    msg_starter = urllib.parse.quote(f"Hola CobroYa, quiero activar el plan *STARTER*.\n\n👤 Nombre: {nombre_ws}\n🪪 Cédula/RNC: {cedula_ws}\n🔑 ID Sistema: {id_ws}\n\nAdjunto mi comprobante de pago:")
+    msg_pro = urllib.parse.quote(f"Hola CobroYa, quiero activar el plan *PROFESIONAL*.\n\n👤 Nombre: {nombre_ws}\n🪪 Cédula/RNC: {cedula_ws}\n🔑 ID Sistema: {id_ws}\n\nAdjunto mi comprobante de pago:")
+    msg_vip = urllib.parse.quote(f"Hola CobroYa, quiero activar el plan *VIP / ENTERPRISE*.\n\n👤 Nombre: {nombre_ws}\n🪪 Cédula/RNC: {cedula_ws}\n🔑 ID Sistema: {id_ws}\n\nMe gustaría coordinar el pago:")
+
+    link_starter = f"https://wa.me/{numero_whatsapp}?text={msg_starter}"
+    link_pro = f"https://wa.me/{numero_whatsapp}?text={msg_pro}"
+    link_vip = f"https://wa.me/{numero_whatsapp}?text={msg_vip}"
+
+    # --- DISEÑO EXACTO DE LA PANTALLA (HTML/CSS) ---
+    st.markdown(f"""
+    <style>
+        .pricing-container {{
+            display: flex;
+            justify-content: center;
+            gap: 25px;
+            flex-wrap: wrap;
+            padding: 20px 0;
+            font-family: 'Inter', sans-serif;
+        }}
+        .pricing-card {{
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            padding: 30px;
+            width: 280px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+        }}
+        .pricing-card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }}
+        .pricing-card.popular {{
+            border: 2px solid #3b82f6;
+            transform: scale(1.03);
+        }}
+        .badge-popular {{
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #3b82f6;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }}
+        .plan-name {{ color: #64748b; font-size: 16px; font-weight: 600; text-transform: uppercase; margin-bottom: 10px; }}
+        .plan-price {{ color: #0f172a; font-size: 36px; font-weight: 800; margin-bottom: 20px; }}
+        .plan-price span {{ font-size: 16px; color: #64748b; font-weight: 400; }}
+        .feature-list {{ list-style: none; padding: 0; margin: 0 0 30px 0; }}
+        .feature-list li {{ color: #334155; font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; }}
+        .feature-list li::before {{ content: '✓'; color: #10b981; font-weight: bold; margin-right: 10px; font-size: 16px; }}
+        .btn-buy {{
+            display: block;
+            text-align: center;
+            background: #f1f5f9;
+            color: #0f172a;
+            text-decoration: none;
+            padding: 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: 0.2s;
+        }}
+        .btn-buy:hover {{ background: #e2e8f0; }}
+        .btn-buy.primary {{ background: #0f172a; color: white; }}
+        .btn-buy.primary:hover {{ background: #1e293b; }}
+    </style>
+
+    <div style="text-align: center; margin-bottom: 30px;">
+        <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="150" style="margin-bottom: 20px;">
+        
+        <h2 style="color: #0F172A; margin-bottom: 10px;">Tu plan está inactivo o ha expirado</h2>
+        <p style="color: #64748B; font-size: 16px;">Selecciona el plan que mejor se adapte a tu negocio para continuar.</p>
+    </div>
+
+    <div class="pricing-container">
+        <div class="pricing-card">
+            <div class="plan-name">Starter</div>
+            <div class="plan-price">RD$ 1,500<span>/mes</span></div>
+            <ul class="feature-list">
+                <li>Gestión hasta 50 clientes</li>
+                <li>Registro de cobros diarios</li>
+                <li>Soporte vía correo</li>
+            </ul>
+            <a href="{link_starter}" target="_blank" class="btn-buy">Elegir Starter</a>
+        </div>
+
+        <div class="pricing-card popular">
+            <div class="badge-popular">MÁS POPULAR</div>
+            <div class="plan-name" style="color: #3b82f6;">Profesional</div>
+            <div class="plan-price">RD$ 2,500<span>/mes</span></div>
+            <ul class="feature-list">
+                <li>Clientes ilimitados</li>
+                <li>Reportes en PDF y Excel</li>
+                <li>Generación automática de mora</li>
+                <li>Soporte prioritario WhatsApp</li>
+            </ul>
+            <a href="{link_pro}" target="_blank" class="btn-buy primary">Elegir Profesional</a>
+        </div>
+
+        <div class="pricing-card">
+            <div class="plan-name">Enterprise</div>
+            <div class="plan-price">RD$ 4,000<span>/mes</span></div>
+            <ul class="feature-list">
+                <li>Todo lo de Profesional</li>
+                <li>Múltiples sucursales</li>
+                <li>Roles de usuarios/cajeros</li>
+                <li>Asesoría contable 1 a 1</li>
+            </ul>
+            <a href="{link_vip}" target="_blank" class="btn-buy">Contactar Ventas</a>
+        </div>
+    </div>
+    
+    <div style="text-align: center; margin-top: 40px; padding: 20px; background: #f8fafc; border-radius: 12px;">
+        <h4 style="color: #0f172a; margin-bottom: 15px;">🏦 Cuentas para Transferencia Directa</h4>
+        <p style="color: #475569; font-size: 14px; margin-bottom: 5px;"><strong>Banco Popular:</strong> 123456789 (A nombre de Lixander García)</p>
+        <p style="color: #475569; font-size: 14px; margin-bottom: 15px;"><strong>Banreservas:</strong> 987654321 (A nombre de Lixander García)</p>
+        <p style="color: #ef4444; font-size: 13px; font-weight: bold;">⚠️ Importante: Haz clic en el botón de tu plan para enviar el comprobante tras transferir.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # BLOQUEO ABSOLUTO: El código no pasa de aquí hasta que la DB diga "activo"
+    st.stop()
+
+# =====================================================================
+# FIN DEL BLOQUE A PEGAR (Asegúrate que lo de abajo sea la carga de config)
+# =====================================================================
         
 # --- CARGA INICIAL DE CONFIGURACIÓN ---
 if "config_cargada" not in st.session_state:
