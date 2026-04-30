@@ -1435,12 +1435,12 @@ elif menu == "Gestión de Cobros":
             # 1. Calculamos atraso primero para poder filtrar
             txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
             
-            # 2. LÓGICA DEL FILTRO DE FECHA (Lo que faltaba para que filtrara de verdad)
+            # 2. LÓGICA DEL FILTRO DE FECHA ESTRICTA
             pasa_fecha = False
             if opcion_filtro == "📋 Todos":
                 pasa_fecha = True
             elif opcion_filtro == "🔥 Urgentes":
-                pasa_fecha = (dias_num >= 0)
+                pasa_fecha = (dias_num >= 0) # Solo hoy y atrasados
             elif opcion_filtro == "📅 Solo Hoy":
                 pasa_fecha = (dias_num == 0)
             elif opcion_filtro == "⏳ Próx. 7 Días":
@@ -1456,7 +1456,12 @@ elif menu == "Gestión de Cobros":
                 search_term in str(telefono).lower()):
                 
                 c['aux_nombre'] = nombre
-                c['aux_atraso_txt'] = f"Atraso: {dias_num} días" if dias_num > 0 else txt_atraso_base
+                # Ajuste de texto para que diga "Paga hoy" si dias_num es 0
+                if dias_num == 0:
+                    c['aux_atraso_txt'] = "Paga hoy"
+                else:
+                    c['aux_atraso_txt'] = f"Atraso: {dias_num} días" if dias_num > 0 else txt_atraso_base
+                
                 c['aux_dias_num'] = dias_num
                 c['aux_prioridad'] = obtener_prioridad(dias_num, float(c.get('balance_pendiente', 0)))
                 datos_procesados.append(c)
@@ -1479,9 +1484,15 @@ elif menu == "Gestión de Cobros":
                         mostrar_historial_modal(item, u_id)
 
                 with c_status:
-                    if modo_analisis: st.info("✅ SALDADO")
-                    elif item['aux_dias_num'] > 0: st.error(f"⚠️ {item['aux_atraso_txt']}")
-                    else: st.success("🟢 Al día")
+                    # SEMÁFORO CORREGIDO
+                    if modo_analisis: 
+                        st.info("✅ SALDADO")
+                    elif item['aux_dias_num'] > 0: 
+                        st.error(f"🚨 {item['aux_atraso_txt']}")
+                    elif item['aux_dias_num'] == 0:
+                        st.warning("⚠️ Paga hoy mismo")
+                    else: 
+                        st.success("🟢 Al día")
                         
                 with c_inputs:
                     if not modo_analisis:
