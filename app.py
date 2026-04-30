@@ -1396,12 +1396,24 @@ elif menu == "Gestión de Cobros":
                 del st.session_state[key]
                 # No hacemos rerun aquí, dejamos que la modal se procese
 
-    # --- 5. CONTROLES SUPERIORES ---
-    col_search, col_view = st.columns([2, 1])
+# --- 5. CONTROLES SUPERIORES (Buscador + Filtro Pro) ---
+    col_search, col_filter, col_view = st.columns([2, 1.2, 0.8])
+    
     with col_search:
-        search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre, Cédula o Teléfono...").lower()
+        # Buscador principal
+        search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre, Cédula o Teléfono...", label_visibility="collapsed").lower()
+    
+    with col_filter:
+        # Filtro de tiempo minimalista
+        opcion_filtro = st.selectbox(
+            "Filtrar cobros",
+            options=["📋 Todos", "🔥 Urgentes", "📅 Solo Hoy", "⏳ Próx. 7 Días", "🚨 Atrasados"],
+            label_visibility="collapsed"
+        )
+    
     with col_view:
-        modo_analisis = st.toggle("📈 Modo Análisis", help="Ver cuentas saldadas")
+        # Toggle de estado
+        modo_analisis = st.toggle("📈 Análisis", help="Ver cuentas saldadas")
 
     # --- 6. CONSULTA DE DATOS PARA LA LISTA ---
     # Ahora sí consultamos para mostrar en pantalla según el modo
