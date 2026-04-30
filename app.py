@@ -1404,10 +1404,10 @@ elif menu == "Gestión de Cobros":
         search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre, Cédula o Teléfono...", label_visibility="collapsed").lower()
     
     with col_filter:
-        # Filtro de tiempo minimalista
+        # Filtro de tiempo minimalista - AGREGADA OPCIÓN "AL DÍA"
         opcion_filtro = st.selectbox(
             "Filtrar cobros",
-            options=["📋 Todos", "🔥 Urgentes", "📅 Solo Hoy", "⏳ Próx. 7 Días", "🚨 Atrasados"],
+            options=["📋 Todos", "🔥 Urgentes", "📅 Solo Hoy", "⏳ Próx. 7 Días", "🚨 Atrasados", "🟢 Al Día"],
             label_visibility="collapsed"
         )
     
@@ -1416,7 +1416,6 @@ elif menu == "Gestión de Cobros":
         modo_analisis = st.toggle("📈 Análisis", help="Ver cuentas saldadas")
 
     # --- 6. CONSULTA DE DATOS PARA LA LISTA ---
-    # Ahora sí consultamos para mostrar en pantalla según el modo
     query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula)").eq("user_id", u_id)
     if modo_analisis:
         query = query.lte("balance_pendiente", 0)
@@ -1433,19 +1432,39 @@ elif menu == "Gestión de Cobros":
             cedula = cliente_info.get('cedula', '')
             telefono = cliente_info.get('telefono', '')
             
-            if (search_term in nombre.lower() or 
+            # 1. Calculamos atraso primero para poder filtrar
+            txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
+            
+            # 2. LÓGICA DEL FILTRO DE FECHA (Lo que faltaba para que filtrara de verdad)
+            pasa_fecha = False
+            if opcion_filtro == "📋 Todos":
+                pasa_fecha = True
+            elif opcion_filtro == "🔥 Urgentes":
+                pasa_fecha = (dias_num >= 0)
+            elif opcion_filtro == "📅 Solo Hoy":
+                pasa_fecha = (dias_num == 0)
+            elif opcion_filtro == "⏳ Próx. 7 Días":
+                pasa_fecha = (-7 <= dias_num < 0)
+            elif opcion_filtro == "🚨 Atrasados":
+                pasa_fecha = (dias_num > 0)
+            elif opcion_filtro == "🟢 Al Día":
+                pasa_fecha = (dias_num <= 0)
+
+            # 3. LÓGICA DEL BUSCADOR
+            if pasa_fecha and (search_term in nombre.lower() or 
                 search_term in str(cedula).lower() or 
                 search_term in str(telefono).lower()):
                 
-                txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
                 c['aux_nombre'] = nombre
                 c['aux_atraso_txt'] = f"Atraso: {dias_num} días" if dias_num > 0 else txt_atraso_base
                 c['aux_dias_num'] = dias_num
                 c['aux_prioridad'] = obtener_prioridad(dias_num, float(c.get('balance_pendiente', 0)))
                 datos_procesados.append(c)
 
+        # Ordenamos según tu prioridad original
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
 
+        # --- DIBUJADO DE LA LISTA (CON TODAS TUS FUNCIONES ORIGINALES) ---
         for item in datos_procesados:
             token = item['id']
             m_pend = float(item.get('balance_pendiente', 0))
@@ -1484,6 +1503,7 @@ elif menu == "Gestión de Cobros":
                         if st.button("📄 Detalles", key=f"det_{token}", use_container_width=True):
                             mostrar_historial_modal(item, u_id)
 
+                # AQUÍ ESTÁ TU BLOQUE DE MORA QUE NO QUERÍAS PERDER
                 if not modo_analisis:
                     with st.expander("⚖️ Penalidad (Mora)"):
                         st.number_input("Monto de Mora", min_value=0.0, key=f"mora_{token}")
