@@ -221,12 +221,12 @@ if not st.session_state.authenticated:
                     st.session_state.page = "signup"
                     st.rerun()
 
-            # --- VISTA: REGISTRO ---
+# --- VISTA: REGISTRO ---
             elif st.session_state.page == "signup":
                 st.markdown("""
                     <div style="text-align: center; margin-bottom: 15px;">
                         <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview.png" width="180">
-                        <h3 style="margin-top: 15px; color: #0F172A;">Crear cuenta</h3>
+                        <h3 style="margin-top: 15px; color: #0F172A;">Crear cuenta en CobroYa</h3>
                     </div>
                 """, unsafe_allow_html=True)
 
@@ -234,20 +234,32 @@ if not st.session_state.authenticated:
                 reg_phone = st.text_input("Número de Teléfono", placeholder="Ej: 8090000000")
                 reg_email = st.text_input("Correo electrónico", placeholder="correo@ejemplo.com")
                 
-                st.markdown("<p style='font-size: 12px; color: #64748B;'>La contraseña debe incluir letras y números obligatoriamente.</p>", unsafe_allow_html=True)
+                # --- NUEVO: CARGA DE LOGO EN EL REGISTRO ---
+                st.markdown("<p style='font-size: 14px; color: #334155; font-weight: 600; margin-top: 15px; margin-bottom: 5px;'>Logo de tu Empresa (Opcional)</p>", unsafe_allow_html=True)
+                logo_file_reg = st.file_uploader("Puedes subirlo ahora o configurarlo después", type=["png", "jpg", "jpeg"], key="logo_registro")
+                
+                st.markdown("<p style='font-size: 12px; color: #64748B; margin-top: 15px;'>La contraseña debe incluir letras y números obligatoriamente.</p>", unsafe_allow_html=True)
                 reg_pass = st.text_input("Contraseña", type="password", key="reg_p1")
                 reg_pass_conf = st.text_input("Confirmar Contraseña", type="password", key="reg_p2")
                 
                 if st.button("Registrarse", type="primary", use_container_width=True):
                     if reg_pass != reg_pass_conf:
-                        st.error("Las contraseñas no coinciden.")
+                        st.error("❌ Las contraseñas no coinciden.")
                     elif not (re.search("[a-zA-Z]", reg_pass) and re.search("[0-9]", reg_pass)):
-                        st.error("La contraseña debe tener letras y números.")
+                        st.error("❌ La contraseña debe tener letras y números.")
                     elif not reg_company or not reg_phone or not reg_email:
-                        st.error("Por favor, llena todos los campos.")
+                        st.error("❌ Por favor, llena los campos obligatorios (Empresa, Teléfono, Correo).")
                     else:
                         try:
-                            conn.auth.sign_up({
+                            # 1. Preparar el logo si el usuario lo subió
+                            import base64
+                            base64_logo_reg = None
+                            if logo_file_reg:
+                                bytes_data_reg = logo_file_reg.getvalue()
+                                base64_logo_reg = base64.b64encode(bytes_data_reg).decode()
+
+                            # 2. Crear la cuenta en el sistema Auth de Supabase
+                            auth_response = conn.auth.sign_up({
                                 "email": reg_email, 
                                 "password": reg_pass,
                                 "options": {
@@ -257,9 +269,31 @@ if not st.session_state.authenticated:
                                     }
                                 }
                             })
-                            st.success("¡Cuenta creada con éxito! Ya puedes iniciar sesión.")
+
+                            # 3. GUARDADO MAESTRO EN 'configuracion'
+                            # Extraemos el ID del usuario recién creado para vincular la tabla
+                            if auth_response and auth_response.user:
+                                nuevo_u_id = auth_response.user.id
+                                
+                                payload_config = {
+                                    "user_id": nuevo_u_id,
+                                    "nombre_negocio": reg_company,
+                                    "telefono": reg_phone,
+                                    "logo_base64": base64_logo_reg,
+                                    "estado_plan": "inactivo" # Bloqueo inicial automático
+                                }
+                                
+                                # Insertamos los datos corporativos directamente
+                                conn.table("configuracion").insert(payload_config).execute()
+
+                            st.success("✅ ¡Cuenta creada con éxito! Todo tu perfil está listo. Ya puedes iniciar sesión.")
+                            
                         except Exception as e:
-                            st.error(f"Error al registrar: {e}")
+                            # Capturamos errores específicos (ej. correo ya existe)
+                            if "already registered" in str(e).lower():
+                                st.error("❌ Este correo electrónico ya está registrado.")
+                            else:
+                                st.error(f"❌ Error al procesar el registro: {e}")
 
                 if st.button("Volver al login", use_container_width=True):
                     st.session_state.page = "login"
