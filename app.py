@@ -1882,7 +1882,7 @@ elif menu == "👥 Todos mis Clientes":
         
         with col_filter:
             # FILTRO DIVIDIDO: Se eliminó "Próximos/Hoy" y se agregaron "Hoy" y "Esta Semana"
-            opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟠 Pagan hoy", "🗓️ Pagan esta semana"]
+            opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟠 Pagan hoy", "🗓️ Prox. 7 dias"]
             sel_filtro = st.pills("Filtro Inteligente:", opciones, selection_mode="single", default="🌍 Todos", label_visibility="collapsed")
 
         # --- LÓGICA DE FILTRADO "GENIO" ---
@@ -1920,7 +1920,7 @@ elif menu == "👥 Todos mis Clientes":
                             match_estado = True
 
                 # --- NUEVA LÓGICA: ESTA SEMANA (7 DÍAS) ---
-                elif sel_filtro == "🗓️ Pagan esta semana":
+                elif sel_filtro == "🗓️ Prox. 7 dias":
                     if prox_pago:
                         dias_dif = (prox_pago - hoy).days
                         # Filtra pagos desde hoy (0) hasta dentro de 7 días (7)
