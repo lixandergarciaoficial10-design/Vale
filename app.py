@@ -1862,7 +1862,7 @@ elif menu == "👥 Todos mis Clientes":
 
         st.divider()
     
-        # --- 4. CENTRO DE CONTROL DE CLIENTES (Lógica Avanzada y Diseño Premium) ---
+# --- 4. CENTRO DE CONTROL DE CLIENTES (Lógica Avanzada y Diseño Premium) ---
     
         # 1. CARGA DE DATOS Y ESTADOS (Usando tus columnas reales del CSV)
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
@@ -1877,10 +1877,12 @@ elif menu == "👥 Todos mis Clientes":
         # --- BARRA DE COMANDO: BUSCADOR + PILLS ---
         col_search, col_filter = st.columns([1.2, 2])
         with col_search:
+            # Buscador principal
             search_query = st.text_input("🔍", placeholder="Buscar cliente...", label_visibility="collapsed")
         
         with col_filter:
-            opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟡 Próximos/Hoy"]
+            # FILTRO DIVIDIDO: Se eliminó "Próximos/Hoy" y se agregaron "Hoy" y "Esta Semana"
+            opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟠 Pagan hoy", "🗓️ Pagan esta semana"]
             sel_filtro = st.pills("Filtro Inteligente:", opciones, selection_mode="single", default="🌍 Todos", label_visibility="collapsed")
 
         # --- LÓGICA DE FILTRADO "GENIO" ---
@@ -1909,11 +1911,20 @@ elif menu == "👥 Todos mis Clientes":
                         if not (prox_pago and hoy > prox_pago and balance > 0):
                             match_estado = True
                 
-                # Próximos/Hoy: Falta 1 día o es hoy mismo
-                elif sel_filtro == "🟡 Próximos/Hoy":
+                # --- NUEVA LÓGICA: HOY ---
+                elif sel_filtro == "🟠 Pagan hoy":
                     if prox_pago:
                         dias_dif = (prox_pago - hoy).days
-                        if dias_dif == 0 or dias_dif == 1:
+                        # Si la diferencia es 0 es porque toca cobrar hoy mismo
+                        if dias_dif == 0 and balance > 0:
+                            match_estado = True
+
+                # --- NUEVA LÓGICA: ESTA SEMANA (7 DÍAS) ---
+                elif sel_filtro == "🗓️ Pagan esta semana":
+                    if prox_pago:
+                        dias_dif = (prox_pago - hoy).days
+                        # Filtra pagos desde hoy (0) hasta dentro de 7 días (7)
+                        if 0 <= dias_dif <= 7 and balance > 0:
                             match_estado = True
 
             # Match de búsqueda por texto
