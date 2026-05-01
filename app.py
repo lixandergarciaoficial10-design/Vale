@@ -2374,9 +2374,15 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                         "AUDITORÍA DE PAGO": retraso_txt
                     })
                 
-                # Renderizado de la tabla para esta factura
+                # --- CAMBIO REALIZADO AQUÍ PARA AJUSTE MÓVIL ---
                 df_v = pd.DataFrame(datos_visuales)
-                st.write(df_v.to_html(escape=False, index=False, classes="dataframe"), unsafe_allow_html=True)
+                # Convertimos a HTML
+                html_tabla = df_v.to_html(escape=False, index=False, classes="dataframe")
+                # Envolvemos en un div con scroll horizontal para que no se corte en el celular
+                st.write(
+                    f'<div style="overflow-x:auto; width:100%; border-radius:5px;">{html_tabla}</div>', 
+                    unsafe_allow_html=True
+                )
                 st.divider() # Espacio visual entre facturas
 
     # --- PESTAÑA 4: PERFIL (GESTIÓN DE DATOS) ---
