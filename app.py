@@ -2429,8 +2429,23 @@ if menu == "👥 Todos mis Clientes":
                             modal_detalle(cl, cuentas_db, pagos_db)
                     
                     with b2:
-                        tel = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
-                        wa_url = f"https://wa.me/{tel}"
+                        # --- LÓGICA INTERNACIONAL ---
+                        # Extraemos SOLO los dígitos (esto elimina +, espacios, guiones, etc.)
+                        tel_raw = "".join(filter(str.isdigit, str(cl.get('telefono', ''))))
+                        
+                        # Si el número empieza por '00', lo corregimos al formato que le gusta a WA (sin ceros iniciales)
+                        if tel_raw.startswith("00"):
+                            tel_final = tel_raw[2:]
+                        # "Seguro" para RD/USA: Si el usuario solo pone 10 dígitos, asumimos código 1
+                        elif len(tel_raw) == 10:
+                            tel_final = f"1{tel_raw}"
+                        else:
+                            # Para cualquier otro país (Venezuela 58, Colombia 57, etc.) 
+                            # el sistema usará el número tal cual si ya trae su código.
+                            tel_final = tel_raw
+                            
+                        wa_url = f"https://wa.me/{tel_final}"
+                        
                         st.markdown(f'''<a href="{wa_url}" target="_blank">
                             <button style="width:100%; background:#25D366; border:none; padding:8px; border-radius:10px; cursor:pointer; display:flex; justify-content:center;">
                                 <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="18">
