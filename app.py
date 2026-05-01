@@ -1407,7 +1407,7 @@ elif menu == "Gestión de Cobros":
         # Filtro de tiempo minimalista - AGREGADA OPCIÓN "AL DÍA"
         opcion_filtro = st.selectbox(
             "Filtrar cobros",
-            options=["📋 Todos", "🔥 Urgentes", "📅 Solo Hoy", "⏳ Próx. 7 Días", "🚨 Atrasados", "🟢 Al Día"],
+            options=["📋 Todos", "🔥 Urgentes", "📅 Cobrarles Hoy", "⏳ Próx. 7 Días", "🚨 Atrasados", "🟢 Al Día"],
             label_visibility="collapsed"
         )
     
@@ -1435,16 +1435,17 @@ elif menu == "Gestión de Cobros":
             # 1. Calculamos atraso primero para poder filtrar
             txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
             
-            # 2. LÓGICA DEL FILTRO DE FECHA ESTRICTA
+            # 2. LÓGICA DEL FILTRO DE FECHA ESTRICTA (CORREGIDA PARA PRÓXIMOS 7 DÍAS)
             pasa_fecha = False
             if opcion_filtro == "📋 Todos":
                 pasa_fecha = True
             elif opcion_filtro == "🔥 Urgentes":
                 pasa_fecha = (dias_num >= 0) # Solo hoy y atrasados
-            elif opcion_filtro == "📅 Solo Hoy":
+            elif opcion_filtro == "📅 Cobrarles Hoy":
                 pasa_fecha = (dias_num == 0)
             elif opcion_filtro == "⏳ Próx. 7 Días":
-                pasa_fecha = (-7 <= dias_num < 0)
+                # Filtra desde hoy (0) hasta 7 días en el futuro (-7)
+                pasa_fecha = (-7 <= dias_num <= 0)
             elif opcion_filtro == "🚨 Atrasados":
                 pasa_fecha = (dias_num > 0)
             elif opcion_filtro == "🟢 Al Día":
