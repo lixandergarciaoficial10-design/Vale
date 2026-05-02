@@ -399,8 +399,10 @@ if st.session_state.get("estado_suscripcion") != "valido":
     """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-    # CONFIGURACIÓN: SISTEMA DE PRECIOS REGIONALES (FASE 1)
+    # CONFIGURACIÓN: SISTEMA DE PRECIOS REGIONALES (FASE 1 - BLINDADA)
     # ---------------------------------------------------------
+    
+    # 1. DICCIONARIOS PRIVADOS (Inmutables)
     PLANES_CONFIG = {
         "Free": {"nombre": "Free"},
         "Starter": {"nombre": "Starter"},
@@ -409,18 +411,70 @@ if st.session_state.get("estado_suscripcion") != "valido":
     }
 
     REGION_PRICING = {
-        "RD": {"moneda": "RD$", "codigo": "DOP", "precios": {"Free": 0, "Starter": 799, "Pro": 2,499, "Enterprise": 7,999, "Extra": 149}},
+        "RD": {"moneda": "RD$", "codigo": "DOP", "precios": {"Free": 0, "Starter": 799, "Pro": 2499, "Enterprise": 7999, "Extra": 149}},
         "LATAM_STD": {"moneda": "US$", "codigo": "USD", "precios": {"Free": 0, "Starter": 16, "Pro": 39, "Enterprise": 129, "Extra": 3}},
         "LATAM_PREM": {"moneda": "US$", "codigo": "USD", "precios": {"Free": 0, "Starter": 19, "Pro": 45, "Enterprise": 139, "Extra": 4}},
         "USA": {"moneda": "US$", "codigo": "USD", "precios": {"Free": 0, "Starter": 24, "Pro": 59, "Enterprise": 179, "Extra": 5}}
     }
     
-    # Simulación de detección de región (Para la Fase 2, esto vendrá de geolocalización o billing country)
-    region_detectada = "RD" 
+    COUNTRY_REGION_MAP = {
+        "DO": "RD",
+        "CO": "LATAM_STD", "PE": "LATAM_STD", "EC": "LATAM_STD", "BO": "LATAM_STD",
+        "PY": "LATAM_STD", "HN": "LATAM_STD", "SV": "LATAM_STD", "GT": "LATAM_STD",
+        "MX": "LATAM_PREM", "CL": "LATAM_PREM", "PA": "LATAM_PREM", "CR": "LATAM_PREM", "UY": "LATAM_PREM",
+        "US": "USA", "CA": "USA"
+    }
+
+    # ---------------------------------------------------------
+    # 2. CAPA DE SEGURIDAD (El "Guachimán" del código)
+    # ---------------------------------------------------------
+    def obtener_precio_seguro(plan_solicitado, codigo_pais):
+        """
+        Esta función garantiza que el usuario no pueda inyectar precios falsos.
+        El precio se calcula estrictamente basado en los diccionarios internos.
+        """
+        # A. Validación de Plan: Si intentan inyectar un plan inventado, lo bloqueamos.
+        if plan_solicitado not in PLANES_CONFIG:
+            raise ValueError("Alerta de seguridad: Intento de manipular el plan seleccionado.")
+            
+        # B. Validación de Región: Si mandan un código de país falso o raro, caen en el precio de USA (el más alto).
+        region_segura = COUNTRY_REGION_MAP.get(codigo_pais, "USA")
+        
+        # C. Extracción Blindada: Sacamos los datos de nuestra bóveda, no de lo que diga el usuario.
+        config_region = REGION_PRICING[region_segura]
+        precio_real = config_region["precios"][plan_solicitado]
+        
+        return {
+            "plan": plan_solicitado,
+            "region_asignada": region_segura,
+            "precio_validado": precio_real,
+            "moneda": config_region["moneda"],
+            "codigo": config_region["codigo"]
+        }
+
+    # ---------------------------------------------------------
+    # 3. USO EN LA PRÁCTICA (Simulación de ejecución)
+    # ---------------------------------------------------------
     
-    moneda_local = REGION_PRICING[region_detectada]["moneda"]
-    codigo_moneda = REGION_PRICING[region_detectada]["codigo"]
-    precios_activos = REGION_PRICING[region_detectada]["precios"]
+    # Supongamos que detectaste que el cliente está en RD
+    country_code_detectado = "DO" 
+    
+    # Y supongamos que el cliente hizo clic en el botón del plan "Pro"
+    plan_que_quiere_el_cliente = "Pro"
+    
+    try:
+        # Aquí pasamos los datos por el filtro de seguridad
+        datos_checkout = obtener_precio_seguro(plan_que_quiere_el_cliente, country_code_detectado)
+        
+        moneda_local = datos_checkout["moneda"]
+        codigo_moneda = datos_checkout["codigo"]
+        precio_a_cobrar = datos_checkout["precio_validado"]
+        
+        # Si todo sale bien, estas son las variables que vas a mostrar en la factura y mandar a Supabase
+        
+    except ValueError as e:
+        # Si el tipo intentó hacer un truco, el código cae aquí y tú puedes hasta cerrarle la sesión.
+        print(f"Error bloqueado: {e}")
 
     # ---------------------------------------------------------
     # VISTA 1: APARADOR DE PLANES (REFACTORIZADO SaaS)
