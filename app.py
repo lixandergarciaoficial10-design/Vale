@@ -518,6 +518,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
                     <li>✓ Integración WhatsApp</li>
                     <li>✓ GPS con planificador de rutas</li>
                     <li>✓ Motor IA Avanzado (300 peticiones)</li>
+                    <li>✓ Filtros de clientes avanzados</li>
                     <li>✓ Códigos QR en recibos</li>
                     <li>✓ Exportación parcial y reportes mensuales a solicitud</li>
                     <li>✓ Soporte técnico prioritario</li>
@@ -552,6 +553,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
                     <li>✓ Integración total a WhatsApp con recordatorios automaticos</li>
                     <li>✓ GPS con planificador de rutas y geolocalización en tiempo real de cobradores</li>
                     <li>✓ Motor IA avanzado (más de 2,000 peticiones)</li>
+                    <li>✓ Filtros de clientes avanzados</li>
                     <li>✓ Códigos QR y tu logo en recibos</li>
                     <li>✓ Exportación total de tu bases de datos</li>
                     <li>✓ Soporte técnico y asistencia dedicada 24/7</li>
