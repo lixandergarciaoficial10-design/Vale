@@ -451,9 +451,9 @@ if st.session_state.get("estado_suscripcion") != "valido":
                 <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
                     <li>✓ Límite estricto de 5 clientes</li>
                     <li>✓ Máximo 10 préstamos activos</li>
-                    <li>✓ Tabla de amortización automatica</li>
+                    <li>✓ Tabla de amortización automática</li>
                     <li>✓ Gestión operativa básica</li>
-                    <li>✓ Contatos PDF (Incluye marca de agua)</li>
+                    <li>✓ Contratos PDF (Incluye marca de agua)</li>
                     <li>✓ 1 dispositivo</li>
                     <li style="color:#94a3b8; margin-top: 8px;">✕ Dashboards y Reportes <br><span style="font-size:10px;">(Requiere plan superior)</span></li>
                     <li style="color:#94a3b8; margin-top: 8px;">✕ Módulos IA, WhatsApp, GPS <br><span style="font-size:10px;">(Requiere plan superior)</span></li>
@@ -479,7 +479,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
                 <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
                     <li>✓ Capacidad para 100 clientes</li>
                     <li>✓ Hasta 250 cuentas activas</li>
-                    <li>✓ Tabla de amortización automatica</li>
+                    <li>✓ Tabla de amortización automática</li>
                     <li>✓ Acceso a Dashboard esencial</li>
                     <li>✓ Gestión de cobros y pagos completa</li>
                     <li>✓ Generación PDF sin marcas</li>
@@ -511,7 +511,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
                 <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
                     <li>✓ Capacidad para 1,000 clientes</li>
                     <li>✓ Hasta 2,500 cuentas activas</li>
-                    <li>✓ Tabla de amortización automatica</li>
+                    <li>✓ Tabla de amortización automática</li>
                     <li>✓ Dashboards completos operativos</li>
                     <li>✓ Gestión de cobros y pagos completa</li>
                     <li>✓ Generación PDF con tu marca</li>
@@ -546,7 +546,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
                 <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
                     <li>✓ Capacidad ampliada (10,000 clientes)</li>
                     <li>✓ Hasta 50,000 cuentas activas</li>
-                    <li>✓ Tabla de amortización automatica</li>                  
+                    <li>✓ Tabla de amortización automática</li>                  
                     <li>✓ Dashboards predictivos </li>
                     <li>✓ Gestión de cobros y pagos completa</li>
                     <li>✓ Generación PDF con tu marca</li>
@@ -555,7 +555,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
                     <li>✓ IA avanzada de alta capacidad (uso justo)</li>
                     <li>✓ Filtros de clientes avanzados</li>
                     <li>✓ Códigos QR y tu logo en recibos</li>
-                    <li>✓ Exportación total de tu bases de datos</li>
+                    <li>✓ Exportación total de tu base de datos</li>
                     <li>✓ Soporte técnico y asistencia dedicada 24/7</li>
                     <li>✓ Infraestructura de alta disponibilidad</li>
                     <li>✓ Protocolo de Backup empresarial</li>
