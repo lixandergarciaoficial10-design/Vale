@@ -451,11 +451,12 @@ if st.session_state.get("estado_suscripcion") != "valido":
                 <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
                     <li>✓ Límite estricto de 5 clientes</li>
                     <li>✓ Máximo 10 préstamos activos</li>
-                    <li>✓ Tabla de amortización estándar</li>
+                    <li>✓ Tabla de amortización automatica</li>
                     <li>✓ Gestión operativa básica</li>
-                    <li>✓ PDF (Incluye marca de agua)</li>
+                    <li>✓ Contatos PDFs (Incluye marca de agua)</li>
+                    <li>✓ 1 dispositivo</li>
                     <li style="color:#94a3b8; margin-top: 8px;">✕ Dashboards y Reportes <br><span style="font-size:10px;">(Requiere plan superior)</span></li>
-                    <li style="color:#94a3b8; margin-top: 8px;">✕ Módulos IA y WhatsApp <br><span style="font-size:10px;">(Requiere plan superior)</span></li>
+                    <li style="color:#94a3b8; margin-top: 8px;">✕ Módulos IA, WhatsApp, GPS <br><span style="font-size:10px;">(Requiere plan superior)</span></li>
                     <li style="color:#94a3b8; margin-top: 8px;">✕ Exportación de datos <br><span style="font-size:10px;">(Requiere plan superior)</span></li>
                 </ul>
             </div>
@@ -477,14 +478,16 @@ if st.session_state.get("estado_suscripcion") != "valido":
                 <hr style="border-top: 1px solid #f1f5f9; margin: 12px 0;">
                 <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
                     <li>✓ Capacidad para 100 clientes</li>
-                    <li>✓ Límite de 250 cuentas activas</li>
+                    <li>✓ Hasta 250 cuentas activas</li>
+                    <li>✓ Tabla de amortización automatica</li>
                     <li>✓ Acceso a Dashboard inicial</li>
-                    <li>✓ Gestión de cobros integral</li>
+                    <li>✓ Gestión de cobros y pagos completa</li>
                     <li>✓ Generación PDF sin marcas</li>
                     <li>✓ Integración WhatsApp (Básica)</li>
                     <li>✓ GPS de ubicación básica</li>
                     <li>✓ Motor IA (100 peticiones/mes)</li>
-                    <li>✓ Exportación de historial individual</li>
+                    <li>✓ Filtros de clientes</li>
+                    <li>✓ Soporte y asesoria inicial</li>
                     <li>✓ Hasta 2 inicios de sesión simultáneos</li>
                 </ul>
             </div>
@@ -507,14 +510,18 @@ if st.session_state.get("estado_suscripcion") != "valido":
                 <hr style="border-top: 1px solid #e2e8f0; margin: 12px 0;">
                 <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
                     <li>✓ Capacidad para 1,000 clientes</li>
-                    <li>✓ Límite de 2,500 cuentas activas</li>
-                    <li>✓ Acceso a todos los Dashboards</li>
+                    <li>✓ Hasta 2,500 cuentas activas</li>
+                    <li>✓ Tabla de amortización automatica</li>
+                    <li>✓ Acceso a todo el Dashboards</li>
+                    <li>✓ Gestión de cobros y pagos completa</li>
+                    <li>✓ Generación PDF con tu marca</li>
+                    <li>✓ Integración WhatsApp</li>
                     <li>✓ GPS con planificador de rutas</li>
-                    <li>✓ Códigos QR en facturación</li>
                     <li>✓ Motor IA Avanzado (300 peticiones)</li>
-                    <li>✓ Exportación parcial y reportes</li>
+                    <li>✓ Códigos QR en recibos</li>
+                    <li>✓ Exportación parcial y reportes mensuales a solicitud</li>
                     <li>✓ Soporte técnico prioritario</li>
-                    <li>✓ Asesoría operativa semanal</li>
+                    <li>✓ Asesoría operativa semanal a solicitud</li>
                     <li>✓ Hasta 5 inicios de sesión simultáneos</li>
                 </ul>
             </div>
@@ -537,14 +544,22 @@ if st.session_state.get("estado_suscripcion") != "valido":
                 <hr style="border-top: 1px solid #e2e8f0; margin: 12px 0;">
                 <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
                     <li>✓ Capacidad ampliada (10,000 clientes)</li>
-                    <li>✓ Infraestructura de alta disponibilidad</li>
+                    <li>✓ Hasta 50,000 cuentas activas</li>
+                    <li>✓ Tabla de amortización automatica</li>                  
                     <li>✓ Dashboards analíticos completos</li>
-                    <li>✓ Motor IA (Sujeto a políticas de uso)</li>
-                    <li>✓ Exportación total de bases de datos</li>
+                    <li>✓ Gestión de cobros y pagos completa</li>
+                    <li>✓ Generación PDF con tu marca</li>
+                    <li>✓ Integración total a WhatsApp con recordatorios automaticos</li>
+                    <li>✓ GPS con planificador de rutas y geolocalización en tiempo real de cobradores</li>
+                    <li>✓ Motor IA avanzado (más de 2,000 peticiones)</li>
+                    <li>✓ Códigos QR y tu logo en recibos</li>
+                    <li>✓ Exportación total de tu bases de datos</li>
+                    <li>✓ Soporte técnico y asistencia dedicada 24/7</li>
+                    <li>✓ Infraestructura de alta disponibilidad</li>
                     <li>✓ Protocolo de Backup empresarial</li>
                     <li>✓ Asistencia en migración de datos</li>
-                    <li>✓ Soporte técnico dedicado 24/7</li>
-                    <li>✓ Consultoría estratégica incluida</li>
+                    <li>✓ Asesoria de profesionales financiados por CobroYa para tu negocio</li>
+                    <li>✓ Voting Board de Funcionalidades</li>
                     <li>✓ Hasta 20 inicios de sesión simultáneos</li>
                 </ul>
             </div>
