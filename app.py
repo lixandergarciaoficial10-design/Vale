@@ -431,31 +431,32 @@ if st.session_state.get("estado_suscripcion") != "valido":
         <div class="pricing-header" style="text-align: center; margin-bottom: 2rem;">
             <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" width="150" alt="CobroYa Logo">
             <h1 style="color: #0f172a;">Planes diseñados para escalar tu negocio</h1>
-            <p style="color: #475569;">Sin costos ocultos. Cancela en cualquier momento.</p>
+            <p style="color: #475569;">Transparencia total. Límites claros. Cancela en cualquier momento.</p>
         </div>
         """, unsafe_allow_html=True)
 
-        # Ajustamos a 4 columnas para que todos los planes tengan la misma visibilidad
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
             st.markdown(f"""
-            <div class="card-box" style="padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; height: 100%;">
-                <div class="icon" style="font-size: 28px;">🌱</div>
-                <p class="title" style="font-size: 18px; font-weight: bold; margin: 5px 0;">Free</p>
+            <div class="card-box" style="padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; height: 100%; background: white;">
+                <div class="icon" style="margin-bottom: 10px;">
+                    <svg width="32" height="32" fill="none" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                </div>
+                <p class="title" style="font-size: 18px; font-weight: bold; margin: 5px 0; color: #0f172a;">Free</p>
                 <p class="subtitle" style="color: #64748b; font-size: 13px;">Exploración Inteligente</p>
                 <p class="price" style="font-size: 24px; font-weight: bold; color: #0f172a;">Gratis</p>
-                <p class="annual" style="font-size: 11px; color: #94a3b8;">Sin límite de tiempo</p>
+                <p class="annual" style="font-size: 11px; color: #94a3b8;">Uso vitalicio sujeto a límites</p>
                 <hr style="border-top: 1px solid #f1f5f9; margin: 12px 0;">
-                <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.5;">
-                    <li>✓ Hasta 5 clientes</li>
-                    <li>✓ Hasta 10 préstamos activos</li>
-                    <li>✓ Tabla de amortización</li>
-                    <li>✓ Gestión básica</li>
-                    <li>✓ PDF (Marca de agua CobroYa)</li>
-                    <li style="color:#94a3b8; margin-top: 8px;">✕ Dashboards y Reportes <br><span style="font-size:10px;">(Disponible en planes superiores)</span></li>
-                    <li style="color:#94a3b8; margin-top: 8px;">✕ IA y WhatsApp <br><span style="font-size:10px;">(Disponible en planes superiores)</span></li>
-                    <li style="color:#94a3b8; margin-top: 8px;">✕ Exportación de datos <br><span style="font-size:10px;">(Disponible en planes superiores)</span></li>
+                <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
+                    <li>✓ Límite estricto de 5 clientes</li>
+                    <li>✓ Máximo 10 préstamos activos</li>
+                    <li>✓ Tabla de amortización estándar</li>
+                    <li>✓ Gestión operativa básica</li>
+                    <li>✓ PDF (Incluye marca de agua)</li>
+                    <li style="color:#94a3b8; margin-top: 8px;">✕ Dashboards y Reportes <br><span style="font-size:10px;">(Requiere plan superior)</span></li>
+                    <li style="color:#94a3b8; margin-top: 8px;">✕ Módulos IA y WhatsApp <br><span style="font-size:10px;">(Requiere plan superior)</span></li>
+                    <li style="color:#94a3b8; margin-top: 8px;">✕ Exportación de datos <br><span style="font-size:10px;">(Requiere plan superior)</span></li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
@@ -465,24 +466,26 @@ if st.session_state.get("estado_suscripcion") != "valido":
 
         with col2:
             st.markdown(f"""
-            <div class="card-box" style="padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; height: 100%;">
-                <div class="icon" style="font-size: 28px;">👤</div>
-                <p class="title" style="font-size: 18px; font-weight: bold; margin: 5px 0;">Starter</p>
+            <div class="card-box" style="padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; height: 100%; background: white;">
+                <div class="icon" style="margin-bottom: 10px;">
+                    <svg width="32" height="32" fill="none" stroke="#0f172a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                </div>
+                <p class="title" style="font-size: 18px; font-weight: bold; margin: 5px 0; color: #0f172a;">Starter</p>
                 <p class="subtitle" style="color: #64748b; font-size: 13px;">Prestamista Individual</p>
                 <p class="price" style="font-size: 24px; font-weight: bold; color: #0f172a;">{moneda_local}{precios_activos['Starter']}<span style="font-size: 12px; color: #64748b;">/mes</span></p>
                 <p class="annual" style="font-size: 11px; color: #94a3b8;">Facturación en {codigo_moneda}</p>
                 <hr style="border-top: 1px solid #f1f5f9; margin: 12px 0;">
-                <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.5;">
-                    <li>✓ Hasta 100 clientes</li>
-                    <li>✓ Hasta 250 cuentas activas</li>
-                    <li>✓ Dashboard básico</li>
-                    <li>✓ Gestión de cobros total</li>
-                    <li>✓ PDF limpio (Sin marca)</li>
-                    <li>✓ WhatsApp y GPS básico</li>
-                    <li>✓ IA (100 consultas/mes)</li>
-                    <li>✓ Exportación: Historial cliente</li>
-                    <li>✓ Asesoría y Soporte básico</li>
-                    <li>✓ Hasta 2 dispositivos simultáneos</li>
+                <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
+                    <li>✓ Capacidad para 100 clientes</li>
+                    <li>✓ Límite de 250 cuentas activas</li>
+                    <li>✓ Acceso a Dashboard inicial</li>
+                    <li>✓ Gestión de cobros integral</li>
+                    <li>✓ Generación PDF sin marcas</li>
+                    <li>✓ Integración WhatsApp (Básica)</li>
+                    <li>✓ GPS de ubicación básica</li>
+                    <li>✓ Motor IA (100 peticiones/mes)</li>
+                    <li>✓ Exportación de historial individual</li>
+                    <li>✓ Hasta 2 inicios de sesión simultáneos</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
@@ -493,24 +496,26 @@ if st.session_state.get("estado_suscripcion") != "valido":
         with col3:
             st.markdown(f"""
             <div class="card-box card-pro" style="padding: 20px; border: 2px solid #2563eb; border-radius: 12px; height: 100%; position: relative; background-color: #f8fafc;">
-                <div class="badge" style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #2563eb; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: bold; letter-spacing: 1px;">RECOMENDADO</div>
-                <div class="icon" style="font-size: 28px;">🚀</div>
-                <p class="title" style="font-size: 18px; font-weight: bold; margin: 5px 0;">Pro</p>
-                <p class="subtitle" style="color: #64748b; font-size: 13px;">Negocio Serio</p>
+                <div class="badge" style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #2563eb; color: white; padding: 4px 12px; border-radius: 20px; font-size: 10px; font-weight: bold; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">RECOMENDADO</div>
+                <div class="icon" style="margin-bottom: 10px;">
+                    <svg width="32" height="32" fill="none" stroke="#2563eb" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                </div>
+                <p class="title" style="font-size: 18px; font-weight: bold; margin: 5px 0; color: #0f172a;">Pro</p>
+                <p class="subtitle" style="color: #64748b; font-size: 13px;">Operación Comercial</p>
                 <p class="price" style="font-size: 24px; font-weight: bold; color: #2563eb;">{moneda_local}{precios_activos['Pro']}<span style="font-size: 12px; color: #64748b;">/mes</span></p>
                 <p class="annual" style="font-size: 11px; color: #94a3b8;">Facturación en {codigo_moneda}</p>
                 <hr style="border-top: 1px solid #e2e8f0; margin: 12px 0;">
-                <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.5;">
-                    <li>✓ Hasta 1,000 clientes</li>
-                    <li>✓ Hasta 2,500 cuentas activas</li>
-                    <li>✓ <strong>Todos</strong> los dashboards operativos</li>
-                    <li>✓ GPS con planificación de ruta</li>
-                    <li>✓ QR en facturas</li>
-                    <li>✓ IA Avanzada (300 consultas)</li>
-                    <li>✓ Exportación Parcial + Reportes</li>
-                    <li>✓ Soporte prioritario</li>
-                    <li>✓ Asesoría semanal</li>
-                    <li>✓ Hasta 5 dispositivos simultáneos</li>
+                <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
+                    <li>✓ Capacidad para 1,000 clientes</li>
+                    <li>✓ Límite de 2,500 cuentas activas</li>
+                    <li>✓ Acceso a todos los Dashboards</li>
+                    <li>✓ GPS con planificador de rutas</li>
+                    <li>✓ Códigos QR en facturación</li>
+                    <li>✓ Motor IA Avanzado (300 peticiones)</li>
+                    <li>✓ Exportación parcial y reportes</li>
+                    <li>✓ Soporte técnico prioritario</li>
+                    <li>✓ Asesoría operativa semanal</li>
+                    <li>✓ Hasta 5 inicios de sesión simultáneos</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
@@ -519,25 +524,28 @@ if st.session_state.get("estado_suscripcion") != "valido":
                 st.rerun()
 
         with col4:
+            # Aquí cambiamos el diseño: ya no es oscuro, es limpio pero con un borde distintivo (gris oscuro) para darle presencia corporativa
             st.markdown(f"""
-            <div class="card-box" style="padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; height: 100%; background: #0f172a; color: white;">
-                <div class="icon" style="font-size: 28px;">🏢</div>
-                <p class="title" style="font-size: 18px; font-weight: bold; margin: 5px 0; color: white;">Enterprise</p>
-                <p class="subtitle" style="color: #94a3b8; font-size: 13px;">Escala Total</p>
-                <p class="price" style="font-size: 24px; font-weight: bold; color: white;">{moneda_local}{precios_activos['Enterprise']}<span style="font-size: 12px; color: #94a3b8;">/mes</span></p>
-                <p class="annual" style="font-size: 11px; color: #64748b;">Facturación en {codigo_moneda}</p>
-                <hr style="border-top: 1px solid #334155; margin: 12px 0;">
-                <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #cbd5e1; line-height: 1.5;">
-                    <li>✓ Hasta 10,000 clientes activos</li>
-                    <li>✓ Alta capacidad operativa</li>
-                    <li>✓ Dashboards predictivos totales</li>
-                    <li>✓ IA Extendida (Uso justo)</li>
-                    <li>✓ Exportación Total</li>
-                    <li>✓ Backup empresarial seguro</li>
-                    <li>✓ Migración de datos avanzada</li>
-                    <li>✓ Soporte 24/7 dedicado</li>
-                    <li>✓ Asesoría estratégica</li>
-                    <li>✓ Hasta 20 dispositivos simultáneos</li>
+            <div class="card-box" style="padding: 20px; border: 1px solid #475569; border-radius: 12px; height: 100%; background: #ffffff;">
+                <div class="icon" style="margin-bottom: 10px;">
+                    <svg width="32" height="32" fill="none" stroke="#0f172a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><path d="M9 22v-4h6v4"></path><path d="M8 6h.01"></path><path d="M16 6h.01"></path><path d="M12 6h.01"></path><path d="M12 10h.01"></path><path d="M12 14h.01"></path><path d="M16 10h.01"></path><path d="M16 14h.01"></path><path d="M8 10h.01"></path><path d="M8 14h.01"></path></svg>
+                </div>
+                <p class="title" style="font-size: 18px; font-weight: bold; margin: 5px 0; color: #0f172a;">Enterprise</p>
+                <p class="subtitle" style="color: #64748b; font-size: 13px;">Infraestructura a Escala</p>
+                <p class="price" style="font-size: 24px; font-weight: bold; color: #0f172a;">{moneda_local}{precios_activos['Enterprise']}<span style="font-size: 12px; color: #64748b;">/mes</span></p>
+                <p class="annual" style="font-size: 11px; color: #94a3b8;">Facturación en {codigo_moneda}</p>
+                <hr style="border-top: 1px solid #e2e8f0; margin: 12px 0;">
+                <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
+                    <li>✓ Capacidad ampliada (10,000 clientes)</li>
+                    <li>✓ Infraestructura de alta disponibilidad</li>
+                    <li>✓ Dashboards analíticos completos</li>
+                    <li>✓ Motor IA (Sujeto a políticas de uso)</li>
+                    <li>✓ Exportación total de bases de datos</li>
+                    <li>✓ Protocolo de Backup empresarial</li>
+                    <li>✓ Asistencia en migración de datos</li>
+                    <li>✓ Soporte técnico dedicado 24/7</li>
+                    <li>✓ Consultoría estratégica incluida</li>
+                    <li>✓ Hasta 20 inicios de sesión simultáneos</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
@@ -555,79 +563,81 @@ if st.session_state.get("estado_suscripcion") != "valido":
         try:
             conn.table("configuracion").update({
                 "tipo_plan": plan_actual["nombre"],
-                "estado_plan": "pendiente" # Se queda pendiente hasta que tú lo actives
+                "estado_plan": "pendiente" # Se queda pendiente de validación administrativa
             }).eq("user_id", u_id).execute()
         except Exception as e:
-            st.warning("No se pudo pre-registrar el plan en la base de datos.")
+            st.warning("No se pudo pre-registrar el estado del plan en la base de datos.")
 
         # 2. DISEÑO DE LA FACTURA
-        st.markdown("<h2 style='text-align:center; color:#0f172a;'>Resumen de tu Orden</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align:center; color:#0f172a; margin-bottom: 30px;'>Resumen de Facturación</h2>", unsafe_allow_html=True)
         
         _, col_center, _ = st.columns([1, 2, 1])
         with col_center:
-            # Determinamos si el plan es Free para omitir el cobro
             es_gratis = (plan_actual["precio"] == 0)
-            precio_display = "Gratis" if es_gratis else f"{moneda_local}{plan_actual['precio']:,.2f} {codigo_moneda}"
+            precio_display = "Gratis (Exento)" if es_gratis else f"{moneda_local}{plan_actual['precio']:,.2f} {codigo_moneda}"
 
             st.markdown(f"""
-            <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-                <h4 style="margin-top:0; color:#0f172a;">Factura Proforma</h4>
-                <hr style="margin: 10px 0; border-top: 1px solid #e2e8f0;">
-                <div style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 10px; color:#334155;">
-                    <span>Plan seleccionado:</span>
-                    <strong>{plan_actual["nombre"]}</strong>
+            <div style="background: white; border: 1px solid #cbd5e1; border-radius: 8px; padding: 25px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); margin-bottom: 20px;">
+                <h4 style="margin-top:0; color:#0f172a; font-weight: 600;">Detalle de la Orden</h4>
+                <hr style="margin: 15px 0; border-top: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; font-size: 15px; margin-bottom: 12px; color:#334155;">
+                    <span>Suscripción:</span>
+                    <strong>Plan {plan_actual["nombre"]}</strong>
                 </div>
-                <div style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 10px; color:#334155;">
-                    <span>Región detectada:</span>
+                <div style="display: flex; justify-content: space-between; font-size: 15px; margin-bottom: 12px; color:#334155;">
+                    <span>Región de facturación:</span>
                     <span><strong>{region_detectada}</strong></span>
                 </div>
-                <div style="display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 10px; color:#334155;">
-                    <span>Ciclo de facturación:</span>
-                    <span>Mensual</span>
+                <div style="display: flex; justify-content: space-between; font-size: 15px; margin-bottom: 12px; color:#334155;">
+                    <span>Ciclo:</span>
+                    <span>Mensual (Renovación automática)</span>
                 </div>
-                <hr style="margin: 10px 0; border-top: 1px solid #e2e8f0;">
-                <div style="display: flex; justify-content: space-between; font-size: 20px; color: #2563eb; font-weight: bold; align-items: center;">
-                    <span>Total a pagar:</span>
-                    <span>{precio_display}</span>
+                <hr style="margin: 15px 0; border-top: 1px solid #e2e8f0;">
+                <div style="display: flex; justify-content: space-between; font-size: 22px; color: #0f172a; font-weight: bold; align-items: center;">
+                    <span>Total a procesar:</span>
+                    <span style="color: #2563eb;">{precio_display}</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
             if not es_gratis:
                 st.markdown("""
-                <div style="background: #f8fafc; border-left: 4px solid #2563eb; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
-                    <h5 style="margin-top:0; color:#0f172a;">🏦 Instrucciones de Pago</h5>
-                    <p style="font-size: 14px; color:#475569; margin-bottom:5px;">Realiza el pago equivalente en tu moneda a una de las siguientes cuentas:</p>
-                    <ul style="font-size: 14px; color:#0f172a; padding-left: 20px; line-height: 1.6;">
-                        <li><strong>Banco Popular:</strong> 123456789 (Lixander García)</li>
-                        <li><strong>Banreservas:</strong> 987654321 (Lixander García)</li>
+                <div style="background: #f8fafc; border-left: 4px solid #2563eb; padding: 15px; border-radius: 4px; margin-bottom: 20px; border-right: 1px solid #e2e8f0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
+                    <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                        <svg width="20" height="20" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><rect x="2" y="5" width="20" height="14" rx="2" ry="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+                        <h5 style="margin: 0; color:#0f172a;">Instrucciones para Transferencia</h5>
+                    </div>
+                    <p style="font-size: 14px; color:#475569; margin-bottom:8px;">Por favor, transfiere el monto exacto a una de las siguientes cuentas institucionales:</p>
+                    <ul style="font-size: 14px; color:#0f172a; padding-left: 20px; line-height: 1.6; margin-bottom: 0;">
+                        <li><strong>Banco Popular:</strong> 123456789 (Titular: Lixander García)</li>
+                        <li><strong>Banreservas:</strong> 987654321 (Titular: Lixander García)</li>
                     </ul>
                 </div>
                 """, unsafe_allow_html=True)
 
             # CONFIGURACIÓN WHATSAPP DINÁMICA
             import urllib.parse
-            numero_whatsapp = "18290000000" # PON TU NÚMERO AQUÍ
+            numero_whatsapp = "18290000000" # AQUI VA TU NUMERO REAL
             nombre_ws = st.session_state.get("ws_nombre", "Usuario")
             cedula_ws = st.session_state.get("ws_cedula", "N/A")
             
             if es_gratis:
-                mensaje = f"Hola CobroYa, acabo de seleccionar el plan gratuito.\n\n📊 *Plan:* {plan_actual['nombre']}\n👤 *Nombre:* {nombre_ws}\n🔑 *ID:* {str(u_id)}\n\nPor favor, habilita mi cuenta."
-                texto_boton = "✅ Solicitar Activación Gratuita"
+                mensaje = f"Hola equipo CobroYa. Solicito la habilitación de mi cuenta en el nivel gratuito.\n\n📊 *Plan:* {plan_actual['nombre']}\n👤 *Titular:* {nombre_ws}\n🔑 *Identificador:* {str(u_id)}\n\nQuedo a la espera de confirmación."
+                texto_boton = "Solicitar Activación"
             else:
-                mensaje = f"Hola CobroYa, acabo de realizar el pago para activar mi cuenta.\n\n📊 *Plan:* {plan_actual['nombre']}\n🌍 *Región:* {region_detectada}\n💵 *Monto:* {precio_display}\n👤 *Nombre:* {nombre_ws}\n🪪 *RNC/Cédula:* {cedula_ws}\n🔑 *ID:* {str(u_id)}\n\nAdjunto el comprobante:"
-                texto_boton = "✅ Enviar Comprobante por WhatsApp"
+                mensaje = f"Hola equipo CobroYa. Adjunto el comprobante de pago para la activación de mi suscripción.\n\n📊 *Suscripción:* {plan_actual['nombre']}\n🌍 *Zona:* {region_detectada}\n💵 *Importe:* {precio_display}\n👤 *Titular:* {nombre_ws}\n🪪 *Documento:* {cedula_ws}\n🔑 *Identificador:* {str(u_id)}\n\n*Comprobante adjunto:*"
+                texto_boton = "Enviar Comprobante Oficial"
 
             link_wa = f"https://wa.me/{numero_whatsapp}?text={urllib.parse.quote(mensaje)}"
 
             st.link_button(texto_boton, link_wa, type="primary", use_container_width=True)
             
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("← Cambiar de plan", use_container_width=True):
+            if st.button("← Modificar selección de plan", use_container_width=True):
                 st.session_state.plan_seleccionado = None
                 st.rerun()
 
-    # BLOQUEO MAESTRO: Si no es 'valido', el código muere aquí. No entran al sistema.
+    # BLOQUEO MAESTRO: Detiene la ejecución aquí hasta que el estado en BD cambie de 'pendiente' a 'activo'
     st.stop()
 
 # =====================================================================
