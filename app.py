@@ -409,7 +409,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
     }
 
     REGION_PRICING = {
-        "RD": {"moneda": "RD$", "codigo": "DOP", "precios": {"Free": 0, "Starter": 799, "Pro": 2,499, "Enterprise": 7,999, "Extra": 149}},
+        "RD": {"moneda": "RD$", "codigo": "DOP", "precios": {"Free": 0, "Starter": 799, "Pro": 2499, "Enterprise": 7999, "Extra": 149}},
         "LATAM_STD": {"moneda": "US$", "codigo": "USD", "precios": {"Free": 0, "Starter": 16, "Pro": 39, "Enterprise": 129, "Extra": 3}},
         "LATAM_PREM": {"moneda": "US$", "codigo": "USD", "precios": {"Free": 0, "Starter": 19, "Pro": 45, "Enterprise": 139, "Extra": 4}},
         "USA": {"moneda": "US$", "codigo": "USD", "precios": {"Free": 0, "Starter": 24, "Pro": 59, "Enterprise": 179, "Extra": 5}}
