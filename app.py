@@ -409,7 +409,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
     }
 
     REGION_PRICING = {
-        "RD": {"moneda": "RD$", "codigo": "DOP", "precios": {"Free": 0, "Starter": 799, "Pro": 2499, "Enterprise": 7999, "Extra": 149}},
+        "RD": {"moneda": "RD$", "codigo": "DOP", "precios": {"Free": 0, "Starter": 799, "Pro": 2,499, "Enterprise": 7,999, "Extra": 149}},
         "LATAM_STD": {"moneda": "US$", "codigo": "USD", "precios": {"Free": 0, "Starter": 16, "Pro": 39, "Enterprise": 129, "Extra": 3}},
         "LATAM_PREM": {"moneda": "US$", "codigo": "USD", "precios": {"Free": 0, "Starter": 19, "Pro": 45, "Enterprise": 139, "Extra": 4}},
         "USA": {"moneda": "US$", "codigo": "USD", "precios": {"Free": 0, "Starter": 24, "Pro": 59, "Enterprise": 179, "Extra": 5}}
@@ -485,10 +485,10 @@ if st.session_state.get("estado_suscripcion") != "valido":
                     <li>✓ Generación PDF sin marcas</li>
                     <li>✓ Integración WhatsApp (Básica)</li>
                     <li>✓ GPS de ubicación básica</li>
-                    <li>✓ Asistente IA (100 peticiones/mes)</li>
+                    <li>✓ Asistente IA (100 consultas/mes)</li>
                     <li>✓ Filtros de clientes</li>
-                    <li>✓ Soporte y asesoria inicial</li>
-                    <li>✓ Hasta 2 inicios de sesión simultáneos</li>
+                    <li>✓ Soporte y asesoría inicial</li>
+                    <li>✓ Hasta 2 sesiones simultáneas</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
@@ -517,7 +517,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
                     <li>✓ Generación PDF con tu marca</li>
                     <li>✓ Integración WhatsApp</li>
                     <li>✓ GPS con planificador de rutas</li>
-                    <li>✓ Asistente IA Avanzado (300 peticiones)</li>
+                    <li>✓ Asistente IA Avanzado (300 consultas)</li>
                     <li>✓ Filtros de clientes avanzados</li>
                     <li>✓ Códigos QR en recibos</li>
                     <li>✓ Exportación parcial y reportes mensuales a solicitud</li>
@@ -550,7 +550,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
                     <li>✓ Dashboards predictivos </li>
                     <li>✓ Gestión de cobros y pagos completa</li>
                     <li>✓ Generación PDF con tu marca</li>
-                    <li>✓ Integración total a WhatsApp con recordatorios automaticos</li>
+                    <li>✓ Integración total a WhatsApp con recordatorios automáticos</li>
                     <li>✓ GPS con planificador de rutas y monitoreo operativo avanzado</li>
                     <li>✓ IA avanzada de alta capacidad (uso justo)</li>
                     <li>✓ Filtros de clientes avanzados</li>
