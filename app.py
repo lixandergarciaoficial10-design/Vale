@@ -446,7 +446,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
                 <p class="title" style="font-size: 18px; font-weight: bold; margin: 5px 0; color: #0f172a;">Free</p>
                 <p class="subtitle" style="color: #64748b; font-size: 13px;">Exploración Inteligente</p>
                 <p class="price" style="font-size: 24px; font-weight: bold; color: #0f172a;">Gratis</p>
-                <p class="annual" style="font-size: 11px; color: #94a3b8;">Uso vitalicio sujeto a límites</p>
+                <p class="annual" style="font-size: 11px; color: #94a3b8;">Sujeto a límites operativos</p>
                 <hr style="border-top: 1px solid #f1f5f9; margin: 12px 0;">
                 <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
                     <li>✓ Límite estricto de 5 clientes</li>
