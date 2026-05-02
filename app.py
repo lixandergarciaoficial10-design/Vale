@@ -1565,7 +1565,6 @@ elif menu == "Nueva Cuenta por Cobrar":
                 col1, col2, col3 = st.columns(3)
                 with col1:
                     # IMPLEMENTACIÓN DE BUSCADOR POR NOMBRE, CÉDULA O TELÉFONO
-                    # index=None asegura que no haya un cliente seleccionado por defecto
                     cliente_obj = st.selectbox(
                         "Seleccionar Cliente", 
                         options=res_cli.data, 
@@ -1593,8 +1592,18 @@ elif menu == "Nueva Cuenta por Cobrar":
                     porcentaje = st.number_input("Interés (%)", min_value=0, value=20)
                     freq_sel = st.selectbox("Frecuencia de Pago", ["Semanal", "Quincenal", "Mensual"], index=0)
                     
-                    # --- DÍA FIJO ---
-                    dias_semana = {"Cada 7 día": None, "Lunes": MO, "Martes": TU, "Miércoles": WE, "Jueves": TH, "Viernes": FR, "Sábado": SA, "Domingo": SU}
+                    # --- DÍA FIJO (MODIFICADO: SE AGREGÓ "Diario") ---
+                    # Reemplazamos "Cada 7 día" por la lógica de cobro todos los días
+                    dias_semana = {
+                        "Diario (Todos los días)": "diario", 
+                        "Lunes": MO, 
+                        "Martes": TU, 
+                        "Miércoles": WE, 
+                        "Jueves": TH, 
+                        "Viernes": FR, 
+                        "Sábado": SA, 
+                        "Domingo": SU
+                    }
                     
                     if freq_sel == "Semanal":
                         dia_input = st.selectbox("Día de cobro fijo", list(dias_semana.keys()), index=0)
@@ -1606,13 +1615,16 @@ elif menu == "Nueva Cuenta por Cobrar":
                     cuotas_n = st.number_input("Cantidad de Cuotas", min_value=1, value=4)
                     fecha_desembolso = st.date_input("Fecha de desembolso", value=datetime.now().date())
 
-                # --- MOTOR DE CÁLCULO DE FECHAS ---
+                # --- MOTOR DE CÁLCULO DE FECHAS (SINTAXIS CORREGIDA) ---
                 fechas_proyectadas = []
                 referencia = fecha_desembolso 
 
                 for i in range(cuotas_n):
                     if freq_sel == "Semanal":
-                        if dia_fijo is None:
+                        # Nueva lógica para "Todos los días"
+                        if dia_fijo == "diario":
+                            next_date = referencia + relativedelta(days=i+1)
+                        elif dia_fijo is None:
                             next_date = referencia + relativedelta(weeks=i+1)
                         else:
                             next_date = referencia + relativedelta(weeks=i+1, weekday=dia_fijo)
@@ -1659,6 +1671,23 @@ elif menu == "Nueva Cuenta por Cobrar":
                 total_f = float(df_e["Monto Cuota (RD$)"].sum())
                 cuota_esperada_f = total_f / cuotas_n
 
+                # --- LÓGICA DE WHATSAPP CON MENSAJE PREDETERMINADO ---
+                if cliente_obj:
+                    import urllib.parse
+                    tel_raw = "".join(filter(str.isdigit, str(cliente_obj.get('telefono', ''))))
+                    # Formato internacional: agregamos el '1' si tiene 10 dígitos (RD/USA)
+                    tel_final = f"1{tel_raw}" if len(tel_raw) == 10 else tel_raw
+                    
+                    # Mensaje personalizado con negritas de WhatsApp
+                    texto_msj = (
+                        f"Hola *{cliente_obj['nombre']}*, se ha generado tu factura en *CobroYa*.\n"
+                        f"💰 *Monto Total:* RD$ {total_f:,.2f}\n"
+                        f"🗓️ *Cuotas:* {cuotas_n}\n"
+                        f"¡Gracias por tu confianza!"
+                    )
+                    msj_encoded = urllib.parse.quote(texto_msj)
+                    st.session_state['wa_link'] = f"https://wa.me/{tel_final}?text={msj_encoded}"
+                    
                 if st.button("🚀 REGISTRAR Y ACTIVAR", use_container_width=True, disabled=not (capital > 0 and continuar and cliente_obj is not None)):
                     # GENERACIÓN DE DATOS REALES PARA AUDITORÍA
                     import uuid
