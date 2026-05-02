@@ -453,7 +453,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
                     <li>✓ Máximo 10 préstamos activos</li>
                     <li>✓ Tabla de amortización automatica</li>
                     <li>✓ Gestión operativa básica</li>
-                    <li>✓ Contatos PDFs (Incluye marca de agua)</li>
+                    <li>✓ Contatos PDF (Incluye marca de agua)</li>
                     <li>✓ 1 dispositivo</li>
                     <li style="color:#94a3b8; margin-top: 8px;">✕ Dashboards y Reportes <br><span style="font-size:10px;">(Requiere plan superior)</span></li>
                     <li style="color:#94a3b8; margin-top: 8px;">✕ Módulos IA, WhatsApp, GPS <br><span style="font-size:10px;">(Requiere plan superior)</span></li>
@@ -480,12 +480,12 @@ if st.session_state.get("estado_suscripcion") != "valido":
                     <li>✓ Capacidad para 100 clientes</li>
                     <li>✓ Hasta 250 cuentas activas</li>
                     <li>✓ Tabla de amortización automatica</li>
-                    <li>✓ Acceso a Dashboard inicial</li>
+                    <li>✓ Acceso a Dashboard esencial</li>
                     <li>✓ Gestión de cobros y pagos completa</li>
                     <li>✓ Generación PDF sin marcas</li>
                     <li>✓ Integración WhatsApp (Básica)</li>
                     <li>✓ GPS de ubicación básica</li>
-                    <li>✓ Motor IA (100 peticiones/mes)</li>
+                    <li>✓ Asistente IA (100 peticiones/mes)</li>
                     <li>✓ Filtros de clientes</li>
                     <li>✓ Soporte y asesoria inicial</li>
                     <li>✓ Hasta 2 inicios de sesión simultáneos</li>
@@ -512,12 +512,12 @@ if st.session_state.get("estado_suscripcion") != "valido":
                     <li>✓ Capacidad para 1,000 clientes</li>
                     <li>✓ Hasta 2,500 cuentas activas</li>
                     <li>✓ Tabla de amortización automatica</li>
-                    <li>✓ Acceso a todo el Dashboards</li>
+                    <li>✓ Dashboards completos operativos</li>
                     <li>✓ Gestión de cobros y pagos completa</li>
                     <li>✓ Generación PDF con tu marca</li>
                     <li>✓ Integración WhatsApp</li>
                     <li>✓ GPS con planificador de rutas</li>
-                    <li>✓ Motor IA Avanzado (300 peticiones)</li>
+                    <li>✓ Asistente IA Avanzado (300 peticiones)</li>
                     <li>✓ Filtros de clientes avanzados</li>
                     <li>✓ Códigos QR en recibos</li>
                     <li>✓ Exportación parcial y reportes mensuales a solicitud</li>
@@ -547,12 +547,12 @@ if st.session_state.get("estado_suscripcion") != "valido":
                     <li>✓ Capacidad ampliada (10,000 clientes)</li>
                     <li>✓ Hasta 50,000 cuentas activas</li>
                     <li>✓ Tabla de amortización automatica</li>                  
-                    <li>✓ Dashboards analíticos completos</li>
+                    <li>✓ Dashboards predictivos </li>
                     <li>✓ Gestión de cobros y pagos completa</li>
                     <li>✓ Generación PDF con tu marca</li>
                     <li>✓ Integración total a WhatsApp con recordatorios automaticos</li>
-                    <li>✓ GPS con planificador de rutas y geolocalización en tiempo real de cobradores</li>
-                    <li>✓ Motor IA avanzado (más de 2,000 peticiones)</li>
+                    <li>✓ GPS con planificador de rutas y monitoreo operativo avanzado</li>
+                    <li>✓ IA avanzada de alta capacidad (uso justo)</li>
                     <li>✓ Filtros de clientes avanzados</li>
                     <li>✓ Códigos QR y tu logo en recibos</li>
                     <li>✓ Exportación total de tu bases de datos</li>
@@ -560,8 +560,8 @@ if st.session_state.get("estado_suscripcion") != "valido":
                     <li>✓ Infraestructura de alta disponibilidad</li>
                     <li>✓ Protocolo de Backup empresarial</li>
                     <li>✓ Asistencia en migración de datos</li>
-                    <li>✓ Asesoria de profesionales financiados por CobroYa para tu negocio</li>
-                    <li>✓ Voting Board de Funcionalidades</li>
+                    <li>✓ Asesoría estratégica especializada a solicitud</li>
+                    <li>✓ Participación prioritaria en nuevas funcionalidades</li>
                     <li>✓ Hasta 20 inicios de sesión simultáneos</li>
                 </ul>
             </div>
