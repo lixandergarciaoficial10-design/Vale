@@ -617,7 +617,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
 
             # CONFIGURACIÓN WHATSAPP DINÁMICA
             import urllib.parse
-            numero_whatsapp = "18290000000" # AQUI VA TU NUMERO REAL
+            numero_whatsapp = "18095196889" # AQUI VA TU NUMERO REAL
             nombre_ws = st.session_state.get("ws_nombre", "Usuario")
             cedula_ws = st.session_state.get("ws_cedula", "N/A")
             
