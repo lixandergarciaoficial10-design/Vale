@@ -204,8 +204,10 @@ if not st.session_state.authenticated:
 # --- LÓGICA DE INICIO DE SESIÓN CORREGIDA (Lixander Edition) ---
                 if st.button("Iniciar sesión", type="primary", use_container_width=True):
                     if email and password:
+                        login_exitoso = False
+                        
+                        # 1. Intentamos entrar con Supabase Auth normal
                         try:
-                            # 1. Intentamos entrar con Supabase Auth normal
                             res = conn.auth.sign_in_with_password({"email": email, "password": password})
                             
                             if res and res.user:
@@ -232,12 +234,16 @@ if not st.session_state.authenticated:
                                 # 3. Entramos a la App
                                 st.session_state.user = res.user
                                 st.session_state.authenticated = True
+                                login_exitoso = True
                                 st.success("¡Bienvenido a CobroYa!")
                                 st.rerun()
                                 
                         except Exception as e:
-                            # Aquí solo cae si el correo o la clave están mal de verdad en Supabase
-                            # NUEVO: Intentamos con empleados en usuarios_dependientes
+                            # Auth de Supabase falló, intentamos con empleados
+                            login_exitoso = False
+                        
+                        # Solo si el login con Auth falló, intentamos con empleados
+                        if not login_exitoso:
                             try:
                                 import hashlib
                                 resp_emp = conn.table("usuarios_dependientes").select("id, password_hash, owner_id, rol, es_activo, nombre").eq("email", email).execute()
@@ -263,13 +269,14 @@ if not st.session_state.authenticated:
                                                     self.user_metadata = {'rol': 'empleado'}
                                             st.session_state.user = EmpleadoUser(empleado['owner_id'], email)
                                             st.session_state.authenticated = True
+                                            login_exitoso = True
                                             st.success("¡Bienvenido a CobroYa!")
                                             st.rerun()
                                         else:
                                             st.error("❌ Correo o contraseña incorrectos")
                                 else:
                                     st.error("❌ Correo o contraseña incorrectos")
-                            except:
+                            except Exception as e:
                                 st.error("❌ Correo o contraseña incorrectos")
                     else:
                         st.warning("Por favor, completa todos los campos")
@@ -3278,8 +3285,7 @@ elif menu == "Configuración":
         if miembros_actuales < LIMITE_MIEMBROS:
             with st.expander("➕ Agregar nuevo miembro"):
                 with st.form("form_nuevo_miembro"):
-                    
-                    new_email = st.text_input("Correo del empleado en minusculas*").strip().lower()
+                    new_email = st.text_input("Correo del empleado en minúsculas*").strip().lower()
                     new_nombre = st.text_input("Nombre del empleado")
                     new_password = st.text_input("Contraseña (mínimo 6 caracteres)", type="password")
                     new_rol = st.text_input("Rol (ej: Cajero, Gestor, Supervisor)")
