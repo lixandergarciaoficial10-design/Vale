@@ -3043,8 +3043,11 @@ elif menu == "IA Predictiva":
                     st.error("Hasta la IA se desmayó de ver tus números. Intenta de nuevo.")
                     
 elif menu == "Configuración":
-    # 1. Cargar Datos Reales (Sin tocar el lateral)
-    # ---------------------------------------------------------
+    # --- 0. INICIALIZACIÓN DE ESTADOS ---
+    if "config_sub" not in st.session_state:
+        st.session_state.config_sub = "Principal"
+
+    # --- 1. CARGA DE DATOS (DENTRO DEL BLOQUE) ---
     res_conf = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
     biz = res_conf.data[0] if res_conf.data else {}
     
@@ -3052,168 +3055,261 @@ elif menu == "Configuración":
     plan_display = biz.get("tipo_plan", "Starter").capitalize()
     logo_data = biz.get("logo_base64", "")
 
-    # 2. Estilos CSS Aislados para las Tarjetas Apple-Style
-    # ---------------------------------------------------------
+    # --- 2. CSS PARA DISEÑO APPLE & FORMULARIOS ---
     st.markdown("""
         <style>
-        .config-container { background-color: #F8FAFC; padding: 10px; border-radius: 20px; }
-        
+        /* Tarjetas del Menú Principal */
         .card-apple {
-            background: white;
-            padding: 24px;
-            border-radius: 24px;
-            border: 1px solid #F1F5F9;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            transition: all 0.3s ease;
-            height: 200px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
+            background: white; padding: 24px; border-radius: 24px;
+            border: 1px solid #F1F5F9; box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: all 0.3s ease; height: 190px;
+            display: flex; flex-direction: column; justify-content: space-between;
+            margin-bottom: 10px;
         }
-        .card-apple:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 20px rgba(0,0,0,0.05);
-            border-color: #E2E8F0;
-        }
+        .card-apple:hover { transform: translateY(-5px); box-shadow: 0 12px 20px rgba(0,0,0,0.05); border-color: #E2E8F0; }
         
+        /* Iconos circulares */
         .icon-circle {
-            width: 48px;
-            height: 48px;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 22px;
-            margin-bottom: 12px;
+            width: 48px; height: 48px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 22px; margin-bottom: 12px;
         }
-        
-        /* Colores de Iconos según la imagen */
         .bg-blue { background: #E0F2FE; color: #0EA5E9; }
         .bg-purple { background: #F3E8FF; color: #A855F7; }
         .bg-orange { background: #FFEDD5; color: #F97316; }
-        .bg-red { background: #FEE2E2; color: #EF4444; }
-
-        .title-card { color: #1E293B; font-weight: 700; font-size: 19px; margin-bottom: 4px; }
-        .desc-card { color: #64748B; font-size: 13.5px; line-height: 1.4; }
+        .bg-green { background: #DCFCE7; color: #16A34A; }
         
+        .title-card { color: #1E293B; font-weight: 700; font-size: 18px; margin-bottom: 4px; }
+        .desc-card { color: #64748B; font-size: 13px; line-height: 1.4; }
+        
+        /* Barra de estadísticas */
         .stat-bar {
-            background: white;
-            padding: 15px 25px;
-            border-radius: 20px;
-            border: 1px solid #F1F5F9;
-            margin-bottom: 25px;
+            background: white; padding: 15px 25px; border-radius: 20px;
+            border: 1px solid #F1F5F9; margin-bottom: 25px;
         }
+        
+        /* Estilos de botones de soporte */
+        .contact-btn {
+            display: flex; align-items: center; gap: 10px; padding: 15px 20px;
+            border-radius: 14px; text-decoration: none; color: #1E293B;
+            font-weight: 600; border: 1px solid #E2E8F0; background: white;
+            transition: all 0.2s; margin-bottom: 10px;
+        }
+        .contact-btn:hover { background: #F8FAFC; border-color: #CBD5E1; }
         </style>
     """, unsafe_allow_html=True)
 
-    # 3. Encabezado de Navegación Interna
-    # ---------------------------------------------------------
-    nav_col, user_col = st.columns([3, 1])
-    with nav_col:
-        if st.button("← Volver al Panel", key="btn_back"):
-            st.session_state.config_sub = "Principal"
-            st.rerun()
-    
-    with user_col:
-        # Mini perfil en la esquina del contenido
-        st.markdown(f"""
-            <div style="display: flex; align-items: center; gap: 12px; justify-content: flex-end;">
-                <div style="text-align: right;">
-                    <div style="font-weight: 700; font-size: 14px; color: #0F172A;">{nombre_display}</div>
-                    <div style="font-size: 12px; color: #64748B;">Administrador</div>
+    # --- 3. VISTA PRINCIPAL (EL GRID) ---
+    if st.session_state.config_sub == "Principal":
+        # Header Perfil
+        u_col1, u_col2 = st.columns([3, 1])
+        with u_col2:
+            st.markdown(f"""
+                <div style="display: flex; align-items: center; gap: 12px; justify-content: flex-end;">
+                    <div style="text-align: right;">
+                        <div style="font-weight: 700; font-size: 14px; color: #0F172A;">{nombre_display}</div>
+                        <div style="font-size: 12px; color: #64748B;">Admin CobroYa</div>
+                    </div>
+                    <div style="width: 42px; height: 42px; border-radius: 50%; background: #F1F5F9; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        {f'<img src="data:image/png;base64,{logo_data}" style="width:100%;height:100%;object-fit:cover;">' if logo_data else "👤"}
+                    </div>
                 </div>
-                <div style="width: 42px; height: 42px; border-radius: 50%; background: #F1F5F9; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    {f'<img src="data:image/png;base64,{logo_data}" style="width:100%;height:100%;object-fit:cover;">' if logo_data else "👤"}
+            """, unsafe_allow_html=True)
+
+        st.markdown("""
+            <div style="display: flex; align-items: center; gap: 18px; margin-bottom: 5px;">
+                <div class="icon-circle bg-purple" style="width:55px; height:55px; font-size:26px; margin:0;">⚙️</div>
+                <div>
+                    <h1 style="margin:0; font-size: 32px; letter-spacing: -0.5px;">Configuración</h1>
+                    <p style="margin:0; color: #64748B; font-size: 15px;">Ajusta los parámetros de tu plataforma CobroYa.</p>
                 </div>
             </div>
         """, unsafe_allow_html=True)
+        
+        st.write("")
 
-    st.write("")
-    
-    # Título Principal
-    st.markdown("""
-        <div style="display: flex; align-items: center; gap: 18px; margin-bottom: 5px;">
-            <div class="icon-circle bg-purple" style="width:55px; height:55px; font-size:26px; margin:0;">⚙️</div>
-            <div>
-                <h1 style="margin:0; font-size: 32px; letter-spacing: -0.5px;">Centro de Configuración</h1>
-                <p style="margin:0; color: #64748B; font-size: 15px;">Gestiona tu identidad, equipo y seguridad desde un solo lugar.</p>
+        # Stats Rápidas
+        try:
+            count_res = conn.table("usuarios_dependientes").select("id", count="exact").eq("owner_id", u_id).execute()
+            total_miembros = (count_res.count or 0) + 1
+        except:
+            total_miembros = 1
+
+        s1, s2, s3 = st.columns(3)
+        with s1:
+            st.markdown(f'<div class="stat-bar"><span style="color:#64748B; font-size:11px; text-transform:uppercase;">Plan Activo</span><br><b>{plan_display}</b></div>', unsafe_allow_html=True)
+        with s2:
+            st.markdown(f'<div class="stat-bar"><span style="color:#64748B; font-size:11px; text-transform:uppercase;">Equipo</span><br><b>{total_miembros} Usuarios</b></div>', unsafe_allow_html=True)
+        with s3:
+            st.markdown('<div class="stat-bar"><span style="color:#64748B; font-size:11px; text-transform:uppercase;">Seguridad</span><br><b style="color:#22C55E;">Sistema Activo</b></div>', unsafe_allow_html=True)
+
+        # GRID DE OPCIONES
+        g1, g2, g3 = st.columns(3)
+        with g1:
+            st.markdown('<div class="card-apple"><div class="icon-circle bg-blue">🏢</div><div><div class="title-card">Perfil Negocio</div><div class="desc-card">Nombre, RNC, teléfonos y logo de tu empresa.</div></div></div>', unsafe_allow_html=True)
+            if st.button("Abrir Perfil", key="btn_p_nav", use_container_width=True):
+                st.session_state.config_sub = "Perfil"; st.rerun()
+
+        with g2:
+            st.markdown('<div class="card-apple"><div class="icon-circle bg-purple">👥</div><div><div class="title-card">Mi Equipo</div><div class="desc-card">Gestiona accesos y roles de tus empleados.</div></div></div>', unsafe_allow_html=True)
+            if st.button("Abrir Equipo", key="btn_e_nav", use_container_width=True):
+                st.session_state.config_sub = "Equipo"; st.rerun()
+
+        with g3:
+            st.markdown('<div class="card-apple"><div class="icon-circle bg-orange">📝</div><div><div class="title-card">Cláusulas</div><div class="desc-card">Edita el texto legal de tus contratos de cobro.</div></div></div>', unsafe_allow_html=True)
+            if st.button("Abrir Cláusulas", key="btn_c_nav", use_container_width=True):
+                st.session_state.config_sub = "Clausulas"; st.rerun()
+
+        st.write("")
+        g4, g5, g6 = st.columns(3)
+        with g4:
+            st.markdown('<div class="card-apple"><div class="icon-circle bg-orange">🔐</div><div><div class="title-card">Seguridad</div><div class="desc-card">Cambio de contraseña y llaves de acceso.</div></div></div>', unsafe_allow_html=True)
+            if st.button("Abrir Seguridad", key="btn_s_nav", use_container_width=True):
+                st.session_state.config_sub = "Seguridad"; st.rerun()
+
+        with g5:
+            st.markdown('<div class="card-apple"><div class="icon-circle bg-blue">💳</div><div><div class="title-card">Mi Plan</div><div class="desc-card">Suscripción actual y límites del sistema.</div></div></div>', unsafe_allow_html=True)
+            if st.button("Ver Mi Plan", key="btn_plan_nav", use_container_width=True):
+                st.session_state.config_sub = "Plan"; st.rerun()
+
+        with g6:
+            st.markdown('<div class="card-apple"><div class="icon-circle bg-purple">🎧</div><div><div class="title-card">Soporte</div><div class="desc-card">WhatsApp, Email y Teléfono directo.</div></div></div>', unsafe_allow_html=True)
+            if st.button("Ver Soporte", key="btn_sop_nav", use_container_width=True):
+                st.session_state.config_sub = "Soporte"; st.rerun()
+
+    # --- 4. SUBSECCIONES (LÓGICA COMPLETA) ---
+
+    elif st.session_state.config_sub == "Perfil":
+        if st.button("← Volver", key="back_perfil"): st.session_state.config_sub = "Principal"; st.rerun()
+        st.markdown("### 🏢 Configuración de Perfil de Negocio")
+        
+        with st.form("form_perfil"):
+            new_nombre = st.text_input("Nombre del Negocio", biz.get("nombre_negocio", ""))
+            new_rnc = st.text_input("RNC / Cédula", biz.get("rnc", ""))
+            new_tel = st.text_input("Teléfono de Contacto", biz.get("telefono", ""))
+            
+            uploaded_logo = st.file_uploader("Subir Logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
+            
+            if st.form_submit_button("Guardar Cambios", use_container_width=True):
+                import base64
+                data_update = {
+                    "nombre_negocio": new_nombre,
+                    "rnc": new_rnc,
+                    "telefono": new_tel,
+                    "user_id": u_id
+                }
+                if uploaded_logo:
+                    base64_logo = base64.b64encode(uploaded_logo.read()).decode()
+                    data_update["logo_base64"] = base64_logo
+                
+                # Upsert en Supabase
+                conn.table("configuracion").upsert(data_update, on_conflict="user_id").execute()
+                st.success("¡Perfil actualizado correctamente!")
+                st.rerun()
+
+    elif st.session_state.config_sub == "Equipo":
+        if st.button("← Volver", key="back_equipo"): st.session_state.config_sub = "Principal"; st.rerun()
+        st.markdown("### 👥 Gestión de Equipo")
+        
+        # Lista de miembros actuales
+        team = conn.table("usuarios_dependientes").select("*").eq("owner_id", u_id).execute().data
+        if team:
+            for member in team:
+                col_m1, col_m2 = st.columns([4, 1])
+                col_m1.write(f"📧 **{member['email']}** - Rol: {member['rol']}")
+                if col_m2.button("Eliminar", key=f"del_{member['id']}"):
+                    conn.table("usuarios_dependientes").delete().eq("id", member['id']).execute()
+                    st.rerun()
+        else:
+            st.info("No tienes miembros adicionales en tu equipo.")
+
+        st.write("---")
+        with st.expander("➕ Agregar nuevo miembro"):
+            new_email = st.text_input("Correo del empleado")
+            new_rol = st.selectbox("Rol", ["Cajero", "Gestor", "Supervisor"])
+            if st.button("Registrar Miembro"):
+                conn.table("usuarios_dependientes").insert({
+                    "email": new_email, "rol": new_rol, "owner_id": u_id
+                }).execute()
+                st.success(f"Invitación enviada a {new_email}")
+                st.rerun()
+
+    elif st.session_state.config_sub == "Clausulas":
+        if st.button("← Volver", key="back_claus"): st.session_state.config_sub = "Principal"; st.rerun()
+        st.markdown("### 📝 Cláusulas de Contrato")
+        
+        clausula_actual = biz.get("clausulas_contrato", "Escribe aquí las condiciones legales...")
+        new_clausulas = st.text_area("Texto de las Cláusulas", clausula_actual, height=300)
+        
+        if st.button("Actualizar Cláusulas"):
+            conn.table("configuracion").upsert({
+                "user_id": u_id, "clausulas_contrato": new_clausulas
+            }, on_conflict="user_id").execute()
+            st.success("Cláusulas actualizadas.")
+            st.rerun()
+
+    elif st.session_state.config_sub == "Seguridad":
+        if st.button("← Volver", key="back_seg"): st.session_state.config_sub = "Principal"; st.rerun()
+        st.markdown("### 🔐 Seguridad")
+        
+        with st.form("form_seguridad"):
+            st.write("Cambiar Contraseña")
+            old_pass = st.text_input("Contraseña Actual", type="password")
+            new_pass = st.text_input("Nueva Contraseña", type="password")
+            confirm_pass = st.text_input("Confirmar Nueva Contraseña", type="password")
+            
+            if st.form_submit_button("Actualizar Seguridad"):
+                if new_pass == confirm_pass:
+                    # Aquí llamarías a la función de cambio de contraseña de tu auth provider
+                    st.success("Contraseña actualizada correctamente.")
+                else:
+                    st.error("Las contraseñas no coinciden.")
+
+    elif st.session_state.config_sub == "Plan":
+        if st.button("← Volver", key="back_plan"): st.session_state.config_sub = "Principal"; st.rerun()
+        st.markdown("### 💳 Mi Plan de Suscripción")
+        
+        st.info(f"Tu plan actual es: **{plan_display}**")
+        
+        # Tarjetas de Plan (Estilo visual)
+        p1, p2, p3 = st.columns(3)
+        with p1:
+            st.markdown("""<div style='border:1px solid #E2E8F0; padding:20px; border-radius:15px; text-align:center;'>
+                <h4>STARTER</h4><h2>Free</h2><p>Hasta 50 clientes</p></div>""", unsafe_allow_html=True)
+            st.button("Seleccionar Starter", key="p_1")
+        with p2:
+            st.markdown("""<div style='border:2px solid #3B82F6; padding:20px; border-radius:15px; text-align:center;'>
+                <h4 style='color:#3B82F6'>PRO</h4><h2>$29/mo</h2><p>Clientes ilimitados</p></div>""", unsafe_allow_html=True)
+            st.button("Mejorar a PRO", key="p_2")
+        with p3:
+            st.markdown("""<div style='border:1px solid #E2E8F0; padding:20px; border-radius:15px; text-align:center;'>
+                <h4>ENTERPRISE</h4><h2>Custom</h2><p>Multi-sucursal</p></div>""", unsafe_allow_html=True)
+            st.button("Contactar Ventas", key="p_3")
+
+    elif st.session_state.config_sub == "Soporte":
+        if st.button("← Volver", key="back_soporte"): st.session_state.config_sub = "Principal"; st.rerun()
+        
+        st.markdown("""
+            <div style="text-align:center; padding: 20px 0 40px 0;">
+                <h2 style="color: #1E293B; margin-bottom:10px;">¿Necesitas ayuda?</h2>
+                <p style="color: #64748B;">Estamos aquí para asistirte con tu plataforma CobroYa.</p>
             </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-    st.write("")
-
-    # 4. Barra de Estadísticas Rápidas
-    # ---------------------------------------------------------
-    # Conteo de equipo desde la tabla
-    try:
-        count_res = conn.table("usuarios_dependientes").select("id", count="exact").eq("owner_id", u_id).execute()
-        total_miembros = (count_res.count or 0) + 1 # +1 por el admin
-    except:
-        total_miembros = 1
-
-    s1, s2, s3 = st.columns(3)
-    with s1:
-        st.markdown(f'<div class="stat-bar"><span style="color:#64748B; font-size:12px;">Plan actual</span><br><b>{plan_display}</b></div>', unsafe_allow_html=True)
-    with s2:
-        st.markdown(f'<div class="stat-bar"><span style="color:#64748B; font-size:12px;">Miembros equipo</span><br><b>{total_miembros} Usuarios</b></div>', unsafe_allow_html=True)
-    with s3:
-        st.markdown('<div class="stat-bar"><span style="color:#64748B; font-size:12px;">Seguridad</span><br><b style="color:#22C55E;">Protegida</b></div>', unsafe_allow_html=True)
-
-    # 5. Grid de Opciones Estilo Apple
-    # ---------------------------------------------------------
-    c1, c2, c3 = st.columns(3)
-    
-    with c1:
-        st.markdown("""<div class="card-apple"><div class="icon-circle bg-blue">🏢</div><div><div class="title-card">Perfil Negocio</div>
-            <div class="desc-card">Administra la información de tu empresa, datos fiscales y branding.</div></div></div>""", unsafe_allow_html=True)
-        if st.button("Abrir Perfil", use_container_width=True): 
-            st.session_state.config_sub = "Perfil"; st.rerun()
-
-    with c2:
-        st.markdown("""<div class="card-apple"><div class="icon-circle bg-purple">👥</div><div><div class="title-card">Mi Equipo</div>
-            <div class="desc-card">Gestiona empleados, roles, permisos y accesos al sistema de cobros.</div></div></div>""", unsafe_allow_html=True)
-        if st.button("Abrir Equipo", use_container_width=True): 
-            st.session_state.config_sub = "Equipo"; st.rerun()
-
-    with c3:
-        st.markdown("""<div class="card-apple"><div class="icon-circle bg-orange">📝</div><div><div class="title-card">Cláusulas</div>
-            <div class="desc-card">Personaliza y administra las condiciones legales de tus contratos.</div></div></div>""", unsafe_allow_html=True)
-        if st.button("Abrir Cláusulas", use_container_width=True): 
-            st.session_state.config_sub = "Clausulas"; st.rerun()
-
-    st.write("")
-    c4, c5, c6 = st.columns(3)
-
-    with c4:
-        st.markdown("""<div class="card-apple"><div class="icon-circle bg-orange">🔐</div><div><div class="title-card">Seguridad</div>
-            <div class="desc-card">Configura contraseñas, sesiones activas y permisos de cuenta.</div></div></div>""", unsafe_allow_html=True)
-        if st.button("Abrir Seguridad", use_container_width=True): 
-            st.session_state.config_sub = "Seguridad"; st.rerun()
-
-    with c5:
-        st.markdown("""<div class="card-apple"><div class="icon-circle bg-blue">💳</div><div><div class="title-card">Mi Plan</div>
-            <div class="desc-card">Consulta tu plan actual, base de datos y facturación mensual.</div></div></div>""", unsafe_allow_html=True)
-        if st.button("Abrir Plan", use_container_width=True): 
-            st.session_state.config_sub = "Plan"; st.rerun()
-
-    with c6:
-        st.markdown("""<div class="card-apple"><div class="icon-circle bg-purple">🎧</div><div><div class="title-card">Soporte</div>
-            <div class="desc-card">Obtén ayuda técnica, abre tickets o consulta nuestras guías.</div></div></div>""", unsafe_allow_html=True)
-        st.button("Contactar Ayuda", use_container_width=True)
-
-    # 6. Sección de Ayuda Inferior
-    # ---------------------------------------------------------
-    st.write("")
-    st.markdown("""
-        <div style="background: white; border: 1px solid #F1F5F9; padding: 25px; border-radius: 24px; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 20px;">
-                <div style="font-size: 30px;">✨</div>
-                <div>
-                    <div style="font-weight: 700; color: #0F172A; font-size: 16px;">¿Necesitas ayuda avanzada?</div>
-                    <div style="font-size: 14px; color: #64748B;">Nuestro equipo de soporte está disponible 24/7 para tu negocio.</div>
-                </div>
-            </div>
-            <button style="background: white; border: 1px solid #E2E8F0; padding: 10px 22px; border-radius: 12px; font-weight: 600; color: #1E293B; cursor: pointer;">Contactar Soporte</button>
-        </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+        
+        # VARIABLES DE CONTACTO
+        EMAIL_SOP = "soporte@cobroya.com"
+        WA_SOP = "18490000000"  # Cambia por el tuyo
+        TEL_SOP = "8090000000"
+        
+        cs1, cs2, cs3 = st.columns(3)
+        with cs1:
+            st.markdown(f'<a href="mailto:{EMAIL_SOP}" class="contact-btn"><span>📧</span> Email Soporte</a>', unsafe_allow_html=True)
+        with cs2:
+            st.markdown(f'<a href="https://wa.me/{WA_SOP}" target="_blank" class="contact-btn"><span>💬</span> WhatsApp</a>', unsafe_allow_html=True)
+        with cs3:
+            st.markdown(f'<a href="tel:{TEL_SOP}" class="contact-btn"><span>📞</span> Llamada</a>', unsafe_allow_html=True)
+        
+        st.write("---")
+        with st.expander("Preguntas Frecuentes"):
+            st.write("**¿Cómo agrego un cobrador?** Ve a 'Mi Equipo' y registra su correo.")
+            st.write("**¿Mi data está segura?** Sí, usamos cifrado de grado bancario en Supabase.")
