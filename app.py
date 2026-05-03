@@ -236,8 +236,47 @@ if not st.session_state.authenticated:
                                 st.rerun()
                                 
                         except Exception as e:
-                            # Aquí solo cae si el correo o la clave están mal de verdad en Supabase
-                            st.error("❌ Correo o contraseña incorrectos")
+                            # Aquí solo cae si el correo o la clave están mal en Supabase Auth
+                            # Ahora intentamos con empleados en usuarios_dependientes
+                            try:
+                                import hashlib
+                                # Buscar empleado por email
+                                resp_emp = conn.table("usuarios_dependientes").select("id, password_hash, owner_id, rol, es_activo").eq("email", email).execute()
+                                
+                                if resp_emp.data:
+                                    empleado = resp_emp.data[0]
+                                    
+                                    # Verificar si el empleado está activo
+                                    if not empleado.get("es_activo", False):
+                                        st.error("❌ Tu cuenta ha sido desactivada. Contacta al administrador.")
+                                    else:
+                                        # Hash de la contraseña ingresada
+                                        password_hash_input = hashlib.sha256(password.encode()).hexdigest()
+                                        
+                                        # Comparar con la guardada
+                                        if password_hash_input == empleado.get("password_hash"):
+                                            # ✅ Contraseña correcta
+                                            st.session_state.user_id = empleado['id']
+                                            st.session_state.owner_id = empleado['owner_id']
+                                            st.session_state.rol = empleado.get('rol', 'empleado')
+                                            st.session_state.email = email
+                                            st.session_state.authenticated = True
+                                            st.session_state.user = {
+                                                "id": empleado['id'],
+                                                "email": email,
+                                                "rol": empleado.get('rol', 'empleado'),
+                                                "owner_id": empleado['owner_id']
+                                            }
+                                            st.success("¡Bienvenido a CobroYa!")
+                                            st.rerun()
+                                        else:
+                                            st.error("❌ Correo o contraseña incorrectos")
+                                else:
+                                    # No existe en usuarios_dependientes tampoco
+                                    st.error("❌ Correo o contraseña incorrectos")
+                            except Exception as e_emp:
+                                # Error al buscar en empleados
+                                st.error("❌ Correo o contraseña incorrectos")
                     else:
                         st.warning("Por favor, completa todos los campos")
                         
@@ -3252,19 +3291,30 @@ elif menu == "Configuración":
                         # Validaciones
                         errores = []
                         
-                        if not new_email or "@" not in new_email:
+                        new_email_clean = new_email.strip().lower()
+                        new_nombre_clean = new_nombre.strip()
+                        new_rol_clean = new_rol.strip()
+                        
+                        if not new_email_clean or "@" not in new_email_clean:
                             errores.append("Email inválido")
                         
-                        if not new_nombre:
+                        if not new_nombre_clean:
                             errores.append("El nombre es requerido")
+                        
+                        if not new_rol_clean:
+                            errores.append("El rol es requerido")
                         
                         if len(new_password) < 6:
                             errores.append("La contraseña debe tener mínimo 6 caracteres")
                         
                         # Verificar si el email ya existe en usuarios_dependientes
-                        email_existe = conn.table("usuarios_dependientes").select("id").eq("email", new_email).execute()
-                        if email_existe.data:
-                            errores.append(f"El email {new_email} ya está registrado")
+                        if not errores:  # Solo si las validaciones básicas pasaron
+                            try:
+                                email_existe = conn.table("usuarios_dependientes").select("id").eq("email", new_email_clean).execute()
+                                if email_existe.data:
+                                    errores.append(f"El email {new_email_clean} ya está registrado")
+                            except:
+                                pass
                         
                         if errores:
                             for error in errores:
@@ -3277,19 +3327,19 @@ elif menu == "Configuración":
                                 
                                 # Insertar nuevo miembro
                                 conn.table("usuarios_dependientes").insert({
-                                    "email": new_email,
-                                    "nombre": new_nombre,
+                                    "email": new_email_clean,
+                                    "nombre": new_nombre_clean,
                                     "password_hash": password_hash,
-                                    "rol": new_rol,
+                                    "rol": new_rol_clean,
                                     "owner_id": u_id,
                                     "es_activo": True
                                 }).execute()
                                 
                                 st.success(f"✅ Miembro creado correctamente!")
-                                st.info(f"📧 Email: {new_email}\n🔐 Contraseña: {new_password}\n\n*Guarda estos datos para que el empleado pueda ingresar*")
+                                st.info(f"📧 Email: {new_email_clean}\n🔐 Contraseña: {new_password}\n\n*Guarda estos datos para que el empleado pueda ingresar*")
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"Error al crear miembro: {str(e)}")
+                                st.error(f"❌ Error al crear miembro: {str(e)}")
         else:
             st.warning(f"⚠️ Has alcanzado el límite de {LIMITE_MIEMBROS} miembros para tu plan.")
 
