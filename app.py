@@ -1639,82 +1639,77 @@ elif menu == "Gestión de Cobros":
         # Ordenamos según tu prioridad original
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
         
-# --- PANEL DEL MAPA MINIMALISTA (CON ALGORITMO DE AHORRO GSP-LITE) ---
+# --- PANEL DEL MAPA MINIMALISTA (CORREGIDO Y CON NOMBRES) ---
         if st.session_state.ruta_seleccion:
-    # 1. Filtramos los datos de los clientes seleccionados que están en la lista procesada
-    clientes_ruta_data = [d for d in datos_procesados if d['id'] in st.session_state.ruta_seleccion]
-    
-    con_gps = []
-    sin_gps = []
-    
-    for c in clientes_ruta_data:
-        lat = c.get('clientes', {}).get('latitud')
-        lng = c.get('clientes', {}).get('longitud')
-        # Verificamos que existan coordenadas reales
-        if lat and lng and float(lat) != 0 and float(lng) != 0:
-            con_gps.append(c)
-        else:
-            sin_gps.append(c['aux_nombre'])
+            # 1. Filtramos los datos de los clientes seleccionados
+            clientes_ruta_data = [d for d in datos_procesados if d['id'] in st.session_state.ruta_seleccion]
+            
+            con_gps = []
+            sin_gps = []
+            
+            for c in clientes_ruta_data:
+                lat = c.get('clientes', {}).get('latitud')
+                lng = c.get('clientes', {}).get('longitud')
+                if lat and lng and float(lat) != 0 and float(lng) != 0:
+                    con_gps.append(c)
+                else:
+                    sin_gps.append(c['aux_nombre'])
 
-    # El título ahora muestra la cantidad REAL de puntos que se pueden graficar
-    with st.expander(f"📍 Ruta de Cobro ({len(con_gps)} clientes con GPS)", expanded=True):
-        
-        if sin_gps:
-            st.warning(f"⚠️ No tienen GPS: {', '.join(sin_gps)}")
-
-        if con_gps:
-            # Algoritmo de optimización (Vecino más cercano)
-            def calcular_ruta_optima(puntos):
-                if not puntos: return []
-                ruta_ordenada = []
-                pendientes = puntos.copy()
-                actual = pendientes.pop(0) # Empezamos por el primero de la lista
-                ruta_ordenada.append(actual)
+            # El título ahora muestra la cantidad REAL de puntos
+            with st.expander(f"📍 Ruta de Cobro ({len(con_gps)} clientes con GPS)", expanded=True):
                 
-                while pendientes:
-                    proximo = min(pendientes, key=lambda p: (
-                        (float(p['clientes']['latitud']) - float(actual['clientes']['latitud']))**2 + 
-                        (float(p['clientes']['longitud']) - float(actual['clientes']['longitud']))**2
-                    ))
-                    actual = proximo
-                    pendientes.remove(proximo)
-                    ruta_ordenada.append(actual)
-                return ruta_ordenada
+                if sin_gps:
+                    st.warning(f"⚠️ No tienen GPS: {', '.join(sin_gps)}")
 
-            con_gps = calcular_ruta_optima(con_gps)
-            
-            # --- GENERACIÓN DE ENLACE CON NOMBRES ---
-            base_url = "https://www.google.com/maps/dir/?api=1"
-            
-            # Formateamos los puntos incluyendo el nombre entre paréntesis para Google Maps
-            puntos_url = []
-            for c in con_gps:
-                lat = c['clientes']['latitud']
-                lng = c['clientes']['longitud']
-                nombre_limpio = c['aux_nombre'].replace(" ", "+") # Formato URL
-                # Formato: lat,lng(Nombre)
-                puntos_url.append(f"{lat},{lng}({nombre_limpio})")
-            
-            # El último de la lista optimizada es el destino
-            destino_final = puntos_url.pop()
-            # Los demás son paradas intermedias (waypoints)
-            waypoints = "&waypoints=" + "|".join(puntos_url) if puntos_url else ""
-            
-            # travelmode=driving para asegurar que sea ruta de vehículo
-            final_url = f"{base_url}&destination={destino_final}{waypoints}&travelmode=driving"
+                if con_gps:
+                    # Algoritmo de optimización (Vecino más cercano)
+                    def calcular_ruta_optima(puntos):
+                        if not puntos: return []
+                        ruta_ordenada = []
+                        pendientes = puntos.copy()
+                        actual = pendientes.pop(0) 
+                        ruta_ordenada.append(actual)
+                        
+                        while pendientes:
+                            proximo = min(pendientes, key=lambda p: (
+                                (float(p['clientes']['latitud']) - float(actual['clientes']['latitud']))**2 + 
+                                (float(p['clientes']['longitud']) - float(actual['clientes']['longitud']))**2
+                            ))
+                            actual = proximo
+                            pendientes.remove(proximo)
+                            ruta_ordenada.append(actual)
+                        return ruta_ordenada
 
-            col_r1, col_r2 = st.columns([2, 1])
-            with col_r1:
-                st.success(f"✅ ¡Ruta lista! {len(con_gps)} paradas optimizadas.")
-                st.caption("Los nombres de los clientes aparecerán como etiquetas en el mapa.")
-            with col_r2:
-                st.link_button("🚀 INICIAR VIAJE", final_url, type="primary", use_container_width=True)
-        else:
-            st.error("❌ Ninguno de los clientes seleccionados tiene coordenadas válidas.")
-        
-        if st.button("🗑️ Limpiar Selección"):
-            st.session_state.ruta_seleccion = []
-            st.rerun()
+                    con_gps = calcular_ruta_optima(con_gps)
+                    
+                    # --- GENERACIÓN DE ENLACE CON NOMBRES ---
+                    base_url = "https://www.google.com/maps/dir/?api=1"
+                    
+                    puntos_url = []
+                    for c in con_gps:
+                        lat = c['clientes']['latitud']
+                        lng = c['clientes']['longitud']
+                        nombre_limpio = c['aux_nombre'].replace(" ", "+")
+                        # Formato: lat,lng(Nombre)
+                        puntos_url.append(f"{lat},{lng}({nombre_limpio})")
+                    
+                    destino_final = puntos_url.pop()
+                    waypoints = "&waypoints=" + "|".join(puntos_url) if puntos_url else ""
+                    
+                    final_url = f"{base_url}&destination={destino_final}{waypoints}&travelmode=driving"
+
+                    col_r1, col_r2 = st.columns([2, 1])
+                    with col_r1:
+                        st.success(f"✅ ¡Ruta lista! {len(con_gps)} paradas optimizadas.")
+                        st.caption("Los nombres aparecerán como etiquetas en Google Maps.")
+                    with col_r2:
+                        st.link_button("🚀 INICIAR VIAJE", final_url, type="primary", use_container_width=True)
+                else:
+                    st.error("❌ Ninguno de los clientes seleccionados tiene coordenadas válidas.")
+                
+                if st.button("🗑️ Limpiar Selección"):
+                    st.session_state.ruta_seleccion = []
+                    st.rerun()
                     
 # --- DIBUJADO DE LA LISTA (CON TODAS TUS FUNCIONES ORIGINALES) ---
         for item in datos_procesados:
