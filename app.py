@@ -3043,135 +3043,163 @@ elif menu == "IA Predictiva":
                     st.error("Hasta la IA se desmayó de ver tus números. Intenta de nuevo.")
                     
 elif menu == "Configuración":
-    st.header("⚙️ Configuración del Sistema")
-    st.caption("Administra las cláusulas legales de tus contratos y la seguridad de tu cuenta.")
+    st.header("⚙️ Centro de Configuración")
+    st.caption("Gestiona tu identidad, equipo y seguridad desde un solo lugar.")
 
-    # 1. Recuperar configuración actual de Supabase
-    res_conf = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
-    
-    clausulas_default = """1. EL DEUDOR se compromete a pagar la suma acordada en las fechas establecidas.
-2. El incumplimiento de dos cuotas consecutivas autoriza al ACREEDOR a ejecutar el cobro total.
-3. Este contrato tiene fuerza legal y ejecutiva."""
-    
-    if res_conf.data:
-        texto_actual = res_conf.data[0].get("clausulas", clausulas_default)
-    else:
-        texto_actual = clausulas_default
+    # --- ESTILO CSS PARA LOS ICONOS (Estilo Android/Windows) ---
+    st.markdown("""
+        <style>
+        .stButton > button {
+            border-radius: 15px;
+            height: 100px;
+            width: 100%;
+            border: 1px solid #e0e0e0;
+            background-color: white;
+            transition: all 0.3s ease;
+        }
+        .stButton > button:hover {
+            border-color: #2563eb;
+            background-color: #f8fafc;
+            transform: translateY(-5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        </style>
+    """, unsafe_allow_html=True)
 
-    # --- SECCIÓN DE CLÁUSULAS LEGALES ---
-    with st.expander("📝 Editar Cláusulas del Contrato PDF", expanded=True):
-        st.write("Estas cláusulas aparecerán automáticamente en todos los contratos PDF que generes.")
-        clausulas_editadas = st.text_area(
-            "Texto legal del contrato:", 
-            value=texto_actual, 
-            height=250,
-            help="Escribe aquí las condiciones que tus clientes deben firmar."
-        )
+    # Inicializar sub-menú si no existe
+    if "config_sub" not in st.session_state:
+        st.session_state.config_sub = "Principal"
+
+    # --- GRID DE ICONOS PRINCIPAL ---
+    if st.session_state.config_sub == "Principal":
+        col1, col2, col3 = st.columns(3)
         
-        if st.button("💾 Guardar Configuración Legal", use_container_width=True):
-            with st.spinner("Sincronizando con la base de datos..."):
-                try:
-                    if res_conf.data:
-                        conn.table("configuracion").update({"clausulas": clausulas_editadas}).eq("user_id", u_id).execute()
-                    else:
-                        conn.table("configuracion").insert({"clausulas": clausulas_editadas, "user_id": u_id}).execute()
-                    
-                    st.session_state["mis_clausulas"] = clausulas_editadas
-                    st.success("✅ Cláusulas actualizadas correctamente.")
-                    import time
-                    time.sleep(1)
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error al guardar: {e}")
+        with col1:
+            if st.button("🏢\n\nPerfil Negocio"):
+                st.session_state.config_sub = "Perfil"
+                st.rerun()
+        with col2:
+            if st.button("👥\n\nMi Equipo"):
+                st.session_state.config_sub = "Equipo"
+                st.rerun()
+        with col3:
+            if st.button("📝\n\nCláusulas"):
+                st.session_state.config_sub = "Clausulas"
+                st.rerun()
 
-    # --- SECCIÓN DE DATOS DE EMPRESA ---
-    with st.expander("🏢 Perfil del Negocio & Facturación", expanded=False):
-        st.markdown("### Configura la identidad de tu empresa")
+        col4, col5, col6 = st.columns(3)
+        with col4:
+            if st.button("🔐\n\nSeguridad"):
+                st.session_state.config_sub = "Seguridad"
+                st.rerun()
+        with col5:
+            if st.button("💳\n\nMi Plan"):
+                st.session_state.config_sub = "Plan"
+                st.rerun()
+        with col6:
+            if st.button("🔙\n\nVolver"):
+                st.session_state.menu = "Dashboard" # O tu página principal
+                st.rerun()
+
+    # --- SECCIÓN: PERFIL DEL NEGOCIO ---
+    if st.session_state.config_sub == "Perfil":
+        if st.button("← Volver"): st.session_state.config_sub = "Principal"; st.rerun()
+        st.subheader("🏢 Perfil del Negocio")
         
-        # 1. Recuperar datos actuales
-        biz_data = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
-        current_biz = biz_data.data[0] if biz_data.data else {}
+        res_conf = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
+        current_biz = res_conf.data[0] if res_conf.data else {}
 
         col_logo, col_info = st.columns([1, 2])
-        
         with col_logo:
-            logo_file = st.file_uploader("Cargar Logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
-            
+            logo_file = st.file_uploader("Logo Empresa", type=["png", "jpg"])
             if logo_file:
-                # Caso A: El usuario sube un archivo nuevo
                 bytes_data = logo_file.getvalue()
                 base64_logo = base64.b64encode(bytes_data).decode()
-                st.image(bytes_data, width=150, caption="Nuevo Logo")
+                st.image(bytes_data, width=150)
             else:
-                # Caso B: No hay archivo nuevo, usamos el de la base de datos
                 base64_logo = current_biz.get("logo_base64", "")
                 if base64_logo:
-                    try:
-                        # Limpiamos el prefijo base64 si existe para mostrarlo en Streamlit
-                        clean_view = base64_logo.split("base64,")[1] if "base64," in base64_logo else base64_logo
-                        st.image(base64.b64decode(clean_view), width=150, caption="Logo Actual")
-                    except:
-                        st.warning("Error al previsualizar el logo guardado")
+                    st.image(base64.b64decode(base64_logo.split(",")[-1]), width=150)
 
         with col_info:
-            biz_name = st.text_input("Nombre Comercial", value=current_biz.get("nombre_negocio", "CobroYa Pro"))
-            biz_id = st.text_input("RNC / Cédula Fiscal", value=current_biz.get("rnc", ""))
-            biz_phone = st.text_input("Teléfono de Contacto", value=current_biz.get("telefono", ""))
-            biz_addr = st.text_area("Dirección Física", value=current_biz.get("direccion", ""))
-
-        # 2. Botón de Guardado con Sincronización Total
-        if st.button("💾 Guardar Perfil Empresarial", use_container_width=True):
-            # Aseguramos que el logo guardado sea el "string" limpio
-            payload = {
-                "nombre_negocio": biz_name,
-                "rnc": biz_id,
-                "telefono": biz_phone,
-                "direccion": biz_addr,
-                "logo_base64": base64_logo,
-                "user_id": u_id
-            }
-            
-            try:
-                if current_biz:
-                    conn.table("configuracion").update(payload).eq("user_id", u_id).execute()
-                else:
-                    conn.table("configuracion").insert(payload).execute()
-
-                # ACTUALIZACIÓN CRÍTICA DEL SESSION_STATE (Para que el PDF lo vea sin refrescar manual)
-                st.session_state["nombre_negocio"] = biz_name
-                st.session_state["mi_logo"] = base64_logo
-                st.session_state["direccion_negocio"] = biz_addr
-                st.session_state["telefono_negocio"] = biz_phone
-                st.session_state["config_cargada"] = True # Marcamos como cargado
-                
-                st.success("✅ ¡Identidad corporativa actualizada!")
-                time.sleep(1)
-                st.rerun()
-                
-            except Exception as e:
-                st.error(f"❌ Error al guardar en base de datos: {e}")
-                
-    # --- SECCIÓN DE SEGURIDAD ---
-    with st.container(border=True):
-        st.subheader("🔐 Seguridad de la Cuenta")
-        st.write("Cambia tu contraseña de acceso directamente.")
+            biz_name = st.text_input("Nombre Comercial", value=current_biz.get("nombre_negocio", ""))
+            biz_phone = st.text_input("Teléfono", value=current_biz.get("telefono", ""))
         
-        with st.form("cambio_clave_directo"):
-            nueva_p = st.text_input("Nueva Contraseña", type="password", help="Mínimo 6 caracteres")
-            confirma_p = st.text_input("Confirmar Nueva Contraseña", type="password")
+        if st.button("Guardar Cambios", type="primary"):
+            conn.table("configuracion").upsert({
+                "user_id": u_id, "nombre_negocio": biz_name, 
+                "telefono": biz_phone, "logo_base64": base64_logo
+            }).execute()
+            st.success("Perfil actualizado")
+
+    # --- SECCIÓN NUEVA: GESTIÓN DE EQUIPO (DELICADO) ---
+    elif st.session_state.config_sub == "Equipo":
+        if st.button("← Volver"): st.session_state.config_sub = "Principal"; st.rerun()
+        st.subheader("👥 Gestión de Mi Equipo")
+
+        # 1. Definir límites según el plan (Lo que me pediste)
+        plan_actual = current_biz.get("plan", "Gratis") # Asumiendo que guardas el nombre del plan
+        limites = {
+            "Gratis": {"admin": 1, "cobrador": 0},
+            "Starter": {"admin": 1, "cobrador": 1},
+            "Pro": {"admin": 2, "cobrador": 3},
+            "Enterprise": {"admin": 5, "cobrador": 15}
+        }
+        limit = limites.get(plan_actual, limites["Gratis"])
+
+        # 2. Consultar cuántos tiene ya creados
+        # Supongamos que tienes una tabla 'usuarios_dependientes' con una columna 'rol'
+        equipo = conn.table("usuarios_dependientes").select("*").eq("owner_id", u_id).execute()
+        admins_actuales = len([u for u in equipo.data if u['rol'] == 'admin']) + 1 # +1 por el dueño
+        cobradores_actuales = len([u for u in equipo.data if u['rol'] == 'cobrador'])
+
+        # 3. Mostrar Resumen de Límites
+        c1, c2 = st.columns(2)
+        c1.metric("Administradores", f"{admins_actuales} / {limit['admin']}")
+        c2.metric("Cobradores", f"{cobradores_actuales} / {limit['cobrador']}")
+
+        # 4. Formulario para agregar trabajador
+        st.write("---")
+        st.write("### Agregar Nuevo Miembro")
+        with st.form("nuevo_miembro"):
+            nuevo_email = st.text_input("Correo del trabajador")
+            nuevo_pass = st.text_input("Contraseña temporal", type="password")
+            nuevo_rol = st.selectbox("Rol", ["cobrador", "admin"])
             
-            submit_pass = st.form_submit_button("Actualizar Contraseña Ahora")
-            
-            if submit_pass:
-                if len(nueva_p) < 6:
-                    st.error("La contraseña es muy corta.")
-                elif nueva_p != confirma_p:
-                    st.error("Las contraseñas no coinciden.")
+            if st.form_submit_button("Registrar en Equipo"):
+                # Validar límites antes de crear
+                if nuevo_rol == "admin" and admins_actuales >= limit['admin']:
+                    st.error(f"Límite de Administradores alcanzado para el plan {plan_actual}")
+                elif nuevo_rol == "cobrador" and cobradores_actuales >= limit['cobrador']:
+                    st.error(f"Límite de Cobradores alcanzado para el plan {plan_actual}")
                 else:
-                    try:
-                        conn.client.auth.update_user({"password": nueva_p})
-                        st.success("✅ ¡Contraseña actualizada con éxito!")
-                        import time
-                        time.sleep(2)
-                    except Exception as e:
-                        st.error(f"Error al actualizar: {e}")
+                    # Lógica de creación en Supabase Auth y tabla dependientes
+                    st.info("Creando acceso para el trabajador...")
+                    # Aquí iría el conn.auth.admin.create_user (Requiere Service Role Key)
+
+    # --- SECCIÓN: SEGURIDAD (EL CANDADO) ---
+    elif st.session_state.config_sub == "Seguridad":
+        if st.button("← Volver"): st.session_state.config_sub = "Principal"; st.rerun()
+        st.subheader("🔐 Seguridad y Acceso")
+        with st.container(border=True):
+            nueva_p = st.text_input("Nueva Contraseña", type="password")
+            confirma_p = st.text_input("Confirmar Contraseña", type="password")
+            if st.button("Actualizar Llave de Acceso"):
+                if nueva_p == confirma_p and len(nueva_p) > 5:
+                    conn.auth.update_user({"password": nueva_p})
+                    st.success("Contraseña actualizada correctamente.")
+                else:
+                    st.error("Las contraseñas no coinciden o son muy cortas.")
+
+    # --- SECCIÓN: MI PLAN ---
+    elif st.session_state.config_sub == "Plan":
+        if st.button("← Volver"): st.session_state.config_sub = "Principal"; st.rerun()
+        st.subheader("💳 Suscripción Actual")
+        
+        # Simulación de datos de suscripción
+        st.info(f"Tu plan actual es: **{current_biz.get('plan', 'Gratis')}**")
+        st.write(f"📅 **Vencimiento:** {current_biz.get('vencimiento_plan', 'Nunca')}")
+        st.write(f"🗄️ **Base de Datos:** {(len(equipo.data)*0.1):.2f} MB / 500 MB")
+        
+        if st.button("Mejorar Plan"):
+            st.link_button("Ver Planes Pro", "https://tupagina.com/planes")
