@@ -1392,6 +1392,10 @@ if menu == "Panel de Control":
 elif menu == "Gestión de Cobros":
     st.header("⚡ Centro de Recaudación")
     
+# Inicializar lista de ruta para el mapa
+    if 'ruta_seleccion' not in st.session_state:
+        st.session_state.ruta_seleccion = []
+    
     # --- 1. FUNCIÓN DE HISTORIAL (PLAN VS REAL) CON LÓGICA DINÁMICA ---
     @st.dialog("📜 ESTADO DE CUENTA DETALLADO")
     def mostrar_historial_modal(item, u_id):
@@ -1581,7 +1585,7 @@ elif menu == "Gestión de Cobros":
         modo_analisis = st.toggle("📈 Análisis", help="Ver cuentas saldadas")
 
     # --- 6. CONSULTA DE DATOS PARA LA LISTA ---
-    query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula)").eq("user_id", u_id)
+    query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula, latitud, longitud)").eq("user_id", u_id)
     if modo_analisis:
         query = query.lte("balance_pendiente", 0)
     else:
@@ -1634,6 +1638,39 @@ elif menu == "Gestión de Cobros":
 
         # Ordenamos según tu prioridad original
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
+        
+# --- PANEL DEL MAPA MINIMALISTA ---
+        if st.session_state.ruta_seleccion:
+            with st.expander(f"📍 Ruta Planificada ({len(st.session_state.ruta_seleccion)} clientes)", expanded=True):
+                clientes_ruta = [d for d in datos_procesados if d['id'] in st.session_state.ruta_seleccion]
+                
+                # Buscar dentro del diccionario 'clientes' las coordenadas
+                sin_gps = [c['aux_nombre'] for c in clientes_ruta if not c.get('clientes', {}).get('latitud') or not c.get('clientes', {}).get('longitud')]
+                con_gps = [c for c in clientes_ruta if c.get('clientes', {}).get('latitud') and c.get('clientes', {}).get('longitud')]
+
+                if sin_gps:
+                    st.warning(f"⚠️ Faltan coordenadas: {', '.join(sin_gps)}")
+
+                if con_gps:
+                    base_url = "https://www.google.com/maps/dir/?api=1&origin=My+Location"
+                    coords = []
+                    for c in con_gps:
+                        lat = c['clientes']['latitud']
+                        lng = c['clientes']['longitud']
+                        coords.append(f"{lat},{lng}")
+                    
+                    waypoints = "&waypoints=" + "|".join(coords)
+                    final_url = base_url + waypoints + "&travelmode=driving"
+
+                    col_r1, col_r2 = st.columns([2, 1])
+                    with col_r1:
+                        st.info(f"Ruta lista para {len(con_gps)} clientes.")
+                    with col_r2:
+                        st.link_button("🚀 ABRIR MAPA", final_url, type="primary", use_container_width=True)
+                
+                if st.button("🗑️ Limpiar Selección"):
+                    st.session_state.ruta_seleccion = []
+                    st.rerun()
 
         # --- DIBUJADO DE LA LISTA (CON TODAS TUS FUNCIONES ORIGINALES) ---
         for item in datos_procesados:
@@ -1643,9 +1680,20 @@ elif menu == "Gestión de Cobros":
             with st.container(border=True):
                 c_nom, c_status, c_inputs, c_btn = st.columns([1.2, 1, 1.2, 0.8])
                 
-                with c_nom:
-                    st.markdown(f"**{item['aux_nombre']}**")
-                    st.caption(f"Debe: RD$ {m_pend:,.2f}")
+               with c_nom:
+                    col_t1, col_t2 = st.columns([0.2, 0.8])
+                    with col_t1:
+                        # Checkbox chiquito sin texto
+                        is_selected = st.checkbox(" ", key=f"sel_{token}", value=token in st.session_state.ruta_seleccion, label_visibility="collapsed")
+                        if is_selected and token not in st.session_state.ruta_seleccion:
+                            st.session_state.ruta_seleccion.append(token)
+                        elif not is_selected and token in st.session_state.ruta_seleccion:
+                            st.session_state.ruta_seleccion.remove(token)
+                            
+                    with col_t2:
+                        st.markdown(f"**{item['aux_nombre']}**")
+                        st.caption(f"Debe: RD$ {m_pend:,.2f}")
+                        
                     if st.button("🔍 Ver Historial", key=f"hist_{token}", use_container_width=True):
                         mostrar_historial_modal(item, u_id)
 
