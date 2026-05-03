@@ -1639,17 +1639,27 @@ elif menu == "Gestión de Cobros":
         # Ordenamos según tu prioridad original
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
         
-# --- PANEL DEL MAPA MINIMALISTA ---
+# --- PANEL DEL MAPA MINIMALISTA (CON FILTRO ANTI-CERO) ---
         if st.session_state.ruta_seleccion:
             with st.expander(f"📍 Ruta Planificada ({len(st.session_state.ruta_seleccion)} clientes)", expanded=True):
                 clientes_ruta = [d for d in datos_procesados if d['id'] in st.session_state.ruta_seleccion]
                 
-                # Buscar dentro del diccionario 'clientes' las coordenadas
-                sin_gps = [c['aux_nombre'] for c in clientes_ruta if not c.get('clientes', {}).get('latitud') or not c.get('clientes', {}).get('longitud')]
-                con_gps = [c for c in clientes_ruta if c.get('clientes', {}).get('latitud') and c.get('clientes', {}).get('longitud')]
+                # FILTRO CRÍTICO: Solo tomamos coordenadas que existan y NO sean 0.0
+                con_gps = []
+                sin_gps = []
+                
+                for c in clientes_ruta:
+                    lat = c.get('clientes', {}).get('latitud')
+                    lng = c.get('clientes', {}).get('longitud')
+                    
+                    # Validamos que no sea None, ni cadena vacía, ni 0
+                    if lat and lng and float(lat) != 0 and float(lng) != 0:
+                        con_gps.append(c)
+                    else:
+                        sin_gps.append(c['aux_nombre'])
 
                 if sin_gps:
-                    st.warning(f"⚠️ Faltan coordenadas: {', '.join(sin_gps)}")
+                    st.warning(f"⚠️ Ubicación no válida para: {', '.join(sin_gps)}")
 
                 if con_gps:
                     base_url = "https://www.google.com/maps/dir/?api=1&origin=My+Location"
@@ -1667,11 +1677,12 @@ elif menu == "Gestión de Cobros":
                         st.info(f"Ruta lista para {len(con_gps)} clientes.")
                     with col_r2:
                         st.link_button("🚀 ABRIR MAPA", final_url, type="primary", use_container_width=True)
+                else:
+                    st.error("❌ Ninguno de los seleccionados tiene coordenadas válidas.")
                 
                 if st.button("🗑️ Limpiar Selección"):
                     st.session_state.ruta_seleccion = []
                     st.rerun()
-
 # --- DIBUJADO DE LA LISTA (CON TODAS TUS FUNCIONES ORIGINALES) ---
         for item in datos_procesados:
             token = item['id']
