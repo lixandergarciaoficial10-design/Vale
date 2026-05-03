@@ -240,7 +240,7 @@ if not st.session_state.authenticated:
                             # NUEVO: Intentamos con empleados en usuarios_dependientes
                             try:
                                 import hashlib
-                                resp_emp = conn.table("usuarios_dependientes").select("id, password_hash, owner_id, rol, es_activo").eq("email", email).execute()
+                                resp_emp = conn.table("usuarios_dependientes").select("id, password_hash, owner_id, rol, es_activo, nombre").eq("email", email).execute()
                                 
                                 if resp_emp.data:
                                     empleado = resp_emp.data[0]
@@ -249,12 +249,19 @@ if not st.session_state.authenticated:
                                     else:
                                         password_hash_input = hashlib.sha256(password.encode()).hexdigest()
                                         if password_hash_input == empleado.get("password_hash"):
-                                            st.session_state.user = type('obj', (object,), {
-                                                'id': empleado['owner_id'],
-                                                'email': email,
-                                                'empleado_id': empleado['id'],
-                                                'rol': empleado.get('rol', 'empleado')
-                                            })()
+                                            # ✅ Empleado autenticado correctamente
+                                            # Guardamos datos del empleado en sesión
+                                            st.session_state.empleado_id = empleado['id']
+                                            st.session_state.owner_id = empleado['owner_id']
+                                            st.session_state.rol = empleado.get('rol', 'empleado')
+                                            st.session_state.nombre_empleado = empleado.get('nombre', '')
+                                            # Usamos el owner_id como user.id para que todo funcione como antes
+                                            class EmpleadoUser:
+                                                def __init__(self, owner_id, email):
+                                                    self.id = owner_id
+                                                    self.email = email
+                                                    self.user_metadata = {'rol': 'empleado'}
+                                            st.session_state.user = EmpleadoUser(empleado['owner_id'], email)
                                             st.session_state.authenticated = True
                                             st.success("¡Bienvenido a CobroYa!")
                                             st.rerun()
@@ -266,6 +273,12 @@ if not st.session_state.authenticated:
                                 st.error("❌ Correo o contraseña incorrectos")
                     else:
                         st.warning("Por favor, completa todos los campos")
+                
+                st.write("")
+                st.markdown('<div style="text-align: center; font-size: 14px; color: #64748B;">¿No tienes cuenta?</div>', unsafe_allow_html=True)
+                if st.button("Crear cuenta nueva", key="btn_signup_nav", use_container_width=True):
+                    st.session_state.page = "signup"
+                    st.rerun()
                         
             # --- VISTA: REGISTRO ---
             elif st.session_state.page == "signup":
@@ -364,10 +377,7 @@ if not st.session_state.authenticated:
     st.stop()
 
 # --- SI PASA DE AQUÍ, EL USUARIO ESTÁ DENTRO ---
-u_id = st.session_state.user.id if hasattr(st.session_state.user, 'id') else st.session_state.user['id'] if isinstance(st.session_state.user, dict) else None
-if not u_id:
-    st.error("Error al obtener ID de usuario")
-    st.stop()
+u_id = st.session_state.user.id
 
 import urllib.parse
 from datetime import datetime
@@ -3355,7 +3365,7 @@ elif menu == "Configuración":
             if st.form_submit_button("Actualizar Seguridad"):
                 try:
                     validacion = conn.auth.sign_in_with_password({
-                        "email": st.session_state.user.get("email") if isinstance(st.session_state.user, dict) else st.session_state.user.email,
+                        "email": st.session_state.user.email if hasattr(st.session_state.user, 'email') else st.session_state.user.get('email', ''),
                         "password": old_pass
                     })
                     
