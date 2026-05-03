@@ -3287,24 +3287,21 @@ elif menu == "Configuración":
             st.button("Contactar Ventas", key="p_3")
 
 elif st.session_state.config_sub == "Soporte":
-        # 1. Botón de retorno (Limpiado de caracteres extraños)
+        # 1. Botón de retorno alineado con el estado
         if st.button("← Volver", key="back_to_main_config"):
             st.session_state.config_sub = "Principal"
             st.rerun()
 
-        # 2. Inyección de CSS y FontAwesome (Todo en un solo bloque compacto)
+        # 2. CSS y Recursos (FontAwesome para los iconos)
         st.markdown("""
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
             <style>
-                .support-container {
-                    text-align: center;
-                    padding: 10px 0 30px 0;
-                }
+                .support-header { text-align: center; padding: 10px 0 20px 0; }
                 .contact-grid {
                     display: flex;
                     justify-content: space-between;
                     gap: 15px;
-                    margin-bottom: 30px;
+                    margin: 20px 0;
                 }
                 .btn-card {
                     flex: 1;
@@ -3325,33 +3322,29 @@ elif st.session_state.config_sub == "Soporte":
                     border-color: #CBD5E1;
                 }
                 .btn-card i { margin-bottom: 12px; }
-                .btn-text {
-                    font-size: 15px;
-                    font-weight: 600;
-                    color: #1E293B;
-                }
+                .btn-text { font-size: 15px; font-weight: 600; color: #1E293B; }
             </style>
         """, unsafe_allow_html=True)
 
-        # 3. Encabezado
+        # 3. Encabezado Visual
         st.markdown("""
-            <div class="support-container">
+            <div class="support-header">
                 <h2 style="color: #1E293B; margin-bottom:5px;">Centro de Soporte</h2>
-                <p style="color: #64748B;">Nuestro equipo técnico está listo para ayudarte con CobroYa.</p>
+                <p style="color: #64748B;">¿Tienes dudas con CobroYa? Estamos aquí para ayudarte.</p>
             </div>
         """, unsafe_allow_html=True)
 
-        # 4. Variables
+        # 4. Datos de contacto
         EMAIL_SOP = "soporte@cobroya.com"
-        WA_SOP = "18490000000"
+        WA_SOP = "18490000000"  # Reemplaza con tu número real
         TEL_SOP = "8090000000"
 
-        # 5. Botones de Contacto (Usando HTML directo para evitar conflictos de columnas)
+        # 5. Grid de botones de contacto
         st.markdown(f"""
             <div class="contact-grid">
                 <a href="mailto:{EMAIL_SOP}" class="btn-card">
                     <i class="fas fa-envelope" style="font-size: 35px; color: #EA4335;"></i>
-                    <span class="btn-text">Email Soporte</span>
+                    <span class="btn-text">Email</span>
                 </a>
                 <a href="https://wa.me/{WA_SOP}" target="_blank" class="btn-card">
                     <i class="fab fa-whatsapp" style="font-size: 40px; color: #25D366;"></i>
@@ -3365,31 +3358,32 @@ elif st.session_state.config_sub == "Soporte":
         """, unsafe_allow_html=True)
 
         st.write("---")
+        
+        # 6. Sección de Preguntas Frecuentes (FAQs)
         st.markdown("### 📚 Preguntas Frecuentes")
+        col_faq1, col_faq2 = st.columns(2)
         
-        # 6. FAQs mejoradas
-        f1, f2 = st.columns(2)
-        with f1:
+        with col_faq1:
             with st.expander("¿Cómo agrego un cobrador?"):
-                st.write("Ve a **Configuración > Mi Equipo** y registra su correo. El sistema le dará acceso inmediato según el rol asignado.")
+                st.write("Dirígete a **Configuración > Mi Equipo** y registra su correo electrónico.")
             with st.expander("¿Cómo descargo mis reportes?"):
-                st.write("En el Dashboard, usa el botón de **Exportar** para obtener un archivo Excel con todas tus transacciones.")
-            with st.expander("¿Cómo personalizo mis recibos?"):
-                st.write("Sube tu logo en **Perfil de Negocio**. Se aplicará automáticamente a todos los documentos generados.")
-        
-        with f2:
+                st.write("En tu Dashboard principal, haz clic en el botón de **Exportar**.")
             with st.expander("¿Mi información está segura?"):
-                st.write("Sí. Usamos infraestructura de Supabase con cifrado SSL de grado bancario para proteger tus datos.")
-            with st.expander("¿Puedo cambiar mi plan?"):
-                st.write("Claro, puedes gestionar tu suscripción en la sección **Mi Plan** en cualquier momento.")
-            with st.expander("¿Qué hago si olvidé mi clave?"):
-                st.write("Usa la opción 'Olvidé mi contraseña' en el login para recibir un correo de restauración.")
+                st.write("Totalmente. Utilizamos cifrado de grado bancario a través de Supabase.")
 
-        # 7. Horario
+        with col_faq2:
+            with st.expander("¿Cómo personalizo mis recibos?"):
+                st.write("Sube tu logo en **Perfil de Negocio** para que aparezca en todos los documentos.")
+            with st.expander("¿Puedo cambiar mi plan?"):
+                st.write("Sí, puedes gestionar tu suscripción en la sección **Mi Plan**.")
+            with st.expander("¿Qué hago si olvidé mi clave?"):
+                st.write("Usa el enlace de recuperación en la pantalla de inicio de sesión.")
+
+        # 7. Pie de página con horario
         st.markdown("""
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 15px; border-radius: 15px; margin-top: 20px; text-align: center;">
                 <p style="margin: 0; color: #64748B; font-size: 13px;">
-                    <i class="fas fa-clock"></i> <b>Horario:</b> Lun-Vie 8AM-6PM | Sáb 9AM-1PM
+                    <i class="fas fa-clock"></i> <b>Horario de atención:</b> Lun-Vie 8AM-6PM | Sáb 9AM-1PM
                 </p>
             </div>
         """, unsafe_allow_html=True)
