@@ -1641,75 +1641,80 @@ elif menu == "Gestión de Cobros":
         
 # --- PANEL DEL MAPA MINIMALISTA (CON ALGORITMO DE AHORRO GSP-LITE) ---
         if st.session_state.ruta_seleccion:
-            with st.expander(f"📍 Ruta Optimizada ({len(st.session_state.ruta_seleccion)} clientes)", expanded=True):
-                clientes_ruta = [d for d in datos_procesados if d['id'] in st.session_state.ruta_seleccion]
+    # 1. Filtramos los datos de los clientes seleccionados que están en la lista procesada
+    clientes_ruta_data = [d for d in datos_procesados if d['id'] in st.session_state.ruta_seleccion]
+    
+    con_gps = []
+    sin_gps = []
+    
+    for c in clientes_ruta_data:
+        lat = c.get('clientes', {}).get('latitud')
+        lng = c.get('clientes', {}).get('longitud')
+        # Verificamos que existan coordenadas reales
+        if lat and lng and float(lat) != 0 and float(lng) != 0:
+            con_gps.append(c)
+        else:
+            sin_gps.append(c['aux_nombre'])
+
+    # El título ahora muestra la cantidad REAL de puntos que se pueden graficar
+    with st.expander(f"📍 Ruta de Cobro ({len(con_gps)} clientes con GPS)", expanded=True):
+        
+        if sin_gps:
+            st.warning(f"⚠️ No tienen GPS: {', '.join(sin_gps)}")
+
+        if con_gps:
+            # Algoritmo de optimización (Vecino más cercano)
+            def calcular_ruta_optima(puntos):
+                if not puntos: return []
+                ruta_ordenada = []
+                pendientes = puntos.copy()
+                actual = pendientes.pop(0) # Empezamos por el primero de la lista
+                ruta_ordenada.append(actual)
                 
-                con_gps = []
-                sin_gps = []
-                
-                for c in clientes_ruta:
-                    lat = c.get('clientes', {}).get('latitud')
-                    lng = c.get('clientes', {}).get('longitud')
-                    if lat and lng and float(lat) != 0 and float(lng) != 0:
-                        con_gps.append(c)
-                    else:
-                        sin_gps.append(c['aux_nombre'])
+                while pendientes:
+                    proximo = min(pendientes, key=lambda p: (
+                        (float(p['clientes']['latitud']) - float(actual['clientes']['latitud']))**2 + 
+                        (float(p['clientes']['longitud']) - float(actual['clientes']['longitud']))**2
+                    ))
+                    actual = proximo
+                    pendientes.remove(proximo)
+                    ruta_ordenada.append(actual)
+                return ruta_ordenada
 
-                if sin_gps:
-                    st.warning(f"⚠️ Sin GPS: {', '.join(sin_gps)}")
+            con_gps = calcular_ruta_optima(con_gps)
+            
+            # --- GENERACIÓN DE ENLACE CON NOMBRES ---
+            base_url = "https://www.google.com/maps/dir/?api=1"
+            
+            # Formateamos los puntos incluyendo el nombre entre paréntesis para Google Maps
+            puntos_url = []
+            for c in con_gps:
+                lat = c['clientes']['latitud']
+                lng = c['clientes']['longitud']
+                nombre_limpio = c['aux_nombre'].replace(" ", "+") # Formato URL
+                # Formato: lat,lng(Nombre)
+                puntos_url.append(f"{lat},{lng}({nombre_limpio})")
+            
+            # El último de la lista optimizada es el destino
+            destino_final = puntos_url.pop()
+            # Los demás son paradas intermedias (waypoints)
+            waypoints = "&waypoints=" + "|".join(puntos_url) if puntos_url else ""
+            
+            # travelmode=driving para asegurar que sea ruta de vehículo
+            final_url = f"{base_url}&destination={destino_final}{waypoints}&travelmode=driving"
 
-                if con_gps:
-                    # --- ALGORITMO REVOLUCIONARIO: GSP-LITE (Ahorro de Combustible) ---
-                    # Esta lógica ordena los puntos para minimizar el trayecto y evitar vueltas innecesarias
-                    def calcular_ruta_optima(puntos):
-                        ruta_ordenada = []
-                        # Empezamos asumiendo una posición base (la primera encontrada o la más cercana al promedio)
-                        pendientes = puntos.copy()
-                        
-                        # Punto de referencia inicial (podría ser la ubicación actual, aquí usamos el primero por simplicidad)
-                        actual = pendientes.pop(0)
-                        ruta_ordenada.append(actual)
-                        
-                        while pendientes:
-                            # Buscamos el vecino más próximo con penalidad de eficiencia
-                            proximo = min(pendientes, key=lambda p: (
-                                (float(p['clientes']['latitud']) - float(actual['clientes']['latitud']))**2 + 
-                                (float(p['clientes']['longitud']) - float(actual['clientes']['longitud']))**2
-                            ))
-                            actual = proximo
-                            pendientes.remove(proximo)
-                            ruta_ordenada.append(actual)
-                        return ruta_ordenada
-
-                    # Ejecutamos la optimización matemática
-                    con_gps = calcular_ruta_optima(con_gps)
-                    
-                    # --- GENERACIÓN DE ENLACE INTELIGENTE ---
-                    # Dejamos el origen vacío para que use el GPS del celular en tiempo real
-                    base_url = "https://www.google.com/maps/dir/?api=1"
-                    
-                    # Construimos los waypoints en el orden optimizado
-                    puntos_str = []
-                    for c in con_gps:
-                        puntos_str.append(f"{c['clientes']['latitud']},{c['clientes']['longitud']}")
-                    
-                    # El último punto de la lista será el destino final en el enlace, los demás son paradas
-                    destino_final = puntos_str.pop()
-                    waypoints = "&waypoints=" + "|".join(puntos_str)
-                    final_url = f"{base_url}&destination={destino_final}{waypoints}&travelmode=driving"
-
-                    col_r1, col_r2 = st.columns([2, 1])
-                    with col_r1:
-                        st.success("✅ Algoritmo GSP-Lite aplicado: Ruta de bajo consumo.")
-                        st.caption("Priorizando seguridad y ahorro de combustible.")
-                    with col_r2:
-                        st.link_button("🚀 INICIAR VIAJE", final_url, type="primary", use_container_width=True)
-                else:
-                    st.error("❌ No hay coordenadas válidas para trazar ruta.")
-                
-                if st.button("🗑️ Limpiar Selección"):
-                    st.session_state.ruta_seleccion = []
-                    st.rerun()
+            col_r1, col_r2 = st.columns([2, 1])
+            with col_r1:
+                st.success(f"✅ ¡Ruta lista! {len(con_gps)} paradas optimizadas.")
+                st.caption("Los nombres de los clientes aparecerán como etiquetas en el mapa.")
+            with col_r2:
+                st.link_button("🚀 INICIAR VIAJE", final_url, type="primary", use_container_width=True)
+        else:
+            st.error("❌ Ninguno de los clientes seleccionados tiene coordenadas válidas.")
+        
+        if st.button("🗑️ Limpiar Selección"):
+            st.session_state.ruta_seleccion = []
+            st.rerun()
                     
 # --- DIBUJADO DE LA LISTA (CON TODAS TUS FUNCIONES ORIGINALES) ---
         for item in datos_procesados:
