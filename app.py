@@ -236,46 +236,33 @@ if not st.session_state.authenticated:
                                 st.rerun()
                                 
                         except Exception as e:
-                            # Aquí solo cae si el correo o la clave están mal en Supabase Auth
-                            # Ahora intentamos con empleados en usuarios_dependientes
+                            # Aquí solo cae si el correo o la clave están mal de verdad en Supabase
+                            # NUEVO: Intentamos con empleados en usuarios_dependientes
                             try:
                                 import hashlib
-                                # Buscar empleado por email
                                 resp_emp = conn.table("usuarios_dependientes").select("id, password_hash, owner_id, rol, es_activo").eq("email", email).execute()
                                 
                                 if resp_emp.data:
                                     empleado = resp_emp.data[0]
-                                    
-                                    # Verificar si el empleado está activo
                                     if not empleado.get("es_activo", False):
                                         st.error("❌ Tu cuenta ha sido desactivada. Contacta al administrador.")
                                     else:
-                                        # Hash de la contraseña ingresada
                                         password_hash_input = hashlib.sha256(password.encode()).hexdigest()
-                                        
-                                        # Comparar con la guardada
                                         if password_hash_input == empleado.get("password_hash"):
-                                            # ✅ Contraseña correcta
-                                            st.session_state.user_id = empleado['id']
-                                            st.session_state.owner_id = empleado['owner_id']
-                                            st.session_state.rol = empleado.get('rol', 'empleado')
-                                            st.session_state.email = email
+                                            st.session_state.user = type('obj', (object,), {
+                                                'id': empleado['owner_id'],
+                                                'email': email,
+                                                'empleado_id': empleado['id'],
+                                                'rol': empleado.get('rol', 'empleado')
+                                            })()
                                             st.session_state.authenticated = True
-                                            st.session_state.user = {
-                                                "id": empleado['id'],
-                                                "email": email,
-                                                "rol": empleado.get('rol', 'empleado'),
-                                                "owner_id": empleado['owner_id']
-                                            }
                                             st.success("¡Bienvenido a CobroYa!")
                                             st.rerun()
                                         else:
                                             st.error("❌ Correo o contraseña incorrectos")
                                 else:
-                                    # No existe en usuarios_dependientes tampoco
                                     st.error("❌ Correo o contraseña incorrectos")
-                            except Exception as e_emp:
-                                # Error al buscar en empleados
+                            except:
                                 st.error("❌ Correo o contraseña incorrectos")
                     else:
                         st.warning("Por favor, completa todos los campos")
@@ -377,7 +364,10 @@ if not st.session_state.authenticated:
     st.stop()
 
 # --- SI PASA DE AQUÍ, EL USUARIO ESTÁ DENTRO ---
-u_id = st.session_state.user.id
+u_id = st.session_state.user.id if hasattr(st.session_state.user, 'id') else st.session_state.user['id'] if isinstance(st.session_state.user, dict) else None
+if not u_id:
+    st.error("Error al obtener ID de usuario")
+    st.stop()
 
 import urllib.parse
 from datetime import datetime
@@ -3250,14 +3240,10 @@ elif menu == "Configuración":
         if st.button("← Volver", key="back_equipo"): st.session_state.config_sub = "Principal"; st.rerun()
         st.markdown("### 👥 Gestión de Equipo")
         
-        # Límite de miembros según plan (por ahora 15 máximo)
         LIMITE_MIEMBROS = 15
-        
-        # Lista de miembros actuales
         team = conn.table("usuarios_dependientes").select("*").eq("owner_id", u_id).execute().data
         miembros_actuales = len(team) if team else 0
         
-        # Mostrar contador
         st.markdown(f"<p style='color:#64748B; font-size:13px;'><b>{miembros_actuales}/{LIMITE_MIEMBROS}</b> miembros</p>", unsafe_allow_html=True)
         
         if team:
@@ -3288,27 +3274,21 @@ elif menu == "Configuración":
                     new_rol = st.text_input("Rol (ej: Cajero, Gestor, Supervisor)")
                     
                     if st.form_submit_button("Crear Miembro y Contraseña", use_container_width=True):
-                        # Validaciones
                         errores = []
-                        
                         new_email_clean = new_email.strip().lower()
                         new_nombre_clean = new_nombre.strip()
                         new_rol_clean = new_rol.strip()
                         
                         if not new_email_clean or "@" not in new_email_clean:
                             errores.append("Email inválido")
-                        
                         if not new_nombre_clean:
                             errores.append("El nombre es requerido")
-                        
                         if not new_rol_clean:
                             errores.append("El rol es requerido")
-                        
                         if len(new_password) < 6:
                             errores.append("La contraseña debe tener mínimo 6 caracteres")
                         
-                        # Verificar si el email ya existe en usuarios_dependientes
-                        if not errores:  # Solo si las validaciones básicas pasaron
+                        if not errores:
                             try:
                                 email_existe = conn.table("usuarios_dependientes").select("id").eq("email", new_email_clean).execute()
                                 if email_existe.data:
@@ -3322,10 +3302,7 @@ elif menu == "Configuración":
                         else:
                             try:
                                 import hashlib
-                                # Hash simple de contraseña (en producción usar bcrypt/argon2)
                                 password_hash = hashlib.sha256(new_password.encode()).hexdigest()
-                                
-                                # Insertar nuevo miembro
                                 conn.table("usuarios_dependientes").insert({
                                     "email": new_email_clean,
                                     "nombre": new_nombre_clean,
@@ -3347,7 +3324,6 @@ elif menu == "Configuración":
         if st.button("← Volver", key="back_claus"): st.session_state.config_sub = "Principal"; st.rerun()
         st.markdown("### 📝 Cláusulas de Contrato")
         
-        # Leer cláusulas actuales de la BD
         try:
             res_clausulas = conn.table("configuracion").select("clausulas").eq("user_id", u_id).execute()
             clausula_actual = res_clausulas.data[0].get("clausulas", "") if res_clausulas.data else "Escribe aquí las condiciones legales..."
@@ -3357,11 +3333,9 @@ elif menu == "Configuración":
         new_clausulas = st.text_area("Texto de las Cláusulas", clausula_actual, height=300)
         
         if st.button("Actualizar Cláusulas"):
-            # Verificar si ya existen cláusulas
             if clausula_actual and clausula_actual != "Escribe aquí las condiciones legales...":
                 st.warning("⚠️ Ya tienes cláusulas guardadas. Se reemplazarán.")
             
-            # Guardar en BD
             conn.table("configuracion").upsert({
                 "user_id": u_id, "clausulas": new_clausulas
             }, on_conflict="user_id").execute()
@@ -3380,18 +3354,15 @@ elif menu == "Configuración":
             
             if st.form_submit_button("Actualizar Seguridad"):
                 try:
-                    # Validar contraseña actual contra Auth de Supabase
                     validacion = conn.auth.sign_in_with_password({
-                        "email": st.session_state.user.get("email"),
+                        "email": st.session_state.user.get("email") if isinstance(st.session_state.user, dict) else st.session_state.user.email,
                         "password": old_pass
                     })
                     
-                    # Si llegó aquí, la contraseña es correcta
                     if new_pass == confirm_pass:
                         if len(new_pass) < 6:
                             st.error("La nueva contraseña debe tener al menos 6 caracteres.")
                         else:
-                            # Cambiar contraseña en Auth
                             conn.auth.update_user({"password": new_pass})
                             st.success("Contraseña actualizada correctamente.")
                             st.rerun()
@@ -3406,7 +3377,6 @@ elif menu == "Configuración":
         
         st.info(f"Tu plan actual es: **{plan_display}**")
         
-        # Tarjeta de vencimiento del plan
         fecha_vencimiento = biz.get("fecha_vencimiento")
         if fecha_vencimiento:
             try:
