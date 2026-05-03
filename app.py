@@ -3211,41 +3211,111 @@ elif menu == "Configuración":
         if st.button("← Volver", key="back_equipo"): st.session_state.config_sub = "Principal"; st.rerun()
         st.markdown("### 👥 Gestión de Equipo")
         
+        # Límite de miembros según plan (por ahora 15 máximo)
+        LIMITE_MIEMBROS = 15
+        
         # Lista de miembros actuales
         team = conn.table("usuarios_dependientes").select("*").eq("owner_id", u_id).execute().data
+        miembros_actuales = len(team) if team else 0
+        
+        # Mostrar contador
+        st.markdown(f"<p style='color:#64748B; font-size:13px;'><b>{miembros_actuales}/{LIMITE_MIEMBROS}</b> miembros</p>", unsafe_allow_html=True)
+        
         if team:
+            st.markdown("#### Miembros Actuales")
             for member in team:
-                col_m1, col_m2 = st.columns([4, 1])
+                col_m1, col_m2, col_m3 = st.columns([3, 1, 1])
                 col_m1.write(f"📧 **{member['email']}** - Rol: {member['rol']}")
-                if col_m2.button("Eliminar", key=f"del_{member['id']}"):
-                    conn.table("usuarios_dependientes").delete().eq("id", member['id']).execute()
-                    st.rerun()
+                if col_m2.button("Editar", key=f"edit_{member['id']}", use_container_width=True):
+                    st.session_state[f"edit_mode_{member['id']}"] = True
+                if col_m3.button("Eliminar", key=f"del_{member['id']}", use_container_width=True):
+                    try:
+                        conn.table("usuarios_dependientes").delete().eq("id", member['id']).execute()
+                        st.success(f"Miembro {member['email']} eliminado.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al eliminar: {str(e)}")
         else:
             st.info("No tienes miembros adicionales en tu equipo.")
 
         st.write("---")
-        with st.expander("➕ Agregar nuevo miembro"):
-            new_email = st.text_input("Correo del empleado")
-            new_rol = st.selectbox("Rol", ["Cajero", "Gestor", "Supervisor"])
-            if st.button("Registrar Miembro"):
-                conn.table("usuarios_dependientes").insert({
-                    "email": new_email, "rol": new_rol, "owner_id": u_id
-                }).execute()
-                st.success(f"Invitación enviada a {new_email}")
-                st.rerun()
+        
+        if miembros_actuales < LIMITE_MIEMBROS:
+            with st.expander("➕ Agregar nuevo miembro"):
+                with st.form("form_nuevo_miembro"):
+                    new_email = st.text_input("Correo del empleado").strip().lower()
+                    new_nombre = st.text_input("Nombre del empleado")
+                    new_password = st.text_input("Contraseña (mínimo 6 caracteres)", type="password")
+                    new_rol = st.selectbox("Rol", ["Cajero", "Gestor", "Supervisor"])
+                    
+                    if st.form_submit_button("Crear Miembro y Contraseña", use_container_width=True):
+                        # Validaciones
+                        errores = []
+                        
+                        if not new_email or "@" not in new_email:
+                            errores.append("Email inválido")
+                        
+                        if not new_nombre:
+                            errores.append("El nombre es requerido")
+                        
+                        if len(new_password) < 6:
+                            errores.append("La contraseña debe tener mínimo 6 caracteres")
+                        
+                        # Verificar si el email ya existe en usuarios_dependientes
+                        email_existe = conn.table("usuarios_dependientes").select("id").eq("email", new_email).execute()
+                        if email_existe.data:
+                            errores.append(f"El email {new_email} ya está registrado")
+                        
+                        if errores:
+                            for error in errores:
+                                st.error(f"❌ {error}")
+                        else:
+                            try:
+                                import hashlib
+                                # Hash simple de contraseña (en producción usar bcrypt/argon2)
+                                password_hash = hashlib.sha256(new_password.encode()).hexdigest()
+                                
+                                # Insertar nuevo miembro
+                                conn.table("usuarios_dependientes").insert({
+                                    "email": new_email,
+                                    "nombre": new_nombre,
+                                    "password_hash": password_hash,
+                                    "rol": new_rol,
+                                    "owner_id": u_id,
+                                    "es_activo": True
+                                }).execute()
+                                
+                                st.success(f"✅ Miembro creado correctamente!")
+                                st.info(f"📧 Email: {new_email}\n🔐 Contraseña: {new_password}\n\n*Guarda estos datos para que el empleado pueda ingresar*")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Error al crear miembro: {str(e)}")
+        else:
+            st.warning(f"⚠️ Has alcanzado el límite de {LIMITE_MIEMBROS} miembros para tu plan.")
 
     elif st.session_state.config_sub == "Clausulas":
         if st.button("← Volver", key="back_claus"): st.session_state.config_sub = "Principal"; st.rerun()
         st.markdown("### 📝 Cláusulas de Contrato")
         
-        clausula_actual = biz.get("clausulas_contrato", "Escribe aquí las condiciones legales...")
+        # Leer cláusulas actuales de la BD
+        try:
+            res_clausulas = conn.table("configuracion").select("clausulas").eq("user_id", u_id).execute()
+            clausula_actual = res_clausulas.data[0].get("clausulas", "") if res_clausulas.data else "Escribe aquí las condiciones legales..."
+        except:
+            clausula_actual = "Escribe aquí las condiciones legales..."
+        
         new_clausulas = st.text_area("Texto de las Cláusulas", clausula_actual, height=300)
         
         if st.button("Actualizar Cláusulas"):
+            # Verificar si ya existen cláusulas
+            if clausula_actual and clausula_actual != "Escribe aquí las condiciones legales...":
+                st.warning("⚠️ Ya tienes cláusulas guardadas. Se reemplazarán.")
+            
+            # Guardar en BD
             conn.table("configuracion").upsert({
-                "user_id": u_id, "clausulas_contrato": new_clausulas
+                "user_id": u_id, "clausulas": new_clausulas
             }, on_conflict="user_id").execute()
-            st.success("Cláusulas actualizadas.")
+            st.success("Cláusulas actualizadas correctamente.")
             st.rerun()
 
     elif st.session_state.config_sub == "Seguridad":
@@ -3259,17 +3329,63 @@ elif menu == "Configuración":
             confirm_pass = st.text_input("Confirmar Nueva Contraseña", type="password")
             
             if st.form_submit_button("Actualizar Seguridad"):
-                if new_pass == confirm_pass:
-                    # Aquí llamarías a la función de cambio de contraseña de tu auth provider
-                    st.success("Contraseña actualizada correctamente.")
-                else:
-                    st.error("Las contraseñas no coinciden.")
+                try:
+                    # Validar contraseña actual contra Auth de Supabase
+                    validacion = conn.auth.sign_in_with_password({
+                        "email": st.session_state.user.get("email"),
+                        "password": old_pass
+                    })
+                    
+                    # Si llegó aquí, la contraseña es correcta
+                    if new_pass == confirm_pass:
+                        if len(new_pass) < 6:
+                            st.error("La nueva contraseña debe tener al menos 6 caracteres.")
+                        else:
+                            # Cambiar contraseña en Auth
+                            conn.auth.update_user({"password": new_pass})
+                            st.success("Contraseña actualizada correctamente.")
+                            st.rerun()
+                    else:
+                        st.error("Las contraseñas nuevas no coinciden.")
+                except Exception as e:
+                    st.error("❌ Contraseña actual incorrecta. Intenta de nuevo.")
 
     elif st.session_state.config_sub == "Plan":
         if st.button("← Volver", key="back_plan"): st.session_state.config_sub = "Principal"; st.rerun()
         st.markdown("### 💳 Mi Plan de Suscripción")
         
         st.info(f"Tu plan actual es: **{plan_display}**")
+        
+        # Tarjeta de vencimiento del plan
+        fecha_vencimiento = biz.get("fecha_vencimiento")
+        if fecha_vencimiento:
+            try:
+                from datetime import datetime, date
+                if isinstance(fecha_vencimiento, str):
+                    fecha_obj = datetime.fromisoformat(fecha_vencimiento).date()
+                else:
+                    fecha_obj = fecha_vencimiento
+                dias_restantes = (fecha_obj - date.today()).days
+                if dias_restantes > 0:
+                    st.markdown(f"""
+                    <div style='background: #DCFCE7; border: 1px solid #86EFAC; padding: 15px; border-radius: 12px; margin-bottom: 20px;'>
+                        <p style='margin: 0; color: #166534; font-weight: 600;'>✅ Plan activo - Te quedan <b>{dias_restantes} días</b> (Vence: {fecha_obj.strftime("%d/%m/%Y")})</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                elif dias_restantes == 0:
+                    st.markdown("""
+                    <div style='background: #FED7AA; border: 1px solid #FDBA74; padding: 15px; border-radius: 12px; margin-bottom: 20px;'>
+                        <p style='margin: 0; color: #92400E; font-weight: 600;'>⚠️ Tu plan vence hoy</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown("""
+                    <div style='background: #FEE2E2; border: 1px solid #FECACA; padding: 15px; border-radius: 12px; margin-bottom: 20px;'>
+                        <p style='margin: 0; color: #991B1B; font-weight: 600;'>❌ Tu plan ha expirado</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+            except:
+                pass
         
         # Tarjetas de Plan (Estilo visual)
         p1, p2, p3 = st.columns(3)
@@ -3286,7 +3402,7 @@ elif menu == "Configuración":
                 <h4>ENTERPRISE</h4><h2>Custom</h2><p>Multi-sucursal</p></div>""", unsafe_allow_html=True)
             st.button("Contactar Ventas", key="p_3")
 
-elif st.session_state.config_sub == "Soporte":
+    elif st.session_state.config_sub == "Soporte":
         # 1. Botón para regresar al menú de tarjetas
         if st.button("← Volver", key="back_to_main_config"):
             st.session_state.config_sub = "Principal"
