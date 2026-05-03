@@ -3287,107 +3287,109 @@ elif menu == "Configuración":
             st.button("Contactar Ventas", key="p_3")
 
 elif st.session_state.config_sub == "Soporte":
-        # Botón para regresar al menú principal de configuración
-        if st.button("← Volver", key="back_soporte"): 
+        # 1. Botón de retorno (Limpiado de caracteres extraños)
+        if st.button("← Volver", key="back_to_main_config"):
             st.session_state.config_sub = "Principal"
             st.rerun()
-        
-        # --- ESTILOS LOCALES PARA ASEGURAR QUE NO QUEDE EN BLANCO ---
+
+        # 2. Inyección de CSS y FontAwesome (Todo en un solo bloque compacto)
         st.markdown("""
-            <style>
-            .contact-btn {
-                display: flex; 
-                flex-direction: column; 
-                align-items: center; 
-                justify-content: center; 
-                height: 140px;
-                background: white;
-                border-radius: 20px;
-                border: 1px solid #E2E8F0;
-                text-decoration: none;
-                transition: all 0.3s ease;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-            }
-            .contact-btn:hover {
-                transform: translateY(-5px);
-                box-shadow: 0 10px 15px rgba(0,0,0,0.05);
-                border-color: #CBD5E1;
-            }
-            </style>
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+            <style>
+                .support-container {
+                    text-align: center;
+                    padding: 10px 0 30px 0;
+                }
+                .contact-grid {
+                    display: flex;
+                    justify-content: space-between;
+                    gap: 15px;
+                    margin-bottom: 30px;
+                }
+                .btn-card {
+                    flex: 1;
+                    background: white;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 20px;
+                    padding: 25px 10px;
+                    text-decoration: none;
+                    transition: all 0.3s ease;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                }
+                .btn-card:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 10px 20px rgba(0,0,0,0.06);
+                    border-color: #CBD5E1;
+                }
+                .btn-card i { margin-bottom: 12px; }
+                .btn-text {
+                    font-size: 15px;
+                    font-weight: 600;
+                    color: #1E293B;
+                }
+            </style>
         """, unsafe_allow_html=True)
-        
-        # Encabezado
+
+        # 3. Encabezado
         st.markdown("""
-            <div style="text-align:center; padding: 10px 0 30px 0;">
+            <div class="support-container">
                 <h2 style="color: #1E293B; margin-bottom:5px;">Centro de Soporte</h2>
-                <p style="color: #64748B;">¿Tienes alguna duda o inconveniente? Nuestro equipo técnico está listo para ayudarte.</p>
+                <p style="color: #64748B;">Nuestro equipo técnico está listo para ayudarte con CobroYa.</p>
             </div>
         """, unsafe_allow_html=True)
-        
-        # VARIABLES DE CONTACTO
+
+        # 4. Variables
         EMAIL_SOP = "soporte@cobroya.com"
-        WA_SOP = "18490000000" 
+        WA_SOP = "18490000000"
         TEL_SOP = "8090000000"
-        
-        cs1, cs2, cs3 = st.columns(3)
-        
-        with cs1:
-            st.markdown(f"""
-                <a href="mailto:{EMAIL_SOP}" class="contact-btn">
-                    <i class="fas fa-envelope" style="font-size: 35px; color: #EA4335; margin-bottom: 12px;"></i>
-                    <span style="font-size: 15px; font-weight: 600; color: #1E293B;">Email Soporte</span>
+
+        # 5. Botones de Contacto (Usando HTML directo para evitar conflictos de columnas)
+        st.markdown(f"""
+            <div class="contact-grid">
+                <a href="mailto:{EMAIL_SOP}" class="btn-card">
+                    <i class="fas fa-envelope" style="font-size: 35px; color: #EA4335;"></i>
+                    <span class="btn-text">Email Soporte</span>
                 </a>
-            """, unsafe_allow_html=True)
-            
-        with cs2:
-            st.markdown(f"""
-                <a href="https://wa.me/{WA_SOP}" target="_blank" class="contact-btn">
-                    <i class="fab fa-whatsapp" style="font-size: 40px; color: #25D366; margin-bottom: 12px;"></i>
-                    <span style="font-size: 15px; font-weight: 600; color: #1E293B;">WhatsApp</span>
+                <a href="https://wa.me/{WA_SOP}" target="_blank" class="btn-card">
+                    <i class="fab fa-whatsapp" style="font-size: 40px; color: #25D366;"></i>
+                    <span class="btn-text">WhatsApp</span>
                 </a>
-            """, unsafe_allow_html=True)
-            
-        with cs3:
-            st.markdown(f"""
-                <a href="tel:{TEL_SOP}" class="contact-btn">
-                    <i class="fas fa-phone-alt" style="font-size: 32px; color: #0EA5E9; margin-bottom: 12px;"></i>
-                    <span style="font-size: 15px; font-weight: 600; color: #1E293B;">Llamada</span>
+                <a href="tel:{TEL_SOP}" class="btn-card">
+                    <i class="fas fa-phone-alt" style="font-size: 32px; color: #0EA5E9;"></i>
+                    <span class="btn-text">Llamada</span>
                 </a>
-            """, unsafe_allow_html=True)
-        
-        st.write("")
+            </div>
+        """, unsafe_allow_html=True)
+
         st.write("---")
         st.markdown("### 📚 Preguntas Frecuentes")
         
-        col_faq1, col_faq2 = st.columns(2)
-        
-        with col_faq1:
+        # 6. FAQs mejoradas
+        f1, f2 = st.columns(2)
+        with f1:
             with st.expander("¿Cómo agrego un cobrador?"):
-                st.write("Dirígete al menú **Configuración > Mi Equipo**. Allí podrás ingresar el correo electrónico del nuevo miembro y asignarle un rol (Cajero o Gestor).")
-            
-            with st.expander("¿Qué pasa si olvido mi contraseña?"):
-                st.write("En la pantalla de inicio de sesión, haz clic en 'Olvidé mi contraseña'. Te enviaremos un enlace de recuperación a tu correo electrónico registrado.")
-                
+                st.write("Ve a **Configuración > Mi Equipo** y registra su correo. El sistema le dará acceso inmediato según el rol asignado.")
             with st.expander("¿Cómo descargo mis reportes?"):
-                st.write("En el **Dashboard principal**, verás un botón de 'Exportar' o 'Descargar Excel' en la sección de transacciones recientes.")
-
-        with col_faq2:
-            with st.expander("¿Mi información está segura?"):
-                st.write("Absolutamente. **CobroYa** utiliza infraestructura de Supabase con cifrado SSL de grado bancario para asegurar que tus datos y los de tus clientes estén siempre protegidos.")
-            
-            with st.expander("¿Puedo cambiar mi plan de suscripción?"):
-                st.write("Sí, puedes subir o bajar de nivel de plan en cualquier momento desde la sección **Mi Plan**. Los cambios de límite se aplican instantáneamente.")
-                
+                st.write("En el Dashboard, usa el botón de **Exportar** para obtener un archivo Excel con todas tus transacciones.")
             with st.expander("¿Cómo personalizo mis recibos?"):
-                st.write("Ve a **Perfil de Negocio** y sube tu logo. Este aparecerá automáticamente en todos los contratos y recibos generados por el sistema.")
+                st.write("Sube tu logo en **Perfil de Negocio**. Se aplicará automáticamente a todos los documentos generados.")
+        
+        with f2:
+            with st.expander("¿Mi información está segura?"):
+                st.write("Sí. Usamos infraestructura de Supabase con cifrado SSL de grado bancario para proteger tus datos.")
+            with st.expander("¿Puedo cambiar mi plan?"):
+                st.write("Claro, puedes gestionar tu suscripción en la sección **Mi Plan** en cualquier momento.")
+            with st.expander("¿Qué hago si olvidé mi clave?"):
+                st.write("Usa la opción 'Olvidé mi contraseña' en el login para recibir un correo de restauración.")
 
-        # Banner de horario mejorado
+        # 7. Horario
         st.markdown("""
-            <div style="background: white; border: 1px solid #E2E8F0; padding: 20px; border-radius: 20px; margin-top: 30px; text-align: center;">
-                <p style="margin: 0; color: #64748B; font-size: 14px;">
-                    <i class="fas fa-clock" style="margin-right: 8px;"></i>
-                    <b>Horario de atención:</b> Lunes a Viernes 8:00 AM - 6:00 PM | Sábados 9:00 AM - 1:00 PM
+            <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 15px; border-radius: 15px; margin-top: 20px; text-align: center;">
+                <p style="margin: 0; color: #64748B; font-size: 13px;">
+                    <i class="fas fa-clock"></i> <b>Horario:</b> Lun-Vie 8AM-6PM | Sáb 9AM-1PM
                 </p>
             </div>
         """, unsafe_allow_html=True)
