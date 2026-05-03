@@ -3043,163 +3043,177 @@ elif menu == "IA Predictiva":
                     st.error("Hasta la IA se desmayó de ver tus números. Intenta de nuevo.")
                     
 elif menu == "Configuración":
-    st.header("⚙️ Centro de Configuración")
-    st.caption("Gestiona tu identidad, equipo y seguridad desde un solo lugar.")
+    # 1. Cargar Datos Reales (Sin tocar el lateral)
+    # ---------------------------------------------------------
+    res_conf = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
+    biz = res_conf.data[0] if res_conf.data else {}
+    
+    nombre_display = biz.get("nombre_negocio", "CobroYa User").upper()
+    plan_display = biz.get("tipo_plan", "Starter").capitalize()
+    logo_data = biz.get("logo_base64", "")
 
-    # --- ESTILO CSS PARA LOS ICONOS (Estilo Android/Windows) ---
+    # 2. Estilos CSS Aislados para las Tarjetas Apple-Style
+    # ---------------------------------------------------------
     st.markdown("""
         <style>
-        .stButton > button {
-            border-radius: 15px;
-            height: 100px;
-            width: 100%;
-            border: 1px solid #e0e0e0;
-            background-color: white;
+        .config-container { background-color: #F8FAFC; padding: 10px; border-radius: 20px; }
+        
+        .card-apple {
+            background: white;
+            padding: 24px;
+            border-radius: 24px;
+            border: 1px solid #F1F5F9;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             transition: all 0.3s ease;
+            height: 200px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
-        .stButton > button:hover {
-            border-color: #2563eb;
-            background-color: #f8fafc;
+        .card-apple:hover {
             transform: translateY(-5px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 12px 20px rgba(0,0,0,0.05);
+            border-color: #E2E8F0;
+        }
+        
+        .icon-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            margin-bottom: 12px;
+        }
+        
+        /* Colores de Iconos según la imagen */
+        .bg-blue { background: #E0F2FE; color: #0EA5E9; }
+        .bg-purple { background: #F3E8FF; color: #A855F7; }
+        .bg-orange { background: #FFEDD5; color: #F97316; }
+        .bg-red { background: #FEE2E2; color: #EF4444; }
+
+        .title-card { color: #1E293B; font-weight: 700; font-size: 19px; margin-bottom: 4px; }
+        .desc-card { color: #64748B; font-size: 13.5px; line-height: 1.4; }
+        
+        .stat-bar {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 20px;
+            border: 1px solid #F1F5F9;
+            margin-bottom: 25px;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # Inicializar sub-menú si no existe
-    if "config_sub" not in st.session_state:
-        st.session_state.config_sub = "Principal"
+    # 3. Encabezado de Navegación Interna
+    # ---------------------------------------------------------
+    nav_col, user_col = st.columns([3, 1])
+    with nav_col:
+        if st.button("← Volver al Panel", key="btn_back"):
+            st.session_state.config_sub = "Principal"
+            st.rerun()
+    
+    with user_col:
+        # Mini perfil en la esquina del contenido
+        st.markdown(f"""
+            <div style="display: flex; align-items: center; gap: 12px; justify-content: flex-end;">
+                <div style="text-align: right;">
+                    <div style="font-weight: 700; font-size: 14px; color: #0F172A;">{nombre_display}</div>
+                    <div style="font-size: 12px; color: #64748B;">Administrador</div>
+                </div>
+                <div style="width: 42px; height: 42px; border-radius: 50%; background: #F1F5F9; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    {f'<img src="data:image/png;base64,{logo_data}" style="width:100%;height:100%;object-fit:cover;">' if logo_data else "👤"}
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
 
-    # --- GRID DE ICONOS PRINCIPAL ---
-    if st.session_state.config_sub == "Principal":
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            if st.button("🏢\n\nPerfil Negocio"):
-                st.session_state.config_sub = "Perfil"
-                st.rerun()
-        with col2:
-            if st.button("👥\n\nMi Equipo"):
-                st.session_state.config_sub = "Equipo"
-                st.rerun()
-        with col3:
-            if st.button("📝\n\nCláusulas"):
-                st.session_state.config_sub = "Clausulas"
-                st.rerun()
+    st.write("")
+    
+    # Título Principal
+    st.markdown("""
+        <div style="display: flex; align-items: center; gap: 18px; margin-bottom: 5px;">
+            <div class="icon-circle bg-purple" style="width:55px; height:55px; font-size:26px; margin:0;">⚙️</div>
+            <div>
+                <h1 style="margin:0; font-size: 32px; letter-spacing: -0.5px;">Centro de Configuración</h1>
+                <p style="margin:0; color: #64748B; font-size: 15px;">Gestiona tu identidad, equipo y seguridad desde un solo lugar.</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
 
-        col4, col5, col6 = st.columns(3)
-        with col4:
-            if st.button("🔐\n\nSeguridad"):
-                st.session_state.config_sub = "Seguridad"
-                st.rerun()
-        with col5:
-            if st.button("💳\n\nMi Plan"):
-                st.session_state.config_sub = "Plan"
-                st.rerun()
-        with col6:
-            if st.button("🔙\n\nVolver"):
-                st.session_state.menu = "Dashboard" # O tu página principal
-                st.rerun()
+    st.write("")
 
-    # --- SECCIÓN: PERFIL DEL NEGOCIO ---
-    if st.session_state.config_sub == "Perfil":
-        if st.button("← Volver"): st.session_state.config_sub = "Principal"; st.rerun()
-        st.subheader("🏢 Perfil del Negocio")
-        
-        res_conf = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
-        current_biz = res_conf.data[0] if res_conf.data else {}
+    # 4. Barra de Estadísticas Rápidas
+    # ---------------------------------------------------------
+    # Conteo de equipo desde la tabla
+    try:
+        count_res = conn.table("usuarios_dependientes").select("id", count="exact").eq("owner_id", u_id).execute()
+        total_miembros = (count_res.count or 0) + 1 # +1 por el admin
+    except:
+        total_miembros = 1
 
-        col_logo, col_info = st.columns([1, 2])
-        with col_logo:
-            logo_file = st.file_uploader("Logo Empresa", type=["png", "jpg"])
-            if logo_file:
-                bytes_data = logo_file.getvalue()
-                base64_logo = base64.b64encode(bytes_data).decode()
-                st.image(bytes_data, width=150)
-            else:
-                base64_logo = current_biz.get("logo_base64", "")
-                if base64_logo:
-                    st.image(base64.b64decode(base64_logo.split(",")[-1]), width=150)
+    s1, s2, s3 = st.columns(3)
+    with s1:
+        st.markdown(f'<div class="stat-bar"><span style="color:#64748B; font-size:12px;">Plan actual</span><br><b>{plan_display}</b></div>', unsafe_allow_html=True)
+    with s2:
+        st.markdown(f'<div class="stat-bar"><span style="color:#64748B; font-size:12px;">Miembros equipo</span><br><b>{total_miembros} Usuarios</b></div>', unsafe_allow_html=True)
+    with s3:
+        st.markdown('<div class="stat-bar"><span style="color:#64748B; font-size:12px;">Seguridad</span><br><b style="color:#22C55E;">Protegida</b></div>', unsafe_allow_html=True)
 
-        with col_info:
-            biz_name = st.text_input("Nombre Comercial", value=current_biz.get("nombre_negocio", ""))
-            biz_phone = st.text_input("Teléfono", value=current_biz.get("telefono", ""))
-        
-        if st.button("Guardar Cambios", type="primary"):
-            conn.table("configuracion").upsert({
-                "user_id": u_id, "nombre_negocio": biz_name, 
-                "telefono": biz_phone, "logo_base64": base64_logo
-            }).execute()
-            st.success("Perfil actualizado")
+    # 5. Grid de Opciones Estilo Apple
+    # ---------------------------------------------------------
+    c1, c2, c3 = st.columns(3)
+    
+    with c1:
+        st.markdown("""<div class="card-apple"><div class="icon-circle bg-blue">🏢</div><div><div class="title-card">Perfil Negocio</div>
+            <div class="desc-card">Administra la información de tu empresa, datos fiscales y branding.</div></div></div>""", unsafe_allow_html=True)
+        if st.button("Abrir Perfil", use_container_width=True): 
+            st.session_state.config_sub = "Perfil"; st.rerun()
 
-    # --- SECCIÓN NUEVA: GESTIÓN DE EQUIPO (DELICADO) ---
-    elif st.session_state.config_sub == "Equipo":
-        if st.button("← Volver"): st.session_state.config_sub = "Principal"; st.rerun()
-        st.subheader("👥 Gestión de Mi Equipo")
+    with c2:
+        st.markdown("""<div class="card-apple"><div class="icon-circle bg-purple">👥</div><div><div class="title-card">Mi Equipo</div>
+            <div class="desc-card">Gestiona empleados, roles, permisos y accesos al sistema de cobros.</div></div></div>""", unsafe_allow_html=True)
+        if st.button("Abrir Equipo", use_container_width=True): 
+            st.session_state.config_sub = "Equipo"; st.rerun()
 
-        # 1. Definir límites según el plan (Lo que me pediste)
-        plan_actual = current_biz.get("plan", "Gratis") # Asumiendo que guardas el nombre del plan
-        limites = {
-            "Gratis": {"admin": 1, "cobrador": 0},
-            "Starter": {"admin": 1, "cobrador": 1},
-            "Pro": {"admin": 2, "cobrador": 3},
-            "Enterprise": {"admin": 5, "cobrador": 15}
-        }
-        limit = limites.get(plan_actual, limites["Gratis"])
+    with c3:
+        st.markdown("""<div class="card-apple"><div class="icon-circle bg-orange">📝</div><div><div class="title-card">Cláusulas</div>
+            <div class="desc-card">Personaliza y administra las condiciones legales de tus contratos.</div></div></div>""", unsafe_allow_html=True)
+        if st.button("Abrir Cláusulas", use_container_width=True): 
+            st.session_state.config_sub = "Clausulas"; st.rerun()
 
-        # 2. Consultar cuántos tiene ya creados
-        # Supongamos que tienes una tabla 'usuarios_dependientes' con una columna 'rol'
-        equipo = conn.table("usuarios_dependientes").select("*").eq("owner_id", u_id).execute()
-        admins_actuales = len([u for u in equipo.data if u['rol'] == 'admin']) + 1 # +1 por el dueño
-        cobradores_actuales = len([u for u in equipo.data if u['rol'] == 'cobrador'])
+    st.write("")
+    c4, c5, c6 = st.columns(3)
 
-        # 3. Mostrar Resumen de Límites
-        c1, c2 = st.columns(2)
-        c1.metric("Administradores", f"{admins_actuales} / {limit['admin']}")
-        c2.metric("Cobradores", f"{cobradores_actuales} / {limit['cobrador']}")
+    with c4:
+        st.markdown("""<div class="card-apple"><div class="icon-circle bg-orange">🔐</div><div><div class="title-card">Seguridad</div>
+            <div class="desc-card">Configura contraseñas, sesiones activas y permisos de cuenta.</div></div></div>""", unsafe_allow_html=True)
+        if st.button("Abrir Seguridad", use_container_width=True): 
+            st.session_state.config_sub = "Seguridad"; st.rerun()
 
-        # 4. Formulario para agregar trabajador
-        st.write("---")
-        st.write("### Agregar Nuevo Miembro")
-        with st.form("nuevo_miembro"):
-            nuevo_email = st.text_input("Correo del trabajador")
-            nuevo_pass = st.text_input("Contraseña temporal", type="password")
-            nuevo_rol = st.selectbox("Rol", ["cobrador", "admin"])
-            
-            if st.form_submit_button("Registrar en Equipo"):
-                # Validar límites antes de crear
-                if nuevo_rol == "admin" and admins_actuales >= limit['admin']:
-                    st.error(f"Límite de Administradores alcanzado para el plan {plan_actual}")
-                elif nuevo_rol == "cobrador" and cobradores_actuales >= limit['cobrador']:
-                    st.error(f"Límite de Cobradores alcanzado para el plan {plan_actual}")
-                else:
-                    # Lógica de creación en Supabase Auth y tabla dependientes
-                    st.info("Creando acceso para el trabajador...")
-                    # Aquí iría el conn.auth.admin.create_user (Requiere Service Role Key)
+    with c5:
+        st.markdown("""<div class="card-apple"><div class="icon-circle bg-blue">💳</div><div><div class="title-card">Mi Plan</div>
+            <div class="desc-card">Consulta tu plan actual, base de datos y facturación mensual.</div></div></div>""", unsafe_allow_html=True)
+        if st.button("Abrir Plan", use_container_width=True): 
+            st.session_state.config_sub = "Plan"; st.rerun()
 
-    # --- SECCIÓN: SEGURIDAD (EL CANDADO) ---
-    elif st.session_state.config_sub == "Seguridad":
-        if st.button("← Volver"): st.session_state.config_sub = "Principal"; st.rerun()
-        st.subheader("🔐 Seguridad y Acceso")
-        with st.container(border=True):
-            nueva_p = st.text_input("Nueva Contraseña", type="password")
-            confirma_p = st.text_input("Confirmar Contraseña", type="password")
-            if st.button("Actualizar Llave de Acceso"):
-                if nueva_p == confirma_p and len(nueva_p) > 5:
-                    conn.auth.update_user({"password": nueva_p})
-                    st.success("Contraseña actualizada correctamente.")
-                else:
-                    st.error("Las contraseñas no coinciden o son muy cortas.")
+    with c6:
+        st.markdown("""<div class="card-apple"><div class="icon-circle bg-purple">🎧</div><div><div class="title-card">Soporte</div>
+            <div class="desc-card">Obtén ayuda técnica, abre tickets o consulta nuestras guías.</div></div></div>""", unsafe_allow_html=True)
+        st.button("Contactar Ayuda", use_container_width=True)
 
-    # --- SECCIÓN: MI PLAN ---
-    elif st.session_state.config_sub == "Plan":
-        if st.button("← Volver"): st.session_state.config_sub = "Principal"; st.rerun()
-        st.subheader("💳 Suscripción Actual")
-        
-        # Simulación de datos de suscripción
-        st.info(f"Tu plan actual es: **{current_biz.get('plan', 'Gratis')}**")
-        st.write(f"📅 **Vencimiento:** {current_biz.get('vencimiento_plan', 'Nunca')}")
-        st.write(f"🗄️ **Base de Datos:** {(len(equipo.data)*0.1):.2f} MB / 500 MB")
-        
-        if st.button("Mejorar Plan"):
-            st.link_button("Ver Planes Pro", "https://tupagina.com/planes")
+    # 6. Sección de Ayuda Inferior
+    # ---------------------------------------------------------
+    st.write("")
+    st.markdown("""
+        <div style="background: white; border: 1px solid #F1F5F9; padding: 25px; border-radius: 24px; display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div style="font-size: 30px;">✨</div>
+                <div>
+                    <div style="font-weight: 700; color: #0F172A; font-size: 16px;">¿Necesitas ayuda avanzada?</div>
+                    <div style="font-size: 14px; color: #64748B;">Nuestro equipo de soporte está disponible 24/7 para tu negocio.</div>
+                </div>
+            </div>
+            <button style="background: white; border: 1px solid #E2E8F0; padding: 10px 22px; border-radius: 12px; font-weight: 600; color: #1E293B; cursor: pointer;">Contactar Soporte</button>
+        </div>
+    """, unsafe_allow_html=True)
