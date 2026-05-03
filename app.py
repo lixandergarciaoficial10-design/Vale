@@ -3287,64 +3287,47 @@ elif menu == "Configuración":
             st.button("Contactar Ventas", key="p_3")
 
 elif st.session_state.config_sub == "Soporte":
-        # 1. Botón de retorno alineado con el estado
+        # 1. Botón para regresar al menú de tarjetas
         if st.button("← Volver", key="back_to_main_config"):
             st.session_state.config_sub = "Principal"
             st.rerun()
 
-        # 2. CSS y Recursos (FontAwesome para los iconos)
+        # 2. Estilos CSS (FontAwesome + Diseño de tarjetas)
         st.markdown("""
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
             <style>
-                .support-header { text-align: center; padding: 10px 0 20px 0; }
-                .contact-grid {
-                    display: flex;
-                    justify-content: space-between;
-                    gap: 15px;
-                    margin: 20px 0;
-                }
+                .support-container { text-align: center; padding: 10px 0 30px 0; }
+                .contact-grid { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 30px; }
                 .btn-card {
-                    flex: 1;
-                    background: white;
-                    border: 1px solid #E2E8F0;
-                    border-radius: 20px;
-                    padding: 25px 10px;
-                    text-decoration: none;
-                    transition: all 0.3s ease;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
+                    flex: 1; background: white; border: 1px solid #E2E8F0; border-radius: 20px;
+                    padding: 25px 10px; text-decoration: none; transition: all 0.3s ease;
+                    display: flex; flex-direction: column; align-items: center;
                     box-shadow: 0 2px 4px rgba(0,0,0,0.02);
                 }
-                .btn-card:hover {
-                    transform: translateY(-5px);
-                    box-shadow: 0 10px 20px rgba(0,0,0,0.06);
-                    border-color: #CBD5E1;
-                }
-                .btn-card i { margin-bottom: 12px; }
-                .btn-text { font-size: 15px; font-weight: 600; color: #1E293B; }
+                .btn-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.06); border-color: #CBD5E1; }
+                .btn-text { font-size: 15px; font-weight: 600; color: #1E293B; margin-top: 10px; }
             </style>
         """, unsafe_allow_html=True)
 
-        # 3. Encabezado Visual
+        # 3. Título
         st.markdown("""
-            <div class="support-header">
+            <div class="support-container">
                 <h2 style="color: #1E293B; margin-bottom:5px;">Centro de Soporte</h2>
-                <p style="color: #64748B;">¿Tienes dudas con CobroYa? Estamos aquí para ayudarte.</p>
+                <p style="color: #64748B;">Nuestro equipo técnico está listo para ayudarte con CobroYa.</p>
             </div>
         """, unsafe_allow_html=True)
 
-        # 4. Datos de contacto
+        # 4. Variables de contacto
         EMAIL_SOP = "soporte@cobroya.com"
-        WA_SOP = "18490000000"  # Reemplaza con tu número real
+        WA_SOP = "18490000000" 
         TEL_SOP = "8090000000"
 
-        # 5. Grid de botones de contacto
+        # 5. Botones de contacto en HTML
         st.markdown(f"""
             <div class="contact-grid">
                 <a href="mailto:{EMAIL_SOP}" class="btn-card">
                     <i class="fas fa-envelope" style="font-size: 35px; color: #EA4335;"></i>
-                    <span class="btn-text">Email</span>
+                    <span class="btn-text">Email Soporte</span>
                 </a>
                 <a href="https://wa.me/{WA_SOP}" target="_blank" class="btn-card">
                     <i class="fab fa-whatsapp" style="font-size: 40px; color: #25D366;"></i>
@@ -3358,32 +3341,27 @@ elif st.session_state.config_sub == "Soporte":
         """, unsafe_allow_html=True)
 
         st.write("---")
-        
-        # 6. Sección de Preguntas Frecuentes (FAQs)
         st.markdown("### 📚 Preguntas Frecuentes")
-        col_faq1, col_faq2 = st.columns(2)
         
-        with col_faq1:
+        # 6. Acordeones de preguntas
+        f1, f2 = st.columns(2)
+        with f1:
             with st.expander("¿Cómo agrego un cobrador?"):
-                st.write("Dirígete a **Configuración > Mi Equipo** y registra su correo electrónico.")
+                st.write("Ve a **Configuración > Mi Equipo** y registra su correo.")
             with st.expander("¿Cómo descargo mis reportes?"):
-                st.write("En tu Dashboard principal, haz clic en el botón de **Exportar**.")
+                st.write("En el Dashboard, usa el botón de **Exportar** para obtener un Excel.")
+        
+        with f2:
             with st.expander("¿Mi información está segura?"):
-                st.write("Totalmente. Utilizamos cifrado de grado bancario a través de Supabase.")
-
-        with col_faq2:
-            with st.expander("¿Cómo personalizo mis recibos?"):
-                st.write("Sube tu logo en **Perfil de Negocio** para que aparezca en todos los documentos.")
+                st.write("Sí. Usamos infraestructura de Supabase con cifrado SSL de grado bancario.")
             with st.expander("¿Puedo cambiar mi plan?"):
-                st.write("Sí, puedes gestionar tu suscripción en la sección **Mi Plan**.")
-            with st.expander("¿Qué hago si olvidé mi clave?"):
-                st.write("Usa el enlace de recuperación en la pantalla de inicio de sesión.")
+                st.write("Claro, puedes gestionar tu suscripción en la sección **Mi Plan**.")
 
-        # 7. Pie de página con horario
+        # 7. Horario
         st.markdown("""
             <div style="background: #F8FAFC; border: 1px solid #E2E8F0; padding: 15px; border-radius: 15px; margin-top: 20px; text-align: center;">
                 <p style="margin: 0; color: #64748B; font-size: 13px;">
-                    <i class="fas fa-clock"></i> <b>Horario de atención:</b> Lun-Vie 8AM-6PM | Sáb 9AM-1PM
+                    <i class="fas fa-clock"></i> <b>Horario:</b> Lun-Vie 8AM-6PM | Sáb 9AM-1PM
                 </p>
             </div>
         """, unsafe_allow_html=True)
