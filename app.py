@@ -3279,7 +3279,7 @@ elif menu == "Configuración":
             with st.expander("➕ Agregar nuevo miembro"):
                 with st.form("form_nuevo_miembro"):
                     
-                    new_email = st.text_input("Correo del empleado (en minusculas*").strip().lower()
+                    new_email = st.text_input("Correo del empleado en minusculas*").strip().lower()
                     new_nombre = st.text_input("Nombre del empleado")
                     new_password = st.text_input("Contraseña (mínimo 6 caracteres)", type="password")
                     new_rol = st.text_input("Rol (ej: Cajero, Gestor, Supervisor)")
