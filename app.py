@@ -3246,7 +3246,7 @@ elif menu == "Configuración":
                     new_email = st.text_input("Correo del empleado").strip().lower()
                     new_nombre = st.text_input("Nombre del empleado")
                     new_password = st.text_input("Contraseña (mínimo 6 caracteres)", type="password")
-                    new_rol = st.selectbox("Rol", ["Cajero", "Gestor", "Supervisor"])
+                    new_rol = st.text_input("Rol (ej: Cajero, Gestor, Supervisor)")
                     
                     if st.form_submit_button("Crear Miembro y Contraseña", use_container_width=True):
                         # Validaciones
