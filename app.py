@@ -3286,30 +3286,82 @@ elif menu == "Configuración":
                 <h4>ENTERPRISE</h4><h2>Custom</h2><p>Multi-sucursal</p></div>""", unsafe_allow_html=True)
             st.button("Contactar Ventas", key="p_3")
 
-    elif st.session_state.config_sub == "Soporte":
-        if st.button("← Volver", key="back_soporte"): st.session_state.config_sub = "Principal"; st.rerun()
+elif st.session_state.config_sub == "Soporte":
+        if st.button("← Volver", key="back_soporte"): 
+            st.session_state.config_sub = "Principal"
+            st.rerun()
+        
+        # Importamos Font Awesome para iconos exactos y profesionales
+        st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">', unsafe_allow_html=True)
         
         st.markdown("""
-            <div style="text-align:center; padding: 20px 0 40px 0;">
-                <h2 style="color: #1E293B; margin-bottom:10px;">¿Necesitas ayuda?</h2>
-                <p style="color: #64748B;">Estamos aquí para asistirte con tu plataforma CobroYa.</p>
+            <div style="text-align:center; padding: 20px 0 30px 0;">
+                <h2 style="color: #1E293B; margin-bottom:10px;">Centro de Soporte</h2>
+                <p style="color: #64748B;">¿Tienes alguna duda o inconveniente? Nuestro equipo técnico está listo para ayudarte.</p>
             </div>
         """, unsafe_allow_html=True)
         
-        # VARIABLES DE CONTACTO
+        # VARIABLES DE CONTACTO (Cámbialas según necesites)
         EMAIL_SOP = "soporte@cobroya.com"
-        WA_SOP = "18490000000"  # Cambia por el tuyo
+        WA_SOP = "18490000000" 
         TEL_SOP = "8090000000"
         
         cs1, cs2, cs3 = st.columns(3)
-        with cs1:
-            st.markdown(f'<a href="mailto:{EMAIL_SOP}" class="contact-btn"><span>📧</span> Email Soporte</a>', unsafe_allow_html=True)
-        with cs2:
-            st.markdown(f'<a href="https://wa.me/{WA_SOP}" target="_blank" class="contact-btn"><span>💬</span> WhatsApp</a>', unsafe_allow_html=True)
-        with cs3:
-            st.markdown(f'<a href="tel:{TEL_SOP}" class="contact-btn"><span>📞</span> Llamada</a>', unsafe_allow_html=True)
         
+        with cs1:
+            st.markdown(f"""
+                <a href="mailto:{EMAIL_SOP}" class="contact-btn" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 120px;">
+                    <i class="fas fa-envelope" style="font-size: 30px; color: #EA4335; margin-bottom: 10px;"></i>
+                    <span style="font-size: 14px;">Email Soporte</span>
+                </a>
+            """, unsafe_allow_html=True)
+            
+        with cs2:
+            st.markdown(f"""
+                <a href="https://wa.me/{WA_SOP}" target="_blank" class="contact-btn" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 120px;">
+                    <i class="fab fa-whatsapp" style="font-size: 35px; color: #25D366; margin-bottom: 10px;"></i>
+                    <span style="font-size: 14px;">WhatsApp Directo</span>
+                </a>
+            """, unsafe_allow_html=True)
+            
+        with cs3:
+            st.markdown(f"""
+                <a href="tel:{TEL_SOP}" class="contact-btn" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 120px;">
+                    <i class="fas fa-phone-alt" style="font-size: 28px; color: #0EA5E9; margin-bottom: 10px;"></i>
+                    <span style="font-size: 14px;">Llamada Telefónica</span>
+                </a>
+            """, unsafe_allow_html=True)
+        
+        st.write("")
         st.write("---")
-        with st.expander("Preguntas Frecuentes"):
-            st.write("**¿Cómo agrego un cobrador?** Ve a 'Mi Equipo' y registra su correo.")
-            st.write("**¿Mi data está segura?** Sí, usamos cifrado de grado bancario en Supabase.")
+        st.markdown("### 📚 Preguntas Frecuentes")
+        
+        col_faq1, col_faq2 = st.columns(2)
+        
+        with col_faq1:
+            with st.expander("¿Cómo agrego un cobrador?"):
+                st.write("Dirígete al menú **Configuración > Mi Equipo**. Allí podrás ingresar el correo electrónico del nuevo miembro y asignarle un rol (Cajero o Gestor).")
+            
+            with st.expander("¿Qué pasa si olvido mi contraseña?"):
+                st.write("En la pantalla de inicio de sesión, haz clic en 'Olvidé mi contraseña'. Te enviaremos un enlace de recuperación a tu correo electrónico registrado.")
+                
+            with st.expander("¿Cómo descargo mis reportes?"):
+                st.write("En el **Dashboard principal**, verás un botón de 'Exportar' o 'Descargar Excel' en la sección de transacciones recientes.")
+
+        with col_faq2:
+            with st.expander("¿Mi información está segura?"):
+                st.write("Absolutamente. **CobroYa** utiliza infraestructura de Supabase con cifrado SSL de grado bancario para asegurar que tus datos y los de tus clientes estén siempre protegidos.")
+            
+            with st.expander("¿Puedo cambiar mi plan de suscripción?"):
+                st.write("Sí, puedes subir o bajar de nivel de plan en cualquier momento desde la sección **Mi Plan**. Los cambios de límite se aplican instantáneamente.")
+                
+            with st.expander("¿Cómo personalizo mis recibos?"):
+                st.write("Ve a **Perfil de Negocio** y sube tu logo. Este aparecerá automáticamente en todos los contratos y recibos generados por el sistema.")
+
+        st.markdown("""
+            <div style="background: #F1F5F9; padding: 20px; border-radius: 15px; margin-top: 30px; text-align: center;">
+                <p style="margin: 0; color: #475569; font-size: 14px;">
+                    <b>Horario de atención:</b> Lunes a Viernes de 8:00 AM a 6:00 PM | Sábados de 9:00 AM a 1:00 PM
+                </p>
+            </div>
+        """, unsafe_allow_html=True)
