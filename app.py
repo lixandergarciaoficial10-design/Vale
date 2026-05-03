@@ -160,7 +160,8 @@ if not st.session_state.authenticated:
         _, center, _ = st.columns([1, 2.5, 1])
         
         with center:
-            # --- VISTA: LOGIN ---
+            
+# --- VISTA: LOGIN ---
             if st.session_state.page == "login":
                 st.markdown("""
                     <div style="text-align: center; margin-bottom: 15px;">
@@ -200,15 +201,42 @@ if not st.session_state.authenticated:
                         st.session_state.page = "forgot"
                         st.rerun()
                 
-                # --- LÓGICA DE INICIO DE SESIÓN ---
+                # --- LÓGICA DE INICIO DE SESIÓN BLINDADA ---
                 if st.button("Iniciar sesión", type="primary", use_container_width=True):
                     if email and password:
                         try:
                             res = conn.auth.sign_in_with_password({"email": email, "password": password})
                             if res and res.user:
-                                st.session_state.user = res.user
-                                st.session_state.authenticated = True
-                                st.rerun()
+                                
+                                # --- NUEVO: VERIFICACIÓN DE LÍMITES POR PLAN ---
+                                usuario_id = res.user.id
+                                
+                                # 1. Averiguamos si es dueño o empleado buscando en la tabla dependientes
+                                resp_dep = conn.table("usuarios_dependientes").select("owner_id").eq("id", usuario_id).execute()
+                                
+                                if resp_dep.data:
+                                    owner_id = resp_dep.data[0]['owner_id'] # Es un empleado, sacamos el ID del jefe
+                                else:
+                                    owner_id = usuario_id # No es empleado, entonces es el jefe
+                                
+                                # 2. Preguntamos al SQL si hay espacio para iniciar sesión
+                                limite_ok = conn.rpc("check_plan_limits", {
+                                    "p_owner_id": owner_id, 
+                                    "p_tipo_accion": "login"
+                                }).execute()
+                                
+                                if limite_ok.data:
+                                    # 3A. Si hay espacio, lo dejamos entrar
+                                    st.session_state.user = res.user
+                                    st.session_state.owner_id = owner_id # Guardamos el ID del jefe para usarlo en la app
+                                    st.session_state.authenticated = True
+                                    st.rerun()
+                                else:
+                                    # 3B. Si no hay espacio, lo sacamos de inmediato y mostramos error
+                                    conn.auth.sign_out()
+                                    st.error("🚨 Has alcanzado el límite de sesiones simultáneas de tu plan. Cierra sesión en otro dispositivo o contacta a soporte para mejorar tu plan.")
+                                # -----------------------------------------------
+                                
                             else:
                                 st.error("No se pudo obtener la sesión del usuario.")
                         except Exception as e:
@@ -221,7 +249,7 @@ if not st.session_state.authenticated:
                     st.session_state.page = "signup"
                     st.rerun()
 
-# --- VISTA: REGISTRO ---
+            # --- VISTA: REGISTRO ---
             elif st.session_state.page == "signup":
                 st.markdown("""
                     <div style="text-align: center; margin-bottom: 15px;">
