@@ -201,54 +201,46 @@ if not st.session_state.authenticated:
                         st.session_state.page = "forgot"
                         st.rerun()
                 
-                # --- LÓGICA DE INICIO DE SESIÓN BLINDADA ---
+# --- LÓGICA DE INICIO DE SESIÓN CORREGIDA (Lixander Edition) ---
                 if st.button("Iniciar sesión", type="primary", use_container_width=True):
                     if email and password:
                         try:
+                            # 1. Intentamos entrar con Supabase Auth normal
                             res = conn.auth.sign_in_with_password({"email": email, "password": password})
+                            
                             if res and res.user:
-                                
-                                # --- NUEVO: VERIFICACIÓN DE LÍMITES POR PLAN ---
                                 usuario_id = res.user.id
                                 
-                                # 1. Averiguamos si es dueño o empleado buscando en la tabla dependientes
-                                resp_dep = conn.table("usuarios_dependientes").select("owner_id").eq("id", usuario_id).execute()
+                                # 2. Verificamos si existe la tabla de dependientes (solo si ya la creaste)
+                                # Si da error porque la tabla no existe, el 'except' nos salvará y te dejará entrar.
+                                try:
+                                    resp_dep = conn.table("usuarios_dependientes").select("owner_id").eq("id", usuario_id).execute()
+                                    
+                                    if resp_dep.data:
+                                        # Es un cobrador creado por un administrador
+                                        st.session_state.owner_id = resp_dep.data[0]['owner_id']
+                                        st.session_state.rol = "cobrador"
+                                    else:
+                                        # Es el dueño/administrador principal
+                                        st.session_state.owner_id = usuario_id
+                                        st.session_state.rol = "admin"
+                                except:
+                                    # Si la tabla no existe aún, entras como Admin por defecto
+                                    st.session_state.owner_id = usuario_id
+                                    st.session_state.rol = "admin"
+
+                                # 3. Entramos a la App
+                                st.session_state.user = res.user
+                                st.session_state.authenticated = True
+                                st.success("¡Bienvenido a CobroYa!")
+                                st.rerun()
                                 
-                                if resp_dep.data:
-                                    owner_id = resp_dep.data[0]['owner_id'] # Es un empleado, sacamos el ID del jefe
-                                else:
-                                    owner_id = usuario_id # No es empleado, entonces es el jefe
-                                
-                                # 2. Preguntamos al SQL si hay espacio para iniciar sesión
-                                limite_ok = conn.rpc("check_plan_limits", {
-                                    "p_owner_id": owner_id, 
-                                    "p_tipo_accion": "login"
-                                }).execute()
-                                
-                                if limite_ok.data:
-                                    # 3A. Si hay espacio, lo dejamos entrar
-                                    st.session_state.user = res.user
-                                    st.session_state.owner_id = owner_id # Guardamos el ID del jefe para usarlo en la app
-                                    st.session_state.authenticated = True
-                                    st.rerun()
-                                else:
-                                    # 3B. Si no hay espacio, lo sacamos de inmediato y mostramos error
-                                    conn.auth.sign_out()
-                                    st.error("🚨 Has alcanzado el límite de sesiones simultáneas de tu plan. Cierra sesión en otro dispositivo o contacta a soporte para mejorar tu plan.")
-                                # -----------------------------------------------
-                                
-                            else:
-                                st.error("No se pudo obtener la sesión del usuario.")
                         except Exception as e:
-                            st.error("Correo o contraseña incorrectos")
+                            # Aquí solo cae si el correo o la clave están mal de verdad en Supabase
+                            st.error("❌ Correo o contraseña incorrectos")
                     else:
                         st.warning("Por favor, completa todos los campos")
-                
-                st.markdown("<p style='text-align: center; margin-top: 15px; font-size: 14px; color: #64748B;'>¿No tienes cuenta?</p>", unsafe_allow_html=True)
-                if st.button("Crear cuenta", use_container_width=True):
-                    st.session_state.page = "signup"
-                    st.rerun()
-
+                        
             # --- VISTA: REGISTRO ---
             elif st.session_state.page == "signup":
                 st.markdown("""
