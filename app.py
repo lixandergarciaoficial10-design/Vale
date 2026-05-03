@@ -3287,21 +3287,45 @@ elif menu == "Configuración":
             st.button("Contactar Ventas", key="p_3")
 
 elif st.session_state.config_sub == "Soporte":
+        # Botón para regresar al menú principal de configuración
         if st.button("← Volver", key="back_soporte"): 
             st.session_state.config_sub = "Principal"
             st.rerun()
         
-        # Importamos Font Awesome para iconos exactos y profesionales
-        st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">', unsafe_allow_html=True)
-        
+        # --- ESTILOS LOCALES PARA ASEGURAR QUE NO QUEDE EN BLANCO ---
         st.markdown("""
-            <div style="text-align:center; padding: 20px 0 30px 0;">
-                <h2 style="color: #1E293B; margin-bottom:10px;">Centro de Soporte</h2>
+            <style>
+            .contact-btn {
+                display: flex; 
+                flex-direction: column; 
+                align-items: center; 
+                justify-content: center; 
+                height: 140px;
+                background: white;
+                border-radius: 20px;
+                border: 1px solid #E2E8F0;
+                text-decoration: none;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            }
+            .contact-btn:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 10px 15px rgba(0,0,0,0.05);
+                border-color: #CBD5E1;
+            }
+            </style>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        """, unsafe_allow_html=True)
+        
+        # Encabezado
+        st.markdown("""
+            <div style="text-align:center; padding: 10px 0 30px 0;">
+                <h2 style="color: #1E293B; margin-bottom:5px;">Centro de Soporte</h2>
                 <p style="color: #64748B;">¿Tienes alguna duda o inconveniente? Nuestro equipo técnico está listo para ayudarte.</p>
             </div>
         """, unsafe_allow_html=True)
         
-        # VARIABLES DE CONTACTO (Cámbialas según necesites)
+        # VARIABLES DE CONTACTO
         EMAIL_SOP = "soporte@cobroya.com"
         WA_SOP = "18490000000" 
         TEL_SOP = "8090000000"
@@ -3310,25 +3334,25 @@ elif st.session_state.config_sub == "Soporte":
         
         with cs1:
             st.markdown(f"""
-                <a href="mailto:{EMAIL_SOP}" class="contact-btn" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 120px;">
-                    <i class="fas fa-envelope" style="font-size: 30px; color: #EA4335; margin-bottom: 10px;"></i>
-                    <span style="font-size: 14px;">Email Soporte</span>
+                <a href="mailto:{EMAIL_SOP}" class="contact-btn">
+                    <i class="fas fa-envelope" style="font-size: 35px; color: #EA4335; margin-bottom: 12px;"></i>
+                    <span style="font-size: 15px; font-weight: 600; color: #1E293B;">Email Soporte</span>
                 </a>
             """, unsafe_allow_html=True)
             
         with cs2:
             st.markdown(f"""
-                <a href="https://wa.me/{WA_SOP}" target="_blank" class="contact-btn" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 120px;">
-                    <i class="fab fa-whatsapp" style="font-size: 35px; color: #25D366; margin-bottom: 10px;"></i>
-                    <span style="font-size: 14px;">WhatsApp Directo</span>
+                <a href="https://wa.me/{WA_SOP}" target="_blank" class="contact-btn">
+                    <i class="fab fa-whatsapp" style="font-size: 40px; color: #25D366; margin-bottom: 12px;"></i>
+                    <span style="font-size: 15px; font-weight: 600; color: #1E293B;">WhatsApp</span>
                 </a>
             """, unsafe_allow_html=True)
             
         with cs3:
             st.markdown(f"""
-                <a href="tel:{TEL_SOP}" class="contact-btn" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 120px;">
-                    <i class="fas fa-phone-alt" style="font-size: 28px; color: #0EA5E9; margin-bottom: 10px;"></i>
-                    <span style="font-size: 14px;">Llamada Telefónica</span>
+                <a href="tel:{TEL_SOP}" class="contact-btn">
+                    <i class="fas fa-phone-alt" style="font-size: 32px; color: #0EA5E9; margin-bottom: 12px;"></i>
+                    <span style="font-size: 15px; font-weight: 600; color: #1E293B;">Llamada</span>
                 </a>
             """, unsafe_allow_html=True)
         
@@ -3358,10 +3382,12 @@ elif st.session_state.config_sub == "Soporte":
             with st.expander("¿Cómo personalizo mis recibos?"):
                 st.write("Ve a **Perfil de Negocio** y sube tu logo. Este aparecerá automáticamente en todos los contratos y recibos generados por el sistema.")
 
+        # Banner de horario mejorado
         st.markdown("""
-            <div style="background: #F1F5F9; padding: 20px; border-radius: 15px; margin-top: 30px; text-align: center;">
-                <p style="margin: 0; color: #475569; font-size: 14px;">
-                    <b>Horario de atención:</b> Lunes a Viernes de 8:00 AM a 6:00 PM | Sábados de 9:00 AM a 1:00 PM
+            <div style="background: white; border: 1px solid #E2E8F0; padding: 20px; border-radius: 20px; margin-top: 30px; text-align: center;">
+                <p style="margin: 0; color: #64748B; font-size: 14px;">
+                    <i class="fas fa-clock" style="margin-right: 8px;"></i>
+                    <b>Horario de atención:</b> Lunes a Viernes 8:00 AM - 6:00 PM | Sábados 9:00 AM - 1:00 PM
                 </p>
             </div>
         """, unsafe_allow_html=True)
