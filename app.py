@@ -1672,7 +1672,7 @@ elif menu == "Gestión de Cobros":
                     st.session_state.ruta_seleccion = []
                     st.rerun()
 
-        # --- DIBUJADO DE LA LISTA (CON TODAS TUS FUNCIONES ORIGINALES) ---
+# --- DIBUJADO DE LA LISTA (CON TODAS TUS FUNCIONES ORIGINALES) ---
         for item in datos_procesados:
             token = item['id']
             m_pend = float(item.get('balance_pendiente', 0))
@@ -1680,7 +1680,7 @@ elif menu == "Gestión de Cobros":
             with st.container(border=True):
                 c_nom, c_status, c_inputs, c_btn = st.columns([1.2, 1, 1.2, 0.8])
                 
-               with c_nom:
+                with c_nom:
                     col_t1, col_t2 = st.columns([0.2, 0.8])
                     with col_t1:
                         # Checkbox chiquito sin texto
@@ -1728,12 +1728,10 @@ elif menu == "Gestión de Cobros":
                         if st.button("📄 Detalles", key=f"det_{token}", use_container_width=True):
                             mostrar_historial_modal(item, u_id)
 
-                # AQUÍ ESTÁ TU BLOQUE DE MORA QUE NO QUERÍAS PERDER
+                # SECCIÓN DE MORA
                 if not modo_analisis:
                     with st.expander("⚖️ Penalidad (Mora)"):
                         st.number_input("Monto de Mora", min_value=0.0, key=f"mora_{token}")
-    else:
-        st.info("No se encontraron registros.")
         
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
