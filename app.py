@@ -3278,6 +3278,7 @@ elif menu == "Configuración":
         if miembros_actuales < LIMITE_MIEMBROS:
             with st.expander("➕ Agregar nuevo miembro"):
                 with st.form("form_nuevo_miembro"):
+                    
                     new_email = st.text_input("Correo del empleado").strip().lower()
                     new_nombre = st.text_input("Nombre del empleado")
                     new_password = st.text_input("Contraseña (mínimo 6 caracteres)", type="password")
