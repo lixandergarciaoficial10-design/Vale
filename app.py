@@ -1725,8 +1725,12 @@ elif menu == "Gestión de Cobros":
                     destino_final = puntos_url.pop()
                     waypoints = "&waypoints=" + "|".join(puntos_url) if puntos_url else ""
                     
-                    # origin=Current+Location hace que tome el GPS del cobrador automáticamente
-                    final_url = f"{base_url}&origin=Current+Location&destination={destino_final}{waypoints}&travelmode=driving"
+                    # CORRECCIÓN: Usar coordenadas reales como origin en lugar de "Current+Location"
+                    # Obtenemos la ubicación del usuario desde su primer cliente (que tiene GPS)
+                    origin_coords = f"{round(float(con_gps[0]['clientes']['latitud']), 6)},{round(float(con_gps[0]['clientes']['longitud']), 6)}"
+                    
+                    # origin con coordenadas reales garantiza que Google Maps muestre tu ubicación exacta
+                    final_url = f"{base_url}&origin={origin_coords}&destination={destino_final}{waypoints}&travelmode=driving"
 
                     st.divider()
                     col_r1, col_r2 = st.columns([1, 1])
@@ -1756,6 +1760,7 @@ elif menu == "Gestión de Cobros":
                     col_t1, col_t2 = st.columns([0.2, 0.8])
                     with col_t1:
                         # Checkbox chiquito sin texto - CON CLAVE DINÁMICA PARA LIMPIAR SELECCIÓN
+                        # SIN rerun() - Solo guardamos en la lista, sin recargar la página
                         is_selected = st.checkbox(" ", key=f"sel_{token}_{st.session_state.refresh_key}", value=token in st.session_state.ruta_seleccion, label_visibility="collapsed")
                         if is_selected and token not in st.session_state.ruta_seleccion:
                             st.session_state.ruta_seleccion.append(token)
