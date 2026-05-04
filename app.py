@@ -1639,9 +1639,13 @@ elif menu == "Gestión de Cobros":
         # Ordenamos según tu prioridad original
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
         
-# --- PANEL DEL MAPA MINIMALISTA (CORREGIDO Y SEGURO) ---
+# --- PANEL DEL MAPA MINIMALISTA (VERSIÓN SOCIO / DEFINITIVA) ---
         if st.session_state.ruta_seleccion:
-            # 1. Filtramos asegurando coincidencia de IDs (convertimos a string para evitar fallos de tipo)
+            
+            # --- LÍMITE ESTRICTO DE GOOGLE MAPS ---
+            LIMITE_MAPS = 10
+            
+            # Filtramos asegurando coincidencia de IDs
             ids_seleccionados = [str(i) for i in st.session_state.ruta_seleccion]
             clientes_ruta_data = [d for d in datos_procesados if str(d['id']) in ids_seleccionados]
             
@@ -1656,13 +1660,17 @@ elif menu == "Gestión de Cobros":
                 else:
                     sin_gps.append(c['aux_nombre'])
 
-            # El título ahora muestra la cantidad REAL de puntos con GPS
             with st.expander(f"📍 Ruta Planificada: {len(con_gps)} paradas listas", expanded=True):
                 
                 if sin_gps:
-                    st.warning(f"⚠️ Sin GPS: {', '.join(sin_gps)}")
+                    st.warning(f"⚠️ Ignorados por falta de GPS: {', '.join(sin_gps)}")
 
-                if con_gps:
+                # --- CONTROL DE EXCEPCIONES ---
+                if len(con_gps) > LIMITE_MAPS:
+                    st.error(f"🛑 ALTO: Google Maps gratuito solo soporta un máximo de {LIMITE_MAPS} ubicaciones por ruta.")
+                    st.info(f"Has seleccionado {len(con_gps)}. Por favor, divide esta ruta en dos viajes desmarcando clientes.")
+                
+                elif con_gps:
                     # Algoritmo de optimización (Vecino más cercano)
                     def calcular_ruta_optima(puntos):
                         if not puntos: return []
@@ -1683,15 +1691,14 @@ elif menu == "Gestión de Cobros":
 
                     con_gps = calcular_ruta_optima(con_gps)
                     
-                    # --- MOSTRAR ORDEN DE VISITA ---
-                    st.write("**Orden de visita optimizado:**")
+                    # --- INTERFAZ COMO FUENTE DE VERDAD ---
+                    st.write("📋 **Sigue la ruta en este orden:**")
                     for i, c in enumerate(con_gps, 1):
-                        st.caption(f"{i}. {c['aux_nombre']}")
+                        st.markdown(f"**{i}. {c['aux_nombre']}** *(ID: {c['id']})*")
                     
                     # --- GENERACIÓN DE ENLACE ROBUSTO ---
                     base_url = "https://www.google.com/maps/dir/?api=1"
                     
-                    # Solo usamos coordenadas redondeadas para que Google Maps NO falle
                     puntos_url = []
                     for c in con_gps:
                         lat_r = round(float(c['clientes']['latitud']), 6)
@@ -1701,17 +1708,20 @@ elif menu == "Gestión de Cobros":
                     destino_final = puntos_url.pop()
                     waypoints = "&waypoints=" + "|".join(puntos_url) if puntos_url else ""
                     
-                    # travelmode=driving asegura que sea ruta vehicular
-                    final_url = f"{base_url}&destination={destino_final}{waypoints}&travelmode=driving"
+                    # origin=Current+Location hace que tome el GPS del cobrador automáticamente
+                    final_url = f"{base_url}&origin=Current+Location&destination={destino_final}{waypoints}&travelmode=driving"
 
-                    col_r1, col_r2 = st.columns([1.5, 1])
+                    st.divider()
+                    col_r1, col_r2 = st.columns([1, 1])
                     with col_r1:
-                        st.success("✅ Ruta optimizada y lista.")
+                        st.success(f"✅ Ruta validada ({len(con_gps)} paradas).")
                     with col_r2:
-                        st.link_button("🚀 INICIAR VIAJE", final_url, type="primary", use_container_width=True)
+                        st.link_button("🚀 INICIAR NAVEGACIÓN", final_url, type="primary", use_container_width=True)
                 else:
-                    st.error("❌ Los clientes elegidos no tienen coordenadas válidas.")
+                    st.error("❌ Ninguno de los clientes seleccionados tiene coordenadas válidas.")
                 
+                # OJO: Si vas a usar un st.form como te sugerí arriba, este botón de limpiar 
+                # puede que necesites sacarlo fuera del form para que no interfiera.
                 if st.button("🗑️ Limpiar Selección"):
                     st.session_state.ruta_seleccion = []
                     st.rerun()
