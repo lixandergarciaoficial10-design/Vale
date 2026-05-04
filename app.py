@@ -20,6 +20,12 @@ import streamlit as st
 import re
 from st_supabase_connection import SupabaseConnection
 
+# --- INICIALIZACIÓN DE VARIABLES PARA EL MAPA ---
+if "mostrar_mapa" not in st.session_state:
+    st.session_state.mostrar_mapa = False
+if "refresh_key" not in st.session_state:
+    st.session_state.refresh_key = 0
+
 # 1. CONFIGURACIÓN INICIAL Y CONEXIÓN
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
 conn = st.connection("supabase", type=SupabaseConnection)
@@ -1639,20 +1645,25 @@ elif menu == "Gestión de Cobros":
         # Ordenamos según tu prioridad original
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
         
-# --- PANEL DEL MAPA MINIMALISTA (VERSIÓN SOCIO / DEFINITIVA) ---
+# --- BOTÓN DE DISPARO (EL MURO DE FLUIDEZ) ---
         if st.session_state.ruta_seleccion:
-            
-            # --- LÍMITE ESTRICTO DE GOOGLE MAPS ---
+            st.write("---")
+            if st.button("🗺️ Generar Ruta de Cobro", type="primary", use_container_width=True):
+                st.session_state.mostrar_mapa = True
+                st.rerun()
+
+        # --- PANEL DEL MAPA (EJECUCIÓN BAJO DEMANDA) ---
+        if st.session_state.ruta_seleccion and st.session_state.mostrar_mapa:
             LIMITE_MAPS = 10
             
-            # Filtramos asegurando coincidencia de IDs
-            ids_seleccionados = [str(i) for i in st.session_state.ruta_seleccion]
-            clientes_ruta_data = [d for d in datos_procesados if str(d['id']) in ids_seleccionados]
+            # Filtrado seguro
+            ids_sel = [str(i) for i in st.session_state.ruta_seleccion]
+            clientes_ruta = [d for d in datos_procesados if str(d['id']) in ids_sel]
             
             con_gps = []
             sin_gps = []
             
-            for c in clientes_ruta_data:
+            for c in clientes_ruta:
                 lat = c.get('clientes', {}).get('latitud')
                 lng = c.get('clientes', {}).get('longitud')
                 if lat and lng and float(lat) != 0:
@@ -1660,25 +1671,21 @@ elif menu == "Gestión de Cobros":
                 else:
                     sin_gps.append(c['aux_nombre'])
 
-            with st.expander(f"📍 Ruta Planificada: {len(con_gps)} paradas listas", expanded=True):
-                
+            with st.expander(f"📍 Ruta Planificada: {len(con_gps)} paradas", expanded=True):
                 if sin_gps:
-                    st.warning(f"⚠️ Ignorados por falta de GPS: {', '.join(sin_gps)}")
+                    st.warning(f"⚠️ Sin coordenadas: {', '.join(sin_gps)}")
 
-                # --- CONTROL DE EXCEPCIONES ---
                 if len(con_gps) > LIMITE_MAPS:
-                    st.error(f"🛑 ALTO: Google Maps gratuito solo soporta un máximo de {LIMITE_MAPS} ubicaciones por ruta.")
-                    st.info(f"Has seleccionado {len(con_gps)}. Por favor, divide esta ruta en dos viajes desmarcando clientes.")
+                    st.error(f"🛑 Límite excedido: {len(con_gps)}/{LIMITE_MAPS}. Desmarca algunos clientes.")
                 
                 elif con_gps:
-                    # Algoritmo de optimización (Vecino más cercano)
+                    # Algoritmo de optimización
                     def calcular_ruta_optima(puntos):
                         if not puntos: return []
-                        ruta_ordenada = []
+                        ruta = []
                         pendientes = puntos.copy()
                         actual = pendientes.pop(0) 
-                        ruta_ordenada.append(actual)
-                        
+                        ruta.append(actual)
                         while pendientes:
                             proximo = min(pendientes, key=lambda p: (
                                 (float(p['clientes']['latitud']) - float(actual['clientes']['latitud']))**2 + 
@@ -1686,45 +1693,37 @@ elif menu == "Gestión de Cobros":
                             ))
                             actual = proximo
                             pendientes.remove(proximo)
-                            ruta_ordenada.append(actual)
-                        return ruta_ordenada
+                            ruta.append(actual)
+                        return ruta
 
                     con_gps = calcular_ruta_optima(con_gps)
                     
-                    # --- INTERFAZ COMO FUENTE DE VERDAD ---
-                    st.write("📋 **Sigue la ruta en este orden:**")
+                    st.write("📋 **Orden de visita sugerido:**")
                     for i, c in enumerate(con_gps, 1):
-                        st.markdown(f"**{i}. {c['aux_nombre']}** *(ID: {c['id']})*")
+                        st.markdown(f"**{i}. {c['aux_nombre']}**")
                     
-                    # --- GENERACIÓN DE ENLACE ROBUSTO ---
+                    # Generación de URL Robusta
                     base_url = "https://www.google.com/maps/dir/?api=1"
+                    puntos_url = [f"{round(float(c['clientes']['latitud']),6)},{round(float(c['clientes']['longitud']),6)}" for c in con_gps]
                     
-                    puntos_url = []
-                    for c in con_gps:
-                        lat_r = round(float(c['clientes']['latitud']), 6)
-                        lng_r = round(float(c['clientes']['longitud']), 6)
-                        puntos_url.append(f"{lat_r},{lng_r}")
+                    destino = puntos_url.pop()
+                    puntos_str = "|".join(puntos_url)
+                    waypoints = f"&waypoints={puntos_str}" if puntos_str else ""
                     
-                    destino_final = puntos_url.pop()
-                    waypoints = "&waypoints=" + "|".join(puntos_url) if puntos_url else ""
-                    
-                    # origin=Current+Location hace que tome el GPS del cobrador automáticamente
-                    final_url = f"{base_url}&origin=Current+Location&destination={destino_final}{waypoints}&travelmode=driving"
+                    # origin=Current+Location garantiza que use el GPS del cobrador
+                    final_url = f"{base_url}&origin=Current+Location&destination={destino}{waypoints}&travelmode=driving"
 
                     st.divider()
-                    col_r1, col_r2 = st.columns([1, 1])
-                    with col_r1:
-                        st.success(f"✅ Ruta validada ({len(con_gps)} paradas).")
-                    with col_r2:
-                        st.link_button("🚀 INICIAR NAVEGACIÓN", final_url, type="primary", use_container_width=True)
-                else:
-                    st.error("❌ Ninguno de los clientes seleccionados tiene coordenadas válidas.")
-                
-                # OJO: Si vas a usar un st.form como te sugerí arriba, este botón de limpiar 
-                # puede que necesites sacarlo fuera del form para que no interfiera.
-                if st.button("🗑️ Limpiar Selección"):
-                    st.session_state.ruta_seleccion = []
-                    st.rerun()
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.link_button("🚀 INICIAR GOOGLE MAPS", final_url, type="primary", use_container_width=True)
+                    with col2:
+                        # REINICIO TOTAL DE INTERFAZ
+                        if st.button("🗑️ Limpiar Todo", use_container_width=True):
+                            st.session_state.ruta_seleccion = []
+                            st.session_state.mostrar_mapa = False
+                            st.session_state.refresh_key += 1 # Esto limpia la tabla visualmente
+                            st.rerun()
                     
 # --- DIBUJADO DE LA LISTA (CON TODAS TUS FUNCIONES ORIGINALES) ---
         for item in datos_procesados:
