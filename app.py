@@ -1620,78 +1620,93 @@ elif menu == "Gestión de Cobros":
             cedula = cliente_info.get('cedula', '')
             telefono = cliente_info.get('telefono', '')
             
-            # --- NUEVA LÓGICA: Obtener datos del PLAN DE CUOTAS REAL ---
+            # --- NUEVA LÓGICA ROBUSTA: Obtener datos del PLAN DE CUOTAS REAL ---
             cuenta_id = c['id']
             res_plan = conn.table("plan_cuotas").select("fecha_esperada, estado").eq("cuenta_id", cuenta_id).order("numero_cuota").execute()
             plan_cuotas = res_plan.data if res_plan.data else []
             
-            # Encontramos la próxima cuota PENDIENTE (no pagada)
-            proxima_cuota = None
-            cuota_pendiente_vencida = None
+            # ANÁLISIS COMPLETO DE TODAS LAS CUOTAS
             todas_pagadas = True
+            proxima_cuota_sin_vencer = None  # Primera cuota pendiente sin vencer
+            cuotas_vencidas = []  # TODAS las cuotas vencidas sin pagar
+            cuota_hoy = None  # Cuota con fecha = hoy
+            cuotas_proximo_7_dias = []  # Cuotas pendientes en próximos 7 días
             
             for cuota in plan_cuotas:
                 fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
                 estado_cuota = str(cuota.get('estado', '')).strip().lower()
                 
-                # Si la cuota está pendiente
+                # Solo procesar cuotas PENDIENTES o INCOMPLETAS (no pagadas)
                 if estado_cuota in ['pendiente', 'incompleta']:
                     todas_pagadas = False
-                    if proxima_cuota is None:
-                        proxima_cuota = fecha_cuota
-                    # Verificar si está vencida - BUSCAR LA MÁS ANTIGUA (primera vencida)
+                    
+                    # CASO 1: Cuota vencida (fecha < hoy)
                     if fecha_cuota < hoy:
-                        # Solo actualizar si es más antigua que la actual
-                        if cuota_pendiente_vencida is None or fecha_cuota < cuota_pendiente_vencida:
-                            cuota_pendiente_vencida = fecha_cuota
+                        cuotas_vencidas.append(fecha_cuota)
+                    
+                    # CASO 2: Cuota para hoy (fecha = hoy)
+                    elif fecha_cuota == hoy:
+                        cuota_hoy = fecha_cuota
+                        if proxima_cuota_sin_vencer is None:
+                            proxima_cuota_sin_vencer = fecha_cuota
+                    
+                    # CASO 3: Cuota en próximos 7 días (hoy < fecha <= hoy + 7)
+                    elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
+                        cuotas_proximo_7_dias.append(fecha_cuota)
+                        if proxima_cuota_sin_vencer is None:
+                            proxima_cuota_sin_vencer = fecha_cuota
+                    
+                    # CASO 4: Cuota futura (fecha > hoy + 7)
+                    elif proxima_cuota_sin_vencer is None:
+                        proxima_cuota_sin_vencer = fecha_cuota
             
-            # --- DETERMINAR CATEGORÍA DEL CLIENTE SEGÚN PLAN ---
+            # --- DETERMINAR CATEGORÍAS DEL CLIENTE (PUEDE CUMPLIR VARIAS) ---
+            # Estructura: cliente puede estar en múltiples filtros simultáneamente
+            cumple_atrasado = len(cuotas_vencidas) > 0  # Tiene cuotas vencidas
+            cumple_urgente = len(cuotas_vencidas) > 0 and (hoy - min(cuotas_vencidas)).days >= 15  # Vencidas hace 15+ días
+            cumple_cobrar_hoy = cuota_hoy is not None  # Tiene cuota para hoy
+            cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy  # Próximos 7 días (incluyendo hoy)
+            cumple_al_dia = todas_pagadas  # Sin cuotas pendientes
+            
+            # Determinar categoría PRINCIPAL (para mostrar en semáforo)
+            categoria_filtro = "📋 Todos"
             dias_hasta_proxima = None
             dias_atraso = None
-            categoria_filtro = "📋 Todos"
             
-            if todas_pagadas:
-                # El cliente no tiene cuotas pendientes
+            if cumple_al_dia:
                 categoria_filtro = "🟢 Al Día"
-                dias_hasta_proxima = 999  # Ficticio para ordenamiento
-                
-            elif cuota_pendiente_vencida:
-                # Hay cuota vencida sin pagar = ATRASADO
-                # Cálculo preciso: Solo fechas (DD/MM/AAAA), sin horas
-                dias_atraso = (hoy - cuota_pendiente_vencida).days
-                
-                if dias_atraso >= 15:
-                    categoria_filtro = "🔥 Urgentes"  # Más de 15 días
-                else:
-                    categoria_filtro = "🚨 Atrasados"  # Reciente atraso
-                    
-            elif proxima_cuota:
-                # Hay cuota pendiente sin vencer
-                # Cálculo preciso: Solo fechas (DD/MM/AAAA), sin horas
-                # Ejemplo: Si hoy es 4/5 y pago es 7/5, resultado = 3 días
-                dias_hasta_proxima = (proxima_cuota - hoy).days
-                
-                if dias_hasta_proxima == 0:
-                    categoria_filtro = "📅 Cobrarles Hoy"
-                elif 0 < dias_hasta_proxima <= 7:
-                    categoria_filtro = "⏳ Próx. 7 Días"
-                else:
-                    categoria_filtro = "📋 Todos"  # Futuros
+                dias_hasta_proxima = 999
+            elif cumple_urgente:
+                categoria_filtro = "🔥 Urgentes"
+                dias_atraso = (hoy - min(cuotas_vencidas)).days
+            elif cumple_atrasado:
+                categoria_filtro = "🚨 Atrasados"
+                dias_atraso = (hoy - min(cuotas_vencidas)).days
+            elif cumple_cobrar_hoy:
+                categoria_filtro = "📅 Cobrarles Hoy"
+                dias_hasta_proxima = 0
+            elif cumple_proximo_7:
+                categoria_filtro = "⏳ Próx. 7 Días"
+                if proxima_cuota_sin_vencer:
+                    dias_hasta_proxima = (proxima_cuota_sin_vencer - hoy).days
+            elif proxima_cuota_sin_vencer:
+                categoria_filtro = "📋 Todos"
+                dias_hasta_proxima = (proxima_cuota_sin_vencer - hoy).days
             
-            # --- APLICAR FILTRO SELECCIONADO ---
+            # --- APLICAR FILTRO SELECCIONADO CON LÓGICA ROBUSTA ---
             pasa_filtro = False
             if opcion_filtro == "📋 Todos":
-                pasa_filtro = True
+                pasa_filtro = True  # Todos pasan
             elif opcion_filtro == "🔥 Urgentes":
-                pasa_filtro = (categoria_filtro == "🔥 Urgentes")
+                pasa_filtro = cumple_urgente  # Solo urgentes
             elif opcion_filtro == "📅 Cobrarles Hoy":
-                pasa_filtro = (categoria_filtro == "📅 Cobrarles Hoy")
+                pasa_filtro = cumple_cobrar_hoy  # Solo hoy
             elif opcion_filtro == "⏳ Próx. 7 Días":
-                pasa_filtro = (categoria_filtro == "⏳ Próx. 7 Días")
+                pasa_filtro = cumple_proximo_7  # Próximos 7 (incluyendo hoy)
             elif opcion_filtro == "🚨 Atrasados":
-                pasa_filtro = (categoria_filtro == "🚨 Atrasados" or categoria_filtro == "🔥 Urgentes")
+                pasa_filtro = cumple_atrasado  # Atrasados (incluye urgentes)
             elif opcion_filtro == "🟢 Al Día":
-                pasa_filtro = (categoria_filtro == "🟢 Al Día")
+                pasa_filtro = cumple_al_dia  # Solo al día
             
             # --- LÓGICA DEL BUSCADOR ---
             if pasa_filtro and (search_term in nombre.lower() or 
@@ -1702,17 +1717,21 @@ elif menu == "Gestión de Cobros":
                 c['aux_categoria'] = categoria_filtro
                 c['aux_dias_atraso'] = dias_atraso if dias_atraso is not None else 0
                 c['aux_dias_proximidad'] = dias_hasta_proxima if dias_hasta_proxima is not None else 999
-                c['aux_proxima_fecha'] = proxima_cuota
-                c['aux_cuota_vencida'] = cuota_pendiente_vencida
+                c['aux_proxima_fecha'] = proxima_cuota_sin_vencer
+                c['aux_cuota_vencida'] = min(cuotas_vencidas) if cuotas_vencidas else None
                 c['aux_todas_pagadas'] = todas_pagadas
                 
                 # Para ordenamiento por prioridad
-                if dias_atraso is not None:
-                    c['aux_prioridad'] = 1000 + dias_atraso  # Atrasados primero
-                elif dias_hasta_proxima is not None and dias_hasta_proxima <= 0:
-                    c['aux_prioridad'] = 500  # Hoy y próximos
+                if cumple_urgente:
+                    c['aux_prioridad'] = 1000 + (hoy - min(cuotas_vencidas)).days  # Urgentes primero
+                elif cumple_atrasado:
+                    c['aux_prioridad'] = 900 + (hoy - min(cuotas_vencidas)).days  # Atrasados segundo
+                elif cumple_cobrar_hoy:
+                    c['aux_prioridad'] = 500  # Hoy tercero
+                elif cumple_proximo_7:
+                    c['aux_prioridad'] = 400 - (proxima_cuota_sin_vencer - hoy).days if proxima_cuota_sin_vencer else 400
                 else:
-                    c['aux_prioridad'] = 0  # Futuros
+                    c['aux_prioridad'] = 0  # Futuros último
                 
                 datos_procesados.append(c)
 
