@@ -27,6 +27,10 @@ if "refresh_key" not in st.session_state:
     st.session_state.refresh_key = 0
 if "ruta_seleccion" not in st.session_state:
     st.session_state.ruta_seleccion = []
+if "consulta_activa" not in st.session_state:
+    st.session_state.consulta_activa = False
+if "datos_ruta_consultados" not in st.session_state:
+    st.session_state.datos_ruta_consultados = []
 
 # 1. CONFIGURACIÓN INICIAL Y CONEXIÓN
 st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
@@ -1603,68 +1607,139 @@ elif menu == "Gestión de Cobros":
     
     if res.data:
         datos_procesados = []
+        hoy = datetime.now().date()
+        
         for c in res.data:
             cliente_info = c.get('clientes', {})
             nombre = cliente_info.get('nombre', 'Cliente')
             cedula = cliente_info.get('cedula', '')
             telefono = cliente_info.get('telefono', '')
             
-            # 1. Calculamos atraso primero para poder filtrar
-            txt_atraso_base, dias_num = calcular_atraso_dinamico(c.get('proximo_pago'))
+            # --- NUEVA LÓGICA: Obtener datos del PLAN DE CUOTAS REAL ---
+            cuenta_id = c['id']
+            res_plan = conn.table("plan_cuotas").select("fecha_esperada, estado").eq("cuenta_id", cuenta_id).order("numero_cuota").execute()
+            plan_cuotas = res_plan.data if res_plan.data else []
             
-            # 2. LÓGICA DEL FILTRO DE FECHA ESTRICTA (CORREGIDA PARA PRÓXIMOS 7 DÍAS)
-            pasa_fecha = False
+            # Encontramos la próxima cuota PENDIENTE (no pagada)
+            proxima_cuota = None
+            cuota_pendiente_vencida = None
+            todas_pagadas = True
+            
+            for cuota in plan_cuotas:
+                fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
+                estado_cuota = str(cuota.get('estado', '')).strip().lower()
+                
+                # Si la cuota está pendiente
+                if estado_cuota in ['pendiente', 'incompleta']:
+                    todas_pagadas = False
+                    if proxima_cuota is None:
+                        proxima_cuota = fecha_cuota
+                    # Verificar si está vencida
+                    if fecha_cuota < hoy:
+                        cuota_pendiente_vencida = fecha_cuota
+            
+            # --- DETERMINAR CATEGORÍA DEL CLIENTE SEGÚN PLAN ---
+            dias_hasta_proxima = None
+            dias_atraso = None
+            categoria_filtro = "📋 Todos"
+            
+            if todas_pagadas:
+                # El cliente no tiene cuotas pendientes
+                categoria_filtro = "🟢 Al Día"
+                dias_hasta_proxima = 999  # Ficticio para ordenamiento
+                
+            elif cuota_pendiente_vencida:
+                # Hay cuota vencida sin pagar = ATRASADO
+                dias_atraso = (hoy - cuota_pendiente_vencida).days
+                
+                if dias_atraso >= 15:
+                    categoria_filtro = "🔥 Urgentes"  # Más de 15 días
+                else:
+                    categoria_filtro = "🚨 Atrasados"  # Reciente atraso
+                    
+            elif proxima_cuota:
+                # Hay cuota pendiente sin vencer
+                dias_hasta_proxima = (proxima_cuota - hoy).days
+                
+                if dias_hasta_proxima == 0:
+                    categoria_filtro = "📅 Cobrarles Hoy"
+                elif 0 < dias_hasta_proxima <= 7:
+                    categoria_filtro = "⏳ Próx. 7 Días"
+                else:
+                    categoria_filtro = "📋 Todos"  # Futuros
+            
+            # --- APLICAR FILTRO SELECCIONADO ---
+            pasa_filtro = False
             if opcion_filtro == "📋 Todos":
-                pasa_fecha = True
+                pasa_filtro = True
             elif opcion_filtro == "🔥 Urgentes":
-                pasa_fecha = (dias_num >= 0) # Solo hoy y atrasados
+                pasa_filtro = (categoria_filtro == "🔥 Urgentes")
             elif opcion_filtro == "📅 Cobrarles Hoy":
-                pasa_fecha = (dias_num == 0)
+                pasa_filtro = (categoria_filtro == "📅 Cobrarles Hoy")
             elif opcion_filtro == "⏳ Próx. 7 Días":
-                # Filtra desde hoy (0) hasta 7 días en el futuro (-7)
-                pasa_fecha = (-7 <= dias_num <= 0)
+                pasa_filtro = (categoria_filtro == "⏳ Próx. 7 Días")
             elif opcion_filtro == "🚨 Atrasados":
-                pasa_fecha = (dias_num > 0)
+                pasa_filtro = (categoria_filtro == "🚨 Atrasados" or categoria_filtro == "🔥 Urgentes")
             elif opcion_filtro == "🟢 Al Día":
-                pasa_fecha = (dias_num <= 0)
-
-            # 3. LÓGICA DEL BUSCADOR
-            if pasa_fecha and (search_term in nombre.lower() or 
+                pasa_filtro = (categoria_filtro == "🟢 Al Día")
+            
+            # --- LÓGICA DEL BUSCADOR ---
+            if pasa_filtro and (search_term in nombre.lower() or 
                 search_term in str(cedula).lower() or 
                 search_term in str(telefono).lower()):
                 
                 c['aux_nombre'] = nombre
-                # Ajuste de texto para que diga "Paga hoy" si dias_num es 0
-                if dias_num == 0:
-                    c['aux_atraso_txt'] = "Paga hoy"
-                else:
-                    c['aux_atraso_txt'] = f"Atraso: {dias_num} días" if dias_num > 0 else txt_atraso_base
+                c['aux_categoria'] = categoria_filtro
+                c['aux_dias_atraso'] = dias_atraso if dias_atraso is not None else 0
+                c['aux_dias_proximidad'] = dias_hasta_proxima if dias_hasta_proxima is not None else 999
+                c['aux_proxima_fecha'] = proxima_cuota
+                c['aux_cuota_vencida'] = cuota_pendiente_vencida
+                c['aux_todas_pagadas'] = todas_pagadas
                 
-                c['aux_dias_num'] = dias_num
-                c['aux_prioridad'] = obtener_prioridad(dias_num, float(c.get('balance_pendiente', 0)))
+                # Para ordenamiento por prioridad
+                if dias_atraso is not None:
+                    c['aux_prioridad'] = 1000 + dias_atraso  # Atrasados primero
+                elif dias_hasta_proxima is not None and dias_hasta_proxima <= 0:
+                    c['aux_prioridad'] = 500  # Hoy y próximos
+                else:
+                    c['aux_prioridad'] = 0  # Futuros
+                
                 datos_procesados.append(c)
 
-        # Ordenamos según tu prioridad original
+        # Ordenamos por prioridad (atrasados primero)
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
         
-# --- BOTÓN DE DISPARO (EL MURO DE FLUIDEZ) ---
+# --- BOTÓN DE CONSULTA (PROCESA DATOS SELECCIONADOS) ---
         # Solo mostramos el botón si hay al menos 1 cliente seleccionado
         if len(st.session_state.ruta_seleccion) > 0:
             st.write("---")
-            if st.button("🗺️ Generar Ruta de Cobro", type="primary", use_container_width=True):
-                st.session_state.mostrar_mapa = True
-                st.rerun() # Recargamos para que muestre el mapa de golpe
+            col_btn_c1, col_btn_c2 = st.columns([2, 1])
+            
+            with col_btn_c1:
+                if st.button("📱 Consultar Ruta de Clientes", type="primary", use_container_width=True, help="Procesa los datos de los clientes seleccionados"):
+                    # Procesar los clientes seleccionados - SIN RECARGAR
+                    st.session_state.consulta_activa = True
+                    
+                    # Obtener datos de los clientes seleccionados
+                    ids_seleccionados = [str(i) for i in st.session_state.ruta_seleccion]
+                    clientes_consulta = [d for d in datos_procesados if str(d['id']) in ids_seleccionados]
+                    
+                    st.session_state.datos_ruta_consultados = clientes_consulta
+                    st.session_state.mostrar_mapa = True
+            
+            with col_btn_c2:
+                if st.button("🗺️ Generar Mapa", use_container_width=True, help="Crea la ruta optimizada", disabled=not st.session_state.consulta_activa):
+                    st.rerun()
 
         # --- PANEL DEL MAPA MINIMALISTA (VERSIÓN SOCIO / DEFINITIVA) ---
-        # Solo entra aquí si seleccionaron clientes Y le dieron al botón de Generar
-        if st.session_state.ruta_seleccion and st.session_state.mostrar_mapa:
+        # Solo entra aquí si consultó datos Y quiere ver el mapa
+        if st.session_state.consulta_activa and st.session_state.mostrar_mapa and st.session_state.datos_ruta_consultados:
             
             # --- LÍMITE ESTRICTO DE GOOGLE MAPS ---
             LIMITE_MAPS = 10
             
-            # Filtramos asegurando coincidencia de IDs
-            ids_seleccionados = [str(i) for i in st.session_state.ruta_seleccion]
-            clientes_ruta_data = [d for d in datos_procesados if str(d['id']) in ids_seleccionados]
+            # Usar datos ya consultados (no procesar de nuevo)
+            clientes_ruta_data = st.session_state.datos_ruta_consultados
             
             con_gps = []
             sin_gps = []
@@ -1745,8 +1820,10 @@ elif menu == "Gestión de Cobros":
                 if st.button("🗑️ Cancelar y Limpiar Selección"):
                     st.session_state.ruta_seleccion = [] # 1. Vaciamos la lista interna
                     st.session_state.mostrar_mapa = False # 2. Ocultamos el mapa
-                    st.session_state.refresh_key += 1 # 3. LA MAGIA: Cambiamos la llave para obligar a la tabla a desmarcarse
-                    st.rerun() # 4. Recargamos la interfaz limpia
+                    st.session_state.consulta_activa = False # 3. Marcamos que no hay consulta activa
+                    st.session_state.datos_ruta_consultados = [] # 4. Limpiamos datos consultados
+                    st.session_state.refresh_key += 1 # 5. LA MAGIA: Cambiamos la llave para obligar a la tabla a desmarcarse
+                    st.rerun() # 6. Recargamos la interfaz limpia
                     
 # --- DIBUJADO DE LA LISTA (CON TODAS TUS FUNCIONES ORIGINALES) ---
         for item in datos_procesados:
@@ -1759,13 +1836,22 @@ elif menu == "Gestión de Cobros":
                 with c_nom:
                     col_t1, col_t2 = st.columns([0.2, 0.8])
                     with col_t1:
-                        # Checkbox chiquito sin texto - CON CLAVE DINÁMICA PARA LIMPIAR SELECCIÓN
-                        # SIN rerun() - Solo guardamos en la lista, sin recargar la página
-                        is_selected = st.checkbox(" ", key=f"sel_{token}_{st.session_state.refresh_key}", value=token in st.session_state.ruta_seleccion, label_visibility="collapsed")
-                        if is_selected and token not in st.session_state.ruta_seleccion:
-                            st.session_state.ruta_seleccion.append(token)
-                        elif not is_selected and token in st.session_state.ruta_seleccion:
-                            st.session_state.ruta_seleccion.remove(token)
+                        # Checkbox completamente PASIVO - sin recargas, usa callback silencioso
+                        def actualizar_seleccion(token_id):
+                            def callback():
+                                if token_id not in st.session_state.ruta_seleccion:
+                                    st.session_state.ruta_seleccion.append(token_id)
+                                else:
+                                    st.session_state.ruta_seleccion.remove(token_id)
+                            return callback
+                        
+                        st.checkbox(
+                            " ",
+                            key=f"sel_{token}_{st.session_state.refresh_key}",
+                            value=token in st.session_state.ruta_seleccion,
+                            label_visibility="collapsed",
+                            on_change=actualizar_seleccion(token)
+                        )
                             
                     with col_t2:
                         st.markdown(f"**{item['aux_nombre']}**")
@@ -1775,15 +1861,22 @@ elif menu == "Gestión de Cobros":
                         mostrar_historial_modal(item, u_id)
 
                 with c_status:
-                    # SEMÁFORO CORREGIDO
+                    # SEMÁFORO BASADO EN PLAN_CUOTAS
                     if modo_analisis: 
                         st.info("✅ SALDADO")
-                    elif item['aux_dias_num'] > 0: 
-                        st.error(f"🚨 {item['aux_atraso_txt']}")
-                    elif item['aux_dias_num'] == 0:
-                        st.warning("⚠️ Paga hoy mismo")
-                    else: 
-                        st.success("🟢 Al día")
+                    elif item['aux_todas_pagadas']:
+                        st.success("🟢 Al Día")
+                    elif item['aux_dias_atraso'] is not None and item['aux_dias_atraso'] > 0:
+                        if item['aux_dias_atraso'] >= 15:
+                            st.error(f"🔥 {item['aux_dias_atraso']} días")
+                        else:
+                            st.error(f"🚨 {item['aux_dias_atraso']} días")
+                    elif item['aux_dias_proximidad'] == 0:
+                        st.warning("📅 Paga hoy")
+                    elif item['aux_dias_proximidad'] is not None and item['aux_dias_proximidad'] > 0 and item['aux_dias_proximidad'] <= 7:
+                        st.warning(f"⏳ En {item['aux_dias_proximidad']} días")
+                    else:
+                        st.info("📋 Próximo")
                         
                 with c_inputs:
                     if not modo_analisis:
