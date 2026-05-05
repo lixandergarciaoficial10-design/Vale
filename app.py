@@ -1639,9 +1639,11 @@ elif menu == "Gestión de Cobros":
                     todas_pagadas = False
                     if proxima_cuota is None:
                         proxima_cuota = fecha_cuota
-                    # Verificar si está vencida
+                    # Verificar si está vencida - BUSCAR LA MÁS ANTIGUA (primera vencida)
                     if fecha_cuota < hoy:
-                        cuota_pendiente_vencida = fecha_cuota
+                        # Solo actualizar si es más antigua que la actual
+                        if cuota_pendiente_vencida is None or fecha_cuota < cuota_pendiente_vencida:
+                            cuota_pendiente_vencida = fecha_cuota
             
             # --- DETERMINAR CATEGORÍA DEL CLIENTE SEGÚN PLAN ---
             dias_hasta_proxima = None
