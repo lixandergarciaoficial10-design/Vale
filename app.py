@@ -1450,6 +1450,7 @@ elif menu == "Gestión de Cobros":
                 
                 st.table(pd.DataFrame(datos_plan))
             else:
+                # Validación exacta del requisimiento
                 st.warning("No hay un plan registrado para esta cuenta.")
         
         with tab2:
@@ -1473,7 +1474,11 @@ elif menu == "Gestión de Cobros":
                 c1.metric("Total Capital Recibido", f"RD$ {total_cap:,.2f}")
                 c2.metric("Total Moras Recibidas", f"RD$ {total_mora:,.2f}")
             else:
-                st.info("Aún no se han registrado pagos reales.")
+                # Validación mejorada: si no hay pagos
+                if not plan:
+                    st.info("No hay un plan registrado para esta cuenta.")
+                else:
+                    st.info("Aún no se han registrado pagos reales.")
 
     # --- 2. FUNCIÓN DE CONFIRMACIÓN CON GENERACIÓN DE CÓDIGO ---
     @st.dialog("⚠️ VERIFICAR TRANSACCIÓN")
@@ -1650,6 +1655,7 @@ elif menu == "Gestión de Cobros":
                 
             elif cuota_pendiente_vencida:
                 # Hay cuota vencida sin pagar = ATRASADO
+                # Cálculo preciso: Solo fechas (DD/MM/AAAA), sin horas
                 dias_atraso = (hoy - cuota_pendiente_vencida).days
                 
                 if dias_atraso >= 15:
@@ -1659,6 +1665,8 @@ elif menu == "Gestión de Cobros":
                     
             elif proxima_cuota:
                 # Hay cuota pendiente sin vencer
+                # Cálculo preciso: Solo fechas (DD/MM/AAAA), sin horas
+                # Ejemplo: Si hoy es 4/5 y pago es 7/5, resultado = 3 días
                 dias_hasta_proxima = (proxima_cuota - hoy).days
                 
                 if dias_hasta_proxima == 0:
@@ -1861,20 +1869,23 @@ elif menu == "Gestión de Cobros":
                         mostrar_historial_modal(item, u_id)
 
                 with c_status:
-                    # SEMÁFORO BASADO EN PLAN_CUOTAS
+                    # SEMÁFORO CON ETIQUETAS DE TEXTO PRECISAS
                     if modo_analisis: 
                         st.info("✅ SALDADO")
                     elif item['aux_todas_pagadas']:
                         st.success("🟢 Al Día")
                     elif item['aux_dias_atraso'] is not None and item['aux_dias_atraso'] > 0:
+                        # Atraso: mostrar días de retraso
                         if item['aux_dias_atraso'] >= 15:
-                            st.error(f"🔥 {item['aux_dias_atraso']} días")
+                            st.error(f"🔥 Urgente - {item['aux_dias_atraso']} días atrasado")
                         else:
-                            st.error(f"🚨 {item['aux_dias_atraso']} días")
+                            st.error(f"🚨 Atrasado - {item['aux_dias_atraso']} días")
                     elif item['aux_dias_proximidad'] == 0:
-                        st.warning("📅 Paga hoy")
+                        # Pago hoy: etiqueta exacta
+                        st.warning("📅 Hay que cobrarle hoy")
                     elif item['aux_dias_proximidad'] is not None and item['aux_dias_proximidad'] > 0 and item['aux_dias_proximidad'] <= 7:
-                        st.warning(f"⏳ En {item['aux_dias_proximidad']} días")
+                        # Próximos 7 días: etiqueta exacta con número real de días
+                        st.warning(f"⏳ En {item['aux_dias_proximidad']} días debe pagar")
                     else:
                         st.info("📋 Próximo")
                         
