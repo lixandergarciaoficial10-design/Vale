@@ -19,6 +19,19 @@ from datetime import datetime
 import streamlit as st
 import re
 from st_supabase_connection import SupabaseConnection
+import pytz  # ← AGREGADO para manejar timezone
+
+# ===== CONFIGURACIÓN DE ZONA HORARIA =====
+# República Dominicana está en UTC-4
+TIMEZONE_RD = pytz.timezone('America/Santo_Domingo')
+
+def obtener_fecha_hoy():
+    """Obtiene la fecha de HOY en la zona horaria de República Dominicana"""
+    return datetime.now(TIMEZONE_RD).date()
+
+def obtener_datetime_ahora():
+    """Obtiene el datetime actual en la zona horaria de República Dominicana"""
+    return datetime.now(TIMEZONE_RD)
 
 # --- INICIALIZACIÓN DE VARIABLES PARA EL MAPA ---
 if "mostrar_mapa" not in st.session_state:
@@ -420,7 +433,7 @@ if "estado_suscripcion" not in st.session_state:
             
             if estado == "activo" and fecha_v:
                 fecha_vencimiento = datetime.strptime(fecha_v, "%Y-%m-%d").date()
-                if datetime.now().date() <= fecha_vencimiento:
+                if obtener_fecha_hoy() <= fecha_vencimiento:
                     st.session_state["estado_suscripcion"] = "valido"
                 else:
                     st.session_state["estado_suscripcion"] = "vencido"
@@ -1043,7 +1056,7 @@ def calcular_atraso_dinamico(fecha_proximo_pago):
     if not fecha_proximo_pago:
         return "Sin fecha", 0
     
-    hoy = datetime.now().date()
+    hoy = obtener_fecha_hoy()  # ← TIMEZONE CORRECTO
     # Convertir si es string, si ya es objeto date se queda igual
     f_pago = datetime.strptime(fecha_proximo_pago, '%Y-%m-%d').date() if isinstance(fecha_proximo_pago, str) else fecha_proximo_pago
     
@@ -1612,7 +1625,7 @@ elif menu == "Gestión de Cobros":
     
     if res.data:
         datos_procesados = []
-        hoy = datetime.now().date()
+        hoy = obtener_fecha_hoy()  # ← USA TIMEZONE CORRECTO (República Dominicana)
         
         for c in res.data:
             cliente_info = c.get('clientes', {})
@@ -2026,7 +2039,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                 
                 with col3:
                     cuotas_n = st.number_input("Cantidad de Cuotas", min_value=1, value=4)
-                    fecha_desembolso = st.date_input("Fecha de desembolso", value=datetime.now().date())
+                    fecha_desembolso = st.date_input("Fecha de desembolso", value=obtener_fecha_hoy())
 
                 # --- MOTOR DE CÁLCULO DE FECHAS (SINTAXIS CORREGIDA) ---
                 fechas_proyectadas = []
@@ -2314,7 +2327,7 @@ elif menu == "👥 Todos mis Clientes":
         res_pagos = conn.table("pagos").select("*").execute()
         pagos_db = res_pagos.data if res_pagos.data else []
 
-        hoy = datetime.now().date()
+        hoy = obtener_fecha_hoy()  # ← TIMEZONE CORRECTO
 
         # --- BARRA DE COMANDO: BUSCADOR + PILLS ---
         col_search, col_filter = st.columns([1.2, 2])
@@ -2810,13 +2823,13 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                         saldo_recorrido = 0
                         retraso_txt = "Incompleto"
                     else:
-                        vencida = f_esp < datetime.now().date()
+                        vencida = f_esp < obtener_fecha_hoy()  # ← TIMEZONE CORRECTO
                         txt = "🚨 VENCIDA" if vencida else "⏳ PENDIENTE"
                         color = "#d93025" if vencida else "#5f6368"
                         estado = f'<span style="color:{color}; font-weight:bold;">{txt}</span>'
                         
                         if vencida:
-                            dias_vencida = (datetime.now().date() - f_esp).days
+                            dias_vencida = (obtener_fecha_hoy() - f_esp).days  # ← TIMEZONE CORRECTO
                             retraso_txt = f'<b>{dias_vencida} días vencida</b>'
 
                     datos_visuales.append({
@@ -3248,7 +3261,7 @@ elif menu == "IA Predictiva":
     def obtener_super_contexto(u_id):
         """Extrae el ADN financiero con un toque de realidad cruda."""
         try:
-            hoy = datetime.now().date().isoformat()
+            hoy = obtener_fecha_hoy().isoformat()  # ← TIMEZONE CORRECTO
             
             # Datos maestros de clientes y saldos
             res_ctas = conn.table("cuentas").select(
