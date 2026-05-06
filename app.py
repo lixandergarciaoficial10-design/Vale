@@ -1649,30 +1649,34 @@ elif menu == "Gestión de Cobros":
                 fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
                 estado_cuota = str(cuota.get('estado', '')).strip().lower()
                 
-                # Solo procesar cuotas que no están 'COMPLETA'
-                if estado_cuota in ['pendiente', 'incompleta']:
-                    todas_pagadas = False # Al haber pendientes, el plan no está totalmente saldado
-                    
-                    # CASO 1: Deuda Real (La fecha ya pasó)[cite: 2]
-                    if fecha_cuota < hoy:
-                        cuotas_vencidas.append(fecha_cuota)
-                    
-                    # CASO 2: Es para hoy[cite: 2]
-                    elif fecha_cuota == hoy:
-                        cuota_hoy = fecha_cuota
-                        if proxima_cuota_sin_vencer is None:
-                            proxima_cuota_sin_vencer = fecha_cuota
-                    
-                    # CASO 3: Cuota en próximos 7 días (hoy < fecha <= hoy + 7)[cite: 2]
-                    elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
-                        cuotas_proximo_7_dias.append(fecha_cuota)
-                        if proxima_cuota_sin_vencer is None:
-                            proxima_cuota_sin_vencer = fecha_cuota
-                            
-                    # CASO 4: Cuota futura (Más de 7 días)[cite: 2]
-                    else:
-                        if proxima_cuota_sin_vencer is None:
-                            proxima_cuota_sin_vencer = fecha_cuota
+                # --- APLICACIÓN DE TU LÓGICA: Descartar las cuotas pagadas ---
+                # Si el estado es cualquiera de estos, la cuota está saldada y se ignora por completo.
+                if estado_cuota in ['completa', 'completada', 'pagada']:
+                    continue
+                
+                # Si el código llega a esta línea, significa que la cuota está 'incompleta' o 'pendiente'
+                todas_pagadas = False 
+                
+                # CASO 1: Atraso Real (La cuota está incompleta Y la fecha ya pasó)
+                if fecha_cuota < hoy:
+                    cuotas_vencidas.append(fecha_cuota)
+                
+                # CASO 2: Es para hoy (Está pendiente/incompleta, pero no es atraso todavía)
+                elif fecha_cuota == hoy:
+                    cuota_hoy = fecha_cuota
+                    if proxima_cuota_sin_vencer is None:
+                        proxima_cuota_sin_vencer = fecha_cuota
+                
+                # CASO 3: Cuota en próximos 7 días (Está pendiente/incompleta, pero en el futuro)
+                elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
+                    cuotas_proximo_7_dias.append(fecha_cuota)
+                    if proxima_cuota_sin_vencer is None:
+                        proxima_cuota_sin_vencer = fecha_cuota
+                        
+                # CASO 4: Cuota futura a más de 7 días (Incompleta o pendiente, pero lejos de vencer)
+                else:
+                    if proxima_cuota_sin_vencer is None:
+                        proxima_cuota_sin_vencer = fecha_cuota
             
             # --- DETERMINAR CATEGORÍAS DEL CLIENTE ---
             cumple_atrasado = len(cuotas_vencidas) > 0  
