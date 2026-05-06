@@ -20,8 +20,7 @@ import streamlit as st
 import re
 from st_supabase_connection import SupabaseConnection
 import pytz  # ← AGREGADO para manejar timezone
-from utils_roles_plan
-from utils_atrasos
+
 
 # ============================================
 # MÓDULO: utils_atrasos.py
