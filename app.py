@@ -1414,7 +1414,7 @@ if menu == "Panel de Control":
     else:
         st.info("Aún no hay registros de cobros.")
             
-     elif menu == "Gestión de Cobros":
+elif menu == "Gestión de Cobros":
     st.header("⚡ Centro de Recaudación")
     
 # Inicializar lista de ruta para el mapa
