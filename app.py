@@ -1651,33 +1651,35 @@ elif menu == "Gestión de Cobros":
                 
                 # Solo procesar cuotas que no están 'COMPLETA'
                 if estado_cuota in ['pendiente', 'incompleta']:
-                    # CASO 1: Deuda Real (La fecha ya pasó)
+                    todas_pagadas = False # Al haber pendientes, el plan no está totalmente saldado
+                    
+                    # CASO 1: Deuda Real (La fecha ya pasó)[cite: 2]
                     if fecha_cuota < hoy:
                         cuotas_vencidas.append(fecha_cuota)
-                        todas_pagadas = False # Hay atraso real
                     
-                    # CASO 2: Es para hoy
+                    # CASO 2: Es para hoy[cite: 2]
                     elif fecha_cuota == hoy:
                         cuota_hoy = fecha_cuota
-                        todas_pagadas = False # Debe pagar hoy
                         if proxima_cuota_sin_vencer is None:
                             proxima_cuota_sin_vencer = fecha_cuota
                     
-                    # CASO 3: Es un abono o cuota futura (No es atraso)
+                    # CASO 3: Cuota en próximos 7 días (hoy < fecha <= hoy + 7)[cite: 2]
+                    elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
+                        cuotas_proximo_7_dias.append(fecha_cuota)
+                        if proxima_cuota_sin_vencer is None:
+                            proxima_cuota_sin_vencer = fecha_cuota
+                            
+                    # CASO 4: Cuota futura (Más de 7 días)[cite: 2]
                     else:
-                        # Si llegamos aquí y no hay cuotas vencidas, el cliente va 'Al Día'
                         if proxima_cuota_sin_vencer is None:
                             proxima_cuota_sin_vencer = fecha_cuota
-                    
-                    # CASO 4: Cuota futura (fecha > hoy + 7)
-                    elif proxima_cuota_sin_vencer is None:
-                        proxima_cuota_sin_vencer = fecha_cuota
             
-# --- DETERMINAR CATEGORÍAS DEL CLIENTE ---
+            # --- DETERMINAR CATEGORÍAS DEL CLIENTE ---
             cumple_atrasado = len(cuotas_vencidas) > 0  
             cumple_urgente = cumple_atrasado and (hoy - min(cuotas_vencidas)).days >= 15  
             cumple_cobrar_hoy = cuota_hoy is not None  
-            cumple_al_dia = not cumple_atrasado and not cumple_cobrar_hoy # No debe nada a la fecha
+            cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy
+            cumple_al_dia = not cumple_atrasado and not cumple_cobrar_hoy # No debe nada a la fecha actual[cite: 1, 2]
             
             categoria_filtro = "📋 Todos"
             dias_hasta_proxima = None
