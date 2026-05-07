@@ -21,29 +21,6 @@ import re
 from st_supabase_connection import SupabaseConnection
 import pytz  # ← AGREGADO para manejar timezone
 
-# ===== NUEVAS IMPORTACIONES: Roles, Límites y Atrasos =====
-try:
-    from utils_roles_plan import (
-        obtener_rol_usuario, 
-        normalizar_rol, 
-        mostrar_rol_ui, 
-        tiene_permiso,
-        validar_limite_plan,
-        contar_sesiones_activas,
-        PLAN_LIMITS
-    )
-except ImportError:
-    print("⚠️ Advertencia: utils_roles_plan.py no encontrado en carpeta")
-
-try:
-    from utils_atrasos import (
-        procesar_clientes_filtrados,
-        analizar_cuotas_cuenta,
-        obtener_fecha_hoy as obtener_fecha_hoy_atrasos
-    )
-except ImportError:
-    print("⚠️ Advertencia: utils_atrasos.py no encontrado en carpeta")
-
 # ===== CONFIGURACIÓN DE ZONA HORARIA =====
 # República Dominicana está en UTC-4
 TIMEZONE_RD = pytz.timezone('America/Santo_Domingo')
@@ -79,14 +56,6 @@ if "user" not in st.session_state:
     st.session_state.user = None
 if "page" not in st.session_state:
     st.session_state.page = "login"
-    
-# ===== NUEVAS VARIABLES DE SESIÓN: Roles =====
-if "tipo_rol" not in st.session_state:
-    st.session_state.tipo_rol = "admin"
-if "rol_display" not in st.session_state:
-    st.session_state.rol_display = "🔑 Admin"
-if "es_admin" not in st.session_state:
-    st.session_state.es_admin = True
 
 # --- LÓGICA DE CONTROL DE ACCESO (EL MURO) ---
 if not st.session_state.authenticated:
@@ -290,20 +259,6 @@ if not st.session_state.authenticated:
                                 # 3. Entramos a la App
                                 st.session_state.user = res.user
                                 st.session_state.authenticated = True
-                                
-                                # ===== NUEVA LÓGICA: Determinar tipo_rol =====
-                                try:
-                                    res_dep = conn.table("usuarios_dependientes").select("tipo_rol").eq("id", st.session_state.user.id).execute()
-                                    if res_dep.data:
-                                        st.session_state.tipo_rol = normalizar_rol(res_dep.data[0].get('tipo_rol', 'trabajador'))
-                                    else:
-                                        st.session_state.tipo_rol = 'admin'
-                                except:
-                                    st.session_state.tipo_rol = 'admin'
-                                
-                                st.session_state.rol_display = mostrar_rol_ui(st.session_state.tipo_rol)
-                                st.session_state.es_admin = st.session_state.tipo_rol == 'admin'
-                                
                                 login_exitoso = True
                                 st.success("¡Bienvenido a CobroYa!")
                                 st.rerun()
@@ -331,12 +286,6 @@ if not st.session_state.authenticated:
                                             st.session_state.owner_id = empleado['owner_id']
                                             st.session_state.rol = empleado.get('rol', 'empleado')
                                             st.session_state.nombre_empleado = empleado.get('nombre', '')
-                                            
-                                            # ===== NUEVA LÓGICA: Tipo_rol para empleado =====
-                                            st.session_state.tipo_rol = normalizar_rol(empleado.get('tipo_rol', 'trabajador'))
-                                            st.session_state.rol_display = mostrar_rol_ui(st.session_state.tipo_rol)
-                                            st.session_state.es_admin = st.session_state.tipo_rol == 'admin'
-                                            
                                             # Usamos el owner_id como user.id para que todo funcione como antes
                                             class EmpleadoUser:
                                                 def __init__(self, owner_id, email):
@@ -1700,41 +1649,37 @@ elif menu == "Gestión de Cobros":
                 fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
                 estado_cuota = str(cuota.get('estado', '')).strip().lower()
                 
-                # --- APLICACIÓN DE TU LÓGICA: Descartar las cuotas pagadas ---
-                # Si el estado es cualquiera de estos, la cuota está saldada y se ignora por completo.
-                if estado_cuota in ['completa', 'completada', 'pagada']:
-                    continue
-                
-                # Si el código llega a esta línea, significa que la cuota está 'incompleta' o 'pendiente'
-                todas_pagadas = False 
-                
-                # CASO 1: Atraso Real (La cuota está incompleta Y la fecha ya pasó)
-                if fecha_cuota < hoy:
-                    cuotas_vencidas.append(fecha_cuota)
-                
-                # CASO 2: Es para hoy (Está pendiente/incompleta, pero no es atraso todavía)
-                elif fecha_cuota == hoy:
-                    cuota_hoy = fecha_cuota
-                    if proxima_cuota_sin_vencer is None:
-                        proxima_cuota_sin_vencer = fecha_cuota
-                
-                # CASO 3: Cuota en próximos 7 días (Está pendiente/incompleta, pero en el futuro)
-                elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
-                    cuotas_proximo_7_dias.append(fecha_cuota)
-                    if proxima_cuota_sin_vencer is None:
-                        proxima_cuota_sin_vencer = fecha_cuota
-                        
-                # CASO 4: Cuota futura a más de 7 días (Incompleta o pendiente, pero lejos de vencer)
-                else:
-                    if proxima_cuota_sin_vencer is None:
-                        proxima_cuota_sin_vencer = fecha_cuota
+                # Solo procesar cuotas que no están 'COMPLETA'
+                if estado_cuota in ['pendiente', 'incompleta']:
+                    todas_pagadas = False # Al haber pendientes, el plan no está totalmente saldado
+                    
+                    # CASO 1: Deuda Real (La fecha ya pasó)[cite: 2]
+                    if fecha_cuota < hoy:
+                        cuotas_vencidas.append(fecha_cuota)
+                    
+                    # CASO 2: Es para hoy[cite: 2]
+                    elif fecha_cuota == hoy:
+                        cuota_hoy = fecha_cuota
+                        if proxima_cuota_sin_vencer is None:
+                            proxima_cuota_sin_vencer = fecha_cuota
+                    
+                    # CASO 3: Cuota en próximos 7 días (hoy < fecha <= hoy + 7)[cite: 2]
+                    elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
+                        cuotas_proximo_7_dias.append(fecha_cuota)
+                        if proxima_cuota_sin_vencer is None:
+                            proxima_cuota_sin_vencer = fecha_cuota
+                            
+                    # CASO 4: Cuota futura (Más de 7 días)[cite: 2]
+                    else:
+                        if proxima_cuota_sin_vencer is None:
+                            proxima_cuota_sin_vencer = fecha_cuota
             
             # --- DETERMINAR CATEGORÍAS DEL CLIENTE ---
             cumple_atrasado = len(cuotas_vencidas) > 0  
             cumple_urgente = cumple_atrasado and (hoy - min(cuotas_vencidas)).days >= 15  
             cumple_cobrar_hoy = cuota_hoy is not None  
             cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy
-            cumple_al_dia = not cumple_atrasado and not cumple_cobrar_hoy
+            cumple_al_dia = not cumple_atrasado and not cumple_cobrar_hoy # No debe nada a la fecha actual[cite: 1, 2]
             
             categoria_filtro = "📋 Todos"
             dias_hasta_proxima = None
@@ -3469,7 +3414,7 @@ elif menu == "Configuración":
                 <div style="display: flex; align-items: center; gap: 12px; justify-content: flex-end;">
                     <div style="text-align: right;">
                         <div style="font-weight: 700; font-size: 14px; color: #0F172A;">{nombre_display}</div>
-                        <div style="font-size: 12px; color: #64748B;">{st.session_state.rol_display}</div>
+                        <div style="font-size: 12px; color: #64748B;">Admin CobroYa</div>
                     </div>
                     <div style="width: 42px; height: 42px; border-radius: 50%; background: #F1F5F9; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
                         {f'<img src="data:image/png;base64,{logo_data}" style="width:100%;height:100%;object-fit:cover;">' if logo_data else "👤"}
@@ -3569,170 +3514,88 @@ elif menu == "Configuración":
                 st.rerun()
 
     elif st.session_state.config_sub == "Equipo":
-        if st.button("← Volver", key="back_equipo"): 
-            st.session_state.config_sub = "Principal"
-            st.rerun()
-
+        if st.button("← Volver", key="back_equipo"): st.session_state.config_sub = "Principal"; st.rerun()
         st.markdown("### 👥 Gestión de Equipo")
-
-        # Obtener plan actual
-        res_conf = conn.table("configuracion").select("tipo_plan").eq("user_id", u_id).single().execute()
-        plan_actual = res_conf.data.get('tipo_plan', 'gratis').lower() if res_conf.data else 'gratis'
-        limites_plan = PLAN_LIMITS.get(plan_actual, PLAN_LIMITS['gratis'])
-
-        # Cargar equipo actual
+        
+        LIMITE_MIEMBROS = 15
         team = conn.table("usuarios_dependientes").select("*").eq("owner_id", u_id).execute().data
         miembros_actuales = len(team) if team else 0
-
-        # ===== MOSTRAR ESTADÍSTICAS DE LÍMITES =====
-        st.markdown(f"**Plan Actual:** `{plan_actual.upper()}`")
-
-        col_stats1, col_stats2, col_stats3 = st.columns(3)
-
-        # Contar por rol
-        admins = [m for m in (team or []) if normalizar_rol(m.get('tipo_rol', '')) == 'admin']
-        trabajadores = [m for m in (team or []) if normalizar_rol(m.get('tipo_rol', '')) == 'trabajador']
-
-        with col_stats1:
-            admin_count = len(admins) + 1  # +1 por el dueño
-            max_admin = limites_plan['admins']
-            color = "🔴" if admin_count >= max_admin else "🟢"
-            st.metric(f"{color} Admins", f"{admin_count}/{max_admin}")
-
-        with col_stats2:
-            trab_count = len(trabajadores)
-            max_trab = limites_plan['trabajadores']
-            color = "🔴" if trab_count >= max_trab else "🟢"
-            st.metric(f"{color} Trabajadores", f"{trab_count}/{max_trab}")
-
-        with col_stats3:
-            sesiones = contar_sesiones_activas(conn, u_id)
-            st.metric("👥 Sesiones Activas", sesiones)
-
-        # ===== MOSTRAR MIEMBROS ACTUALES =====
+        
+        st.markdown(f"<p style='color:#64748B; font-size:13px;'><b>{miembros_actuales}/{LIMITE_MIEMBROS}</b> miembros</p>", unsafe_allow_html=True)
+        
         if team:
-            st.markdown("#### 📋 Miembros Actuales")
-            
+            st.markdown("#### Miembros Actuales")
             for member in team:
-                rol_norm = normalizar_rol(member.get('tipo_rol', 'trabajador'))
-                rol_display = "🔑 Admin" if rol_norm == 'admin' else "👤 Trabajador"
-                
-                col_m1, col_m2, col_m3, col_m4 = st.columns([2.5, 1.5, 0.8, 0.8])
-                
-                with col_m1:
-                    st.write(f"**{member['email']}**")
-                    st.caption(f"{member.get('nombre', '—')}")
-                
-                with col_m2:
-                    st.write(rol_display)
-                
-                with col_m3:
-                    # Cambiar rol solo si es admin
-                    if st.session_state.es_admin:
-                        nuevo_rol = st.selectbox(
-                            "Rol",
-                            options=['Trabajador', 'Admin'],
-                            index=0 if rol_norm == 'trabajador' else 1,
-                            key=f"rol_{member['id']}",
-                            label_visibility="collapsed"
-                        )
-                        if nuevo_rol != rol_display.split()[-1].lower():
-                            try:
-                                conn.table("usuarios_dependientes").update({
-                                    "tipo_rol": nuevo_rol.lower()
-                                }).eq("id", member['id']).execute()
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Error: {e}")
-                
-                with col_m4:
-                    if st.session_state.es_admin:
-                        if st.button("🗑️", key=f"del_{member['id']}", help="Eliminar miembro"):
-                            try:
-                                conn.table("usuarios_dependientes").delete().eq("id", member['id']).execute()
-                                st.success("Miembro eliminado")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Error: {e}")
-                    else:
-                        st.caption("(Solo Admin)")
-
+                col_m1, col_m2, col_m3 = st.columns([3, 1, 1])
+                col_m1.write(f"📧 **{member['email']}** - Rol: {member['rol']}")
+                if col_m2.button("Editar", key=f"edit_{member['id']}", use_container_width=True):
+                    st.session_state[f"edit_mode_{member['id']}"] = True
+                if col_m3.button("Eliminar", key=f"del_{member['id']}", use_container_width=True):
+                    try:
+                        conn.table("usuarios_dependientes").delete().eq("id", member['id']).execute()
+                        st.success(f"Miembro {member['email']} eliminado.")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error al eliminar: {str(e)}")
         else:
             st.info("No tienes miembros adicionales en tu equipo.")
 
         st.write("---")
-
-        # ===== AGREGAR NUEVO MIEMBRO =====
-        if st.session_state.es_admin:
+        
+        if miembros_actuales < LIMITE_MIEMBROS:
             with st.expander("➕ Agregar nuevo miembro"):
                 with st.form("form_nuevo_miembro"):
-                    new_email = st.text_input("Correo del empleado*").strip().lower()
+                    new_email = st.text_input("Correo del empleado en minúsculas*").strip().lower()
                     new_nombre = st.text_input("Nombre del empleado")
-                    new_rol = st.selectbox("Tipo de rol", options=['Trabajador', 'Admin'])
                     new_password = st.text_input("Contraseña (mínimo 6 caracteres)", type="password")
+                    new_rol = st.text_input("Rol (ej: Cajero, Gestor, Supervisor)")
                     
-                    if st.form_submit_button("Crear Miembro", use_container_width=True):
+                    if st.form_submit_button("Crear Miembro y Contraseña", use_container_width=True):
                         errores = []
+                        new_email_clean = new_email.strip().lower()
+                        new_nombre_clean = new_nombre.strip()
+                        new_rol_clean = new_rol.strip()
                         
-                        # Validaciones
-                        if not new_email or "@" not in new_email:
+                        if not new_email_clean or "@" not in new_email_clean:
                             errores.append("Email inválido")
-                        if not new_nombre:
-                            errores.append("Nombre requerido")
+                        if not new_nombre_clean:
+                            errores.append("El nombre es requerido")
+                        if not new_rol_clean:
+                            errores.append("El rol es requerido")
                         if len(new_password) < 6:
-                            errores.append("Contraseña mínimo 6 caracteres")
+                            errores.append("La contraseña debe tener mínimo 6 caracteres")
                         
-                        # Verificar email duplicado
-                        try:
-                            res_exist = conn.table("usuarios_dependientes").select("id").eq("email", new_email).execute()
-                            if res_exist.data:
-                                errores.append(f"Email {new_email} ya registrado")
-                        except:
-                            pass
-                        
-                        # ===== VALIDAR LÍMITES DE PLAN =====
                         if not errores:
-                            validacion = validar_limite_plan(conn, u_id, new_rol)
-                            if not validacion['puede_crear']:
-                                errores.append(f"❌ {validacion['motivo']}")
+                            try:
+                                email_existe = conn.table("usuarios_dependientes").select("id").eq("email", new_email_clean).execute()
+                                if email_existe.data:
+                                    errores.append(f"El email {new_email_clean} ya está registrado")
+                            except:
+                                pass
                         
                         if errores:
                             for error in errores:
-                                st.error(error)
+                                st.error(f"❌ {error}")
                         else:
                             try:
                                 import hashlib
                                 password_hash = hashlib.sha256(new_password.encode()).hexdigest()
-                                
                                 conn.table("usuarios_dependientes").insert({
-                                    "email": new_email,
-                                    "nombre": new_nombre,
+                                    "email": new_email_clean,
+                                    "nombre": new_nombre_clean,
                                     "password_hash": password_hash,
-                                    "tipo_rol": new_rol.lower(),
+                                    "rol": new_rol_clean,
                                     "owner_id": u_id,
                                     "es_activo": True
                                 }).execute()
                                 
-                                st.success(f"✅ {new_nombre} ({new_rol}) creado!")
-                                st.info(f"📧 Email: {new_email}\n🔐 Contraseña: {new_password}")
+                                st.success(f"✅ Miembro creado correctamente!")
+                                st.info(f"📧 Email: {new_email_clean}\n🔐 Contraseña: {new_password}\n\n*Guarda estos datos para que el empleado pueda ingresar*")
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"Error: {str(e)}")
+                                st.error(f"❌ Error al crear miembro: {str(e)}")
         else:
-            st.warning("⚠️ Solo el Admin puede agregar miembros")
-
-        # ===== MOSTRAR LÍMITES DEL PLAN =====
-        st.write("---")
-        st.markdown("### 📋 Límites de tu Plan")
-        
-        limites_info = f"""
-**{plan_actual.upper()}**
-- 🔑 Admins: {limites_plan['admins']} (Actualmente: {len(admins) + 1})
-- 👤 Trabajadores: {limites_plan['trabajadores']} (Actualmente: {len(trabajadores)})
-
-Si necesitas más usuarios, mejora tu plan.
-        """
-        st.markdown(limites_info)
+            st.warning(f"⚠️ Has alcanzado el límite de {LIMITE_MIEMBROS} miembros para tu plan.")
 
     elif st.session_state.config_sub == "Clausulas":
         if st.button("← Volver", key="back_claus"): st.session_state.config_sub = "Principal"; st.rerun()
