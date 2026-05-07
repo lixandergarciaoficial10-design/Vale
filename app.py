@@ -3636,7 +3636,7 @@ elif menu == "Configuración":
                 except Exception as e:
                     st.error("❌ Contraseña actual incorrecta. Intenta de nuevo.")
 
-    elif st.session_state.config_sub == "Plan":
+elif st.session_state.config_sub == "Plan":
         if st.button("← Volver", key="back_plan"): st.session_state.config_sub = "Principal"; st.rerun()
         st.markdown("### 💳 Mi Plan de Suscripción")
         
@@ -3677,15 +3677,23 @@ elif menu == "Configuración":
         with p1:
             st.markdown("""<div style='border:1px solid #E2E8F0; padding:20px; border-radius:15px; text-align:center;'>
                 <h4>STARTER</h4><h2>Free</h2><p>Hasta 50 clientes</p></div>""", unsafe_allow_html=True)
-            st.button("Seleccionar Starter", key="p_1")
+            if st.button("Seleccionar Starter", key="p_1"):
+                st.session_state.plan_seleccionado = {"nombre": "Starter", "precio": precios_activos.get("Starter", 0)}
+                st.rerun()
+
         with p2:
             st.markdown("""<div style='border:2px solid #3B82F6; padding:20px; border-radius:15px; text-align:center;'>
                 <h4 style='color:#3B82F6'>PRO</h4><h2>$29/mo</h2><p>Clientes ilimitados</p></div>""", unsafe_allow_html=True)
-            st.button("Mejorar a PRO", key="p_2")
+            if st.button("Mejorar a PRO", key="p_2"):
+                st.session_state.plan_seleccionado = {"nombre": "Pro", "precio": precios_activos.get("Pro", 29)}
+                st.rerun()
+
         with p3:
             st.markdown("""<div style='border:1px solid #E2E8F0; padding:20px; border-radius:15px; text-align:center;'>
                 <h4>ENTERPRISE</h4><h2>Custom</h2><p>Multi-sucursal</p></div>""", unsafe_allow_html=True)
-            st.button("Contactar Ventas", key="p_3")
+            if st.button("Contactar Ventas", key="p_3"):
+                st.session_state.plan_seleccionado = {"nombre": "Enterprise", "precio": precios_activos.get("Enterprise", 99)}
+                st.rerun()
 
     elif st.session_state.config_sub == "Soporte":
         # 1. Botón para regresar al menú de tarjetas
