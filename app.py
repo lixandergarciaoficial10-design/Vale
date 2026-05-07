@@ -19,19 +19,6 @@ from datetime import datetime
 import streamlit as st
 import re
 from st_supabase_connection import SupabaseConnection
-import pytz  # ← AGREGADO para manejar timezone
-
-# ===== CONFIGURACIÓN DE ZONA HORARIA =====
-# República Dominicana está en UTC-4
-TIMEZONE_RD = pytz.timezone('America/Santo_Domingo')
-
-def obtener_fecha_hoy():
-    """Obtiene la fecha de HOY en la zona horaria de República Dominicana"""
-    return datetime.now(TIMEZONE_RD).date()
-
-def obtener_datetime_ahora():
-    """Obtiene el datetime actual en la zona horaria de República Dominicana"""
-    return datetime.now(TIMEZONE_RD)
 
 # --- INICIALIZACIÓN DE VARIABLES PARA EL MAPA ---
 if "mostrar_mapa" not in st.session_state:
@@ -433,7 +420,7 @@ if "estado_suscripcion" not in st.session_state:
             
             if estado == "activo" and fecha_v:
                 fecha_vencimiento = datetime.strptime(fecha_v, "%Y-%m-%d").date()
-                if obtener_fecha_hoy() <= fecha_vencimiento:
+                if datetime.now().date() <= fecha_vencimiento:
                     st.session_state["estado_suscripcion"] = "valido"
                 else:
                     st.session_state["estado_suscripcion"] = "vencido"
@@ -1056,7 +1043,7 @@ def calcular_atraso_dinamico(fecha_proximo_pago):
     if not fecha_proximo_pago:
         return "Sin fecha", 0
     
-    hoy = obtener_fecha_hoy()  # ← TIMEZONE CORRECTO
+    hoy = datetime.now().date()
     # Convertir si es string, si ya es objeto date se queda igual
     f_pago = datetime.strptime(fecha_proximo_pago, '%Y-%m-%d').date() if isinstance(fecha_proximo_pago, str) else fecha_proximo_pago
     
@@ -1625,7 +1612,7 @@ elif menu == "Gestión de Cobros":
     
     if res.data:
         datos_procesados = []
-        hoy = obtener_fecha_hoy()  # ← USA TIMEZONE CORRECTO (República Dominicana)
+        hoy = datetime.now().date()
         
         for c in res.data:
             cliente_info = c.get('clientes', {})
@@ -1649,45 +1636,46 @@ elif menu == "Gestión de Cobros":
                 fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
                 estado_cuota = str(cuota.get('estado', '')).strip().lower()
                 
-                # Solo procesar cuotas que no están 'COMPLETA'
+                # Solo procesar cuotas PENDIENTES o INCOMPLETAS (no pagadas)
                 if estado_cuota in ['pendiente', 'incompleta']:
-                    todas_pagadas = False # Al haber pendientes, el plan no está totalmente saldado
+                    todas_pagadas = False
                     
-                    # CASO 1: Deuda Real (La fecha ya pasó)[cite: 2]
+                    # CASO 1: Cuota vencida (fecha < hoy)
                     if fecha_cuota < hoy:
                         cuotas_vencidas.append(fecha_cuota)
                     
-                    # CASO 2: Es para hoy[cite: 2]
+                    # CASO 2: Cuota para hoy (fecha = hoy)
                     elif fecha_cuota == hoy:
                         cuota_hoy = fecha_cuota
                         if proxima_cuota_sin_vencer is None:
                             proxima_cuota_sin_vencer = fecha_cuota
                     
-                    # CASO 3: Cuota en próximos 7 días (hoy < fecha <= hoy + 7)[cite: 2]
+                    # CASO 3: Cuota en próximos 7 días (hoy < fecha <= hoy + 7)
                     elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
                         cuotas_proximo_7_dias.append(fecha_cuota)
                         if proxima_cuota_sin_vencer is None:
                             proxima_cuota_sin_vencer = fecha_cuota
-                            
-                    # CASO 4: Cuota futura (Más de 7 días)[cite: 2]
-                    else:
-                        if proxima_cuota_sin_vencer is None:
-                            proxima_cuota_sin_vencer = fecha_cuota
+                    
+                    # CASO 4: Cuota futura (fecha > hoy + 7)
+                    elif proxima_cuota_sin_vencer is None:
+                        proxima_cuota_sin_vencer = fecha_cuota
             
-            # --- DETERMINAR CATEGORÍAS DEL CLIENTE ---
-            cumple_atrasado = len(cuotas_vencidas) > 0  
-            cumple_urgente = cumple_atrasado and (hoy - min(cuotas_vencidas)).days >= 15  
-            cumple_cobrar_hoy = cuota_hoy is not None  
-            cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy
-            cumple_al_dia = not cumple_atrasado and not cumple_cobrar_hoy # No debe nada a la fecha actual[cite: 1, 2]
+            # --- DETERMINAR CATEGORÍAS DEL CLIENTE (PUEDE CUMPLIR VARIAS) ---
+            # Estructura: cliente puede estar en múltiples filtros simultáneamente
+            cumple_atrasado = len(cuotas_vencidas) > 0  # Tiene cuotas vencidas
+            cumple_urgente = len(cuotas_vencidas) > 0 and (hoy - min(cuotas_vencidas)).days >= 15  # Vencidas hace 15+ días
+            cumple_cobrar_hoy = cuota_hoy is not None  # Tiene cuota para hoy
+            cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy  # Próximos 7 días (incluyendo hoy)
+            cumple_al_dia = todas_pagadas  # Sin cuotas pendientes
             
+            # Determinar categoría PRINCIPAL (para mostrar en semáforo)
             categoria_filtro = "📋 Todos"
             dias_hasta_proxima = None
             dias_atraso = None
             
             if cumple_al_dia:
                 categoria_filtro = "🟢 Al Día"
-                dias_hasta_proxima = (proxima_cuota_sin_vencer - hoy).days if proxima_cuota_sin_vencer else 999
+                dias_hasta_proxima = 999
             elif cumple_urgente:
                 categoria_filtro = "🔥 Urgentes"
                 dias_atraso = (hoy - min(cuotas_vencidas)).days
@@ -2038,7 +2026,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                 
                 with col3:
                     cuotas_n = st.number_input("Cantidad de Cuotas", min_value=1, value=4)
-                    fecha_desembolso = st.date_input("Fecha de desembolso", value=obtener_fecha_hoy())
+                    fecha_desembolso = st.date_input("Fecha de desembolso", value=datetime.now().date())
 
                 # --- MOTOR DE CÁLCULO DE FECHAS (SINTAXIS CORREGIDA) ---
                 fechas_proyectadas = []
@@ -2326,7 +2314,7 @@ elif menu == "👥 Todos mis Clientes":
         res_pagos = conn.table("pagos").select("*").execute()
         pagos_db = res_pagos.data if res_pagos.data else []
 
-        hoy = obtener_fecha_hoy()  # ← TIMEZONE CORRECTO
+        hoy = datetime.now().date()
 
         # --- BARRA DE COMANDO: BUSCADOR + PILLS ---
         col_search, col_filter = st.columns([1.2, 2])
@@ -2822,13 +2810,13 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
                         saldo_recorrido = 0
                         retraso_txt = "Incompleto"
                     else:
-                        vencida = f_esp < obtener_fecha_hoy()  # ← TIMEZONE CORRECTO
+                        vencida = f_esp < datetime.now().date()
                         txt = "🚨 VENCIDA" if vencida else "⏳ PENDIENTE"
                         color = "#d93025" if vencida else "#5f6368"
                         estado = f'<span style="color:{color}; font-weight:bold;">{txt}</span>'
                         
                         if vencida:
-                            dias_vencida = (obtener_fecha_hoy() - f_esp).days  # ← TIMEZONE CORRECTO
+                            dias_vencida = (datetime.now().date() - f_esp).days
                             retraso_txt = f'<b>{dias_vencida} días vencida</b>'
 
                     datos_visuales.append({
@@ -3260,7 +3248,7 @@ elif menu == "IA Predictiva":
     def obtener_super_contexto(u_id):
         """Extrae el ADN financiero con un toque de realidad cruda."""
         try:
-            hoy = obtener_fecha_hoy().isoformat()  # ← TIMEZONE CORRECTO
+            hoy = datetime.now().date().isoformat()
             
             # Datos maestros de clientes y saldos
             res_ctas = conn.table("cuentas").select(
