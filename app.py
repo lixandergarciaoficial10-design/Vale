@@ -3636,46 +3636,45 @@ elif menu == "Configuración":
                 except Exception as e:
                     st.error("❌ Contraseña actual incorrecta. Intenta de nuevo.")
 
-elif st.session_state.config_sub == "Plan":
-        if st.button("← Volver", key="back_plan"): 
-            st.session_state.config_sub = "Principal"
-            st.rerun()
+    elif st.session_state.config_sub == "Plan":
+            if st.button("← Volver", key="back_plan"): 
+                st.session_state.config_sub = "Principal"
+                st.rerun()
             
-        st.markdown("### 💳 Mi Plan de Suscripción")
-        st.info(f"Tu plan actual es: **{plan_display}**")
+            st.markdown("### 💳 Mi Plan de Suscripción")
+            st.info(f"Tu plan actual es: **{plan_display}**")
         
-        fecha_vencimiento = biz.get("fecha_vencimiento")
-        if fecha_vencimiento:
-            try:
-                from datetime import datetime, date
-                fecha_obj = datetime.fromisoformat(fecha_vencimiento).date() if isinstance(fecha_vencimiento, str) else fecha_vencimiento
-                dias_restantes = (fecha_obj - date.today()).days
-                if dias_restantes > 0:
-                    st.markdown(f"<div style='background:#DCFCE7;border:1px solid #86EFAC;padding:15px;border-radius:12px;margin-bottom:20px;'><p style='margin:0;color:#166534;font-weight:600;'>✅ Plan activo - Te quedan <b>{dias_restantes} días</b> (Vence: {fecha_obj.strftime('%d/%m/%Y')})</p></div>", unsafe_allow_html=True)
-                elif dias_restantes == 0:
-                    st.markdown("<div style='background:#FED7AA;border:1px solid #FDBA74;padding:15px;border-radius:12px;margin-bottom:20px;'><p style='margin:0;color:#92400E;font-weight:600;'>⚠️ Tu plan vence hoy</p></div>", unsafe_allow_html=True)
-                else:
-                    st.markdown("<div style='background:#FEE2E2;border:1px solid #FECACA;padding:15px;border-radius:12px;margin-bottom:20px;'><p style='margin:0;color:#991B1B;font-weight:600;'>❌ Tu plan ha expirado</p></div>", unsafe_allow_html=True)
-            except:
-                pass
+            fecha_vencimiento = biz.get("fecha_vencimiento")
+            if fecha_vencimiento:
+                try:
+                    from datetime import datetime, date
+                    fecha_obj = datetime.fromisoformat(fecha_vencimiento).date() if isinstance(fecha_vencimiento, str) else fecha_vencimiento
+                    dias_restantes = (fecha_obj - date.today()).days
+                    if dias_restantes > 0:
+                        st.markdown(f"<div style='background:#DCFCE7;border:1px solid #86EFAC;padding:15px;border-radius:12px;margin-bottom:20px;'><p style='margin:0;color:#166534;font-weight:600;'>✅ Plan activo - Te quedan <b>{dias_restantes} días</b> (Vence: {fecha_obj.strftime('%d/%m/%Y')})</p></div>", unsafe_allow_html=True)
+                    elif dias_restantes == 0:
+                        st.markdown("<div style='background:#FED7AA;border:1px solid #FDBA74;padding:15px;border-radius:12px;margin-bottom:20px;'><p style='margin:0;color:#92400E;font-weight:600;'>⚠️ Tu plan vence hoy</p></div>", unsafe_allow_html=True)
+                    else:
+                        st.markdown("<div style='background:#FEE2E2;border:1px solid #FECACA;padding:15px;border-radius:12px;margin-bottom:20px;'><p style='margin:0;color:#991B1B;font-weight:600;'>❌ Tu plan ha expirado</p></div>", unsafe_allow_html=True)
+                except:
+                    pass
         
-        p1, p2, p3 = st.columns(3)
-        with p1:
-            st.markdown("<div style='border:1px solid #E2E8F0;padding:20px;border-radius:15px;text-align:center;'><h4>STARTER</h4><h2>Free</h2><p>Hasta 50 clientes</p></div>", unsafe_allow_html=True)
-            if st.button("Seleccionar Starter", key="p_1"):
-                st.session_state.plan_seleccionado = {"nombre": "Starter", "precio": precios_activos.get("Starter", 0)}
-                st.rerun()
-        with p2:
-            st.markdown("<div style='border:2px solid #3B82F6;padding:20px;border-radius:15px;text-align:center;'><h4 style='color:#3B82F6'>PRO</h4><h2>$29/mo</h2><p>Clientes ilimitados</p></div>", unsafe_allow_html=True)
-            if st.button("Mejorar a PRO", key="p_2"):
-                st.session_state.plan_seleccionado = {"nombre": "Pro", "precio": precios_activos.get("Pro", 29)}
-                st.rerun()
-        with p3:
-            st.markdown("<div style='border:1px solid #E2E8F0;padding:20px;border-radius:15px;text-align:center;'><h4>ENTERPRISE</h4><h2>Custom</h2><p>Multi-sucursal</p></div>", unsafe_allow_html=True)
-            if st.button("Contactar Ventas", key="p_3"):
-                st.session_state.plan_seleccionado = {"nombre": "Enterprise", "precio": precios_activos.get("Enterprise", 99)}
-                st.rerun()
-
+            p1, p2, p3 = st.columns(3)
+            with p1:
+                st.markdown("<div style='border:1px solid #E2E8F0;padding:20px;border-radius:15px;text-align:center;'><h4>STARTER</h4><h2>Free</h2><p>Hasta 50 clientes</p></div>", unsafe_allow_html=True)
+                if st.button("Seleccionar Starter", key="p_1"):
+                    st.session_state.plan_seleccionado = {"nombre": "Starter", "precio": precios_activos.get("Starter", 0)}
+                    st.rerun()
+            with p2:
+                st.markdown("<div style='border:2px solid #3B82F6;padding:20px;border-radius:15px;text-align:center;'><h4 style='color:#3B82F6'>PRO</h4><h2>$29/mo</h2><p>Clientes ilimitados</p></div>", unsafe_allow_html=True)
+                if st.button("Mejorar a PRO", key="p_2"):
+                    st.session_state.plan_seleccionado = {"nombre": "Pro", "precio": precios_activos.get("Pro", 29)}
+                    st.rerun()
+            with p3:
+                st.markdown("<div style='border:1px solid #E2E8F0;padding:20px;border-radius:15px;text-align:center;'><h4>ENTERPRISE</h4><h2>Custom</h2><p>Multi-sucursal</p></div>", unsafe_allow_html=True)
+                if st.button("Contactar Ventas", key="p_3"):
+                    st.session_state.plan_seleccionado = {"nombre": "Enterprise", "precio": precios_activos.get("Enterprise", 99)}
+                    st.rerun()
 
     elif st.session_state.config_sub == "Soporte":
         # 1. Botón para regresar al menú de tarjetas
