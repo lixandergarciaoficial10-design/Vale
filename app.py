@@ -3342,8 +3342,12 @@ elif menu == "Configuración":
         st.session_state.config_sub = "Principal"
 
     # --- 1. CARGA DE DATOS (DENTRO DEL BLOQUE) ---
-    res_conf = conn.table("configuracion").select("*").eq("user_id", u_id).execute()
-    biz = res_conf.data[0] if res_conf.data else {}
+    try:
+        res_conf = conn.table("configuracion").select("id, nombre_negocio, rnc, telefono, logo_base64, tipo_plan, clausulas, fecha_vencimiento, direccion, estado_plan").eq("user_id", u_id).execute()
+        biz = res_conf.data[0] if res_conf.data else {}
+    except Exception as e:
+        st.error(f"Error cargando configuración: {str(e)}")
+        biz = {}
     
     nombre_display = biz.get("nombre_negocio", "CobroYa User").upper()
     plan_display = biz.get("tipo_plan", "Starter").capitalize()
@@ -3426,7 +3430,8 @@ elif menu == "Configuración":
         try:
             count_res = conn.table("usuarios_dependientes").select("id", count="exact").eq("owner_id", u_id).execute()
             total_miembros = (count_res.count or 0) + 1
-        except:
+        except Exception as e:
+            st.warning(f"No se pudieron cargar los miembros del equipo")
             total_miembros = 1
 
         s1, s2, s3 = st.columns(3)
@@ -3486,27 +3491,41 @@ elif menu == "Configuración":
             
             if st.form_submit_button("Guardar Cambios", use_container_width=True):
                 import base64
+                
                 data_update = {
-                    "nombre_negocio": new_nombre,
-                    "rnc": new_rnc,
-                    "telefono": new_tel,
+                    "nombre_negocio": new_nombre if new_nombre else None,
+                    "rnc": new_rnc if new_rnc else None,
+                    "telefono": new_tel if new_tel else None,
                     "user_id": u_id
                 }
-                if uploaded_logo:
-                    base64_logo = base64.b64encode(uploaded_logo.read()).decode()
-                    data_update["logo_base64"] = base64_logo
                 
-                # Upsert en Supabase
-                conn.table("configuracion").upsert(data_update, on_conflict="user_id").execute()
-                st.success("¡Perfil actualizado correctamente!")
-                st.rerun()
+                if uploaded_logo:
+                    try:
+                        base64_logo = base64.b64encode(uploaded_logo.read()).decode()
+                        data_update["logo_base64"] = base64_logo
+                    except Exception as e:
+                        st.error(f"Error al procesar el logo: {str(e)}")
+                
+                try:
+                    conn.table("configuracion").upsert(data_update, on_conflict="user_id").execute()
+                    st.success("¡Perfil actualizado correctamente!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error al guardar: {str(e)}")
 
     elif st.session_state.config_sub == "Equipo":
         if st.button("← Volver", key="back_equipo"): st.session_state.config_sub = "Principal"; st.rerun()
         st.markdown("### 👥 Gestión de Equipo")
         
         LIMITE_MIEMBROS = 15
-        team = conn.table("usuarios_dependientes").select("*").eq("owner_id", u_id).execute().data
+        
+        try:
+            team_res = conn.table("usuarios_dependientes").select("id, email, nombre, rol").eq("owner_id", u_id).execute()
+            team = team_res.data if team_res.data else []
+        except Exception as e:
+            st.error(f"Error cargando equipo: {str(e)}")
+            team = []
+        
         miembros_actuales = len(team) if team else 0
         
         st.markdown(f"<p style='color:#64748B; font-size:13px;'><b>{miembros_actuales}/{LIMITE_MIEMBROS}</b> miembros</p>", unsafe_allow_html=True)
@@ -3515,13 +3534,13 @@ elif menu == "Configuración":
             st.markdown("#### Miembros Actuales")
             for member in team:
                 col_m1, col_m2, col_m3 = st.columns([3, 1, 1])
-                col_m1.write(f"📧 **{member['email']}** - Rol: {member['rol']}")
+                col_m1.write(f"📧 **{member.get('email', 'N/A')}** - Rol: {member.get('rol', 'N/A')}")
                 if col_m2.button("Editar", key=f"edit_{member['id']}", use_container_width=True):
                     st.session_state[f"edit_mode_{member['id']}"] = True
                 if col_m3.button("Eliminar", key=f"del_{member['id']}", use_container_width=True):
                     try:
                         conn.table("usuarios_dependientes").delete().eq("id", member['id']).execute()
-                        st.success(f"Miembro {member['email']} eliminado.")
+                        st.success(f"Miembro {member.get('email', 'N/A')} eliminado.")
                         st.rerun()
                     except Exception as e:
                         st.error(f"Error al eliminar: {str(e)}")
@@ -3558,8 +3577,8 @@ elif menu == "Configuración":
                                 email_existe = conn.table("usuarios_dependientes").select("id").eq("email", new_email_clean).execute()
                                 if email_existe.data:
                                     errores.append(f"El email {new_email_clean} ya está registrado")
-                            except:
-                                pass
+                            except Exception as e:
+                                st.warning("No se pudo verificar si el email existe")
                         
                         if errores:
                             for error in errores:
@@ -3591,21 +3610,26 @@ elif menu == "Configuración":
         
         try:
             res_clausulas = conn.table("configuracion").select("clausulas").eq("user_id", u_id).execute()
-            clausula_actual = res_clausulas.data[0].get("clausulas", "") if res_clausulas.data else "Escribe aquí las condiciones legales..."
-        except:
-            clausula_actual = "Escribe aquí las condiciones legales..."
+            clausula_actual = res_clausulas.data[0].get("clausulas", "") if res_clausulas.data else ""
+        except Exception as e:
+            st.warning("No se pudieron cargar las cláusulas actuales")
+            clausula_actual = ""
         
-        new_clausulas = st.text_area("Texto de las Cláusulas", clausula_actual, height=300)
+        new_clausulas = st.text_area("Texto de las Cláusulas", clausula_actual or "Escribe aquí las condiciones legales...", height=300)
         
         if st.button("Actualizar Cláusulas"):
             if clausula_actual and clausula_actual != "Escribe aquí las condiciones legales...":
                 st.warning("⚠️ Ya tienes cláusulas guardadas. Se reemplazarán.")
             
-            conn.table("configuracion").upsert({
-                "user_id": u_id, "clausulas": new_clausulas
-            }, on_conflict="user_id").execute()
-            st.success("Cláusulas actualizadas correctamente.")
-            st.rerun()
+            try:
+                conn.table("configuracion").upsert({
+                    "user_id": u_id, 
+                    "clausulas": new_clausulas
+                }, on_conflict="user_id").execute()
+                st.success("Cláusulas actualizadas correctamente.")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al actualizar cláusulas: {str(e)}")
 
     elif st.session_state.config_sub == "Seguridad":
         if st.button("← Volver", key="back_seg"): st.session_state.config_sub = "Principal"; st.rerun()
@@ -3619,62 +3643,70 @@ elif menu == "Configuración":
             
             if st.form_submit_button("Actualizar Seguridad"):
                 try:
-                    validacion = conn.auth.sign_in_with_password({
-                        "email": st.session_state.user.email if hasattr(st.session_state.user, 'email') else st.session_state.user.get('email', ''),
-                        "password": old_pass
-                    })
+                    user_email = st.session_state.user.email if hasattr(st.session_state.user, 'email') else st.session_state.user.get('email', '')
                     
-                    if new_pass == confirm_pass:
-                        if len(new_pass) < 6:
-                            st.error("La nueva contraseña debe tener al menos 6 caracteres.")
-                        else:
-                            conn.auth.update_user({"password": new_pass})
-                            st.success("Contraseña actualizada correctamente.")
-                            st.rerun()
+                    if not user_email:
+                        st.error("No se encontró el email del usuario")
                     else:
-                        st.error("Las contraseñas nuevas no coinciden.")
+                        try:
+                            validacion = conn.auth.sign_in_with_password({
+                                "email": user_email,
+                                "password": old_pass
+                            })
+                            
+                            if new_pass == confirm_pass:
+                                if len(new_pass) < 6:
+                                    st.error("La nueva contraseña debe tener al menos 6 caracteres.")
+                                else:
+                                    conn.auth.update_user({"password": new_pass})
+                                    st.success("Contraseña actualizada correctamente.")
+                                    st.rerun()
+                            else:
+                                st.error("Las contraseñas nuevas no coinciden.")
+                        except Exception as e:
+                            st.error("❌ Contraseña actual incorrecta. Intenta de nuevo.")
                 except Exception as e:
-                    st.error("❌ Contraseña actual incorrecta. Intenta de nuevo.")
+                    st.error(f"Error en el proceso de autenticación: {str(e)}")
 
     elif st.session_state.config_sub == "Plan":
-            if st.button("← Volver", key="back_plan"): 
-                st.session_state.config_sub = "Principal"
+        if st.button("← Volver", key="back_plan"): 
+            st.session_state.config_sub = "Principal"
+            st.rerun()
+        
+        st.markdown("### 💳 Mi Plan de Suscripción")
+        st.info(f"Tu plan actual es: **{plan_display}**")
+    
+        fecha_vencimiento = biz.get("fecha_vencimiento")
+        if fecha_vencimiento:
+            try:
+                from datetime import datetime, date
+                fecha_obj = datetime.fromisoformat(fecha_vencimiento).date() if isinstance(fecha_vencimiento, str) else fecha_vencimiento
+                dias_restantes = (fecha_obj - date.today()).days
+                if dias_restantes > 0:
+                    st.markdown(f"<div style='background:#DCFCE7;border:1px solid #86EFAC;padding:15px;border-radius:12px;margin-bottom:20px;'><p style='margin:0;color:#166534;font-weight:600;'>✅ Plan activo - Te quedan <b>{dias_restantes} días</b> (Vence: {fecha_obj.strftime('%d/%m/%Y')})</p></div>", unsafe_allow_html=True)
+                elif dias_restantes == 0:
+                    st.markdown("<div style='background:#FED7AA;border:1px solid #FDBA74;padding:15px;border-radius:12px;margin-bottom:20px;'><p style='margin:0;color:#92400E;font-weight:600;'>⚠️ Tu plan vence hoy</p></div>", unsafe_allow_html=True)
+                else:
+                    st.markdown("<div style='background:#FEE2E2;border:1px solid #FECACA;padding:15px;border-radius:12px;margin-bottom:20px;'><p style='margin:0;color:#991B1B;font-weight:600;'>❌ Tu plan ha expirado</p></div>", unsafe_allow_html=True)
+            except Exception as e:
+                st.warning("No se pudo procesar la fecha de vencimiento")
+    
+        p1, p2, p3 = st.columns(3)
+        with p1:
+            st.markdown("<div style='border:1px solid #E2E8F0;padding:20px;border-radius:15px;text-align:center;'><h4>STARTER</h4><h2>Free</h2><p>Hasta 50 clientes</p></div>", unsafe_allow_html=True)
+            if st.button("Seleccionar Starter", key="p_1"):
+                st.session_state.plan_seleccionado = {"nombre": "Starter", "precio": 0}
                 st.rerun()
-            
-            st.markdown("### 💳 Mi Plan de Suscripción")
-            st.info(f"Tu plan actual es: **{plan_display}**")
-        
-            fecha_vencimiento = biz.get("fecha_vencimiento")
-            if fecha_vencimiento:
-                try:
-                    from datetime import datetime, date
-                    fecha_obj = datetime.fromisoformat(fecha_vencimiento).date() if isinstance(fecha_vencimiento, str) else fecha_vencimiento
-                    dias_restantes = (fecha_obj - date.today()).days
-                    if dias_restantes > 0:
-                        st.markdown(f"<div style='background:#DCFCE7;border:1px solid #86EFAC;padding:15px;border-radius:12px;margin-bottom:20px;'><p style='margin:0;color:#166534;font-weight:600;'>✅ Plan activo - Te quedan <b>{dias_restantes} días</b> (Vence: {fecha_obj.strftime('%d/%m/%Y')})</p></div>", unsafe_allow_html=True)
-                    elif dias_restantes == 0:
-                        st.markdown("<div style='background:#FED7AA;border:1px solid #FDBA74;padding:15px;border-radius:12px;margin-bottom:20px;'><p style='margin:0;color:#92400E;font-weight:600;'>⚠️ Tu plan vence hoy</p></div>", unsafe_allow_html=True)
-                    else:
-                        st.markdown("<div style='background:#FEE2E2;border:1px solid #FECACA;padding:15px;border-radius:12px;margin-bottom:20px;'><p style='margin:0;color:#991B1B;font-weight:600;'>❌ Tu plan ha expirado</p></div>", unsafe_allow_html=True)
-                except:
-                    pass
-        
-            p1, p2, p3 = st.columns(3)
-            with p1:
-                st.markdown("<div style='border:1px solid #E2E8F0;padding:20px;border-radius:15px;text-align:center;'><h4>STARTER</h4><h2>Free</h2><p>Hasta 50 clientes</p></div>", unsafe_allow_html=True)
-                if st.button("Seleccionar Starter", key="p_1"):
-                    st.session_state.plan_seleccionado = {"nombre": "Starter", "precio": precios_activos.get("Starter", 0)}
-                    st.rerun()
-            with p2:
-                st.markdown("<div style='border:2px solid #3B82F6;padding:20px;border-radius:15px;text-align:center;'><h4 style='color:#3B82F6'>PRO</h4><h2>$29/mo</h2><p>Clientes ilimitados</p></div>", unsafe_allow_html=True)
-                if st.button("Mejorar a PRO", key="p_2"):
-                    st.session_state.plan_seleccionado = {"nombre": "Pro", "precio": precios_activos.get("Pro", 29)}
-                    st.rerun()
-            with p3:
-                st.markdown("<div style='border:1px solid #E2E8F0;padding:20px;border-radius:15px;text-align:center;'><h4>ENTERPRISE</h4><h2>Custom</h2><p>Multi-sucursal</p></div>", unsafe_allow_html=True)
-                if st.button("Contactar Ventas", key="p_3"):
-                    st.session_state.plan_seleccionado = {"nombre": "Enterprise", "precio": precios_activos.get("Enterprise", 99)}
-                    st.rerun()
+        with p2:
+            st.markdown("<div style='border:2px solid #3B82F6;padding:20px;border-radius:15px;text-align:center;'><h4 style='color:#3B82F6'>PRO</h4><h2>$29/mo</h2><p>Clientes ilimitados</p></div>", unsafe_allow_html=True)
+            if st.button("Mejorar a PRO", key="p_2"):
+                st.session_state.plan_seleccionado = {"nombre": "Pro", "precio": 29}
+                st.rerun()
+        with p3:
+            st.markdown("<div style='border:1px solid #E2E8F0;padding:20px;border-radius:15px;text-align:center;'><h4>ENTERPRISE</h4><h2>Custom</h2><p>Multi-sucursal</p></div>", unsafe_allow_html=True)
+            if st.button("Contactar Ventas", key="p_3"):
+                st.session_state.plan_seleccionado = {"nombre": "Enterprise", "precio": 99}
+                st.rerun()
 
     elif st.session_state.config_sub == "Soporte":
         # 1. Botón para regresar al menú de tarjetas
