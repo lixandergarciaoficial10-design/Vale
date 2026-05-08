@@ -1404,7 +1404,7 @@ if menu == "Panel de Control":
 elif menu == "Gestión de Cobros":
     st.header("⚡ Centro de Recaudación")
     
-# Inicializar lista de ruta para el mapa
+    # Inicializar lista de ruta para el mapa
     if 'ruta_seleccion' not in st.session_state:
         st.session_state.ruta_seleccion = []
     
@@ -1424,20 +1424,19 @@ elif menu == "Gestión de Cobros":
         
         with tab1:
             if plan:
-                # LÓGICA DE ESTADO DE CUENTA DINÁMICO
-                total_pagado_acumulado = sum(float(p.get('monto_pagado', 0)) for p in pagos)
-                progreso = total_pagado_acumulado
+                # LÓGICA DE ESTADO DE CUENTA DINÁMICO CON SALDO_RECORRIDO
+                saldo_recorrido = sum(float(p.get('monto_pagado', 0)) for p in pagos)
                 
                 datos_plan = []
                 for cuota in plan:
                     monto_esperado = float(cuota['monto_cuota'])
                     
-                    if progreso >= monto_esperado:
+                    if saldo_recorrido >= monto_esperado:
                         estado_actual = "✅ COMPLETA"
-                        progreso -= monto_esperado
-                    elif progreso > 0:
+                        saldo_recorrido -= monto_esperado
+                    elif saldo_recorrido > 0:
                         estado_actual = "⚠️ INCOMPLETA"
-                        progreso = 0
+                        saldo_recorrido = 0
                     else:
                         estado_actual = "⏳ PENDIENTE"
                     
@@ -1450,7 +1449,6 @@ elif menu == "Gestión de Cobros":
                 
                 st.table(pd.DataFrame(datos_plan))
             else:
-                # Validación exacta del requisimiento
                 st.warning("No hay un plan registrado para esta cuenta.")
         
         with tab2:
@@ -1460,7 +1458,7 @@ elif menu == "Gestión de Cobros":
                 df_pagos['Fecha'] = pd.to_datetime(df_pagos[col_fecha]).dt.date
                 
                 df_pagos['Abono Capital'] = df_pagos['monto_pagado'].apply(lambda x: f"RD$ {float(x):,.2f}")
-                df_pagos['Mora Pagada'] = df_pagos['mora_pagada'].apply(lambda x: f"RD$ {float(x):,.2f}")
+                df_pagos['Mora Pagada'] = df_pagos['mora_pagada'].apply(lambda x: f"RD$ {float(x) if x else 0:,.2f}")
                 
                 cols_finales = ['codigo_factura', 'Fecha', 'Abono Capital', 'Mora Pagada']
                 df_mostrar = df_pagos[[c for c in cols_finales if c in df_pagos.columns]]
@@ -1468,13 +1466,12 @@ elif menu == "Gestión de Cobros":
                 st.table(df_mostrar)
                 
                 total_cap = sum(float(p.get('monto_pagado', 0)) for p in pagos)
-                total_mora = sum(float(p.get('mora_pagada', 0)) for p in pagos)
+                total_mora = sum(float(p.get('mora_pagada', 0)) if p.get('mora_pagada') else 0 for p in pagos)
                 
                 c1, c2 = st.columns(2)
                 c1.metric("Total Capital Recibido", f"RD$ {total_cap:,.2f}")
                 c2.metric("Total Moras Recibidas", f"RD$ {total_mora:,.2f}")
             else:
-                # Validación mejorada: si no hay pagos
                 if not plan:
                     st.info("No hay un plan registrado para esta cuenta.")
                 else:
@@ -1504,21 +1501,22 @@ elif menu == "Gestión de Cobros":
                     conn.table("pagos").insert({
                         "cuenta_id": str(item['id']),
                         "monto_pagado": float(monto),
-                        "mora_pagada": float(mora),
+                        "mora_pagada": float(mora) if mora else 0,
                         "codigo_factura": codigo_random,
-                        "user_id": str(u_id)
+                        "user_id": str(u_id),
+                        "fecha_pago": str(datetime.now().isoformat())
                     }).execute()
                     
                     n_bal = float(item.get('balance_pendiente', 0)) - monto
                     conn.table("cuentas").update({
-                        "balance_pendiente": n_bal,
+                        "balance_pendiente": max(0, n_bal),
                         "estado": "Saldado" if n_bal <= 0 else "Activo",
                         "proximo_pago": str(fecha),
                         "mora_acumulada": 0
                     }).eq("id", item['id']).execute()
                     
                     st.session_state[f"recibo_{item['id']}"] = {
-                        "monto": monto, "mora": mora, "pend": n_bal, "fecha": str(fecha), "factura": codigo_random
+                        "monto": monto, "mora": mora if mora else 0, "pend": max(0, n_bal), "fecha": str(fecha), "factura": codigo_random
                     }
                     st.rerun()
                 except Exception as e:
@@ -1539,58 +1537,61 @@ elif menu == "Gestión de Cobros":
         c2.metric("Nuevo Balance", f"RD$ {r['pend']:,.2f}")
         
         st.divider()
-        pdf_bytes = generar_pdf_recibo_pro(item['aux_nombre'], r['monto'], r['pend'], u_id, mora=r['mora'])
-        st.download_button(
-            label="🖨️ IMPRIMIR RECIBO TÉRMICO",
-            data=pdf_bytes,
-            file_name=f"Recibo_{r['factura']}.pdf",
-            mime="application/pdf",
-            type="primary",
-            use_container_width=True
-        )
+        try:
+            pdf_bytes = generar_pdf_recibo_pro(item['aux_nombre'], r['monto'], r['pend'], u_id, mora=r['mora'])
+            st.download_button(
+                label="🖨️ IMPRIMIR RECIBO TÉRMICO",
+                data=pdf_bytes,
+                file_name=f"Recibo_{r['factura']}.pdf",
+                mime="application/pdf",
+                type="primary",
+                use_container_width=True
+            )
+        except Exception as e:
+            st.warning(f"No se pudo generar el PDF: {str(e)}")
         
         import urllib.parse
-        clean_tel = "".join(filter(str.isdigit, str(item['clientes']['telefono'])))
-        msg = (f"✅ *RECIBO DE PAGO ({r['factura']})*\n\n"
-               f"Cliente: *{item['aux_nombre']}*\n"
-               f"Abono: *RD$ {r['monto']:,.2f}*\n"
-               f"Mora: *RD$ {r['mora']:,.2f}*\n"
-               f"Balance Pendiente: *RD$ {r['pend']:,.2f}*\n"
-               f"Próximo Pago: {r['fecha']}\n\n"
-               f"¡Gracias por su puntualidad!")
-        url = f"https://wa.me/1{clean_tel}?text={urllib.parse.quote(msg)}"
-        st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%;background-color:#25D366;color:white;border:none;padding:12px;border-radius:10px;font-weight:bold;cursor:pointer;">WhatsApp 💬</button></a>', unsafe_allow_html=True)
+        try:
+            clean_tel = "".join(filter(str.isdigit, str(item.get('clientes', {}).get('telefono', ''))))
+            if clean_tel:
+                msg = (f"✅ *RECIBO DE PAGO ({r['factura']})*\n\n"
+                       f"Cliente: *{item['aux_nombre']}*\n"
+                       f"Abono: *RD$ {r['monto']:,.2f}*\n"
+                       f"Mora: *RD$ {r['mora']:,.2f}*\n"
+                       f"Balance Pendiente: *RD$ {r['pend']:,.2f}*\n"
+                       f"Próximo Pago: {r['fecha']}\n\n"
+                       f"¡Gracias por su puntualidad!")
+                url = f"https://wa.me/1{clean_tel}?text={urllib.parse.quote(msg)}"
+                st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%;background-color:#25D366;color:white;border:none;padding:12px;border-radius:10px;font-weight:bold;cursor:pointer;">WhatsApp 💬</button></a>', unsafe_allow_html=True)
+        except Exception as e:
+            st.warning(f"No se pudo preparar el enlace de WhatsApp")
         
         if st.button("✅ FINALIZAR", use_container_width=True):
             st.rerun()
 
-# --- 4. DETECTOR MAESTRO DE RECIBOS (FUERA DE TODO BUCLE) ---
-    # Esto debe ejecutarse antes que cualquier filtro para que no importe si la cuenta se saldó
+    # --- 4. DETECTOR MAESTRO DE RECIBOS (FUERA DE TODO BUCLE) ---
     for key in list(st.session_state.keys()):
         if key.startswith("recibo_"):
             id_para_recibo = key.replace("recibo_", "")
-            # Buscamos la data directamente en la tabla para asegurar que tenemos el nombre
-            # sin importar si está saldada o no
-            res_recibo = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("id", id_para_recibo).single().execute()
-            
-            if res_recibo.data:
-                item_recibo = res_recibo.data
-                item_recibo['aux_nombre'] = item_recibo.get('clientes', {}).get('nombre', 'Cliente')
+            try:
+                res_recibo = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("id", id_para_recibo).single().execute()
                 
-                # Lanzamos la modal y limpiamos el estado
-                mostrar_recibo_modal(item_recibo, st.session_state[key], u_id)
-                del st.session_state[key]
-                # No hacemos rerun aquí, dejamos que la modal se procese
+                if res_recibo.data:
+                    item_recibo = res_recibo.data
+                    item_recibo['aux_nombre'] = item_recibo.get('clientes', {}).get('nombre', 'Cliente')
+                    
+                    mostrar_recibo_modal(item_recibo, st.session_state[key], u_id)
+                    del st.session_state[key]
+            except Exception as e:
+                st.warning(f"Error al cargar recibo: {str(e)}")
 
-# --- 5. CONTROLES SUPERIORES (Buscador + Filtro Pro) ---
+    # --- 5. CONTROLES SUPERIORES (Buscador + Filtro Pro) ---
     col_search, col_filter, col_view = st.columns([2, 1.2, 0.8])
     
     with col_search:
-        # Buscador principal
         search_term = st.text_input("🔍 Buscar cliente...", placeholder="Nombre, Cédula o Teléfono...", label_visibility="collapsed").lower()
     
     with col_filter:
-        # Filtro de tiempo minimalista - AGREGADA OPCIÓN "AL DÍA"
         opcion_filtro = st.selectbox(
             "Filtrar cobros",
             options=["📋 Todos", "🔥 Urgentes", "📅 Cobrarles Hoy", "⏳ Próx. 7 Días", "🚨 Atrasados", "🟢 Al Día"],
@@ -1598,145 +1599,253 @@ elif menu == "Gestión de Cobros":
         )
     
     with col_view:
-        # Toggle de estado
         modo_analisis = st.toggle("📈 Análisis", help="Ver cuentas saldadas")
 
     # --- 6. CONSULTA DE DATOS PARA LA LISTA ---
-    query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula, latitud, longitud)").eq("user_id", u_id)
-    if modo_analisis:
-        query = query.lte("balance_pendiente", 0)
-    else:
-        query = query.gt("balance_pendiente", 0)
-        
-    res = query.execute()
+    try:
+        query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula, latitud, longitud)").eq("user_id", u_id)
+        if modo_analisis:
+            query = query.lte("balance_pendiente", 0)
+        else:
+            query = query.gt("balance_pendiente", 0)
+            
+        res = query.execute()
+    except Exception as e:
+        st.error(f"Error al cargar cuentas: {str(e)}")
+        res = None
     
-    if res.data:
+    if res and res.data:
         datos_procesados = []
         hoy = datetime.now().date()
         
         for c in res.data:
-            cliente_info = c.get('clientes', {})
-            nombre = cliente_info.get('nombre', 'Cliente')
-            cedula = cliente_info.get('cedula', '')
-            telefono = cliente_info.get('telefono', '')
-            
-            # --- NUEVA LÓGICA ROBUSTA: Obtener datos del PLAN DE CUOTAS REAL ---
-            cuenta_id = c['id']
-            res_plan = conn.table("plan_cuotas").select("fecha_esperada, estado").eq("cuenta_id", cuenta_id).order("numero_cuota").execute()
-            plan_cuotas = res_plan.data if res_plan.data else []
-            
-            # ANÁLISIS COMPLETO DE TODAS LAS CUOTAS
-            todas_pagadas = True
-            proxima_cuota_sin_vencer = None  # Primera cuota pendiente sin vencer
-            cuotas_vencidas = []  # TODAS las cuotas vencidas sin pagar
-            cuota_hoy = None  # Cuota con fecha = hoy
-            cuotas_proximo_7_dias = []  # Cuotas pendientes en próximos 7 días
-            
-            for cuota in plan_cuotas:
-                fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
-                estado_cuota = str(cuota.get('estado', '')).strip().lower()
+            try:
+                cliente_info = c.get('clientes', {})
+                nombre = cliente_info.get('nombre', 'Cliente')
+                cedula = cliente_info.get('cedula', '')
+                telefono = cliente_info.get('telefono', '')
                 
-                # Solo procesar cuotas PENDIENTES o INCOMPLETAS (no pagadas)
-                if estado_cuota in ['pendiente', 'incompleta']:
-                    todas_pagadas = False
+                # --- NUEVA LÓGICA CON SALDO_RECORRIDO (WATERFALL) ---
+                cuenta_id = c['id']
+                
+                # PASO 1: Obtener TODOS los pagos realizados
+                try:
+                    res_pagos = conn.table("pagos").select("monto_pagado").eq("cuenta_id", cuenta_id).execute()
+                    pagos = res_pagos.data if res_pagos.data else []
+                except Exception as e:
+                    st.warning(f"Error cargando pagos para {nombre}")
+                    pagos = []
+                
+                # PASO 2: Obtener plan de cuotas
+                try:
+                    res_plan = conn.table("plan_cuotas").select("numero_cuota, fecha_esperada, monto_cuota").eq("cuenta_id", cuenta_id).order("numero_cuota").execute()
+                    plan_cuotas = res_plan.data if res_plan.data else []
+                except Exception as e:
+                    st.warning(f"Error cargando plan para {nombre}")
+                    plan_cuotas = []
+                
+                # PASO 3: Calcular saldo_recorrido inicial (suma de TODOS los pagos)
+                saldo_recorrido = sum(float(p.get('monto_pagado', 0)) for p in pagos)
+                
+                # PASO 4: WATERFALL - Recorrer plan y determinar cuotas pagadas vs pendientes
+                todas_pagadas = True
+                cuota_hoy = None
+                proxima_cuota_sin_vencer = None
+                cuotas_vencidas = []
+                cuotas_proximo_7_dias = []
+                cuota_primera_pendiente_real = None  # Primera cuota SIN cobertura de pagos
+                
+                for cuota in plan_cuotas:
+                    monto_cuota = float(cuota['monto_cuota'])
+                    fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
                     
-                    # CASO 1: Cuota vencida (fecha < hoy)
-                    if fecha_cuota < hoy:
-                        cuotas_vencidas.append(fecha_cuota)
-                    
-                    # CASO 2: Cuota para hoy (fecha = hoy)
-                    elif fecha_cuota == hoy:
-                        cuota_hoy = fecha_cuota
-                        if proxima_cuota_sin_vencer is None:
+                    # LÓGICA DE WATERFALL: ¿Tiene cobertura de pagos acumulados?
+                    if saldo_recorrido >= monto_cuota:
+                        # Esta cuota ESTÁ PAGADA (hay dinero acumulado para cubrirla)
+                        saldo_recorrido -= monto_cuota
+                        estado_cuota = "pagada"
+                    else:
+                        # Esta cuota NO ESTÁ PAGADA (sin cobertura de pagos acumulados)
+                        todas_pagadas = False
+                        estado_cuota = "pendiente"
+                        
+                        # Registrar primera cuota pendiente REAL (sin cobertura)
+                        if cuota_primera_pendiente_real is None:
+                            cuota_primera_pendiente_real = fecha_cuota
+                        
+                        # --- AHORA SÍ COMPARAR FECHAS CON LA REALIDAD ---
+                        # Solo procesamos cuotas PENDIENTES para categorizar
+                        if fecha_cuota < hoy:
+                            # CUOTA VENCIDA (pasó la fecha y no está pagada)
+                            cuotas_vencidas.append(fecha_cuota)
+                        elif fecha_cuota == hoy:
+                            # CUOTA PARA HOY
+                            cuota_hoy = fecha_cuota
+                            if proxima_cuota_sin_vencer is None:
+                                proxima_cuota_sin_vencer = fecha_cuota
+                        elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
+                            # CUOTA EN PRÓXIMOS 7 DÍAS
+                            cuotas_proximo_7_dias.append(fecha_cuota)
+                            if proxima_cuota_sin_vencer is None:
+                                proxima_cuota_sin_vencer = fecha_cuota
+                        elif proxima_cuota_sin_vencer is None:
+                            # CUOTA FUTURA (sin cobertura)
                             proxima_cuota_sin_vencer = fecha_cuota
-                    
-                    # CASO 3: Cuota en próximos 7 días (hoy < fecha <= hoy + 7)
-                    elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
-                        cuotas_proximo_7_dias.append(fecha_cuota)
-                        if proxima_cuota_sin_vencer is None:
-                            proxima_cuota_sin_vencer = fecha_cuota
-                    
-                    # CASO 4: Cuota futura (fecha > hoy + 7)
-                    elif proxima_cuota_sin_vencer is None:
-                        proxima_cuota_sin_vencer = fecha_cuota
-            
-            # --- DETERMINAR CATEGORÍAS DEL CLIENTE (PUEDE CUMPLIR VARIAS) ---
-            # Estructura: cliente puede estar en múltiples filtros simultáneamente
-            cumple_atrasado = len(cuotas_vencidas) > 0  # Tiene cuotas vencidas
-            cumple_urgente = len(cuotas_vencidas) > 0 and (hoy - min(cuotas_vencidas)).days >= 15  # Vencidas hace 15+ días
-            cumple_cobrar_hoy = cuota_hoy is not None  # Tiene cuota para hoy
-            cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy  # Próximos 7 días (incluyendo hoy)
-            cumple_al_dia = todas_pagadas  # Sin cuotas pendientes
-            
-            # Determinar categoría PRINCIPAL (para mostrar en semáforo)
-            categoria_filtro = "📋 Todos"
-            dias_hasta_proxima = None
-            dias_atraso = None
-            
-            if cumple_al_dia:
-                categoria_filtro = "🟢 Al Día"
-                dias_hasta_proxima = 999
-            elif cumple_urgente:
-                categoria_filtro = "🔥 Urgentes"
-                dias_atraso = (hoy - min(cuotas_vencidas)).days
-            elif cumple_atrasado:
-                categoria_filtro = "🚨 Atrasados"
-                dias_atraso = (hoy - min(cuotas_vencidas)).days
-            elif cumple_cobrar_hoy:
-                categoria_filtro = "📅 Cobrarles Hoy"
-                dias_hasta_proxima = 0
-            elif cumple_proximo_7:
-                categoria_filtro = "⏳ Próx. 7 Días"
-                if proxima_cuota_sin_vencer:
-                    dias_hasta_proxima = (proxima_cuota_sin_vencer - hoy).days
-            elif proxima_cuota_sin_vencer:
+                
+                # --- DETERMINAR CATEGORÍAS DEL CLIENTE ---
+                cumple_al_dia = todas_pagadas  # Sin cuotas pendientes reales
+                cumple_atrasado = len(cuotas_vencidas) > 0  # Tiene cuotas vencidas sin pagar
+                cumple_urgente = len(cuotas_vencidas) > 0 and (hoy - min(cuotas_vencidas)).days >= 15  # Vencidas hace 15+ días
+                cumple_cobrar_hoy = cuota_hoy is not None  # Tiene cuota para hoy sin pagar
+                cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy  # Próximos 7 días (incluyendo hoy)
+                
+                # Determinar categoría PRINCIPAL (para mostrar)
                 categoria_filtro = "📋 Todos"
-                dias_hasta_proxima = (proxima_cuota_sin_vencer - hoy).days
-            
-            # --- APLICAR FILTRO SELECCIONADO CON LÓGICA ROBUSTA ---
-            pasa_filtro = False
-            if opcion_filtro == "📋 Todos":
-                pasa_filtro = True  # Todos pasan
-            elif opcion_filtro == "🔥 Urgentes":
-                pasa_filtro = cumple_urgente  # Solo urgentes
-            elif opcion_filtro == "📅 Cobrarles Hoy":
-                pasa_filtro = cumple_cobrar_hoy  # Solo hoy
-            elif opcion_filtro == "⏳ Próx. 7 Días":
-                pasa_filtro = cumple_proximo_7  # Próximos 7 (incluyendo hoy)
-            elif opcion_filtro == "🚨 Atrasados":
-                pasa_filtro = cumple_atrasado  # Atrasados (incluye urgentes)
-            elif opcion_filtro == "🟢 Al Día":
-                pasa_filtro = cumple_al_dia  # Solo al día
-            
-            # --- LÓGICA DEL BUSCADOR ---
-            if pasa_filtro and (search_term in nombre.lower() or 
-                search_term in str(cedula).lower() or 
-                search_term in str(telefono).lower()):
+                dias_hasta_proxima = None
+                dias_atraso = None
                 
-                c['aux_nombre'] = nombre
-                c['aux_categoria'] = categoria_filtro
-                c['aux_dias_atraso'] = dias_atraso if dias_atraso is not None else 0
-                c['aux_dias_proximidad'] = dias_hasta_proxima if dias_hasta_proxima is not None else 999
-                c['aux_proxima_fecha'] = proxima_cuota_sin_vencer
-                c['aux_cuota_vencida'] = min(cuotas_vencidas) if cuotas_vencidas else None
-                c['aux_todas_pagadas'] = todas_pagadas
-                
-                # Para ordenamiento por prioridad
-                if cumple_urgente:
-                    c['aux_prioridad'] = 1000 + (hoy - min(cuotas_vencidas)).days  # Urgentes primero
+                if cumple_al_dia:
+                    categoria_filtro = "🟢 Al Día"
+                    dias_hasta_proxima = 999
+                elif cumple_urgente:
+                    categoria_filtro = "🔥 Urgentes"
+                    dias_atraso = (hoy - min(cuotas_vencidas)).days
                 elif cumple_atrasado:
-                    c['aux_prioridad'] = 900 + (hoy - min(cuotas_vencidas)).days  # Atrasados segundo
+                    categoria_filtro = "🚨 Atrasados"
+                    dias_atraso = (hoy - min(cuotas_vencidas)).days
                 elif cumple_cobrar_hoy:
-                    c['aux_prioridad'] = 500  # Hoy tercero
+                    categoria_filtro = "📅 Cobrarles Hoy"
+                    dias_hasta_proxima = 0
                 elif cumple_proximo_7:
-                    c['aux_prioridad'] = 400 - (proxima_cuota_sin_vencer - hoy).days if proxima_cuota_sin_vencer else 400
-                else:
-                    c['aux_prioridad'] = 0  # Futuros último
+                    categoria_filtro = "⏳ Próx. 7 Días"
+                    if proxima_cuota_sin_vencer:
+                        dias_hasta_proxima = (proxima_cuota_sin_vencer - hoy).days
+                elif proxima_cuota_sin_vencer:
+                    categoria_filtro = "📋 Todos"
+                    dias_hasta_proxima = (proxima_cuota_sin_vencer - hoy).days
                 
-                datos_procesados.append(c)
-
+                # --- APLICAR FILTRO SELECCIONADO ---
+                pasa_filtro = False
+                if opcion_filtro == "📋 Todos":
+                    pasa_filtro = True
+                elif opcion_filtro == "🔥 Urgentes":
+                    pasa_filtro = cumple_urgente
+                elif opcion_filtro == "📅 Cobrarles Hoy":
+                    pasa_filtro = cumple_cobrar_hoy
+                elif opcion_filtro == "⏳ Próx. 7 Días":
+                    pasa_filtro = cumple_proximo_7
+                elif opcion_filtro == "🚨 Atrasados":
+                    pasa_filtro = cumple_atrasado
+                elif opcion_filtro == "🟢 Al Día":
+                    pasa_filtro = cumple_al_dia
+                
+                # --- APLICAR BUSCADOR ---
+                if pasa_filtro and (search_term in nombre.lower() or 
+                    search_term in str(cedula).lower() or 
+                    search_term in str(telefono).lower()):
+                    
+                    c['aux_nombre'] = nombre
+                    c['aux_categoria'] = categoria_filtro
+                    c['aux_dias_atraso'] = dias_atraso if dias_atraso is not None else 0
+                    c['aux_dias_proximidad'] = dias_hasta_proxima if dias_hasta_proxima is not None else 999
+                    c['aux_proxima_fecha'] = proxima_cuota_sin_vencer
+                    c['aux_cuota_vencida'] = min(cuotas_vencidas) if cuotas_vencidas else None
+                    c['aux_todas_pagadas'] = todas_pagadas
+                    c['aux_saldo_recorrido'] = saldo_recorrido
+                    
+                    # Para ordenamiento por prioridad
+                    if cumple_urgente:
+                        c['aux_prioridad'] = 1000 + (hoy - min(cuotas_vencidas)).days
+                    elif cumple_atrasado:
+                        c['aux_prioridad'] = 900 + (hoy - min(cuotas_vencidas)).days
+                    elif cumple_cobrar_hoy:
+                        c['aux_prioridad'] = 500
+                    elif cumple_proximo_7:
+                        c['aux_prioridad'] = 400 - (proxima_cuota_sin_vencer - hoy).days if proxima_cuota_sin_vencer else 400
+                    else:
+                        c['aux_prioridad'] = 0
+                    
+                    datos_procesados.append(c)
+            
+            except Exception as e:
+                st.warning(f"Error procesando cliente {nombre}: {str(e)}")
+                continue
+        
         # Ordenamos por prioridad (atrasados primero)
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
+        
+        # --- 7. MOSTRAR RESULTADOS EN CARDS ---
+        if datos_procesados:
+            st.markdown(f"### 📊 {len(datos_procesados)} clientes encontrados")
+            
+            for item in datos_procesados:
+                with st.container(border=True):
+                    col1, col2, col3, col4 = st.columns([2, 1.2, 1.5, 1.3])
+                    
+                    with col1:
+                        st.markdown(f"**{item['aux_nombre']}**")
+                        st.caption(f"Cédula: {item.get('clientes', {}).get('cedula', 'N/A')}")
+                    
+                    with col2:
+                        if item['aux_categoria'] == "🟢 Al Día":
+                            st.success(item['aux_categoria'])
+                        elif item['aux_categoria'] == "🔥 Urgentes":
+                            st.error(item['aux_categoria'])
+                        elif item['aux_categoria'] == "🚨 Atrasados":
+                            st.error(item['aux_categoria'])
+                        elif item['aux_categoria'] == "📅 Cobrarles Hoy":
+                            st.warning(item['aux_categoria'])
+                        else:
+                            st.info(item['aux_categoria'])
+                    
+                    with col3:
+                        if item['aux_dias_atraso'] > 0:
+                            st.metric("Atraso", f"{item['aux_dias_atraso']} días")
+                        elif item['aux_dias_proximidad'] < 999:
+                            st.metric("Próxima Cuota", f"En {item['aux_dias_proximidad']} días")
+                        else:
+                            st.metric("Estado", "Al Día ✓")
+                    
+                    with col4:
+                        st.metric("Balance Pendiente", f"RD$ {float(item.get('balance_pendiente', 0)):,.2f}")
+                    
+                    # Botones de acción
+                    action_col1, action_col2, action_col3 = st.columns(3)
+                    
+                    with action_col1:
+                        if st.button("📜 Historial", key=f"hist_{item['id']}", use_container_width=True):
+                            mostrar_historial_modal(item, u_id)
+                    
+                    with action_col2:
+                        if st.button("💰 Registrar Pago", key=f"pago_{item['id']}", use_container_width=True):
+                            st.session_state[f"show_pago_{item['id']}"] = True
+                    
+                    with action_col3:
+                        if st.button("📍 Ver Mapa", key=f"mapa_{item['id']}", use_container_width=True):
+                            st.session_state.ruta_seleccion = [item]
+                    
+                    # Formulario de pago (aparece si se presiona botón)
+                    if st.session_state.get(f"show_pago_{item['id']}", False):
+                        st.divider()
+                        col_pago1, col_pago2 = st.columns(2)
+                        
+                        with col_pago1:
+                            monto_pago = st.number_input("Monto a cobrar (RD$)", min_value=0.0, value=0.0, step=100.0, key=f"monto_{item['id']}")
+                        
+                        with col_pago2:
+                            mora_pago = st.number_input("Mora (RD$)", min_value=0.0, value=0.0, step=50.0, key=f"mora_{item['id']}")
+                        
+                        fecha_proximo = st.date_input("Próximo pago", key=f"fecha_{item['id']}")
+                        
+                        if monto_pago > 0:
+                            if st.button("✅ Confirmar Pago", key=f"confirmar_{item['id']}", use_container_width=True, type="primary"):
+                                confirmar_cobro_modal(item, monto_pago, fecha_proximo, mora_pago, u_id)
+                        else:
+                            st.warning("Ingresa un monto mayor a 0")
+        else:
+            st.info(f"No hay clientes que coincidan con los filtros seleccionados.")
+    else:
+        st.info("No hay cuentas por cobrar en tu cartera.")
         
 # --- BOTÓN DE CONSULTA (PROCESA DATOS SELECCIONADOS) ---
         # Solo mostramos el botón si hay al menos 1 cliente seleccionado
