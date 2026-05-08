@@ -1407,13 +1407,32 @@ elif menu == "Gestión de Cobros":
     # Inicializar lista de ruta para el mapa
     if 'ruta_seleccion' not in st.session_state:
         st.session_state.ruta_seleccion = []
+    if 'refresh_key' not in st.session_state:
+        st.session_state.refresh_key = 0
+    if 'consulta_activa' not in st.session_state:
+        st.session_state.consulta_activa = False
+    if 'mostrar_mapa' not in st.session_state:
+        st.session_state.mostrar_mapa = False
+    if 'datos_ruta_consultados' not in st.session_state:
+        st.session_state.datos_ruta_consultados = []
+    
+    # --- FUNCIÓN AUXILIAR: OBTENER FECHA HOY A LAS 12:00 RD ---
+    def obtener_hoy_medidia_rd():
+        """Retorna la fecha de hoy a las 12:00 PM Zona Horaria RD (UTC-4)"""
+        from datetime import datetime, timezone, timedelta
+        # UTC-4 es la zona horaria de República Dominicana
+        tz_rd = timezone(timedelta(hours=-4))
+        ahora_rd = datetime.now(tz_rd)
+        # Retornar solo la fecha (sin hora)
+        return ahora_rd.date()
+    
+    hoy = obtener_hoy_medidia_rd()  # USAR ESTA FECHA PARA TODO EL MÓDULO
     
     # --- 1. FUNCIÓN DE HISTORIAL (PLAN VS REAL) CON LÓGICA DINÁMICA ---
     @st.dialog("📜 ESTADO DE CUENTA DETALLADO")
     def mostrar_historial_modal(item, u_id):
         st.subheader(f"Análisis: {item['aux_nombre']}")
         
-        # Consultamos el Plan y los Pagos Reales
         res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", item['id']).order("numero_cuota").execute()
         res_pagos = conn.table("pagos").select("*").eq("cuenta_id", item['id']).order("fecha_pago").execute()
         
@@ -1424,7 +1443,7 @@ elif menu == "Gestión de Cobros":
         
         with tab1:
             if plan:
-                # LÓGICA DE ESTADO DE CUENTA DINÁMICO CON SALDO_RECORRIDO
+                # LÓGICA DE ESTADO DE CUENTA CON SALDO_RECORRIDO (WATERFALL)
                 saldo_recorrido = sum(float(p.get('monto_pagado', 0)) for p in pagos)
                 
                 datos_plan = []
@@ -1569,7 +1588,7 @@ elif menu == "Gestión de Cobros":
         if st.button("✅ FINALIZAR", use_container_width=True):
             st.rerun()
 
-    # --- 4. DETECTOR MAESTRO DE RECIBOS (FUERA DE TODO BUCLE) ---
+    # --- 4. DETECTOR MAESTRO DE RECIBOS ---
     for key in list(st.session_state.keys()):
         if key.startswith("recibo_"):
             id_para_recibo = key.replace("recibo_", "")
@@ -1579,13 +1598,12 @@ elif menu == "Gestión de Cobros":
                 if res_recibo.data:
                     item_recibo = res_recibo.data
                     item_recibo['aux_nombre'] = item_recibo.get('clientes', {}).get('nombre', 'Cliente')
-                    
                     mostrar_recibo_modal(item_recibo, st.session_state[key], u_id)
                     del st.session_state[key]
             except Exception as e:
                 st.warning(f"Error al cargar recibo: {str(e)}")
 
-    # --- 5. CONTROLES SUPERIORES (Buscador + Filtro Pro) ---
+    # --- 5. CONTROLES SUPERIORES ---
     col_search, col_filter, col_view = st.columns([2, 1.2, 0.8])
     
     with col_search:
@@ -1601,7 +1619,7 @@ elif menu == "Gestión de Cobros":
     with col_view:
         modo_analisis = st.toggle("📈 Análisis", help="Ver cuentas saldadas")
 
-    # --- 6. CONSULTA DE DATOS PARA LA LISTA ---
+    # --- 6. CONSULTA DE DATOS CON LÓGICA WATERFALL ---
     try:
         query = conn.table("cuentas").select("*, clientes(nombre, telefono, cedula, latitud, longitud)").eq("user_id", u_id)
         if modo_analisis:
@@ -1616,7 +1634,6 @@ elif menu == "Gestión de Cobros":
     
     if res and res.data:
         datos_procesados = []
-        hoy = datetime.now().date()
         
         for c in res.data:
             try:
@@ -1624,82 +1641,62 @@ elif menu == "Gestión de Cobros":
                 nombre = cliente_info.get('nombre', 'Cliente')
                 cedula = cliente_info.get('cedula', '')
                 telefono = cliente_info.get('telefono', '')
-                
-                # --- NUEVA LÓGICA CON SALDO_RECORRIDO (WATERFALL) ---
                 cuenta_id = c['id']
                 
                 # PASO 1: Obtener TODOS los pagos realizados
                 try:
                     res_pagos = conn.table("pagos").select("monto_pagado").eq("cuenta_id", cuenta_id).execute()
                     pagos = res_pagos.data if res_pagos.data else []
-                except Exception as e:
-                    st.warning(f"Error cargando pagos para {nombre}")
+                except:
                     pagos = []
                 
                 # PASO 2: Obtener plan de cuotas
                 try:
                     res_plan = conn.table("plan_cuotas").select("numero_cuota, fecha_esperada, monto_cuota").eq("cuenta_id", cuenta_id).order("numero_cuota").execute()
                     plan_cuotas = res_plan.data if res_plan.data else []
-                except Exception as e:
-                    st.warning(f"Error cargando plan para {nombre}")
+                except:
                     plan_cuotas = []
                 
-                # PASO 3: Calcular saldo_recorrido inicial (suma de TODOS los pagos)
+                # PASO 3: Calcular saldo_recorrido (suma de TODOS los pagos)
                 saldo_recorrido = sum(float(p.get('monto_pagado', 0)) for p in pagos)
                 
-                # PASO 4: WATERFALL - Recorrer plan y determinar cuotas pagadas vs pendientes
+                # PASO 4: WATERFALL - Recorrer plan
                 todas_pagadas = True
                 cuota_hoy = None
                 proxima_cuota_sin_vencer = None
                 cuotas_vencidas = []
                 cuotas_proximo_7_dias = []
-                cuota_primera_pendiente_real = None  # Primera cuota SIN cobertura de pagos
                 
                 for cuota in plan_cuotas:
                     monto_cuota = float(cuota['monto_cuota'])
                     fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
                     
-                    # LÓGICA DE WATERFALL: ¿Tiene cobertura de pagos acumulados?
+                    # ✅ WATERFALL: ¿Hay dinero para pagar esta cuota?
                     if saldo_recorrido >= monto_cuota:
-                        # Esta cuota ESTÁ PAGADA (hay dinero acumulado para cubrirla)
-                        saldo_recorrido -= monto_cuota
-                        estado_cuota = "pagada"
+                        saldo_recorrido -= monto_cuota  # Consumir dinero
                     else:
-                        # Esta cuota NO ESTÁ PAGADA (sin cobertura de pagos acumulados)
                         todas_pagadas = False
-                        estado_cuota = "pendiente"
-                        
-                        # Registrar primera cuota pendiente REAL (sin cobertura)
-                        if cuota_primera_pendiente_real is None:
-                            cuota_primera_pendiente_real = fecha_cuota
-                        
-                        # --- AHORA SÍ COMPARAR FECHAS CON LA REALIDAD ---
-                        # Solo procesamos cuotas PENDIENTES para categorizar
+                        # SOLO AHORA comparar fechas de cuota REALMENTE pendiente
                         if fecha_cuota < hoy:
-                            # CUOTA VENCIDA (pasó la fecha y no está pagada)
                             cuotas_vencidas.append(fecha_cuota)
                         elif fecha_cuota == hoy:
-                            # CUOTA PARA HOY
                             cuota_hoy = fecha_cuota
                             if proxima_cuota_sin_vencer is None:
                                 proxima_cuota_sin_vencer = fecha_cuota
                         elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
-                            # CUOTA EN PRÓXIMOS 7 DÍAS
                             cuotas_proximo_7_dias.append(fecha_cuota)
                             if proxima_cuota_sin_vencer is None:
                                 proxima_cuota_sin_vencer = fecha_cuota
                         elif proxima_cuota_sin_vencer is None:
-                            # CUOTA FUTURA (sin cobertura)
                             proxima_cuota_sin_vencer = fecha_cuota
                 
-                # --- DETERMINAR CATEGORÍAS DEL CLIENTE ---
-                cumple_al_dia = todas_pagadas  # Sin cuotas pendientes reales
-                cumple_atrasado = len(cuotas_vencidas) > 0  # Tiene cuotas vencidas sin pagar
-                cumple_urgente = len(cuotas_vencidas) > 0 and (hoy - min(cuotas_vencidas)).days >= 15  # Vencidas hace 15+ días
-                cumple_cobrar_hoy = cuota_hoy is not None  # Tiene cuota para hoy sin pagar
-                cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy  # Próximos 7 días (incluyendo hoy)
+                # CATEGORIZAR
+                cumple_al_dia = todas_pagadas
+                cumple_atrasado = len(cuotas_vencidas) > 0
+                cumple_urgente = len(cuotas_vencidas) > 0 and (hoy - min(cuotas_vencidas)).days >= 15
+                cumple_cobrar_hoy = cuota_hoy is not None
+                cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy
                 
-                # Determinar categoría PRINCIPAL (para mostrar)
                 categoria_filtro = "📋 Todos"
                 dias_hasta_proxima = None
                 dias_atraso = None
@@ -1720,11 +1717,8 @@ elif menu == "Gestión de Cobros":
                     categoria_filtro = "⏳ Próx. 7 Días"
                     if proxima_cuota_sin_vencer:
                         dias_hasta_proxima = (proxima_cuota_sin_vencer - hoy).days
-                elif proxima_cuota_sin_vencer:
-                    categoria_filtro = "📋 Todos"
-                    dias_hasta_proxima = (proxima_cuota_sin_vencer - hoy).days
                 
-                # --- APLICAR FILTRO SELECCIONADO ---
+                # Aplicar filtros
                 pasa_filtro = False
                 if opcion_filtro == "📋 Todos":
                     pasa_filtro = True
@@ -1739,11 +1733,7 @@ elif menu == "Gestión de Cobros":
                 elif opcion_filtro == "🟢 Al Día":
                     pasa_filtro = cumple_al_dia
                 
-                # --- APLICAR BUSCADOR ---
-                if pasa_filtro and (search_term in nombre.lower() or 
-                    search_term in str(cedula).lower() or 
-                    search_term in str(telefono).lower()):
-                    
+                if pasa_filtro and (search_term in nombre.lower() or search_term in str(cedula).lower() or search_term in str(telefono).lower()):
                     c['aux_nombre'] = nombre
                     c['aux_categoria'] = categoria_filtro
                     c['aux_dias_atraso'] = dias_atraso if dias_atraso is not None else 0
@@ -1751,9 +1741,7 @@ elif menu == "Gestión de Cobros":
                     c['aux_proxima_fecha'] = proxima_cuota_sin_vencer
                     c['aux_cuota_vencida'] = min(cuotas_vencidas) if cuotas_vencidas else None
                     c['aux_todas_pagadas'] = todas_pagadas
-                    c['aux_saldo_recorrido'] = saldo_recorrido
                     
-                    # Para ordenamiento por prioridad
                     if cumple_urgente:
                         c['aux_prioridad'] = 1000 + (hoy - min(cuotas_vencidas)).days
                     elif cumple_atrasado:
@@ -1768,115 +1756,32 @@ elif menu == "Gestión de Cobros":
                     datos_procesados.append(c)
             
             except Exception as e:
-                st.warning(f"Error procesando cliente {nombre}: {str(e)}")
                 continue
         
-        # Ordenamos por prioridad (atrasados primero)
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
         
-        # --- 7. MOSTRAR RESULTADOS EN CARDS ---
-        if datos_procesados:
-            st.markdown(f"### 📊 {len(datos_procesados)} clientes encontrados")
-            
-            for item in datos_procesados:
-                with st.container(border=True):
-                    col1, col2, col3, col4 = st.columns([2, 1.2, 1.5, 1.3])
-                    
-                    with col1:
-                        st.markdown(f"**{item['aux_nombre']}**")
-                        st.caption(f"Cédula: {item.get('clientes', {}).get('cedula', 'N/A')}")
-                    
-                    with col2:
-                        if item['aux_categoria'] == "🟢 Al Día":
-                            st.success(item['aux_categoria'])
-                        elif item['aux_categoria'] == "🔥 Urgentes":
-                            st.error(item['aux_categoria'])
-                        elif item['aux_categoria'] == "🚨 Atrasados":
-                            st.error(item['aux_categoria'])
-                        elif item['aux_categoria'] == "📅 Cobrarles Hoy":
-                            st.warning(item['aux_categoria'])
-                        else:
-                            st.info(item['aux_categoria'])
-                    
-                    with col3:
-                        if item['aux_dias_atraso'] > 0:
-                            st.metric("Atraso", f"{item['aux_dias_atraso']} días")
-                        elif item['aux_dias_proximidad'] < 999:
-                            st.metric("Próxima Cuota", f"En {item['aux_dias_proximidad']} días")
-                        else:
-                            st.metric("Estado", "Al Día ✓")
-                    
-                    with col4:
-                        st.metric("Balance Pendiente", f"RD$ {float(item.get('balance_pendiente', 0)):,.2f}")
-                    
-                    # Botones de acción
-                    action_col1, action_col2, action_col3 = st.columns(3)
-                    
-                    with action_col1:
-                        if st.button("📜 Historial", key=f"hist_{item['id']}", use_container_width=True):
-                            mostrar_historial_modal(item, u_id)
-                    
-                    with action_col2:
-                        if st.button("💰 Registrar Pago", key=f"pago_{item['id']}", use_container_width=True):
-                            st.session_state[f"show_pago_{item['id']}"] = True
-                    
-                    with action_col3:
-                        if st.button("📍 Ver Mapa", key=f"mapa_{item['id']}", use_container_width=True):
-                            st.session_state.ruta_seleccion = [item]
-                    
-                    # Formulario de pago (aparece si se presiona botón)
-                    if st.session_state.get(f"show_pago_{item['id']}", False):
-                        st.divider()
-                        col_pago1, col_pago2 = st.columns(2)
-                        
-                        with col_pago1:
-                            monto_pago = st.number_input("Monto a cobrar (RD$)", min_value=0.0, value=0.0, step=100.0, key=f"monto_{item['id']}")
-                        
-                        with col_pago2:
-                            mora_pago = st.number_input("Mora (RD$)", min_value=0.0, value=0.0, step=50.0, key=f"mora_{item['id']}")
-                        
-                        fecha_proximo = st.date_input("Próximo pago", key=f"fecha_{item['id']}")
-                        
-                        if monto_pago > 0:
-                            if st.button("✅ Confirmar Pago", key=f"confirmar_{item['id']}", use_container_width=True, type="primary"):
-                                confirmar_cobro_modal(item, monto_pago, fecha_proximo, mora_pago, u_id)
-                        else:
-                            st.warning("Ingresa un monto mayor a 0")
-        else:
-            st.info(f"No hay clientes que coincidan con los filtros seleccionados.")
-    else:
-        st.info("No hay cuentas por cobrar en tu cartera.")
+        st.markdown(f"### 📊 {len(datos_procesados)} clientes encontrados")
         
-# --- BOTÓN DE CONSULTA (PROCESA DATOS SELECCIONADOS) ---
-        # Solo mostramos el botón si hay al menos 1 cliente seleccionado
+        # --- BOTÓN DE CONSULTA ---
         if len(st.session_state.ruta_seleccion) > 0:
             st.write("---")
             col_btn_c1, col_btn_c2 = st.columns([2, 1])
             
             with col_btn_c1:
-                if st.button("📱 Consultar Ruta de Clientes", type="primary", use_container_width=True, help="Procesa los datos de los clientes seleccionados"):
-                    # Procesar los clientes seleccionados - SIN RECARGAR
+                if st.button("📱 Consultar Ruta de Clientes", type="primary", use_container_width=True):
                     st.session_state.consulta_activa = True
-                    
-                    # Obtener datos de los clientes seleccionados
                     ids_seleccionados = [str(i) for i in st.session_state.ruta_seleccion]
                     clientes_consulta = [d for d in datos_procesados if str(d['id']) in ids_seleccionados]
-                    
                     st.session_state.datos_ruta_consultados = clientes_consulta
                     st.session_state.mostrar_mapa = True
             
             with col_btn_c2:
-                if st.button("🗺️ Generar Mapa", use_container_width=True, help="Crea la ruta optimizada", disabled=not st.session_state.consulta_activa):
+                if st.button("🗺️ Generar Mapa", use_container_width=True, disabled=not st.session_state.consulta_activa):
                     st.rerun()
 
-        # --- PANEL DEL MAPA MINIMALISTA (VERSIÓN SOCIO / DEFINITIVA) ---
-        # Solo entra aquí si consultó datos Y quiere ver el mapa
+        # --- PANEL DEL MAPA ---
         if st.session_state.consulta_activa and st.session_state.mostrar_mapa and st.session_state.datos_ruta_consultados:
-            
-            # --- LÍMITE ESTRICTO DE GOOGLE MAPS ---
             LIMITE_MAPS = 10
-            
-            # Usar datos ya consultados (no procesar de nuevo)
             clientes_ruta_data = st.session_state.datos_ruta_consultados
             
             con_gps = []
@@ -1891,17 +1796,12 @@ elif menu == "Gestión de Cobros":
                     sin_gps.append(c['aux_nombre'])
 
             with st.expander(f"📍 Ruta Planificada: {len(con_gps)} paradas listas", expanded=True):
-                
                 if sin_gps:
                     st.warning(f"⚠️ Ignorados por falta de GPS: {', '.join(sin_gps)}")
 
-                # --- CONTROL DE EXCEPCIONES ---
                 if len(con_gps) > LIMITE_MAPS:
                     st.error(f"🛑 ALTO: Google Maps gratuito solo soporta un máximo de {LIMITE_MAPS} ubicaciones por ruta.")
-                    st.info(f"Has seleccionado {len(con_gps)}. Por favor, divide esta ruta en dos viajes desmarcando clientes.")
-                
                 elif con_gps:
-                    # Algoritmo de optimización (Vecino más cercano)
                     def calcular_ruta_optima(puntos):
                         if not puntos: return []
                         ruta_ordenada = []
@@ -1921,14 +1821,11 @@ elif menu == "Gestión de Cobros":
 
                     con_gps = calcular_ruta_optima(con_gps)
                     
-                    # --- INTERFAZ COMO FUENTE DE VERDAD ---
                     st.write("📋 **Sigue la ruta en este orden:**")
                     for i, c in enumerate(con_gps, 1):
                         st.markdown(f"**{i}. {c['aux_nombre']}** *(ID: {c['id']})*")
                     
-                    # --- GENERACIÓN DE ENLACE ROBUSTO ---
                     base_url = "https://www.google.com/maps/dir/?api=1"
-                    
                     puntos_url = []
                     for c in con_gps:
                         lat_r = round(float(c['clientes']['latitud']), 6)
@@ -1937,12 +1834,7 @@ elif menu == "Gestión de Cobros":
                     
                     destino_final = puntos_url.pop()
                     waypoints = "&waypoints=" + "|".join(puntos_url) if puntos_url else ""
-                    
-                    # CORRECCIÓN: Usar coordenadas reales como origin en lugar de "Current+Location"
-                    # Obtenemos la ubicación del usuario desde su primer cliente (que tiene GPS)
                     origin_coords = f"{round(float(con_gps[0]['clientes']['latitud']), 6)},{round(float(con_gps[0]['clientes']['longitud']), 6)}"
-                    
-                    # origin con coordenadas reales garantiza que Google Maps muestre tu ubicación exacta
                     final_url = f"{base_url}&origin={origin_coords}&destination={destino_final}{waypoints}&travelmode=driving"
 
                     st.divider()
@@ -1954,16 +1846,15 @@ elif menu == "Gestión de Cobros":
                 else:
                     st.error("❌ Ninguno de los clientes seleccionados tiene coordenadas válidas.")
                 
-                # --- EL BOTÓN DE LIMPIEZA DEFINITIVO ---
                 if st.button("🗑️ Cancelar y Limpiar Selección"):
-                    st.session_state.ruta_seleccion = [] # 1. Vaciamos la lista interna
-                    st.session_state.mostrar_mapa = False # 2. Ocultamos el mapa
-                    st.session_state.consulta_activa = False # 3. Marcamos que no hay consulta activa
-                    st.session_state.datos_ruta_consultados = [] # 4. Limpiamos datos consultados
-                    st.session_state.refresh_key += 1 # 5. LA MAGIA: Cambiamos la llave para obligar a la tabla a desmarcarse
-                    st.rerun() # 6. Recargamos la interfaz limpia
+                    st.session_state.ruta_seleccion = []
+                    st.session_state.mostrar_mapa = False
+                    st.session_state.consulta_activa = False
+                    st.session_state.datos_ruta_consultados = []
+                    st.session_state.refresh_key += 1
+                    st.rerun()
                     
-# --- DIBUJADO DE LA LISTA (CON TODAS TUS FUNCIONES ORIGINALES) ---
+        # --- LISTA DE CLIENTES CON DISEÑO ORIGINAL ---
         for item in datos_procesados:
             token = item['id']
             m_pend = float(item.get('balance_pendiente', 0))
@@ -1974,7 +1865,6 @@ elif menu == "Gestión de Cobros":
                 with c_nom:
                     col_t1, col_t2 = st.columns([0.2, 0.8])
                     with col_t1:
-                        # Checkbox completamente PASIVO - sin recargas, usa callback silencioso
                         def actualizar_seleccion(token_id):
                             def callback():
                                 if token_id not in st.session_state.ruta_seleccion:
@@ -1983,13 +1873,9 @@ elif menu == "Gestión de Cobros":
                                     st.session_state.ruta_seleccion.remove(token_id)
                             return callback
                         
-                        st.checkbox(
-                            " ",
-                            key=f"sel_{token}_{st.session_state.refresh_key}",
-                            value=token in st.session_state.ruta_seleccion,
-                            label_visibility="collapsed",
-                            on_change=actualizar_seleccion(token)
-                        )
+                        st.checkbox(" ", key=f"sel_{token}_{st.session_state.refresh_key}", 
+                                   value=token in st.session_state.ruta_seleccion,
+                                   label_visibility="collapsed", on_change=actualizar_seleccion(token))
                             
                     with col_t2:
                         st.markdown(f"**{item['aux_nombre']}**")
@@ -1999,22 +1885,18 @@ elif menu == "Gestión de Cobros":
                         mostrar_historial_modal(item, u_id)
 
                 with c_status:
-                    # SEMÁFORO CON ETIQUETAS DE TEXTO PRECISAS
                     if modo_analisis: 
                         st.info("✅ SALDADO")
                     elif item['aux_todas_pagadas']:
                         st.success("🟢 Al Día")
                     elif item['aux_dias_atraso'] is not None and item['aux_dias_atraso'] > 0:
-                        # Atraso: mostrar días de retraso
                         if item['aux_dias_atraso'] >= 15:
                             st.error(f"🔥 Urgente - {item['aux_dias_atraso']} días atrasado")
                         else:
                             st.error(f"🚨 Atrasado - {item['aux_dias_atraso']} días")
                     elif item['aux_dias_proximidad'] == 0:
-                        # Pago hoy: etiqueta exacta
                         st.warning("📅 Hay que cobrarle hoy")
                     elif item['aux_dias_proximidad'] is not None and item['aux_dias_proximidad'] > 0 and item['aux_dias_proximidad'] <= 7:
-                        # Próximos 7 días: etiqueta exacta con número real de días
                         st.warning(f"⏳ En {item['aux_dias_proximidad']} días debe pagar")
                     else:
                         st.info("📋 Próximo")
@@ -2039,10 +1921,11 @@ elif menu == "Gestión de Cobros":
                         if st.button("📄 Detalles", key=f"det_{token}", use_container_width=True):
                             mostrar_historial_modal(item, u_id)
 
-                # SECCIÓN DE MORA
                 if not modo_analisis:
                     with st.expander("⚖️ Penalidad (Mora)"):
                         st.number_input("Monto de Mora", min_value=0.0, key=f"mora_{token}")
+    else:
+        st.info("No hay cuentas por cobrar en tu cartera.")
         
 elif menu == "Nueva Cuenta por Cobrar":
     st.header("🏢 Registro de Nueva Factura")
