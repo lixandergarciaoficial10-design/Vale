@@ -3687,21 +3687,113 @@ elif menu == "Configuración":
             except Exception as e:
                 st.warning("No se pudo procesar la fecha de vencimiento")
     
-        p1, p2, p3 = st.columns(3)
+        # Ajuste a 4 columnas para incluir todos los planes
+        p0, p1, p2, p3 = st.columns(4)
+        
+        with p0:
+            st.markdown("""
+                <div style='border:1px solid #E2E8F0;padding:15px;border-radius:15px;text-align:left;height:100%;'>
+                    <h4 style='text-align:center;'>FREE</h4>
+                    <h2 style='text-align:center;'>Gratis</h2>
+                    <p style='font-size:0.8em; color:gray; text-align:center;'>Exploración Inteligente</p>
+                    <hr>
+                    <p style='font-size:0.85em;'>
+                    ✓ Límite estricto de 5 clientes<br>
+                    ✓ Máximo 10 préstamos activos<br>
+                    ✓ Tabla de amortización automática<br>
+                    ✓ Gestión operativa básica<br>
+                    ✓ Contratos PDF (Incluye marca de agua)<br>
+                    ✓ 1 dispositivo<br>
+                    ✕ Dashboards y Reportes<br>
+                    ✕ Módulos IA, WhatsApp, GPS<br>
+                    ✕ Exportación de datos
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("Seleccionar Free", key="p_0"):
+                st.session_state.plan_seleccionado = {"nombre": "Free", "precio": 0}
+                st.rerun()
+
         with p1:
-            st.markdown("<div style='border:1px solid #E2E8F0;padding:20px;border-radius:15px;text-align:center;'><h4>STARTER</h4><h2>Free</h2><p>Hasta 50 clientes</p></div>", unsafe_allow_html=True)
+            st.markdown("""
+                <div style='border:1px solid #E2E8F0;padding:15px;border-radius:15px;text-align:left;height:100%;'>
+                    <h4 style='text-align:center;'>STARTER</h4>
+                    <h2 style='text-align:center;'>RD$799/mo</h2>
+                    <p style='font-size:0.8em; color:gray; text-align:center;'>Prestamista Individual</p>
+                    <hr>
+                    <p style='font-size:0.85em;'>
+                    ✓ Capacidad para 100 clientes<br>
+                    ✓ Hasta 250 cuentas activas<br>
+                    ✓ Tabla de amortización automática<br>
+                    ✓ Acceso a Dashboard esencial<br>
+                    ✓ Gestión de cobros y pagos completa<br>
+                    ✓ Generación PDF sin marcas<br>
+                    ✓ Integración WhatsApp (Básica)<br>
+                    ✓ GPS de ubicación básica<br>
+                    ✓ Asistente IA (100 consultas/mes)<br>
+                    ✓ Filtros de clientes<br>
+                    ✓ Soporte y asesoría inicial<br>
+                    ✓ Hasta 2 sesiones simultáneas
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
             if st.button("Seleccionar Starter", key="p_1"):
-                st.session_state.plan_seleccionado = {"nombre": "Starter", "precio": 0}
+                st.session_state.plan_seleccionado = {"nombre": "Starter", "precio": 799}
                 st.rerun()
+
         with p2:
-            st.markdown("<div style='border:2px solid #3B82F6;padding:20px;border-radius:15px;text-align:center;'><h4 style='color:#3B82F6'>PRO</h4><h2>$29/mo</h2><p>Clientes ilimitados</p></div>", unsafe_allow_html=True)
+            st.markdown("""
+                <div style='border:2px solid #3B82F6;padding:15px;border-radius:15px;text-align:left;height:100%;position:relative;'>
+                    <span style='background:#3B82F6;color:white;padding:2px 10px;border-radius:10px;font-size:0.7em;position:absolute;top:-10px;left:25%;'>RECOMENDADO</span>
+                    <h4 style='text-align:center;color:#3B82F6;'>PRO</h4>
+                    <h2 style='text-align:center;'>RD$2499/mo</h2>
+                    <p style='font-size:0.8em; color:gray; text-align:center;'>Operación Comercial</p>
+                    <hr>
+                    <p style='font-size:0.85em;'>
+                    ✓ Capacidad para 1,000 clientes<br>
+                    ✓ Hasta 2,500 cuentas activas<br>
+                    ✓ Dashboards completos operativos<br>
+                    ✓ Generación PDF con tu marca<br>
+                    ✓ Integración WhatsApp<br>
+                    ✓ GPS con planificador de rutas<br>
+                    ✓ Asistente IA Avanzado (300 consultas)<br>
+                    ✓ Códigos QR en recibos<br>
+                    ✓ Exportación parcial y reportes<br>
+                    ✓ Soporte técnico prioritario<br>
+                    ✓ Asesoría operativa semanal<br>
+                    ✓ Hasta 5 inicios simultáneos
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
             if st.button("Mejorar a PRO", key="p_2"):
-                st.session_state.plan_seleccionado = {"nombre": "Pro", "precio": 29}
+                st.session_state.plan_seleccionado = {"nombre": "Pro", "precio": 2499}
                 st.rerun()
+
         with p3:
-            st.markdown("<div style='border:1px solid #E2E8F0;padding:20px;border-radius:15px;text-align:center;'><h4>ENTERPRISE</h4><h2>Custom</h2><p>Multi-sucursal</p></div>", unsafe_allow_html=True)
+            st.markdown("""
+                <div style='border:1px solid #E2E8F0;padding:15px;border-radius:15px;text-align:left;height:100%;'>
+                    <h4 style='text-align:center;'>ENTERPRISE</h4>
+                    <h2 style='text-align:center;'>RD$7999/mo</h2>
+                    <p style='font-size:0.8em; color:gray; text-align:center;'>Infraestructura a Escala</p>
+                    <hr>
+                    <p style='font-size:0.85em;'>
+                    ✓ Capacidad (10,000 clientes)<br>
+                    ✓ Hasta 50,000 cuentas activas<br>
+                    ✓ Dashboards predictivos<br>
+                    ✓ WhatsApp con recordatorios auto<br>
+                    ✓ GPS y monitoreo avanzado<br>
+                    ✓ IA avanzada (uso justo)<br>
+                    ✓ Tu logo en recibos<br>
+                    ✓ Exportación total de base datos<br>
+                    ✓ Soporte dedicado 24/7<br>
+                    ✓ Backup empresarial y migración<br>
+                    ✓ Asesoría estratégica<br>
+                    ✓ Hasta 20 inicios simultáneos
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
             if st.button("Contactar Ventas", key="p_3"):
-                st.session_state.plan_seleccionado = {"nombre": "Enterprise", "precio": 99}
+                st.session_state.plan_seleccionado = {"nombre": "Enterprise", "precio": 7999}
                 st.rerun()
 
     elif st.session_state.config_sub == "Soporte":
