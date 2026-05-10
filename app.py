@@ -3483,7 +3483,6 @@ elif menu == "Configuración":
             
             if st.form_submit_button("Guardar Cambios", use_container_width=True):
                 import base64
-                import time # 💡 Importamos time para la pequeña pausa
                 
                 data_update = {
                     "nombre_negocio": new_nombre if new_nombre else None,
@@ -3500,27 +3499,12 @@ elif menu == "Configuración":
                         st.error(f"Error al procesar el logo: {str(e)}")
                 
                 try:
-                    # 1. Guardamos en la base de datos
                     conn.table("configuracion").upsert(data_update, on_conflict="user_id").execute()
                     
-                    # 💡 2. EL ARREGLO: Actualizamos la variable local ANTES de reiniciar
-                    # Si 'biz' vive en session_state, actualízalo directamente:
-                    if "biz" in st.session_state:
-                        st.session_state.biz.update(data_update)
-                    else:
-                        # Si no, simplemente actualizamos el diccionario 'biz' actual
-                        biz.update(data_update)
-                        
-                    # (Nota: Si obtienes 'biz' a través de una función con @st.cache_data, 
-                    # deberías limpiar la caché aquí con: tu_funcion_de_obtener_datos.clear())
+                    # Mostramos el mensaje claro con las instrucciones
+                    st.success("✅ ¡Cambios aplicados correctamente! Por favor, recarga la página (F5) o sal y vuelve a entrar para ver los cambios reflejados.")
                     
-                    st.success("¡Perfil actualizado correctamente!")
-                    
-                    # 3. Pausamos 1 segundo para que veas el mensaje de éxito
-                    time.sleep(1) 
-                    
-                    # 4. Reiniciamos la aplicación. Ahora leerá los datos frescos.
-                    st.rerun()
+                    # ⚠️ IMPORTANTE: Eliminamos st.rerun() para que el mensaje no desaparezca.
                     
                 except Exception as e:
                     st.error(f"Error al guardar: {str(e)}")
