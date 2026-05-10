@@ -1760,7 +1760,7 @@ elif menu == "Gestión de Cobros":
         
         datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
         
-        st.markdown(f"### 📊 {len(datos_procesados)} clientes encontrados")
+        st.markdown(f"### 📊 {len(datos_procesados)} facturas encontradas")
         
         # --- BOTÓN DE CONSULTA ---
         if len(st.session_state.ruta_seleccion) > 0:
