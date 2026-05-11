@@ -2399,11 +2399,13 @@ elif menu == "👥 Todos mis Clientes":
         cuentas_db = res_cuentas.data if res_cuentas.data else []
         res_pagos = conn.table("pagos").select("*").execute()
         pagos_db = res_pagos.data if res_pagos.data else []
-        # Importante para el Waterfall: necesitamos el plan de cuotas
         res_planes = conn.table("plan_cuotas").select("*").execute()
         planes_db = res_planes.data if res_planes.data else []
 
-        hoy = datetime.now().date()
+        # Configuración de fecha República Dominicana
+        from datetime import timedelta
+        # Ajuste manual si el servidor está en UTC (RD es UTC-4)
+        hoy = (datetime.now() - timedelta(hours=4)).date()
 
         # --- BARRA DE COMANDO: BUSCADOR + PILLS ---
         col_search, col_filter = st.columns([1.2, 2])
@@ -2414,13 +2416,11 @@ elif menu == "👥 Todos mis Clientes":
             opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟠 Pagan hoy", "🗓️ Prox. 7 dias"]
             sel_filtro = st.pills("Filtro Inteligente:", opciones, selection_mode="single", default="🌍 Todos", label_visibility="collapsed")
 
-        # --- LÓGICA DE FILTRADO "WATERFALL GENIO" ---
+        # --- LÓGICA DE FILTRADO ---
         clientes_f = []
         for c in clientes_db:
-            # 1. Obtener datos de este cliente específico
             cuenta = next((d for d in cuentas_db if d['cliente_id'] == c['id']), None)
             
-            # Si no hay cuenta, solo sale en "Todos"
             if not cuenta:
                 if sel_filtro == "🌍 Todos":
                     match_search = not search_query or (search_query.lower() in c['nombre'].lower())
@@ -2428,56 +2428,55 @@ elif menu == "👥 Todos mis Clientes":
                 continue
 
             cuenta_id = cuenta['id']
-            # Filtrar pagos y plan de este cliente
-            pagos_cliente = [p for p in pagos_db if p.get('cuenta_id') == cuenta_id]
-            plan_cliente = sorted([p for p in planes_db if p.get('cuenta_id') == cuenta_id], key=lambda x: x['numero_cuota'])
+            # Filtramos el plan de este cliente
+            plan_cliente = [p for p in planes_db if p.get('cuenta_id') == cuenta_id]
 
-            # 2. CALCULO WATERFALL (El motor que sí funciona)
-            saldo_recorrido = sum(float(p.get('monto_pagado', 0)) for p in pagos_cliente)
-            
-            todas_pagadas = True
-            cuota_hoy = None
-            cuotas_vencidas = []
-            cuotas_proximo_7_dias = []
+            # Variables de control de estados
+            tiene_atraso = False
+            paga_hoy = False
+            paga_prox_7 = False
             
             for cuota in plan_cliente:
-                monto_cuota = float(cuota['monto_cuota'])
-                fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
-                
-                if saldo_recorrido >= monto_cuota:
-                    saldo_recorrido -= monto_cuota  # La cuota se paga con el saldo disponible
-                else:
-                    todas_pagadas = False # Esta cuota quedó debiéndose total o parcialmente
+                # Si la cuota NO está completa, procedemos a verificar fechas
+                estado_cuota = str(cuota.get('estado', '')).lower()
+                if estado_cuota not in ['completa', 'pagada', 'finalizada']:
+                    fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
+                    
+                    # 1. ¿Está atrasado? (Fecha anterior a hoy y no está completa)
                     if fecha_cuota < hoy:
-                        cuotas_vencidas.append(fecha_cuota)
+                        tiene_atraso = True
+                    
+                    # 2. ¿Paga hoy? (Fecha es hoy mismo y no está completa)
                     elif fecha_cuota == hoy:
-                        cuota_hoy = fecha_cuota
-                    elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
-                        cuotas_proximo_7_dias.append(fecha_cuota)
+                        paga_hoy = True
+                    
+                    # 3. ¿Próximos 7 días? (Desde hoy hasta 7 días más)
+                    elif hoy <= fecha_cuota <= (hoy + timedelta(days=7)):
+                        paga_prox_7 = True
 
-            # 3. CATEGORIZACIÓN (Basada en la lógica Waterfall)
-            cumple_al_dia = todas_pagadas or (not cuotas_vencidas and not cuota_hoy and not cuotas_proximo_7_dias)
-            cumple_atrasado = len(cuotas_vencidas) > 0
-            cumple_cobrar_hoy = cuota_hoy is not None
-            cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy
-
-            # 4. APLICAR FILTRO DE INTERFAZ
+            # Lógica de Filtros (Prioridad y Exclusividad)
             pasa_filtro = False
-            if sel_filtro == "🌍 Todos": pasa_filtro = True
-            elif sel_filtro == "🔴 Atrasados": pasa_filtro = cumple_atrasado
-            elif sel_filtro == "🟢 Al Día": pasa_filtro = cumple_al_dia
-            elif sel_filtro == "🟠 Pagan hoy": pasa_filtro = cumple_cobrar_hoy
-            elif sel_filtro == "🗓️ Prox. 7 dias": pasa_filtro = cumple_proximo_7
+            if sel_filtro == "🌍 Todos":
+                pasa_filtro = True
+            elif sel_filtro == "🔴 Atrasados":
+                pasa_filtro = tiene_atraso
+            elif sel_filtro == "🟠 Pagan hoy":
+                pasa_filtro = paga_hoy
+            elif sel_filtro == "🗓️ Prox. 7 dias":
+                # Incluye a los de hoy y los que vienen en la semana
+                pasa_filtro = paga_prox_7 or paga_hoy
+            elif sel_filtro == "🟢 Al Día":
+                # "Al día" son los que no deben nada viejo ni tienen que pagar hoy
+                pasa_filtro = not tiene_atraso and not paga_hoy
 
-            # 5. BÚSQUEDA Y RESULTADO FINAL
+            # Match de búsqueda por texto
             if pasa_filtro:
+                search_term = search_query.lower()
                 match_search = not search_query or (
-                    search_query.lower() in c['nombre'].lower() or 
-                    search_query in str(c.get('cedula', ''))
+                    search_term in c['nombre'].lower() or 
+                    search_term in str(c.get('cedula', ''))
                 )
                 if match_search:
-                    # Agregamos campos auxiliares por si tu app los usa para mostrar etiquetas
-                    c['estado_pago'] = "Atrasado" if cumple_atrasado else "Al día"
                     clientes_f.append(c)
 
         # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
