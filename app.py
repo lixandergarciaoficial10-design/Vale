@@ -2392,16 +2392,19 @@ elif menu == "👥 Todos mis Clientes":
 # --- 4. CENTRO DE CONTROL DE CLIENTES (Lógica Avanzada y Diseño Premium) ---
     
         # 1. CARGA DE DATOS Y ESTADOS (Usando tus columnas reales del CSV)
-        # 1. CARGA DE DATOS
+        # 1. CARGA DE DATOS Y ESTADOS
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         clientes_db = res_cl.data if res_cl.data else []
         res_cuentas = conn.table("cuentas").select("*").execute()
         cuentas_db = res_cuentas.data if res_cuentas.data else []
+        res_pagos = conn.table("pagos").select("*").execute()
+        pagos_db = res_pagos.data if res_pagos.data else []
         res_planes = conn.table("plan_cuotas").select("*").execute()
         planes_db = res_planes.data if res_planes.data else []
 
-        # HORA REAL REPÚBLICA DOMINICANA (UTC-4)
+        # Configuración de fecha República Dominicana
         from datetime import timedelta
+        # Ajuste manual si el servidor está en UTC (RD es UTC-4)
         hoy = (datetime.now() - timedelta(hours=4)).date()
 
         # --- BARRA DE COMANDO: BUSCADOR + PILLS ---
@@ -2413,80 +2416,67 @@ elif menu == "👥 Todos mis Clientes":
             opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟠 Pagan hoy", "🗓️ Prox. 7 dias"]
             sel_filtro = st.pills("Filtro Inteligente:", opciones, selection_mode="single", default="🌍 Todos", label_visibility="collapsed")
 
-        # --- LÓGICA DE COBRADOR REAL (REVISIÓN DE TODAS LAS CUOTAS) ---
+        # --- LÓGICA DE FILTRADO ---
         clientes_f = []
-        
         for c in clientes_db:
-            # Buscar cuenta y plan de este cliente
             cuenta = next((d for d in cuentas_db if d['cliente_id'] == c['id']), None)
             
             if not cuenta:
-                # Si no tiene cuenta ni plan, solo aparece en "Todos"
                 if sel_filtro == "🌍 Todos":
                     match_search = not search_query or (search_query.lower() in c['nombre'].lower())
                     if match_search: clientes_f.append(c)
                 continue
 
-            # Filtrar cuotas del cliente
-            plan_cliente = [p for p in planes_db if p.get('cuenta_id') == cuenta['id']]
-            
-            # ESTADOS DE NEGOCIO
+            cuenta_id = cuenta['id']
+            # Filtramos el plan de este cliente
+            plan_cliente = [p for p in planes_db if p.get('cuenta_id') == cuenta_id]
+
+            # Variables de control de estados
             tiene_atraso = False
             paga_hoy = False
-            paga_semana = False
+            paga_prox_7 = False
             
             for cuota in plan_cliente:
-                # REGLA DE ORO: Normalización del estado
-                est_norm = str(cuota.get("estado", "")).strip().lower()
-                # Si no es un "pagado" absoluto, la cuota está viva (debe dinero)
-                cuota_liquidada = est_norm in ["pagado", "pago", "pago completo", "completado"]
-                
-                if not cuota_liquidada:
-                    f_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
+                # Si la cuota NO está completa, procedemos a verificar fechas
+                estado_cuota = str(cuota.get('estado', '')).lower()
+                if estado_cuota not in ['completa', 'pagada', 'finalizada']:
+                    fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
                     
-                    # Evaluación por fecha
-                    if f_cuota < hoy:
-                        tiene_atraso = True  # Una sola cuota vieja incompleta ya lo marca como ATRASADO
-                    elif f_cuota == hoy:
+                    # 1. ¿Está atrasado? (Fecha anterior a hoy y no está completa)
+                    if fecha_cuota < hoy:
+                        tiene_atraso = True
+                    
+                    # 2. ¿Paga hoy? (Fecha es hoy mismo y no está completa)
+                    elif fecha_cuota == hoy:
                         paga_hoy = True
-                    elif hoy < f_cuota <= (hoy + timedelta(days=7)):
-                        paga_semana = True
+                    
+                    # 3. ¿Próximos 7 días? (Desde hoy hasta 7 días más)
+                    elif hoy <= fecha_cuota <= (hoy + timedelta(days=7)):
+                        paga_prox_7 = True
 
-            # --- APLICACIÓN ESTRICTA DE FILTROS ---
+            # Lógica de Filtros (Prioridad y Exclusividad)
             pasa_filtro = False
-            
             if sel_filtro == "🌍 Todos":
                 pasa_filtro = True
-                
             elif sel_filtro == "🔴 Atrasados":
                 pasa_filtro = tiene_atraso
-                
             elif sel_filtro == "🟠 Pagan hoy":
-                # Si tiene un atraso viejo, su prioridad es pagar lo viejo, 
-                # pero para este filtro mostramos si tiene algo que vence hoy.
                 pasa_filtro = paga_hoy
-                
             elif sel_filtro == "🗓️ Prox. 7 dias":
-                # Muestra cualquier cliente con vencimientos en la ventana de 7 días (incluyendo hoy)
-                pasa_filtro = paga_semana or paga_hoy
-                
+                # Incluye a los de hoy y los que vienen en la semana
+                pasa_filtro = paga_prox_7 or paga_hoy
             elif sel_filtro == "🟢 Al Día":
-                # UN CLIENTE AL DÍA NO DEBE NADA DE AYER NI DE HOY.
+                # "Al día" son los que no deben nada viejo ni tienen que pagar hoy
                 pasa_filtro = not tiene_atraso and not paga_hoy
 
-            # --- BUSCADOR Y RESULTADO ---
+            # Match de búsqueda por texto
             if pasa_filtro:
-                s_term = search_query.lower()
-                match_txt = not search_query or (
-                    s_term in c['nombre'].lower() or 
-                    s_term in str(c.get('cedula', ''))
+                search_term = search_query.lower()
+                match_search = not search_query or (
+                    search_term in c['nombre'].lower() or 
+                    search_term in str(c.get('cedula', ''))
                 )
-                if match_txt:
-                    # Guardamos el estado para posibles etiquetas visuales
-                    if tiene_atraso: c['status_view'] = "🔴 ATRASADO"
-                    elif paga_hoy: c['status_view'] = "🟠 PAGA HOY"
-                    else: c['status_view'] = "🟢 AL DÍA"
-                    
+                if match_search:
                     clientes_f.append(c)
 
         # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
