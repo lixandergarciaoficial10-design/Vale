@@ -1763,6 +1763,7 @@ elif menu == "Gestión de Cobros":
         st.markdown(f"### 📊 {len(datos_procesados)} facturas encontradas")
         
         # --- BOTÓN DE CONSULTA ---
+        # --- BOTÓN DE CONSULTA ---
         if len(st.session_state.ruta_seleccion) > 0:
             st.write("---")
             col_btn_c1, col_btn_c2 = st.columns([2, 1])
@@ -1792,6 +1793,7 @@ elif menu == "Gestión de Cobros":
                 lat = c.get('clientes', {}).get('latitud')
                 lng = c.get('clientes', {}).get('longitud')
                 try:
+                    # Filtro radical: si es 0, no entra a con_gps para no desviar el mapa
                     if lat and lng and float(lat) != 0 and float(lng) != 0:
                         con_gps.append(c)
                     else:
@@ -1808,25 +1810,25 @@ elif menu == "Gestión de Cobros":
                 elif con_gps:
                     
                     # --- 1. OBTENER UBICACIÓN ACTUAL REAL (GPS DEL MÓVIL) ---
-                    # Usamos streamlit_js_eval para forzar al navegador a despertar el GPS real
                     from streamlit_js_eval import get_geolocation
                     import requests
+                    import time
                     
                     st.caption("📡 Obteniendo señal GPS real de tu dispositivo...")
+                    
+                    # Intentamos capturar el GPS real. 
+                    # IMPORTANTE: Eliminamos el fallback de IP para que NO te mande a OREGON.
                     loc = get_geolocation()
                     
-                    if loc and 'coords' in loc:
+                    if loc and isinstance(loc, dict) and 'coords' in loc:
                         mi_lat = loc['coords']['latitude']
                         mi_lon = loc['coords']['longitude']
                     else:
-                        # Fallback por IP si el usuario aún no acepta el permiso GPS
-                        try:
-                            loc_data = requests.get('http://ip-api.com/json', timeout=3).json()
-                            mi_lat, mi_lon = float(loc_data['lat']), float(loc_data['lon'])
-                        except:
-                            # Si todo falla, el primer cliente (evita que la app se rompa)
-                            mi_lat = float(con_gps[0]['clientes']['latitud'])
-                            mi_lon = float(con_gps[0]['clientes']['longitud'])
+                        # Si el GPS falla, NO usamos IP. Usamos la ubicación del primer cliente como punto de partida 
+                        # para que el mapa al menos abra en tu ciudad y no en EE.UU.
+                        st.info("⌛ Esperando señal GPS... (Si no cambia, asegúrate de dar permisos de ubicación)")
+                        mi_lat = float(con_gps[0]['clientes']['latitud'])
+                        mi_lon = float(con_gps[0]['clientes']['longitud'])
 
                     # --- 2. OPTIMIZACIÓN DE RUTA PARA AHORRAR COMBUSTIBLE ---
                     def calcular_ruta_optima(puntos, lat_inicio, lon_inicio):
@@ -1868,7 +1870,7 @@ elif menu == "Gestión de Cobros":
                     folium.TileLayer('openstreetmap', name='Vista Calles').add_to(m)
 
                     # --- 4. TRAZADO POR CALLES (API OSRM) ---
-                    # Construimos la cadena de coordenadas para el ruteo real
+                    # Esto evita las líneas rectas y dibuja sobre las calles reales
                     puntos_osrm = f"{mi_lon},{mi_lat}"
                     for c in con_gps:
                         puntos_osrm += f";{c['clientes']['longitud']},{c['clientes']['latitud']}"
@@ -1879,17 +1881,15 @@ elif menu == "Gestión de Cobros":
                         if 'routes' in resp:
                             linea_calles = [[p[1], p[0]] for p in resp['routes'][0]['geometry']['coordinates']]
                             folium.PolyLine(linea_calles, color="#3B82F6", weight=5, opacity=0.8).add_to(m)
-                        else:
-                            raise Exception("OSRM no disponible")
                     except:
-                        # Si falla OSRM, traza línea recta como último recurso
+                        # Fallback por si el servidor de rutas está caído
                         coords_simple = [[mi_lat, mi_lon]] + [[float(c['clientes']['latitud']), float(c['clientes']['longitud'])] for c in con_gps]
                         folium.PolyLine(coords_simple, color="#3B82F6", weight=3, dash_array='5').add_to(m)
 
-                    # Marcador de INICIO (Tú)
+                    # Marcador de INICIO (Posición detectada)
                     folium.Marker(
                         [mi_lat, mi_lon],
-                        tooltip="ESTÁS AQUÍ",
+                        tooltip="MI POSICIÓN",
                         icon=folium.Icon(color="red", icon="user", prefix="fa")
                     ).add_to(m)
 
@@ -1898,18 +1898,11 @@ elif menu == "Gestión de Cobros":
                         lat_c = float(c['clientes']['latitud'])
                         lng_c = float(c['clientes']['longitud'])
                         
-                        # HTML para la etiqueta flotante (Nombre del cliente siempre visible)
                         html_label = f"""
                             <div style="
-                                font-family: sans-serif; 
-                                font-size: 10px; 
-                                color: white; 
-                                background-color: rgba(30, 58, 138, 0.8); 
-                                border-radius: 4px; 
-                                padding: 2px 5px; 
-                                border: 1px solid white;
-                                white-space: nowrap;
-                                font-weight: bold;">
+                                font-family: sans-serif; font-size: 10px; color: white; 
+                                background-color: rgba(30, 58, 138, 0.8); border-radius: 4px; 
+                                padding: 2px 5px; border: 1px solid white; white-space: nowrap; font-weight: bold;">
                                 {i}. {c['aux_nombre'][:20]}
                             </div>"""
                         
@@ -1922,28 +1915,30 @@ elif menu == "Gestión de Cobros":
                     folium.LayerControl().add_to(m)
                     folium_static(m, width=700, height=500)
                     
-                    # --- 5. BOTÓN GOOGLE MAPS GPS (URL DINÁMICA) ---
-                    # Usamos la ubicación detectada como 'origin' para que el GPS inicie donde está el cliente
-                    base_url_google = "https://www.google.com/maps/dir/?api=1"
+                    # --- 5. BOTÓN GOOGLE MAPS GPS (CON FIX DE UBICACIÓN ACTUAL) ---
+                    # Para evitar el error de Oregon, enviamos 'Current+Location' en el parámetro origin.
+                    # Esto obliga a la App de Google Maps a usar el GPS del teléfono y no la IP del servidor.
+                    import urllib.parse
+
                     puntos_google = [f"{float(c['clientes']['latitud'])},{float(c['clientes']['longitud'])}" for c in con_gps]
+                    destino_final = puntos_google.pop()
+                    waypoints_encoded = urllib.parse.quote("|".join(puntos_google))
+                    waypoints_str = f"&waypoints={waypoints_encoded}" if puntos_google else ""
                     
-                    destino_final = puntos_google.pop() # El último cliente es el destino
-                    # Los clientes intermedios van en 'waypoints'
-                    waypoints_str = "&waypoints=" + "|".join(puntos_google) if puntos_google else ""
-                    
-                    url_google_maps = f"{base_url_google}&origin={mi_lat},{mi_lon}&destination={destino_final}{waypoints_str}&travelmode=driving"
+                    # Usamos Current+Location para mayor seguridad en móviles
+                    url_google_maps = f"https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination={destino_final}{waypoints_str}&travelmode=driving"
 
                     st.divider()
                     col_r1, col_r2 = st.columns([1, 1])
                     with col_r1:
-                        st.success(f"✅ Ruta lista ({len(con_gps)} clientes)")
+                        st.success(f"✅ Ruta optimizada ({len(con_gps)} paradas)")
                     with col_r2:
-                        st.link_button("🚀 INICIAR GOOGLE MAPS GPS", url_google_maps, type="primary", use_container_width=True)
+                        st.link_button("🚀 INICIAR GOOGLE MAPS", url_google_maps, type="primary", use_container_width=True)
                 
                 else:
-                    st.error("❌ No hay coordenadas válidas para mostrar.")
+                    st.error("❌ Los clientes seleccionados no tienen coordenadas válidas.")
                 
-                # Botón de limpieza (Se mantiene exactamente igual a tu original)
+                # --- BOTÓN DE LIMPIEZA ORIGINAL ---
                 if st.button("🗑️ Cancelar y Limpiar Selección"):
                     st.session_state.ruta_seleccion = []
                     st.session_state.mostrar_mapa = False
