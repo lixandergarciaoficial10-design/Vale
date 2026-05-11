@@ -1787,12 +1787,16 @@ elif menu == "Gestión de Cobros":
             con_gps = []
             sin_gps = []
             
+            # Validación estricta para evitar 0 o errores de coordenadas
             for c in clientes_ruta_data:
                 lat = c.get('clientes', {}).get('latitud')
                 lng = c.get('clientes', {}).get('longitud')
-                if lat and lng and float(lat) != 0:
-                    con_gps.append(c)
-                else:
+                try:
+                    if lat and lng and float(lat) != 0 and float(lng) != 0:
+                        con_gps.append(c)
+                    else:
+                        sin_gps.append(c['aux_nombre'])
+                except:
                     sin_gps.append(c['aux_nombre'])
 
             with st.expander(f"📍 Ruta Planificada: {len(con_gps)} paradas listas", expanded=True):
@@ -1803,48 +1807,43 @@ elif menu == "Gestión de Cobros":
                     st.error(f"🛑 ALTO: Google Maps gratuito solo soporta un máximo de {LIMITE_MAPS} ubicaciones por ruta.")
                 elif con_gps:
                     
-                    # --- 1. OBTENER UBICACIÓN ACTUAL FORZADA ---
-                    # Intentamos usar streamlit_geolocation si está instalado, si no, IP fallback
-                    try:
-                        from streamlit_geolocation import streamlit_geolocation
-                        st.caption("📍 Permite el acceso a tu ubicación para iniciar la ruta exactament desde donde estás:")
-                        loc = streamlit_geolocation()
-                        if loc and loc['latitude'] is not None:
-                            mi_lat, mi_lon = loc['latitude'], loc['longitude']
-                        else:
-                            raise Exception("Buscando por IP")
-                    except:
-                        # Fallback por IP pública (Aproximada) si no hay plugin de GPS
-                        import requests
+                    # --- 1. OBTENER UBICACIÓN ACTUAL REAL (GPS DEL MÓVIL) ---
+                    # Usamos streamlit_js_eval para forzar al navegador a despertar el GPS real
+                    from streamlit_js_eval import get_geolocation
+                    import requests
+                    
+                    st.caption("📡 Obteniendo señal GPS real de tu dispositivo...")
+                    loc = get_geolocation()
+                    
+                    if loc and 'coords' in loc:
+                        mi_lat = loc['coords']['latitude']
+                        mi_lon = loc['coords']['longitude']
+                    else:
+                        # Fallback por IP si el usuario aún no acepta el permiso GPS
                         try:
                             loc_data = requests.get('http://ip-api.com/json', timeout=3).json()
                             mi_lat, mi_lon = float(loc_data['lat']), float(loc_data['lon'])
                         except:
-                            # Si falla el internet o el servidor, usamos el primer cliente como inicio (Tu lógica original)
-                            mi_lat, mi_lon = float(con_gps[0]['clientes']['latitud']), float(con_gps[0]['clientes']['longitud'])
+                            # Si todo falla, el primer cliente (evita que la app se rompa)
+                            mi_lat = float(con_gps[0]['clientes']['latitud'])
+                            mi_lon = float(con_gps[0]['clientes']['longitud'])
 
                     # --- 2. OPTIMIZACIÓN DE RUTA PARA AHORRAR COMBUSTIBLE ---
                     def calcular_ruta_optima(puntos, lat_inicio, lon_inicio):
                         if not puntos: return []
                         ruta_ordenada = []
                         pendientes = puntos.copy()
-                        
-                        actual_lat = lat_inicio
-                        actual_lon = lon_inicio
+                        actual_lat, actual_lon = lat_inicio, lon_inicio
                         
                         while pendientes:
-                            # Busca el cliente MÁS CERCANO al punto actual
                             proximo = min(pendientes, key=lambda p: (
                                 (float(p['clientes']['latitud']) - actual_lat)**2 + 
                                 (float(p['clientes']['longitud']) - actual_lon)**2
                             ))
                             ruta_ordenada.append(proximo)
                             pendientes.remove(proximo)
-                            
-                            # Actualiza la posición a la del cliente recién agregado
                             actual_lat = float(proximo['clientes']['latitud'])
                             actual_lon = float(proximo['clientes']['longitud'])
-                            
                         return ruta_ordenada
 
                     con_gps = calcular_ruta_optima(con_gps, mi_lat, mi_lon)
@@ -1853,83 +1852,98 @@ elif menu == "Gestión de Cobros":
                     for i, c in enumerate(con_gps, 1):
                         st.markdown(f"**{i}. {c['aux_nombre']}** *(ID: {c['id']})*")
                     
-                    # --- 3. CREACIÓN DEL MAPA MULTICAPA ---
+                    # --- 3. CREACIÓN DEL MAPA MULTICAPA CON FOLIUM ---
                     import folium
                     from streamlit_folium import folium_static
 
-                    # Centrar el mapa en la posición del cobrador
-                    m = folium.Map(location=[mi_lat, mi_lon], zoom_start=14)
+                    m = folium.Map(location=[mi_lat, mi_lon], zoom_start=15)
 
-                    # Capa Satélite (Predeterminada)
+                    # Capa Satélite Esri (Predeterminada)
                     folium.TileLayer(
                         tiles='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                        attr='Esri', name='Satélite', overlay=False, control=True, show=True
+                        attr='Esri', name='Vista Satélite', overlay=False, control=True, show=True
                     ).add_to(m)
+                    
+                    # Capa Callejera OpenStreetMap
+                    folium.TileLayer('openstreetmap', name='Vista Calles').add_to(m)
 
-                    # Capa Callejera (Opcional)
-                    folium.TileLayer(
-                        tiles='openstreetmap',
-                        name='Mapa Callejero', overlay=False, control=True, show=False
-                    ).add_to(m)
+                    # --- 4. TRAZADO POR CALLES (API OSRM) ---
+                    # Construimos la cadena de coordenadas para el ruteo real
+                    puntos_osrm = f"{mi_lon},{mi_lat}"
+                    for c in con_gps:
+                        puntos_osrm += f";{c['clientes']['longitud']},{c['clientes']['latitud']}"
+                    
+                    try:
+                        url_osrm = f"http://router.project-osrm.org/route/v1/driving/{puntos_osrm}?overview=full&geometries=geojson"
+                        resp = requests.get(url_osrm, timeout=5).json()
+                        if 'routes' in resp:
+                            linea_calles = [[p[1], p[0]] for p in resp['routes'][0]['geometry']['coordinates']]
+                            folium.PolyLine(linea_calles, color="#3B82F6", weight=5, opacity=0.8).add_to(m)
+                        else:
+                            raise Exception("OSRM no disponible")
+                    except:
+                        # Si falla OSRM, traza línea recta como último recurso
+                        coords_simple = [[mi_lat, mi_lon]] + [[float(c['clientes']['latitud']), float(c['clientes']['longitud'])] for c in con_gps]
+                        folium.PolyLine(coords_simple, color="#3B82F6", weight=3, dash_array='5').add_to(m)
 
-                    # --- 4. DIBUJAR PUNTOS Y LÍNEA DE RUTA ---
-                    # Marcador de donde arranca la ruta
+                    # Marcador de INICIO (Tú)
                     folium.Marker(
                         [mi_lat, mi_lon],
-                        tooltip="📍 TU UBICACIÓN DE PARTIDA",
-                        icon=folium.Icon(color="green", icon="play", prefix="fa")
+                        tooltip="ESTÁS AQUÍ",
+                        icon=folium.Icon(color="red", icon="user", prefix="fa")
                     ).add_to(m)
 
-                    coordenadas_linea = [[mi_lat, mi_lon]]
-
+                    # Marcadores con NOMBRES FLOTANTES (DivIcon)
                     for i, c in enumerate(con_gps, 1):
                         lat_c = float(c['clientes']['latitud'])
                         lng_c = float(c['clientes']['longitud'])
-                        coordenadas_linea.append([lat_c, lng_c])
                         
-                        # Marcador inteligente con el nombre pequeñito incrustado (HTML)
-                        estilo_marcador = f"""
-                            <div style="font-family: Arial; font-size: 9px; font-weight: bold; color: #1e3a8a; background-color: rgba(255,255,255,0.9); border: 1.5px solid #3B82F6; border-radius: 4px; padding: 2px 4px; white-space: nowrap; transform: translate(-50%, -15px); box-shadow: 1px 1px 3px rgba(0,0,0,0.3);">
-                                {i}. {c['aux_nombre'][:18]}
-                            </div>
-                        """
+                        # HTML para la etiqueta flotante (Nombre del cliente siempre visible)
+                        html_label = f"""
+                            <div style="
+                                font-family: sans-serif; 
+                                font-size: 10px; 
+                                color: white; 
+                                background-color: rgba(30, 58, 138, 0.8); 
+                                border-radius: 4px; 
+                                padding: 2px 5px; 
+                                border: 1px solid white;
+                                white-space: nowrap;
+                                font-weight: bold;">
+                                {i}. {c['aux_nombre'][:20]}
+                            </div>"""
                         
                         folium.Marker(
                             [lat_c, lng_c],
-                            icon=folium.DivIcon(html=estilo_marcador),
-                            tooltip=f"Parada {i}: {c['aux_nombre']}"
+                            icon=folium.DivIcon(html=html_label, icon_anchor=(0, 0)),
+                            tooltip=c['aux_nombre']
                         ).add_to(m)
 
-                    # Línea azul conectando todos los puntos
-                    folium.PolyLine(coordenadas_linea, color="#3B82F6", weight=4, opacity=0.8).add_to(m)
-
-                    # Activar el selector de capas (Satélite vs Estándar)
                     folium.LayerControl().add_to(m)
-
-                    # Renderizar mapa en la App
-                    folium_static(m, width=700, height=450)
+                    folium_static(m, width=700, height=500)
                     
-                    # --- 5. URL PARA ABRIR GOOGLE MAPS GPS ---
-                    base_url = "https://www.google.com/maps/dir/?api=1"
-                    puntos_url = []
-                    for c in con_gps:
-                        lat_r = round(float(c['clientes']['latitud']), 6)
-                        lng_r = round(float(c['clientes']['longitud']), 6)
-                        puntos_url.append(f"{lat_r},{lng_r}")
+                    # --- 5. BOTÓN GOOGLE MAPS GPS (URL DINÁMICA) ---
+                    # Usamos la ubicación detectada como 'origin' para que el GPS inicie donde está el cliente
+                    base_url_google = "https://www.google.com/maps/dir/?api=1"
+                    puntos_google = [f"{float(c['clientes']['latitud'])},{float(c['clientes']['longitud'])}" for c in con_gps]
                     
-                    destino_final = puntos_url.pop()
-                    waypoints = "&waypoints=" + "|".join(puntos_url) if puntos_url else ""
-                    # El origen en Google Maps ahora es exactamente donde está el cobrador
-                    origin_coords = f"{round(mi_lat, 6)},{round(mi_lon, 6)}"
-                    final_url = f"{base_url}&origin={origin_coords}&destination={destino_final}{waypoints}&travelmode=driving"
+                    destino_final = puntos_google.pop() # El último cliente es el destino
+                    # Los clientes intermedios van en 'waypoints'
+                    waypoints_str = "&waypoints=" + "|".join(puntos_google) if puntos_google else ""
+                    
+                    url_google_maps = f"{base_url_google}&origin={mi_lat},{mi_lon}&destination={destino_final}{waypoints_str}&travelmode=driving"
 
                     st.divider()
                     col_r1, col_r2 = st.columns([1, 1])
                     with col_r1:
-                        st.success(f"✅ Ruta validada ({len(con_gps)} paradas).")
+                        st.success(f"✅ Ruta lista ({len(con_gps)} clientes)")
                     with col_r2:
-                        st.link_button("🚀 INICIAR NAVEGACIÓN", final_url, type="primary", use_container_width=True)
+                        st.link_button("🚀 INICIAR GOOGLE MAPS GPS", url_google_maps, type="primary", use_container_width=True)
                 
+                else:
+                    st.error("❌ No hay coordenadas válidas para mostrar.")
+                
+                # Botón de limpieza (Se mantiene exactamente igual a tu original)
                 if st.button("🗑️ Cancelar y Limpiar Selección"):
                     st.session_state.ruta_seleccion = []
                     st.session_state.mostrar_mapa = False
