@@ -2400,6 +2400,7 @@ elif menu == "👥 Todos mis Clientes":
         res_pagos = conn.table("pagos").select("*").execute()
         pagos_db = res_pagos.data if res_pagos.data else []
 
+        # Forzamos a que 'hoy' sea un punto de comparación limpio
         hoy = datetime.now().date()
 
         # --- BARRA DE COMANDO: BUSCADOR + PILLS ---
@@ -2413,65 +2414,64 @@ elif menu == "👥 Todos mis Clientes":
             opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟠 Pagan hoy", "🗓️ Prox. 7 dias"]
             sel_filtro = st.pills("Filtro Inteligente:", opciones, selection_mode="single", default="🌍 Todos", label_visibility="collapsed")
 
-        # --- LÓGICA DE FILTRADO "GENIO" (Reutilizando la lógica que sí funciona) ---
+        # --- LÓGICA DE FILTRADO "GENIO" (Corregida con lógica de la otra sección) ---
         clientes_f = []
         for c in clientes_db:
-            # Buscamos la cuenta principal
+            # Buscamos la cuenta del cliente
             cuenta = next((d for d in cuentas_db if d['cliente_id'] == c['id']), None)
             
-            # Variables de estado (Basadas en la sección funcional)
-            cumple_al_dia = False
-            cumple_atrasado = False
-            cumple_cobrar_hoy = False
-            cumple_proximo_7 = False
-            
+            # Inicializamos estados falsos por defecto
+            es_atrasado = False
+            es_paga_hoy = False
+            es_prox_7 = False
+            es_al_dia = False
+
             if not cuenta:
-                cumple_al_dia = True
+                es_al_dia = True
             else:
-                # Normalización de datos (Evita errores de fecha dominicana/formato)
-                raw_fecha = cuenta.get('proximo_pago')
-                prox_pago = pd.to_datetime(raw_fecha).date() if raw_fecha else None
+                # 1. Limpieza de datos (Crucial para que no falle el filtro)
+                val_proximo = cuenta.get('proximo_pago')
+                # Convertimos a datetime de pandas y extraemos solo la fecha (.date())
+                prox_pago = pd.to_datetime(val_proximo).date() if val_proximo else None
                 balance = float(cuenta.get('balance_pendiente', 0))
-                
-                # Definición de Estados según la lógica Waterfall
+
+                # 2. LÓGICA WATERFALL (Igual a la sección que sí te funciona)
                 if balance <= 0:
-                    cumple_al_dia = True
+                    es_al_dia = True
                 elif prox_pago:
-                    # Caso Atrasado
                     if prox_pago < hoy:
-                        cumple_atrasado = True
-                    # Caso Hoy
+                        es_atrasado = True
                     elif prox_pago == hoy:
-                        cumple_cobrar_hoy = True
-                    # Caso Próximos 7 días
+                        es_paga_hoy = True
                     elif hoy < prox_pago <= (hoy + pd.Timedelta(days=7)):
-                        cumple_proximo_7 = True
-                    # Caso Al día (Futuro lejano)
+                        es_prox_7 = True
                     else:
-                        cumple_al_dia = True
+                        es_al_dia = True
                 else:
-                    cumple_al_dia = True
+                    es_al_dia = True
 
-            # Lógica de Aplicación de Filtros (Exacta a la sección funcional)
-            pasa_filtro = False
+            # 3. DETERMINAR SI PASA EL FILTRO SELECCIONADO
+            match_estado = False
             if sel_filtro == "🌍 Todos":
-                pasa_filtro = True
+                match_estado = True
             elif sel_filtro == "🔴 Atrasados":
-                pasa_filtro = cumple_atrasado
+                match_estado = es_atrasado
             elif sel_filtro == "🟢 Al Día":
-                pasa_filtro = cumple_al_dia
+                match_estado = es_al_dia
             elif sel_filtro == "🟠 Pagan hoy":
-                pasa_filtro = cumple_cobrar_hoy
+                match_estado = es_paga_hoy
             elif sel_filtro == "🗓️ Prox. 7 dias":
-                pasa_filtro = cumple_proximo_7 or cumple_cobrar_hoy
+                # En "Próximos 7 días" incluimos también a los que pagan hoy
+                match_estado = es_prox_7 or es_paga_hoy
 
-            # Match de búsqueda por texto
+            # Match de búsqueda por texto (Nombre o Cédula)
+            search_term = search_query.lower()
             match_search = not search_query or (
-                search_query.lower() in str(c.get('nombre', '')).lower() or 
-                search_query in str(c.get('cedula', ''))
+                search_term in str(c.get('nombre', '')).lower() or 
+                search_term in str(c.get('cedula', ''))
             )
             
-            if match_search and pasa_filtro:
+            if match_search and match_estado:
                 clientes_f.append(c)
 
         # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
