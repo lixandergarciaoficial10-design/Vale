@@ -2403,7 +2403,8 @@ elif menu == "👥 Todos mis Clientes":
         planes_db = res_planes.data if res_planes.data else []
 
         # Configuración de fecha República Dominicana
-        from datetime import timedelta
+        from datetime import timedelta, datetime
+        import pandas as pd
         # Ajuste manual si el servidor está en UTC (RD es UTC-4)
         hoy = (datetime.now() - timedelta(hours=4)).date()
 
@@ -2411,67 +2412,79 @@ elif menu == "👥 Todos mis Clientes":
         col_search, col_filter = st.columns([1.2, 2])
         with col_search:
             search_query = st.text_input("🔍", placeholder="Buscar cliente...", label_visibility="collapsed")
+            search_term = search_query.lower()
         
         with col_filter:
             opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟠 Pagan hoy", "🗓️ Prox. 7 dias"]
             sel_filtro = st.pills("Filtro Inteligente:", opciones, selection_mode="single", default="🌍 Todos", label_visibility="collapsed")
 
-        # --- LÓGICA DE FILTRADO ---
+        # --- LÓGICA DE FILTRADO (INYECTANDO TU WATERFALL PERFECTO) ---
         clientes_f = []
         for c in clientes_db:
             cuenta = next((d for d in cuentas_db if d['cliente_id'] == c['id']), None)
             
             if not cuenta:
                 if sel_filtro == "🌍 Todos":
-                    match_search = not search_query or (search_query.lower() in c['nombre'].lower())
+                    match_search = not search_query or (search_term in c['nombre'].lower())
                     if match_search: clientes_f.append(c)
                 continue
 
             cuenta_id = cuenta['id']
-            # Filtramos el plan de este cliente
-            plan_cliente = [p for p in planes_db if p.get('cuenta_id') == cuenta_id]
-
-            # Variables de control de estados
-            tiene_atraso = False
-            paga_hoy = False
-            paga_prox_7 = False
             
-            for cuota in plan_cliente:
-                # Si la cuota NO está completa, procedemos a verificar fechas
-                estado_cuota = str(cuota.get('estado', '')).lower()
-                if estado_cuota not in ['completa', 'pagada', 'finalizada']:
-                    fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
-                    
-                    # 1. ¿Está atrasado? (Fecha anterior a hoy y no está completa)
-                    if fecha_cuota < hoy:
-                        tiene_atraso = True
-                    
-                    # 2. ¿Paga hoy? (Fecha es hoy mismo y no está completa)
-                    elif fecha_cuota == hoy:
-                        paga_hoy = True
-                    
-                    # 3. ¿Próximos 7 días? (Desde hoy hasta 7 días más)
-                    elif hoy <= fecha_cuota <= (hoy + timedelta(days=7)):
-                        paga_prox_7 = True
+            # PASO 1: Obtener TODOS los pagos realizados de esta cuenta
+            pagos = [p for p in pagos_db if p.get('cuenta_id') == cuenta_id]
+            
+            # PASO 2: Obtener plan de cuotas de esta cuenta (asegurando el orden)
+            plan_cuotas = [p for p in planes_db if p.get('cuenta_id') == cuenta_id]
+            plan_cuotas = sorted(plan_cuotas, key=lambda x: x.get('numero_cuota', 0))
 
-            # Lógica de Filtros (Prioridad y Exclusividad)
+            # PASO 3: Calcular saldo_recorrido (suma de TODOS los pagos)
+            saldo_recorrido = sum(float(p.get('monto_pagado', 0)) for p in pagos)
+            
+            # PASO 4: WATERFALL - Recorrer plan (Tu lógica exacta)
+            todas_pagadas = True
+            cuota_hoy = None
+            cuotas_vencidas = []
+            cuotas_proximo_7_dias = []
+            
+            for cuota in plan_cuotas:
+                monto_cuota = float(cuota['monto_cuota'])
+                fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
+                
+                # ✅ WATERFALL: ¿Hay dinero para pagar esta cuota?
+                if saldo_recorrido >= monto_cuota:
+                    saldo_recorrido -= monto_cuota  # Consumir dinero
+                else:
+                    todas_pagadas = False
+                    # SOLO AHORA comparar fechas de cuota REALMENTE pendiente
+                    if fecha_cuota < hoy:
+                        cuotas_vencidas.append(fecha_cuota)
+                    elif fecha_cuota == hoy:
+                        cuota_hoy = fecha_cuota
+                    elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
+                        cuotas_proximo_7_dias.append(fecha_cuota)
+
+            # CATEGORIZAR ESTADOS
+            cumple_atrasado = len(cuotas_vencidas) > 0
+            cumple_cobrar_hoy = cuota_hoy is not None
+            cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy
+
+            # Lógica de Filtros (Prioridad y Exclusividad adaptada a tus pills)
             pasa_filtro = False
             if sel_filtro == "🌍 Todos":
                 pasa_filtro = True
             elif sel_filtro == "🔴 Atrasados":
-                pasa_filtro = tiene_atraso
+                pasa_filtro = cumple_atrasado
             elif sel_filtro == "🟠 Pagan hoy":
-                pasa_filtro = paga_hoy
+                pasa_filtro = cumple_cobrar_hoy
             elif sel_filtro == "🗓️ Prox. 7 dias":
-                # Incluye a los de hoy y los que vienen en la semana
-                pasa_filtro = paga_prox_7 or paga_hoy
+                pasa_filtro = cumple_proximo_7
             elif sel_filtro == "🟢 Al Día":
-                # "Al día" son los que no deben nada viejo ni tienen que pagar hoy
-                pasa_filtro = not tiene_atraso and not paga_hoy
+                # Al día: No tiene cuotas vencidas y tampoco tiene cuotas que pagar hoy
+                pasa_filtro = not cumple_atrasado and not cumple_cobrar_hoy
 
             # Match de búsqueda por texto
             if pasa_filtro:
-                search_term = search_query.lower()
                 match_search = not search_query or (
                     search_term in c['nombre'].lower() or 
                     search_term in str(c.get('cedula', ''))
