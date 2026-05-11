@@ -2390,8 +2390,8 @@ elif menu == "👥 Todos mis Clientes":
         st.divider()
     
 # --- 4. CENTRO DE CONTROL DE CLIENTES (Lógica Avanzada y Diseño Premium) ---
-    
-        # 1. CARGA DE DATOS Y ESTADOS (Usando tus columnas reales del CSV)
+
+      # 1. CARGA DE DATOS Y ESTADOS (Usando tus columnas reales del CSV)
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         clientes_db = res_cl.data if res_cl.data else []
         res_cuentas = conn.table("cuentas").select("*").execute()
@@ -2418,41 +2418,56 @@ elif menu == "👥 Todos mis Clientes":
             # Buscamos la cuenta principal (o la más reciente)
             cuenta = next((d for d in cuentas_db if d['cliente_id'] == c['id']), None)
             
-            # Si no hay cuenta, solo aparece en "Todos"
+            # PASO 1: EVALUAR TODOS LOS ESTADOS
+            cumple_al_dia = False
+            cumple_atrasado = False
+            cumple_cobrar_hoy = False
+            cumple_proximo_7 = False
+            
+            if not cuenta:
+                cumple_al_dia = True
+            else:
+                raw_fecha = cuenta.get('proximo_pago')
+                prox_pago = pd.to_datetime(raw_fecha).date() if raw_fecha else None
+                try:
+                    balance = float(cuenta.get('balance_pendiente', 0))
+                except:
+                    balance = 0.0
+                
+                if balance <= 0:
+                    cumple_al_dia = True
+                else:
+                    if prox_pago:
+                        if prox_pago < hoy:
+                            cumple_atrasado = True
+                        if prox_pago == hoy:
+                            cumple_cobrar_hoy = True
+                            cumple_al_dia = True
+                        if prox_pago > hoy:
+                            cumple_al_dia = True
+                        if 0 <= (prox_pago - hoy).days <= 7:
+                            cumple_proximo_7 = True
+                    else:
+                        cumple_al_dia = True
+
+            # PASO 2: APLICAR EL FILTRO
             match_estado = False
             if sel_filtro == "🌍 Todos":
                 match_estado = True
-            elif cuenta:
-                prox_pago = pd.to_datetime(cuenta.get('proximo_pago')).date() if cuenta.get('proximo_pago') else None
-                balance = cuenta.get('balance_pendiente', 0)
-                
-                # Atrasado: Si hoy es después de la fecha y tiene deuda
-                if sel_filtro == "🔴 Atrasados":
-                    if prox_pago and hoy > prox_pago and balance > 0:
-                        match_estado = True
-                
-                # Al Día: Balance 0 O la fecha es futura y no hay retrasos previos
-                elif sel_filtro == "🟢 Al Día":
-                    if balance <= 0 or (prox_pago and prox_pago > hoy):
-                        # Nota: Si estaba atrasado no entra aquí
-                        if not (prox_pago and hoy > prox_pago and balance > 0):
-                            match_estado = True
-                
-                # --- NUEVA LÓGICA: HOY ---
-                elif sel_filtro == "🟠 Pagan hoy":
-                    if prox_pago:
-                        dias_dif = (prox_pago - hoy).days
-                        # Si la diferencia es 0 es porque toca cobrar hoy mismo
-                        if dias_dif == 0 and balance > 0:
-                            match_estado = True
+            elif sel_filtro == "🔴 Atrasados":
+                match_estado = cumple_atrasado
+            elif sel_filtro == "🟢 Al Día":
+                match_estado = cumple_al_dia
+            elif sel_filtro == "🟠 Pagan hoy":
+                match_estado = cumple_cobrar_hoy
+            elif sel_filtro == "🗓️ Prox. 7 dias":
+                match_estado = cumple_proximo_7
 
-                # --- NUEVA LÓGICA: ESTA SEMANA (7 DÍAS) ---
-                elif sel_filtro == "🗓️ Prox. 7 dias":
-                    if prox_pago:
-                        dias_dif = (prox_pago - hoy).days
-                        # Filtra pagos desde hoy (0) hasta dentro de 7 días (7)
-                        if 0 <= dias_dif <= 7 and balance > 0:
-                            match_estado = True
+            # Match de búsqueda por texto
+            match_search = not search_query or (search_query.lower() in str(c.get('nombre', '')).lower() or search_query in str(c.get('cedula', '')))
+            
+            if match_search and match_estado:
+                clientes_f.append(c)
 
             # Match de búsqueda por texto
             match_search = not search_query or (search_query.lower() in c['nombre'].lower() or search_query in str(c.get('cedula', '')))
