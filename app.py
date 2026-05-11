@@ -2392,87 +2392,93 @@ elif menu == "👥 Todos mis Clientes":
 # --- 4. CENTRO DE CONTROL DE CLIENTES (Lógica Avanzada y Diseño Premium) ---
     
         # 1. CARGA DE DATOS Y ESTADOS (Usando tus columnas reales del CSV)
-        # 1. CARGA DE DATOS Y ESTADOS (Usando tus columnas reales del CSV)
+        # 1. CARGA DE DATOS Y ESTADOS
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
         clientes_db = res_cl.data if res_cl.data else []
         res_cuentas = conn.table("cuentas").select("*").execute()
         cuentas_db = res_cuentas.data if res_cuentas.data else []
         res_pagos = conn.table("pagos").select("*").execute()
         pagos_db = res_pagos.data if res_pagos.data else []
+        # Importante para el Waterfall: necesitamos el plan de cuotas
+        res_planes = conn.table("plan_cuotas").select("*").execute()
+        planes_db = res_planes.data if res_planes.data else []
 
-        # Forzamos a que 'hoy' sea un punto de comparación limpio
         hoy = datetime.now().date()
 
         # --- BARRA DE COMANDO: BUSCADOR + PILLS ---
         col_search, col_filter = st.columns([1.2, 2])
         with col_search:
-            # Buscador principal
             search_query = st.text_input("🔍", placeholder="Buscar cliente...", label_visibility="collapsed")
         
         with col_filter:
-            # FILTRO DIVIDIDO: Se eliminó "Próximos/Hoy" y se agregaron "Hoy" y "Esta Semana"
             opciones = ["🌍 Todos", "🔴 Atrasados", "🟢 Al Día", "🟠 Pagan hoy", "🗓️ Prox. 7 dias"]
             sel_filtro = st.pills("Filtro Inteligente:", opciones, selection_mode="single", default="🌍 Todos", label_visibility="collapsed")
 
-        # --- LÓGICA DE FILTRADO "GENIO" (Corregida con lógica de la otra sección) ---
+        # --- LÓGICA DE FILTRADO "WATERFALL GENIO" ---
         clientes_f = []
         for c in clientes_db:
-            # Buscamos la cuenta del cliente
+            # 1. Obtener datos de este cliente específico
             cuenta = next((d for d in cuentas_db if d['cliente_id'] == c['id']), None)
             
-            # Inicializamos estados falsos por defecto
-            es_atrasado = False
-            es_paga_hoy = False
-            es_prox_7 = False
-            es_al_dia = False
-
+            # Si no hay cuenta, solo sale en "Todos"
             if not cuenta:
-                es_al_dia = True
-            else:
-                # 1. Limpieza de datos (Crucial para que no falle el filtro)
-                val_proximo = cuenta.get('proximo_pago')
-                # Convertimos a datetime de pandas y extraemos solo la fecha (.date())
-                prox_pago = pd.to_datetime(val_proximo).date() if val_proximo else None
-                balance = float(cuenta.get('balance_pendiente', 0))
+                if sel_filtro == "🌍 Todos":
+                    match_search = not search_query or (search_query.lower() in c['nombre'].lower())
+                    if match_search: clientes_f.append(c)
+                continue
 
-                # 2. LÓGICA WATERFALL (Igual a la sección que sí te funciona)
-                if balance <= 0:
-                    es_al_dia = True
-                elif prox_pago:
-                    if prox_pago < hoy:
-                        es_atrasado = True
-                    elif prox_pago == hoy:
-                        es_paga_hoy = True
-                    elif hoy < prox_pago <= (hoy + pd.Timedelta(days=7)):
-                        es_prox_7 = True
-                    else:
-                        es_al_dia = True
-                else:
-                    es_al_dia = True
+            cuenta_id = cuenta['id']
+            # Filtrar pagos y plan de este cliente
+            pagos_cliente = [p for p in pagos_db if p.get('cuenta_id') == cuenta_id]
+            plan_cliente = sorted([p for p in planes_db if p.get('cuenta_id') == cuenta_id], key=lambda x: x['numero_cuota'])
 
-            # 3. DETERMINAR SI PASA EL FILTRO SELECCIONADO
-            match_estado = False
-            if sel_filtro == "🌍 Todos":
-                match_estado = True
-            elif sel_filtro == "🔴 Atrasados":
-                match_estado = es_atrasado
-            elif sel_filtro == "🟢 Al Día":
-                match_estado = es_al_dia
-            elif sel_filtro == "🟠 Pagan hoy":
-                match_estado = es_paga_hoy
-            elif sel_filtro == "🗓️ Prox. 7 dias":
-                # En "Próximos 7 días" incluimos también a los que pagan hoy
-                match_estado = es_prox_7 or es_paga_hoy
-
-            # Match de búsqueda por texto (Nombre o Cédula)
-            search_term = search_query.lower()
-            match_search = not search_query or (
-                search_term in str(c.get('nombre', '')).lower() or 
-                search_term in str(c.get('cedula', ''))
-            )
+            # 2. CALCULO WATERFALL (El motor que sí funciona)
+            saldo_recorrido = sum(float(p.get('monto_pagado', 0)) for p in pagos_cliente)
             
-            if match_search and match_estado:
-                clientes_f.append(c)
+            todas_pagadas = True
+            cuota_hoy = None
+            cuotas_vencidas = []
+            cuotas_proximo_7_dias = []
+            
+            for cuota in plan_cliente:
+                monto_cuota = float(cuota['monto_cuota'])
+                fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
+                
+                if saldo_recorrido >= monto_cuota:
+                    saldo_recorrido -= monto_cuota  # La cuota se paga con el saldo disponible
+                else:
+                    todas_pagadas = False # Esta cuota quedó debiéndose total o parcialmente
+                    if fecha_cuota < hoy:
+                        cuotas_vencidas.append(fecha_cuota)
+                    elif fecha_cuota == hoy:
+                        cuota_hoy = fecha_cuota
+                    elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
+                        cuotas_proximo_7_dias.append(fecha_cuota)
+
+            # 3. CATEGORIZACIÓN (Basada en la lógica Waterfall)
+            cumple_al_dia = todas_pagadas or (not cuotas_vencidas and not cuota_hoy and not cuotas_proximo_7_dias)
+            cumple_atrasado = len(cuotas_vencidas) > 0
+            cumple_cobrar_hoy = cuota_hoy is not None
+            cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy
+
+            # 4. APLICAR FILTRO DE INTERFAZ
+            pasa_filtro = False
+            if sel_filtro == "🌍 Todos": pasa_filtro = True
+            elif sel_filtro == "🔴 Atrasados": pasa_filtro = cumple_atrasado
+            elif sel_filtro == "🟢 Al Día": pasa_filtro = cumple_al_dia
+            elif sel_filtro == "🟠 Pagan hoy": pasa_filtro = cumple_cobrar_hoy
+            elif sel_filtro == "🗓️ Prox. 7 dias": pasa_filtro = cumple_proximo_7
+
+            # 5. BÚSQUEDA Y RESULTADO FINAL
+            if pasa_filtro:
+                match_search = not search_query or (
+                    search_query.lower() in c['nombre'].lower() or 
+                    search_query in str(c.get('cedula', ''))
+                )
+                if match_search:
+                    # Agregamos campos auxiliares por si tu app los usa para mostrar etiquetas
+                    c['estado_pago'] = "Atrasado" if cumple_atrasado else "Al día"
+                    clientes_f.append(c)
 
         # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
 # --- FUNCIONES DE APOYO (Deben ir fuera del modal o antes de él) ---
