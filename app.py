@@ -861,6 +861,8 @@ def calcular_resumen_real(cuentas_del_cliente):
 import qrcode
 import os
 from tempfile import NamedTemporaryFile
+from datetime import datetime
+import pytz
 
 def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
     try:
@@ -868,20 +870,24 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
     except:
         monto, balance, mora = 0.0, 0.0, 0.0
     
-    # Tamaño estándar ticket 80mm
-    pdf = FPDF(format=(80, 160)) 
+    # Hora Real RD (AST)
+    tz_rd = pytz.timezone('America/Santo_Domingo')
+    fecha_rd = datetime.now(tz_rd)
+    fecha_str = fecha_rd.strftime('%d/%m/%Y %H:%M')
+    trans_id = int(fecha_rd.timestamp())
+
+    # Tamaño ticket 80mm
+    pdf = FPDF(format=(80, 150)) 
     pdf.add_page()
     pdf.set_margins(4, 4, 4)
     pdf.set_auto_page_break(False)
 
-    # 1. Recuperar info del negocio
     nombre_negocio = st.session_state.get("nombre_negocio", "COBROYA PRO").upper()
     rnc = st.session_state.get("rnc", "")
     direccion = st.session_state.get("direccion_negocio", "Rep. Dominicana")
     telefono = st.session_state.get("telefono_negocio", "")
-    trans_id = int(datetime.now().timestamp())
 
-    # --- ENCABEZADO ---
+    # --- ENCABEZADO CENTRADO ---
     pdf.set_font("Helvetica", "B", 11)
     pdf.cell(72, 7, nombre_negocio, ln=True, align='C')
     
@@ -892,70 +898,65 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
     
     pdf.cell(72, 4, "="*35, ln=True, align='C')
     
-    # --- CUERPO DEL TICKET ---
+    # --- CUERPO ---
     pdf.set_font("Helvetica", "B", 9)
     pdf.cell(72, 6, "COMPROBANTE DE COBRO", ln=True, align='C')
     pdf.set_font("Helvetica", "", 8)
-    pdf.cell(72, 4, f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True)
-    pdf.cell(72, 4, f"No. Trans: {trans_id}", ln=True)
-    pdf.cell(72, 4, f"Cliente: {nombre_cliente.upper()}", ln=True)
+    pdf.cell(72, 4, f"Fecha: {fecha_str}", ln=True, align='C')
+    pdf.cell(72, 4, f"No. Trans: {trans_id}", ln=True, align='C')
+    pdf.cell(72, 4, f"Cliente: {nombre_cliente.upper()}", ln=True, align='C')
     pdf.cell(72, 4, "-"*40, ln=True, align='C')
 
     # --- VALORES ---
     pdf.ln(2)
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(40, 6, "ABONO RECIBIDO:")
+    pdf.cell(36, 6, " ABONO RECIBIDO:")
     pdf.set_font("Helvetica", "B", 10)
-    pdf.cell(32, 6, f"RD$ {monto:,.2f}", ln=True, align='R')
+    pdf.cell(36, 6, f"RD$ {monto:,.2f} ", ln=True, align='R')
 
     if mora > 0:
         pdf.set_font("Helvetica", "", 10)
-        pdf.cell(40, 6, "MORA COBRADA:")
+        pdf.cell(36, 6, " MORA COBRADA:")
         pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(32, 6, f"RD$ {mora:,.2f}", ln=True, align='R')
+        pdf.cell(36, 6, f"RD$ {mora:,.2f} ", ln=True, align='R')
 
     pdf.ln(2)
     pdf.set_fill_color(245, 245, 245) 
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(40, 8, " PENDIENTE:", fill=True)
-    pdf.cell(32, 8, f"RD$ {balance:,.2f} ", ln=True, align='R', fill=True)
+    pdf.cell(36, 8, " PENDIENTE:", fill=True)
+    pdf.cell(36, 8, f"RD$ {balance:,.2f} ", ln=True, align='R', fill=True)
     
-    # --- BLOQUE QR (INTELIGENTE Y LEGAL) ---
-    # Generamos el contenido del QR
-    qr_data = (f"RECIBO LEGAL COBROYA\n"
-               f"Negocio: {nombre_negocio}\n"
-               f"Trans: {trans_id}\n"
-               f"Cliente: {nombre_cliente}\n"
-               f"Monto: RD$ {monto:,.2f}\n"
-               f"Autenticidad garantizada por sistema CobroYa Pro.")
+    # --- PIE Y FIRMA ---
+    pdf.ln(6)
+    pdf.set_font("Helvetica", "", 7)
+    pdf.cell(72, 4, "_______________________", ln=True, align='C')
+    pdf.cell(72, 4, "FIRMA DEL CLIENTE", ln=True, align='C')
+    
+    # --- BLOQUE QR MINIMALISTA Y CENTRADO ---
+    # Texto legal formateado para evitar que el móvil lo confunda con un número
+    qr_legal = (f"VERIFICACIÓN COBROYA\n"
+                f"Empresa: {nombre_negocio}\n"
+                f"Recibo: {trans_id}\n"
+                f"Cliente: {nombre_cliente}\n"
+                f"Monto Pagado: RD$ {monto:,.2f}\n"
+                f"Balance Pendiente: RD$ {balance:,.2f}\n"
+                f"Fecha: {fecha_str}")
     
     qr = qrcode.QRCode(version=1, box_size=10, border=1)
-    qr.add_data(qr_data)
+    qr.add_data(qr_legal)
     qr.make(fit=True)
     img_qr = qr.make_image(fill_color="black", back_color="white")
 
-    # Guardar QR temporalmente para meterlo al PDF
     with NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
         img_qr.save(tmpfile.name)
-        # Posicionamos el QR a la derecha de la firma o al final
-        # x=50 (derecha), y=actual, ancho y alto de 18mm (pequeño pero escaneable)
-        y_pos = pdf.get_y() + 5 
-        pdf.image(tmpfile.name, x=50, y=y_pos, w=18)
+        # Centrado: (80mm - 15mm de ancho) / 2 = 32.5 aprox
+        pdf.image(tmpfile.name, x=32, y=pdf.get_y() + 2, w=15)
         tmp_path = tmpfile.name
 
-    # --- PIE (FIRMA) ---
-    pdf.ln(5)
-    pdf.set_font("Helvetica", "", 7)
-    # Dejamos espacio a la izquierda para la firma mientras el QR está a la derecha
-    pdf.cell(45, 4, "_______________________", ln=False, align='L')
-    pdf.ln(4)
-    pdf.cell(45, 4, "FIRMA DEL CLIENTE", ln=True, align='L')
-    
-    pdf.ln(8)
+    pdf.ln(18) # Espacio para el QR
     pdf.set_font("Helvetica", "I", 8)
     pdf.cell(72, 4, "¡Gracias por su pago!", ln=True, align='C')
     
-    # Limpiamos el archivo temporal
     if os.path.exists(tmp_path):
         os.remove(tmp_path)
 
