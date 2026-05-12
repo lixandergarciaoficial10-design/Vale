@@ -1691,9 +1691,9 @@ elif menu == "Gestión de Cobros":
                             proxima_cuota_sin_vencer = fecha_cuota
                 
                 # CATEGORIZAR
-                cumple_al_dia = todas_pagadas
+                cumple_al_dia = not cumple_urgente
                 cumple_atrasado = len(cuotas_vencidas) > 0
-                cumple_urgente = len(cuotas_vencidas) > 0 and (hoy - min(cuotas_vencidas)).days >= 15
+                cumple_urgente = cumple_atrasado or cumple_cobrar_hoy
                 cumple_cobrar_hoy = cuota_hoy is not None
                 cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy
                 
