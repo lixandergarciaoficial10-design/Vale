@@ -2074,13 +2074,15 @@ elif menu == "Nueva Cuenta por Cobrar":
             if res_cli.data:
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    # IMPLEMENTACIÓN DE BUSCADOR POR NOMBRE, CÉDULA O TELÉFONO
+                    # IMPLEMENTACIÓN DE BUSCADOR OPTIMIZADO PARA MÓVILES Y PC
+                    # Se mantiene la lógica de filtrado y el formato visual solicitado
                     cliente_obj = st.selectbox(
                         "Seleccionar Cliente", 
                         options=res_cli.data, 
                         index=None,
-                        placeholder="Buscar por nombre, cédula o teléfono...",
-                        format_func=lambda x: f"{x['nombre']} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else ""
+                        placeholder="Escribe para buscar (Nombre, Cédula o Teléfono)...",
+                        format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
+                        key="buscador_clientes_principal"
                     )
                     
                     capital = st.number_input("Capital/Venta (RD$)", min_value=0.0, step=100.0)
