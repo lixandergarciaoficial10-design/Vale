@@ -870,19 +870,16 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0, fact
     except:
         monto, balance, mora = 0.0, 0.0, 0.0
     
-    # Configuración de Hora Real RD (Anti-Falsificación)
     tz_rd = pytz.timezone('America/Santo_Domingo')
     fecha_rd = datetime.now(tz_rd)
     fecha_str = fecha_rd.strftime('%d/%m/%Y %H:%M')
     timestamp_seguridad = int(fecha_rd.timestamp())
 
-    # Configuración de PDF Térmico 80mm
-    pdf = FPDF(format=(80, 155)) # Un poco más alto para los sellos de seguridad
+    pdf = FPDF(format=(80, 155)) 
     pdf.add_page()
     pdf.set_margins(4, 4, 4)
     pdf.set_auto_page_break(False)
 
-    # Datos de la empresa
     nombre_negocio = st.session_state.get("nombre_negocio", "COBROYA PRO").upper()
     rnc = st.session_state.get("rnc", "")
     direccion = st.session_state.get("direccion_negocio", "Rep. Dominicana")
@@ -891,15 +888,13 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0, fact
     # --- ENCABEZADO ---
     pdf.set_font("Helvetica", "B", 11)
     pdf.cell(72, 7, nombre_negocio, ln=True, align='C')
-    
     pdf.set_font("Helvetica", "", 8)
     if rnc: pdf.cell(72, 4, f"RNC: {rnc}", ln=True, align='C')
     pdf.cell(72, 4, direccion[:40], ln=True, align='C') 
     if telefono: pdf.cell(72, 4, f"TEL: {telefono}", ln=True, align='C')
-    
     pdf.cell(72, 4, "="*35, ln=True, align='C')
     
-    # --- CUERPO DEL TICKET ---
+    # --- CUERPO ---
     pdf.set_font("Helvetica", "B", 9)
     pdf.cell(72, 6, "COMPROBANTE DE COBRO", ln=True, align='C')
     pdf.set_font("Helvetica", "", 8)
@@ -908,19 +903,15 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0, fact
     pdf.cell(72, 4, f"Cliente: {nombre_cliente.upper()}", ln=True, align='C')
     pdf.cell(72, 4, "-"*40, ln=True, align='C')
 
-    # --- VALORES FINANCIEROS ---
+    # --- VALORES ---
     pdf.ln(2)
     pdf.set_font("Helvetica", "", 10)
     pdf.cell(36, 6, " ABONO RECIBIDO:")
     pdf.set_font("Helvetica", "B", 10)
     pdf.cell(36, 6, f"RD$ {monto:,.2f} ", ln=True, align='R')
-
     if mora > 0:
-        pdf.set_font("Helvetica", "", 10)
         pdf.cell(36, 6, " MORA COBRADA:")
-        pdf.set_font("Helvetica", "B", 10)
         pdf.cell(36, 6, f"RD$ {mora:,.2f} ", ln=True, align='R')
-
     pdf.ln(2)
     pdf.set_fill_color(245, 245, 245) 
     pdf.set_font("Helvetica", "B", 11)
@@ -933,21 +924,21 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0, fact
     pdf.cell(72, 4, "_______________________", ln=True, align='C')
     pdf.cell(72, 4, "FIRMA DEL CLIENTE", ln=True, align='C')
     
-    # --- BLOQUE QR LEGAL (FORMATO VCARD PARA MÓVILES) ---
-    # Al escanear, el móvil lo ve como un documento de contacto/negocio "Certificado"
-    qr_data = (f"BEGIN:VCARD\n"
-               f"VERSION:3.0\n"
-               f"ORG:COBROYA PRO - {nombre_negocio}\n"
-               f"TITLE:VALIDACIÓN DE PAGO OFICIAL\n"
-               f"NOTE:AUTENTICIDAD: SISTEMA COBROYA\\n"
-               f"FACTURA: {factura_no}\\n"
-               f"CLIENTE: {nombre_cliente.upper()}\\n"
-               f"MONTO: RD$ {monto:,.2f}\\n"
-               f"BALANCE: RD$ {balance:,.2f}\\n"
-               f"FECHA: {fecha_str}\\n"
-               f"SEGURIDAD: {timestamp_seguridad}\n"
-               f"REV:{datetime.now().strftime('%Y%m%dT%H%M%SZ')}\n"
-               f"END:VCARD")
+    # --- QR DE AUDITORÍA ---
+    qr_data = (f"╔══════════════════════════╗\n"
+               f"   VALIDACIÓN OFICIAL     \n"
+               f"       COBROYA PRO        \n"
+               f"╚══════════════════════════╝\n\n"
+               f"ESTADO: TRANSACCIÓN EXITOSA\n"
+               f"EMPRESA: {nombre_negocio}\n"
+               f"FACTURA: {factura_no}\n"
+               f"FECHA: {fecha_str}\n"
+               f"CLIENTE: {nombre_cliente.upper()}\n"
+               f"---------------------------\n"
+               f"ABONO: RD$ {monto:,.2f}\n"
+               f"PENDIENTE: RD$ {balance:,.2f}\n"
+               f"---------------------------\n"
+               f"TOKEN: {timestamp_seguridad}X-CYA")
     
     qr = qrcode.QRCode(version=1, box_size=10, border=1)
     qr.add_data(qr_data)
@@ -956,22 +947,13 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0, fact
 
     with NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
         img_qr.save(tmpfile.name)
-        # Colocación central minimalista
         pdf.image(tmpfile.name, x=32.5, y=pdf.get_y() + 2, w=15)
         tmp_path = tmpfile.name
 
-    # --- PIE DE PÁGINA Y VALIDACIÓN ---
     pdf.ln(18) 
     pdf.set_font("Helvetica", "I", 8)
     pdf.cell(72, 4, "¡Gracias por su pago!", ln=True, align='C')
     
-    # SELLO INVISIBLE DE COBROYA (Solo para conocedores)
-    pdf.ln(2)
-    pdf.set_text_color(200, 200, 200) # Gris muy claro casi invisible
-    pdf.set_font("Helvetica", "", 5)
-    pdf.cell(72, 3, f"CERTIFICADO DIGITAL COBROYA - ID:{timestamp_seguridad}", ln=True, align='C')
-    pdf.set_text_color(0, 0, 0) # Reset color
-
     if os.path.exists(tmp_path):
         os.remove(tmp_path)
 
