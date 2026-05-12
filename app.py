@@ -2073,29 +2073,39 @@ elif menu == "Nueva Cuenta por Cobrar":
     else:
         with contenedor_formulario.container():
             if res_cli.data:
-                # TRUCO: Forzamos al navegador a tratar el selector como entrada de texto
-                st.markdown("""
-                    <style>
-                        /* Esto obliga al buscador de Streamlit a comportarse como un input real en móvil */
-                        .stSelectbox div[data-baseweb="select"] input {
-                            inputmode: text !important;
-                        }
-                    </style>
-                """, unsafe_allow_html=True)
-                
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # CAMPO ÚNICO: Aquí es donde ocurre la magia. 
-                    # Usamos selectbox porque es más ligero y estable que multiselect para búsqueda única.
-                    cliente_obj = st.selectbox(
+                    # EL BUSCADOR ÚNICO (ESTILO AUTOCOMPLETE)
+                    # Usamos text_input porque es el ÚNICO que garantiza teclado en móvil 100%
+                    busqueda = st.text_input(
                         "Buscar Cliente",
-                        options=res_cli.data,
-                        index=None,
-                        placeholder="Escribe nombre, cédula o teléfono...",
-                        format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
-                        key="buscador_unico_dispositivo"
+                        placeholder="🔍 Escribe nombre, cédula o tel...",
+                        key="input_unico_search"
                     )
+
+                    # PROCESAMIENTO SILENCIOSO
+                    # No creamos listas aparte, filtramos internamente
+                    cliente_obj = None
+                    if busqueda:
+                        # Buscamos coincidencias exactas o parciales
+                        coincidencias = [
+                            c for c in res_cli.data
+                            if busqueda.lower() in str(c.get("nombre", "")).lower()
+                            or busqueda.lower() in str(c.get("cedula", "")).lower()
+                            or busqueda.lower() in str(c.get("telefono", "")).lower()
+                        ]
+                        
+                        if coincidencias:
+                            # Si solo hay una coincidencia exacta o el usuario terminó de escribir
+                            # mostramos un selector que SOLO aparece con los resultados.
+                            # Visualmente se siente como parte del mismo proceso.
+                            cliente_obj = st.selectbox(
+                                "Resultados encontrados:",
+                                options=coincidencias,
+                                format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')})",
+                                key="selector_interno_auto"
+                            )
                     
                     capital = st.number_input(
                         "Capital/Venta (RD$)", 
@@ -2103,6 +2113,21 @@ elif menu == "Nueva Cuenta por Cobrar":
                         step=100.0,
                         key="capital_venta_input"
                     )
+
+                # --- Lógica de validación ---
+                continuar = False
+                if cliente_obj:
+                    if cliente_obj['id'] in resumen_deudas:
+                        info = resumen_deudas[cliente_obj['id']]
+                        st.error(f"⚠️ EL CLIENTE YA DEBE: RD$ {info['total']:,.2f}")
+                        continuar = st.checkbox("Autorizar nueva factura manual", key="auth_manual")
+                    else:
+                        st.success(f"✅ Seleccionado: {cliente_obj['nombre']}")
+                        continuar = True
+                elif busqueda:
+                    st.warning("Sigue escribiendo para encontrar al cliente...")
+                else:
+                    st.info("Escribe arriba para buscar un cliente.")
 
                 # --- Lógica de validación que sigue abajo ---
                 continuar = False
