@@ -2073,30 +2073,49 @@ elif menu == "Nueva Cuenta por Cobrar":
     else:
         with contenedor_formulario.container():
             if res_cli.data:
+                # TRUCO: Forzamos al navegador a tratar el selector como entrada de texto
+                st.markdown("""
+                    <style>
+                        /* Esto obliga al buscador de Streamlit a comportarse como un input real en móvil */
+                        .stSelectbox div[data-baseweb="select"] input {
+                            inputmode: text !important;
+                        }
+                    </style>
+                """, unsafe_allow_html=True)
+                
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # CAMPO ÚNICO: Autocomplete inteligente (Tipo WhatsApp/Uber)
-                    # Filtra en tiempo real y selecciona directamente sin pasos extra.
-                    seleccion_cliente = st.multiselect(
+                    # CAMPO ÚNICO: Aquí es donde ocurre la magia. 
+                    # Usamos selectbox porque es más ligero y estable que multiselect para búsqueda única.
+                    cliente_obj = st.selectbox(
                         "Buscar Cliente",
                         options=res_cli.data,
-                        max_selections=1,
+                        index=None,
                         placeholder="Escribe nombre, cédula o teléfono...",
                         format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
-                        key="buscador_autocompletado_cliente"
+                        key="buscador_unico_dispositivo"
                     )
-
-                    # Extraemos el objeto seleccionado (es una lista de 1 o 0 elementos)
-                    cliente_obj = seleccion_cliente[0] if seleccion_cliente else None
                     
-                    # Entrada de capital vinculada al flujo
                     capital = st.number_input(
                         "Capital/Venta (RD$)", 
                         min_value=0.0, 
                         step=100.0,
                         key="capital_venta_input"
                     )
+
+                # --- Lógica de validación que sigue abajo ---
+                continuar = False
+                if cliente_obj:
+                    if cliente_obj['id'] in resumen_deudas:
+                        info = resumen_deudas[cliente_obj['id']]
+                        st.error(f"⚠️ EL CLIENTE YA DEBE: RD$ {info['total']:,.2f}")
+                        continuar = st.checkbox("Autorizar nueva factura manual", key="auth_manual")
+                    else:
+                        st.success("✅ Cliente al día")
+                        continuar = True
+                else:
+                    st.info("Por favor, selecciona un cliente para continuar.")
                     
                     # Lógica de validación si hay un cliente seleccionado
                     continuar = False
