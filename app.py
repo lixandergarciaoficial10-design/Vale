@@ -2635,9 +2635,9 @@ def modal_detalle(cliente, cuentas, pagos, u_id=None):
             </div>
         """, unsafe_allow_html=True)
 
-    tab_historial, tab_abonos, tab_plan, tab_perfil = st.tabs([
-        "📜 HISTORIAL COMPLETO", "💵 ABONOS REALES", "📅 PLAN IDEAL", "⚙️ PERFIL"
-    ])
+    tab_plan, tab_historial, tab_abonos, tab_perfil = st.tabs([
+    "📅 PLAN IDEAL", "📜 HISTORIAL COMPLETO", "💵 ABONOS REALES", "⚙️ PERFIL"
+])
 
 # --- PESTAÑA 1: HISTORIAL COMPLETO ---
     with tab_historial:
