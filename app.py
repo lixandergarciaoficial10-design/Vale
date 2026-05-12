@@ -937,7 +937,7 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0, fact
     pdf.ln(6)
     pdf.set_font("Helvetica", "", 7)
     pdf.cell(72, 4, "_______________________", ln=True, align='C')
-    pdf.cell(72, 4, "FIRMA DEL CLIENTE", ln=True, align='C')
+    pdf.cell(72, 4, "FIRMA DEL ACREDOR", ln=True, align='C')
     
     # --- BLOQUE DE SEGURIDAD BANCARIA ---
     pdf.ln(4)
