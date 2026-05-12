@@ -1691,9 +1691,9 @@ elif menu == "Gestión de Cobros":
                             proxima_cuota_sin_vencer = fecha_cuota
                 
                 # CATEGORIZAR
-                cumple_al_dia = not cumple_urgente
+                cumple_al_dia = todas_pagadas
                 cumple_atrasado = len(cuotas_vencidas) > 0
-                cumple_urgente = cumple_atrasado or cumple_cobrar_hoy
+                cumple_urgente = len(cuotas_vencidas) > 0 and (hoy - min(cuotas_vencidas)).days >= 15
                 cumple_cobrar_hoy = cuota_hoy is not None
                 cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy
                 
@@ -1706,7 +1706,7 @@ elif menu == "Gestión de Cobros":
                     dias_hasta_proxima = 999
                 elif cumple_urgente:
                     categoria_filtro = "🔥 Urgentes"
-                    dias_atraso = (hoy - min(cuotas_vencidas)).days
+                    dias_atraso = (hoy - min(cuotas_vencidas)).days if cuotas_vencidas else 0
                 elif cumple_atrasado:
                     categoria_filtro = "🚨 Atrasados"
                     dias_atraso = (hoy - min(cuotas_vencidas)).days
@@ -1743,7 +1743,7 @@ elif menu == "Gestión de Cobros":
                     c['aux_todas_pagadas'] = todas_pagadas
                     
                     if cumple_urgente:
-                        c['aux_prioridad'] = 1000 + (hoy - min(cuotas_vencidas)).days
+                        c['aux_prioridad'] = 1000 + ((hoy - min(cuotas_vencidas)).days if cuotas_vencidas else 0)
                     elif cumple_atrasado:
                         c['aux_prioridad'] = 900 + (hoy - min(cuotas_vencidas)).days
                     elif cumple_cobrar_hoy:
