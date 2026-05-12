@@ -2076,21 +2076,37 @@ elif menu == "Nueva Cuenta por Cobrar":
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # CAMPO ÚNICO: Autocomplete inteligente (Tipo WhatsApp/Uber)
-                    # Filtra en tiempo real y selecciona directamente sin pasos extra.
-                    seleccion_cliente = st.multiselect(
-                        "Buscar Cliente",
-                        options=res_cli.data,
-                        max_selections=1,
+                    # 1. BUSCADOR REAL: Fuerza la apertura del teclado en cualquier móvil
+                    busqueda_cliente = st.text_input(
+                        "🔍 Buscar Cliente",
                         placeholder="Escribe nombre, cédula o teléfono...",
-                        format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
-                        key="buscador_autocompletado_cliente"
+                        key="busqueda_cliente_real"
                     )
 
-                    # Extraemos el objeto seleccionado (es una lista de 1 o 0 elementos)
-                    cliente_obj = seleccion_cliente[0] if seleccion_cliente else None
+                    # 2. FILTRADO DINÁMICO: Solo procesa si hay al menos 2 caracteres (Optimización)
+                    if len(busqueda_cliente) >= 2:
+                        termino = busqueda_cliente.lower()
+                        clientes_filtrados = [
+                            c for c in res_cli.data
+                            if termino in str(c.get("nombre", "")).lower()
+                            or termino in str(c.get("cedula", "")).lower()
+                            or termino in str(c.get("telefono", "")).lower()
+                        ]
+                    else:
+                        # Evita mostrar la lista completa de inicio para mejorar UX en móvil
+                        clientes_filtrados = []
+
+                    # 3. SELECCIÓN DE RESULTADOS: Solo muestra coincidencias reales
+                    cliente_obj = st.selectbox(
+                        "Resultados encontrados",
+                        options=clientes_filtrados,
+                        index=None,
+                        placeholder="Toca para elegir el cliente...",
+                        format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
+                        key="resultado_seleccion_cliente"
+                    )
                     
-                    # Entrada de capital vinculada al flujo
+                    # El flujo continúa con el capital una vez seleccionado el cliente
                     capital = st.number_input(
                         "Capital/Venta (RD$)", 
                         min_value=0.0, 
