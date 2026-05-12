@@ -2069,44 +2069,48 @@ elif menu == "Nueva Cuenta por Cobrar":
                     for k in ["prestamo_exitoso", "pdf_ready", "wa_link", "last_name"]:
                         if k in st.session_state: del st.session_state[k]
                     st.rerun()
+
     else:
-    with contenedor_formulario.container():
-        if res_cli.data:
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                # 1. CAMPO DE BÚSQUEDA REAL (Activa el teclado en móviles)
-                busqueda = st.text_input(
-                    "🔍 Buscar Cliente", 
-                    placeholder="Escribe nombre, cédula o tel...",
-                    key="input_busqueda_movil"
-                )
-
-                # 2. LÓGICA DE FILTRADO DINÁMICO
-                if busqueda:
-                    termino = busqueda.lower()
-                    clientes_filtrados = [
-                        c for c in res_cli.data
-                        if termino in str(c.get("nombre", "")).lower()
-                        or termino in str(c.get("cedula", "")).lower()
-                        or termino in str(c.get("telefono", "")).lower()
-                    ]
-                else:
-                    # Si no hay búsqueda, mostramos todos (o una lista vacía para obligar a buscar)
-                    clientes_filtrados = res_cli.data
-
-                # 3. SELECTOR RESTRINGIDO A LOS RESULTADOS
-                cliente_obj = st.selectbox(
-                    "Seleccionar Resultado",
-                    options=clientes_filtrados,
-                    index=None,
-                    placeholder="Elige el cliente de la lista",
-                    format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
-                    key="resultado_busqueda_cliente"
-                )
+        with contenedor_formulario.container():
+            if res_cli.data:
+                col1, col2, col3 = st.columns(3)
                 
-                # Input de capital justo debajo
-                capital = st.number_input("Capital/Venta (RD$)", min_value=0.0, step=100.0)
+                with col1:
+                    # 1. BÚSQUEDA TÁCTIL: Abre el teclado en móviles
+                    busqueda = st.text_input(
+                        "🔍 Buscar Cliente", 
+                        placeholder="Escribe nombre, cédula o tel...",
+                        key="input_busqueda_movil"
+                    )
+
+                    # 2. FILTRADO: Lógica de coincidencia inmediata
+                    if busqueda:
+                        termino = busqueda.lower()
+                        clientes_filtrados = [
+                            c for c in res_cli.data
+                            if termino in str(c.get("nombre", "")).lower()
+                            or termino in str(c.get("cedula", "")).lower()
+                            or termino in str(c.get("telefono", "")).lower()
+                        ]
+                    else:
+                        clientes_filtrados = res_cli.data
+
+                    # 3. SELECCIÓN: Muestra solo lo filtrado
+                    cliente_obj = st.selectbox(
+                        "Seleccionar Resultado",
+                        options=clientes_filtrados,
+                        index=None,
+                        placeholder="Elige de la lista",
+                        format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
+                        key="resultado_busqueda_cliente"
+                    )
+                    
+                    capital = st.number_input(
+                        "Capital/Venta (RD$)", 
+                        min_value=0.0, 
+                        step=100.0,
+                        key="capital_venta_input"
+                    )
                     
                     # Lógica de validación si hay un cliente seleccionado
                     continuar = False
