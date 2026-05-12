@@ -863,6 +863,7 @@ import os
 from tempfile import NamedTemporaryFile
 from datetime import datetime
 import pytz
+from fpdf import FPDF
 
 def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0, factura_no=""):
     try:
@@ -870,16 +871,19 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0, fact
     except:
         monto, balance, mora = 0.0, 0.0, 0.0
     
+    # Configuración de Hora Real RD
     tz_rd = pytz.timezone('America/Santo_Domingo')
     fecha_rd = datetime.now(tz_rd)
-    fecha_str = fecha_rd.strftime('%d/%m/%Y %H:%M')
+    fecha_str = fecha_rd.strftime('%d/%m/%Y %I:%M %p') # Formato 12 horas (AM/PM)
     timestamp_seguridad = int(fecha_rd.timestamp())
 
+    # Configuración de PDF Térmico
     pdf = FPDF(format=(80, 155)) 
     pdf.add_page()
     pdf.set_margins(4, 4, 4)
     pdf.set_auto_page_break(False)
 
+    # Info del negocio
     nombre_negocio = st.session_state.get("nombre_negocio", "COBROYA PRO").upper()
     rnc = st.session_state.get("rnc", "")
     direccion = st.session_state.get("direccion_negocio", "Rep. Dominicana")
@@ -924,21 +928,18 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0, fact
     pdf.cell(72, 4, "_______________________", ln=True, align='C')
     pdf.cell(72, 4, "FIRMA DEL CLIENTE", ln=True, align='C')
     
-    # --- QR DE AUDITORÍA ---
-    qr_data = (f"╔══════════════════════════╗\n"
-               f"   VALIDACIÓN OFICIAL     \n"
-               f"       COBROYA PRO        \n"
-               f"╚══════════════════════════╝\n\n"
-               f"ESTADO: TRANSACCIÓN EXITOSA\n"
-               f"EMPRESA: {nombre_negocio}\n"
-               f"FACTURA: {factura_no}\n"
-               f"FECHA: {fecha_str}\n"
-               f"CLIENTE: {nombre_cliente.upper()}\n"
-               f"---------------------------\n"
-               f"ABONO: RD$ {monto:,.2f}\n"
-               f"PENDIENTE: RD$ {balance:,.2f}\n"
-               f"---------------------------\n"
-               f"TOKEN: {timestamp_seguridad}X-CYA")
+    # --- QR TEXTO PLANO UNIVERSAL (ESTRATEGIA MÁXIMA COMPATIBILIDAD) ---
+    qr_data = (
+        f"RECIBO VALIDADO - COBROYA PRO\n"
+        f"ESTADO: TRANSACCION EXITOSA\n"
+        f"EMPRESA: {nombre_negocio}\n"
+        f"FACTURA: {factura_no}\n"
+        f"FECHA: {fecha_str}\n"
+        f"CLIENTE: {nombre_cliente.upper()}\n"
+        f"ABONO: RD$ {monto:,.2f}\n"
+        f"PENDIENTE: RD$ {balance:,.2f}\n"
+        f"TOKEN: {timestamp_seguridad}X-CYA"
+    )
     
     qr = qrcode.QRCode(version=1, box_size=10, border=1)
     qr.add_data(qr_data)
