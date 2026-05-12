@@ -864,30 +864,30 @@ from tempfile import NamedTemporaryFile
 from datetime import datetime
 import pytz
 
-def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
+def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0, factura_no=""):
     try:
         monto, balance, mora = float(monto), float(balance), float(mora)
     except:
         monto, balance, mora = 0.0, 0.0, 0.0
     
-    # Hora Real RD (AST)
+    # Configuración de Hora Real RD
     tz_rd = pytz.timezone('America/Santo_Domingo')
     fecha_rd = datetime.now(tz_rd)
     fecha_str = fecha_rd.strftime('%d/%m/%Y %H:%M')
-    trans_id = int(fecha_rd.timestamp())
 
-    # Tamaño ticket 80mm
+    # Configuración de PDF Térmico
     pdf = FPDF(format=(80, 150)) 
     pdf.add_page()
     pdf.set_margins(4, 4, 4)
     pdf.set_auto_page_break(False)
 
+    # Info del negocio desde session_state
     nombre_negocio = st.session_state.get("nombre_negocio", "COBROYA PRO").upper()
     rnc = st.session_state.get("rnc", "")
     direccion = st.session_state.get("direccion_negocio", "Rep. Dominicana")
     telefono = st.session_state.get("telefono_negocio", "")
 
-    # --- ENCABEZADO CENTRADO ---
+    # --- ENCABEZADO ---
     pdf.set_font("Helvetica", "B", 11)
     pdf.cell(72, 7, nombre_negocio, ln=True, align='C')
     
@@ -898,16 +898,16 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
     
     pdf.cell(72, 4, "="*35, ln=True, align='C')
     
-    # --- CUERPO ---
+    # --- CUERPO DEL TICKET ---
     pdf.set_font("Helvetica", "B", 9)
     pdf.cell(72, 6, "COMPROBANTE DE COBRO", ln=True, align='C')
     pdf.set_font("Helvetica", "", 8)
     pdf.cell(72, 4, f"Fecha: {fecha_str}", ln=True, align='C')
-    pdf.cell(72, 4, f"No. Trans: {trans_id}", ln=True, align='C')
+    pdf.cell(72, 4, f"Factura No: {factura_no}", ln=True, align='C')
     pdf.cell(72, 4, f"Cliente: {nombre_cliente.upper()}", ln=True, align='C')
     pdf.cell(72, 4, "-"*40, ln=True, align='C')
 
-    # --- VALORES ---
+    # --- VALORES FINANCIEROS ---
     pdf.ln(2)
     pdf.set_font("Helvetica", "", 10)
     pdf.cell(36, 6, " ABONO RECIBIDO:")
@@ -926,34 +926,37 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
     pdf.cell(36, 8, " PENDIENTE:", fill=True)
     pdf.cell(36, 8, f"RD$ {balance:,.2f} ", ln=True, align='R', fill=True)
     
-    # --- PIE Y FIRMA ---
+    # --- FIRMA ---
     pdf.ln(6)
     pdf.set_font("Helvetica", "", 7)
     pdf.cell(72, 4, "_______________________", ln=True, align='C')
     pdf.cell(72, 4, "FIRMA DEL CLIENTE", ln=True, align='C')
     
-    # --- BLOQUE QR MINIMALISTA Y CENTRADO ---
-    # Texto legal formateado para evitar que el móvil lo confunda con un número
-    qr_legal = (f"VERIFICACIÓN COBROYA\n"
-                f"Empresa: {nombre_negocio}\n"
-                f"Recibo: {trans_id}\n"
-                f"Cliente: {nombre_cliente}\n"
-                f"Monto Pagado: RD$ {monto:,.2f}\n"
-                f"Balance Pendiente: RD$ {balance:,.2f}\n"
-                f"Fecha: {fecha_str}")
+    # --- BLOQUE QR LEGAL (AVALADO POR COBROYA) ---
+    # Este texto es lo que aparecerá al escanear
+    qr_data = (f"🛡️ RECIBO AVALADO POR COBROYA\n"
+               f"---------------------------\n"
+               f"EMPRESA: {nombre_negocio}\n"
+               f"FACTURA: {factura_no}\n"
+               f"FECHA/HORA: {fecha_str}\n"
+               f"CLIENTE: {nombre_cliente.upper()}\n"
+               f"MONTO PAGADO: RD$ {monto:,.2f}\n"
+               f"BALANCE RESTANTE: RD$ {balance:,.2f}\n"
+               f"---------------------------\n"
+               f"ID SEGURIDAD: {int(fecha_rd.timestamp())}")
     
     qr = qrcode.QRCode(version=1, box_size=10, border=1)
-    qr.add_data(qr_legal)
+    qr.add_data(qr_data)
     qr.make(fit=True)
     img_qr = qr.make_image(fill_color="black", back_color="white")
 
     with NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
         img_qr.save(tmpfile.name)
-        # Centrado: (80mm - 15mm de ancho) / 2 = 32.5 aprox
-        pdf.image(tmpfile.name, x=32, y=pdf.get_y() + 2, w=15)
+        # Colocación minimalista centrada
+        pdf.image(tmpfile.name, x=32.5, y=pdf.get_y() + 2, w=15)
         tmp_path = tmpfile.name
 
-    pdf.ln(18) # Espacio para el QR
+    pdf.ln(18) 
     pdf.set_font("Helvetica", "I", 8)
     pdf.cell(72, 4, "¡Gracias por su pago!", ln=True, align='C')
     
@@ -1558,7 +1561,17 @@ elif menu == "Gestión de Cobros":
         
         st.divider()
         try:
-            pdf_bytes = generar_pdf_recibo_pro(item['aux_nombre'], r['monto'], r['pend'], u_id, mora=r['mora'])
+            # Generamos los bytes del PDF pasando todos los datos, incluyendo el número de factura para el QR
+            pdf_bytes = generar_pdf_recibo_pro(
+                nombre_cliente=item['aux_nombre'], 
+                monto=r['monto'], 
+                balance=r['pend'], 
+                user_id=u_id, 
+                mora=r['mora'],
+                factura_no=r['factura']
+            )
+            
+            # Botón de descarga que usa los bytes generados arriba
             st.download_button(
                 label="🖨️ IMPRIMIR RECIBO TÉRMICO",
                 data=pdf_bytes,
