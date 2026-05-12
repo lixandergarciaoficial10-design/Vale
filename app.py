@@ -2076,37 +2076,50 @@ elif menu == "Nueva Cuenta por Cobrar":
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # 1. BUSCADOR REAL: Fuerza la apertura del teclado en cualquier móvil
-                    busqueda_cliente = st.text_input(
-                        "🔍 Buscar Cliente",
-                        placeholder="Escribe nombre, cédula o teléfono...",
-                        key="busqueda_cliente_real"
+                    # 1. EL BUSCADOR (Único punto de entrada)
+                    busqueda = st.text_input(
+                        "🔍 Buscar Cliente", 
+                        placeholder="Nombre, Cédula o Teléfono...",
+                        key="search_input_mobile"
                     )
 
-                    # 2. FILTRADO DINÁMICO: Solo procesa si hay al menos 2 caracteres (Optimización)
-                    if len(busqueda_cliente) >= 2:
-                        termino = busqueda_cliente.lower()
-                        clientes_filtrados = [
+                    # Inicializamos el estado del cliente si no existe
+                    if 'cliente_seleccionado' not in st.session_state:
+                        st.session_state.cliente_seleccionado = None
+
+                    # 2. LÓGICA DE SUGERENCIAS TÁCTILES
+                    if len(busqueda) >= 2:
+                        termino = busqueda.lower()
+                        # Filtramos rápido en memoria
+                        coincidencias = [
                             c for c in res_cli.data
                             if termino in str(c.get("nombre", "")).lower()
                             or termino in str(c.get("cedula", "")).lower()
                             or termino in str(c.get("telefono", "")).lower()
-                        ]
-                    else:
-                        # Evita mostrar la lista completa de inicio para mejorar UX en móvil
-                        clientes_filtrados = []
+                        ][:5]  # Limitamos a 5 para no inundar la pantalla
 
-                    # 3. SELECCIÓN DE RESULTADOS: Solo muestra coincidencias reales
-                    cliente_obj = st.selectbox(
-                        "Resultados encontrados",
-                        options=clientes_filtrados,
-                        index=None,
-                        placeholder="Toca para elegir el cliente...",
-                        format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
-                        key="resultado_seleccion_cliente"
-                    )
+                        if coincidencias:
+                            st.caption("Sugerencias (toca una):")
+                            for cliente in coincidencias:
+                                # Botón ancho que parece una celda de lista
+                                label = f"👤 {cliente.get('nombre')} - {cliente.get('telefono', 'S/T')}"
+                                if st.button(label, key=f"btn_{cliente.get('id')}", use_container_width=True):
+                                    st.session_state.cliente_seleccionado = cliente
+                                    # Opcional: limpiar búsqueda al seleccionar
+                        else:
+                            st.warning("No se encontraron coincidencias.")
+
+                    # 3. VISUALIZACIÓN DE SELECCIÓN Y CONTINUACIÓN
+                    cliente_obj = st.session_state.cliente_seleccionado
+
+                    if cliente_obj:
+                        st.success(f"Seleccionado: **{cliente_obj.get('nombre')}**")
+                        # Botón para limpiar selección si se equivocan
+                        if st.button("❌ Cambiar cliente", key="clear_selection"):
+                            st.session_state.cliente_seleccionado = None
+                            st.rerun()
                     
-                    # El flujo continúa con el capital una vez seleccionado el cliente
+                    # El input de capital siempre visible o condicionado a la selección
                     capital = st.number_input(
                         "Capital/Venta (RD$)", 
                         min_value=0.0, 
