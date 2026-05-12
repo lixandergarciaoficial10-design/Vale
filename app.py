@@ -2437,25 +2437,24 @@ elif menu == "👥 Todos mis Clientes":
             sel_filtro = st.pills("Prioridad del Cliente:", opciones, selection_mode="single", default="🌍 Todos los Clientes", label_visibility="collapsed")
 
         # --- LÓGICA DE PROCESAMIENTO POR CLIENTE ---
+        # --- LÓGICA DE PROCESAMIENTO POR CLIENTE (CORREGIDA) ---
         clientes_f = []
         
         for c in clientes_db:
             cliente_id = c['id']
             
             # Obtener TODAS las cuentas de este cliente
-            cuentas_del_cliente = [ct para ct in cuentas_db if ct['cliente_id'] == cliente_id]
+            cuentas_del_cliente = [ct for ct in cuentas_db if ct['cliente_id'] == cliente_id]
             
             # Variables de estado global del cliente (El peor escenario manda)
             peor_estado = "🟢 Cartera Estable"
-            prioridad_num = 0 # Para sorteo interno
+            prioridad_num = 0 
             
             resumen_vencidas = 0
             resumen_hoy = 0
             resumen_proximas = 0
 
-            if not cuentas_del_cliente:
-                peor_estado = "🟢 Cartera Estable"
-            else:
+            if cuentas_del_cliente:
                 for cuenta in cuentas_del_cliente:
                     cuenta_id = cuenta['id']
                     
@@ -2469,28 +2468,27 @@ elif menu == "👥 Todos mis Clientes":
                         monto_cuota = float(cuota['monto_cuota'])
                         fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
                         
-                        # Si la cuota está cubierta por el saldo, seguimos
                         if saldo_recorrido >= monto_cuota:
                             saldo_recorrido -= monto_cuota
                         else:
-                            # Aquí encontramos la primera cuota pendiente de ESTA cuenta
+                            # Primera cuota pendiente encontrada
                             if fecha_cuota < hoy:
                                 resumen_vencidas += 1
-                                if prioridad_num < 3: # Nivel máximo: Crítico
+                                if prioridad_num < 3:
                                     peor_estado = "🔴 Atención Inmediata"
                                     prioridad_num = 3
                             elif fecha_cuota == hoy:
                                 resumen_hoy += 1
-                                if prioridad_num < 2: # Nivel medio: Hoy
+                                if prioridad_num < 2:
                                     peor_estado = "🟠 Requieren Atención Hoy"
                                     prioridad_num = 2
                             elif hoy < fecha_cuota <= (hoy + timedelta(days=7)):
                                 resumen_proximas += 1
-                                if prioridad_num < 1: # Nivel preventivo: Próximo
+                                if prioridad_num < 1:
                                     peor_estado = "🟡 Seguimiento Próximo"
                                     prioridad_num = 1
                             
-                            break # Detenemos el waterfall en la primera cuota sin cubrir de esta cuenta
+                            break 
 
             # --- APLICACIÓN DE FILTRO INTELIGENTE ---
             pasa_filtro = False
@@ -2508,7 +2506,6 @@ elif menu == "👥 Todos mis Clientes":
                 )
                 
                 if match_search:
-                    # Inyectamos los metadatos para la UI de la tarjeta
                     c['meta_estado'] = peor_estado
                     c['meta_prioridad'] = prioridad_num
                     c['resumen_vencidas'] = resumen_vencidas
@@ -2517,7 +2514,7 @@ elif menu == "👥 Todos mis Clientes":
                     clientes_f.append(c)
 
         # Ordenar por prioridad crítica
-        clientes_f = sorted(clientes_f, key=lambda x: x['meta_prioridad'], reverse=True)
+        clientes_f = sorted(clientes_f, key=lambda x: x.get('meta_prioridad', 0), reverse=True)
 
         # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
 # --- FUNCIONES DE APOYO (Deben ir fuera del modal o antes de él) ---
