@@ -2076,35 +2076,21 @@ elif menu == "Nueva Cuenta por Cobrar":
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # 1. BÚSQUEDA TÁCTIL: Abre el teclado en móviles
-                    busqueda = st.text_input(
-                        "🔍 Buscar Cliente", 
-                        placeholder="Escribe nombre, cédula o tel...",
-                        key="input_busqueda_movil"
-                    )
-
-                    # 2. FILTRADO: Lógica de coincidencia inmediata
-                    if busqueda:
-                        termino = busqueda.lower()
-                        clientes_filtrados = [
-                            c for c in res_cli.data
-                            if termino in str(c.get("nombre", "")).lower()
-                            or termino in str(c.get("cedula", "")).lower()
-                            or termino in str(c.get("telefono", "")).lower()
-                        ]
-                    else:
-                        clientes_filtrados = res_cli.data
-
-                    # 3. SELECCIÓN: Muestra solo lo filtrado
-                    cliente_obj = st.selectbox(
-                        "Seleccionar Resultado",
-                        options=clientes_filtrados,
-                        index=None,
-                        placeholder="Elige de la lista",
+                    # CAMPO ÚNICO: Autocomplete inteligente (Tipo WhatsApp/Uber)
+                    # Filtra en tiempo real y selecciona directamente sin pasos extra.
+                    seleccion_cliente = st.multiselect(
+                        "Buscar Cliente",
+                        options=res_cli.data,
+                        max_selections=1,
+                        placeholder="Escribe nombre, cédula o teléfono...",
                         format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
-                        key="resultado_busqueda_cliente"
+                        key="buscador_autocompletado_cliente"
                     )
+
+                    # Extraemos el objeto seleccionado (es una lista de 1 o 0 elementos)
+                    cliente_obj = seleccion_cliente[0] if seleccion_cliente else None
                     
+                    # Entrada de capital vinculada al flujo
                     capital = st.number_input(
                         "Capital/Venta (RD$)", 
                         min_value=0.0, 
