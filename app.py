@@ -1604,6 +1604,7 @@ elif menu == "Gestión de Cobros":
                 st.warning(f"Error al cargar recibo: {str(e)}")
 
     # --- 5. CONTROLES SUPERIORES ---
+    # --- 5. CONTROLES SUPERIORES ---
     col_search, col_filter, col_view = st.columns([2, 1.2, 0.8])
     
     with col_search:
@@ -1690,26 +1691,29 @@ elif menu == "Gestión de Cobros":
                         elif proxima_cuota_sin_vencer is None:
                             proxima_cuota_sin_vencer = fecha_cuota
                 
-                # CATEGORIZAR
-                cumple_al_dia = todas_pagadas
+                # --- NUEVA CATEGORIZACIÓN CORREGIDA ---
                 cumple_atrasado = len(cuotas_vencidas) > 0
-                cumple_urgente = len(cuotas_vencidas) > 0 and (hoy - min(cuotas_vencidas)).days >= 15
                 cumple_cobrar_hoy = cuota_hoy is not None
+                
+                # 🔥 Urgente: Atrasados O cobran hoy
+                cumple_urgente = cumple_atrasado or cumple_cobrar_hoy
+                
+                # 🟢 Al Día: No tiene atraso Y no paga hoy (independientemente de si faltan cuotas futuras)
+                cumple_al_dia = not cumple_atrasado and not cumple_cobrar_hoy
+                
                 cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy
                 
                 categoria_filtro = "📋 Todos"
                 dias_hasta_proxima = None
                 dias_atraso = None
                 
-                if cumple_al_dia:
-                    categoria_filtro = "🟢 Al Día"
-                    dias_hasta_proxima = 999
-                elif cumple_urgente:
+                if cumple_urgente:
                     categoria_filtro = "🔥 Urgentes"
+                    # Blindaje para min()
                     dias_atraso = (hoy - min(cuotas_vencidas)).days if cuotas_vencidas else 0
                 elif cumple_atrasado:
                     categoria_filtro = "🚨 Atrasados"
-                    dias_atraso = (hoy - min(cuotas_vencidas)).days
+                    dias_atraso = (hoy - min(cuotas_vencidas)).days if cuotas_vencidas else 0
                 elif cumple_cobrar_hoy:
                     categoria_filtro = "📅 Cobrarles Hoy"
                     dias_hasta_proxima = 0
@@ -1717,6 +1721,9 @@ elif menu == "Gestión de Cobros":
                     categoria_filtro = "⏳ Próx. 7 Días"
                     if proxima_cuota_sin_vencer:
                         dias_hasta_proxima = (proxima_cuota_sin_vencer - hoy).days
+                elif cumple_al_dia:
+                    categoria_filtro = "🟢 Al Día"
+                    dias_hasta_proxima = 999
                 
                 # Aplicar filtros
                 pasa_filtro = False
@@ -1739,13 +1746,17 @@ elif menu == "Gestión de Cobros":
                     c['aux_dias_atraso'] = dias_atraso if dias_atraso is not None else 0
                     c['aux_dias_proximidad'] = dias_hasta_proxima if dias_hasta_proxima is not None else 999
                     c['aux_proxima_fecha'] = proxima_cuota_sin_vencer
+                    # Blindaje adicional para aux_cuota_vencida
                     c['aux_cuota_vencida'] = min(cuotas_vencidas) if cuotas_vencidas else None
                     c['aux_todas_pagadas'] = todas_pagadas
                     
+                    # --- PRIORIDAD CON BLINDAJE ---
                     if cumple_urgente:
-                        c['aux_prioridad'] = 1000 + ((hoy - min(cuotas_vencidas)).days if cuotas_vencidas else 0)
+                        # Si es atrasado, prioridad por días. Si es cobrar hoy solamente, base 1000.
+                        atraso_val = (hoy - min(cuotas_vencidas)).days if cuotas_vencidas else 0
+                        c['aux_prioridad'] = 1000 + atraso_val
                     elif cumple_atrasado:
-                        c['aux_prioridad'] = 900 + (hoy - min(cuotas_vencidas)).days
+                        c['aux_prioridad'] = 900 + ((hoy - min(cuotas_vencidas)).days if cuotas_vencidas else 0)
                     elif cumple_cobrar_hoy:
                         c['aux_prioridad'] = 500
                     elif cumple_proximo_7:
@@ -1756,11 +1767,12 @@ elif menu == "Gestión de Cobros":
                     datos_procesados.append(c)
             
             except Exception as e:
+                # Opcional: st.write(f"Error en fila: {e}") # Para debug
                 continue
         
-        datos_procesados = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
+        datos_processed = sorted(datos_procesados, key=lambda x: x['aux_prioridad'], reverse=True)
         
-        st.markdown(f"### 📊 {len(datos_procesados)} facturas encontradas")
+        st.markdown(f"### 📊 {len(datos_processed)} facturas encontradas")
         
         # --- BOTÓN DE CONSULTA ---
         # --- BOTÓN DE CONSULTA ---
