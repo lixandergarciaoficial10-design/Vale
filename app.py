@@ -2076,19 +2076,16 @@ elif menu == "Nueva Cuenta por Cobrar":
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # CAMPO ÚNICO INTELIGENTE: Escribes y seleccionas en el mismo sitio
-                    # Usamos selectbox con búsqueda habilitada. 
-                    # El secreto para que abra el teclado en móvil es el 'label' claro y un placeholder directo.
+                    # COMPONENTE ÚNICO: Buscador y selector integrado
                     cliente_obj = st.selectbox(
-                        "Buscar y Seleccionar Cliente",
+                        "Seleccionar Cliente",
                         options=res_cli.data,
                         index=None,
                         placeholder="🔍 Escribe nombre, cédula o tel...",
                         format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
-                        key="buscador_unico_inteligente"
+                        key="buscador_unico_cliente"
                     )
                     
-                    # El campo de capital sigue inmediatamente debajo
                     capital = st.number_input(
                         "Capital/Venta (RD$)", 
                         min_value=0.0, 
@@ -2096,10 +2093,9 @@ elif menu == "Nueva Cuenta por Cobrar":
                         key="capital_venta_input"
                     )
 
-                # CSS PARA FORZAR UX MÓVIL (Pégalo una sola vez en tu app si no lo tienes)
+                # CSS para asegurar que el teclado suba en móviles al tocar el selectbox
                 st.markdown("""
                     <style>
-                        /* Forzar que el input de búsqueda en móviles sea grande y capte el foco */
                         .stSelectbox div[data-baseweb="select"] {
                             cursor: text;
                         }
