@@ -1454,99 +1454,80 @@ elif menu == "Gestión de Cobros":
     
     hoy = obtener_hoy_medidia_rd()  # USAR ESTA FECHA PARA TODO EL MÓDULO
     
-    # --- 1. FUNCIÓN DE HISTORIAL (PLAN VS REAL) CON LÓGICA DINÁMICA ---
-    @st.dialog("📜 ESTADO DE CUENTA DETALLADO")
-    def mostrar_historial_modal(item, u_id):
-        st.subheader(f"Análisis: {item['aux_nombre']}")
-        
-        res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", item['id']).order("numero_cuota").execute()
-        res_pagos = conn.table("pagos").select("*").eq("cuenta_id", item['id']).order("fecha_pago").execute()
-        
-        plan = res_plan.data if res_plan.data else []
-        pagos = res_pagos.data if res_pagos.data else []
-        
-        tab1, tab2 = st.tabs(["📅 Plan Original (Seguimiento)", "💵 Historial de Pagos Recibidos"])
-        
-        with tab1:
-            if plan:
-                # LÓGICA DE ESTADO DE CUENTA CON SALDO_RECORRIDO (WATERFALL)
-                saldo_recorrido = sum(float(p.get('monto_pagado', 0)) for p in pagos)
+# --- 1. FUNCIÓN DE HISTORIAL (PLAN VS REAL) CON LÓGICA DINÁMICA ---
+            @st.dialog("📜 ESTADO DE CUENTA DETALLADO")
+            def mostrar_historial_modal(item, u_id):
+                st.subheader(f"Análisis: {item['aux_nombre']}")
                 
-                datos_plan = []
-                for cuota in plan:
-                    monto_esperado = float(cuota['monto_cuota'])
-                    
-                    if saldo_recorrido >= monto_esperado:
-                        estado_actual = "✅ COMPLETA"
-                        saldo_recorrido -= monto_esperado
-                    elif saldo_recorrido > 0:
-                        estado_actual = "⚠️ INCOMPLETA"
-                        saldo_recorrido = 0
+                res_plan = conn.table("plan_cuotas").select("*").eq("cuenta_id", item['id']).order("numero_cuota").execute()
+                res_pagos = conn.table("pagos").select("*").eq("cuenta_id", item['id']).order("fecha_pago").execute()
+                
+                plan = res_plan.data if res_plan.data else []
+                pagos = res_pagos.data if res_pagos.data else []
+                
+                tab1, tab2 = st.tabs(["📅 Plan Original (Seguimiento)", "💵 Historial de Pagos Recibidos"])
+                
+                with tab1:
+                    if plan:
+                        # LÓGICA DE ESTADO DE CUENTA CON SALDO_RECORRIDO (WATERFALL)
+                        saldo_recorrido = sum(float(p.get('monto_pagado', 0)) for p in pagos)
+                        
+                        datos_plan = []
+                        for cuota in plan:
+                            monto_esperado = float(cuota['monto_cuota'])
+                            
+                            if saldo_recorrido >= monto_esperado:
+                                estado_actual = "✅ COMPLETA"
+                                saldo_recorrido -= monto_esperado
+                            elif saldo_recorrido > 0:
+                                estado_actual = "⚠️ INCOMPLETA"
+                                saldo_recorrido = 0
+                            else:
+                                estado_actual = "⏳ PENDIENTE"
+                            
+                            datos_plan.append({
+                                "Cuota #": cuota['numero_cuota'],
+                                "Fecha de Pago": cuota['fecha_esperada'],
+                                "Monto (RD$)": f"{monto_esperado:,.2f}",
+                                "Estatus": estado_actual
+                            })
+                        
+                        st.table(pd.DataFrame(datos_plan))
                     else:
-                        estado_actual = "⏳ PENDIENTE"
-                    
-                    datos_plan.append({
-                        "Cuota #": cuota['numero_cuota'],
-                        "Fecha de Pago": cuota['fecha_esperada'],
-                        "Monto (RD$)": f"{monto_esperado:,.2f}",
-                        "Estatus": estado_actual
-                    })
+                        st.warning("No hay un plan registrado para esta cuenta.")
                 
-                st.table(pd.DataFrame(datos_plan))
-            else:
-                st.warning("No hay un plan registrado para esta cuenta.")
-        
-        with tab2:
-            if pagos:
-                df_pagos = pd.DataFrame(pagos)
-                col_fecha = 'fecha_pago' if 'fecha_pago' in df_pagos.columns else 'created_at'
-                df_pagos['Fecha'] = pd.to_datetime(df_pagos[col_fecha]).dt.date
-                
-                df_pagos['Abono Capital'] = df_pagos['monto_pagado'].apply(lambda x: f"RD$ {float(x):,.2f}")
-                df_pagos['Mora Pagada'] = df_pagos['mora_pagada'].apply(lambda x: f"RD$ {float(x) if x else 0:,.2f}")
-                
-                cols_finales = ['codigo_factura', 'Fecha', 'Abono Capital', 'Mora Pagada']
-                df_mostrar = df_pagos[[c for c in cols_finales if c in df_pagos.columns]]
-                df_mostrar.columns = ['Factura #', 'Fecha Cobro', 'Abono Capital', 'Mora Pagada']
-                st.table(df_mostrar)
-                
-                total_cap = sum(float(p.get('monto_pagado', 0)) for p in pagos)
-                total_mora = sum(float(p.get('mora_pagada', 0)) if p.get('mora_pagada') else 0 for p in pagos)
-                
-                c1, c2 = st.columns(2)
-                c1.metric("Total Capital Recibido", f"RD$ {total_cap:,.2f}")
-                c2.metric("Total Moras Recibidas", f"RD$ {total_mora:,.2f}")
-            else:
-                if not plan:
-                    st.info("No hay un plan registrado para esta cuenta.")
-                else:
-                    st.info("Aún no se han registrado pagos reales.")
+                with tab2:
+                    if pagos:
+                        df_pagos = pd.DataFrame(pagos)
+                        col_fecha = 'fecha_pago' if 'fecha_pago' in df_pagos.columns else 'created_at'
+                        df_pagos['Fecha'] = pd.to_datetime(df_pagos[col_fecha]).dt.date
+                        
+                        df_pagos['Abono Capital'] = df_pagos['monto_pagado'].apply(lambda x: f"RD$ {float(x):,.2f}")
+                        df_pagos['Mora Pagada'] = df_pagos['mora_pagada'].apply(lambda x: f"RD$ {float(x) if x else 0:,.2f}")
+                        
+                        cols_finales = ['codigo_factura', 'Fecha', 'Abono Capital', 'Mora Pagada']
+                        df_mostrar = df_pagos[[c for c in cols_finales if c in df_pagos.columns]]
+                        df_mostrar.columns = ['Factura #', 'Fecha Cobro', 'Abono Capital', 'Mora Pagada']
+                        st.table(df_mostrar)
+                        
+                        total_cap = sum(float(p.get('monto_pagado', 0)) for p in pagos)
+                        total_mora = sum(float(p.get('mora_pagada', 0)) if p.get('mora_pagada') else 0 for p in pagos)
+                        
+                        c1, c2 = st.columns(2)
+                        c1.metric("Total Capital Recibido", f"RD$ {total_cap:,.2f}")
+                        c2.metric("Total Moras Recibidas", f"RD$ {total_mora:,.2f}")
+                    else:
+                        if not plan:
+                            st.info("No hay un plan registrado para esta cuenta.")
+                        else:
+                            st.info("Aún no se han registrado pagos reales.")
 
-    # --- 2. FUNCIÓN DE CONFIRMACIÓN CON GENERACIÓN DE CÓDIGO ---
-    @st.dialog("⚠️ VERIFICAR TRANSACCIÓN")
-    def confirmar_cobro_modal(item, monto, fecha, mora, u_id):
-        import random
-        import string
-        
-        codigo_random = f"FAC-{''.join(random.choices(string.digits, k=4))}"
-        
-        st.warning(f"¿Estás seguro de registrar este pago para **{item['aux_nombre']}**?")
-        st.markdown(f"""
-        **Resumen del Cobro:**
-        * 🎫 **Factura #:** {codigo_random}
-        * 💵 **Abono Capital:** RD$ {monto:,.2f}
-        * ⚖️ **Mora Aplicada:** RD$ {mora:,.2f}
-        * 📅 **Próximo Pago:** {fecha}
-        """)
-        
-        c_conf1, c_conf2 = st.columns(2)
-        with c_conf1:
-            # --- 2. FUNCIÓN DE CONFIRMACIÓN CON SEGURIDAD CRIPTOGRÁFICA ---
+            # --- 2. FUNCIÓN DE CONFIRMACIÓN CON GENERACIÓN DE CÓDIGO ---
             @st.dialog("⚠️ VERIFICAR TRANSACCIÓN")
             def confirmar_cobro_modal(item, monto, fecha, mora, u_id):
                 import random
                 import string
-                import secrets # Para seguridad de grado bancario
+                import secrets
                 
                 codigo_random = f"FAC-{''.join(random.choices(string.digits, k=4))}"
                 
@@ -1563,7 +1544,6 @@ elif menu == "Gestión de Cobros":
                 with c_conf1:
                     if st.button("✅ CONFIRMAR Y REGISTRAR", type="primary", use_container_width=True):
                         try:
-                            # A. REGISTRO EN TABLA PAGOS (Normal)
                             conn.table("pagos").insert({
                                 "cuenta_id": str(item['id']),
                                 "monto_pagado": float(monto),
@@ -1573,7 +1553,6 @@ elif menu == "Gestión de Cobros":
                                 "fecha_pago": str(datetime.now().isoformat())
                             }).execute()
                             
-                            # B. ACTUALIZACIÓN DE BALANCE EN CUENTAS
                             n_bal = float(item.get('balance_pendiente', 0)) - monto
                             conn.table("cuentas").update({
                                 "balance_pendiente": max(0, n_bal),
@@ -1581,11 +1560,10 @@ elif menu == "Gestión de Cobros":
                                 "proximo_pago": str(fecha),
                                 "mora_acumulada": 0
                             }).eq("id", item['id']).execute()
-
-                            # C. GENERACIÓN DE TOKEN Y REGISTRO EN TABLA VERIFICACION
+                            
+                            # INYECCIÓN DEL TOKEN DE SEGURIDAD
                             caracteres = string.ascii_letters + string.digits + "!@#$%"
                             token_cya = "".join(secrets.choice(caracteres) for _ in range(24))
-
                             conn.table("verificacion").insert({
                                 "codigo_seguridad": token_cya,
                                 "nombre_cliente": item['aux_nombre'],
@@ -1594,14 +1572,8 @@ elif menu == "Gestión de Cobros":
                                 "empresa_recaudadora": st.session_state.get("nombre_negocio", "COBROYA PRO")
                             }).execute()
                             
-                            # D. GUARDAR EN SESSION STATE
                             st.session_state[f"recibo_{item['id']}"] = {
-                                "monto": monto, 
-                                "mora": mora if mora else 0, 
-                                "pend": max(0, n_bal), 
-                                "fecha": str(fecha), 
-                                "factura": codigo_random,
-                                "token": token_cya 
+                                "monto": monto, "mora": mora if mora else 0, "pend": max(0, n_bal), "fecha": str(fecha), "factura": codigo_random, "token": token_cya
                             }
                             st.rerun()
                         except Exception as e:
@@ -1611,30 +1583,20 @@ elif menu == "Gestión de Cobros":
                     if st.button("❌ CANCELAR", use_container_width=True):
                         st.rerun()
 
+            # --- 3. FUNCIÓN DE RECIBO FINAL ---
             @st.dialog("🎯 ¡COBRO REALIZADO CON ÉXITO!")
             def mostrar_recibo_modal(item, r, u_id):
                 st.balloons()
                 st.success(f"Pago registrado: **{r['factura']}**")
                 
-                # Recuperamos el token generado para la seguridad bancaria
-                token_seguro = r.get('token', 'N/A-SIN-TOKEN')
-
                 c1, c2 = st.columns(2)
                 c1.metric("Monto Cobrado", f"RD$ {r['monto']:,.2f}")
                 c2.metric("Nuevo Balance", f"RD$ {r['pend']:,.2f}")
                 
                 st.divider()
                 
-                # --- SECCIÓN DE VERIFICACIÓN DE DATOS ---
-                st.markdown("### 📋 Verificación de Datos")
-                st.info(f"""
-                * **Cliente:** {item['aux_nombre']}
-                * **Cuota Próxima:** {r['fecha']}
-                * **ID de Seguridad:** `{token_seguro}`
-                """)
-
                 try:
-                    # Generación del PDF con el token de seguridad
+                    # Generación del PDF con el token
                     pdf_bytes = generar_pdf_recibo_pro(
                         nombre_cliente=item['aux_nombre'], 
                         monto=r['monto'], 
@@ -1642,7 +1604,7 @@ elif menu == "Gestión de Cobros":
                         user_id=u_id, 
                         mora=r['mora'],
                         factura_no=r['factura'],
-                        token_seguridad=token_seguro 
+                        token_seguridad=r.get('token', 'N/A')
                     )
                     
                     st.download_button(
@@ -1654,9 +1616,8 @@ elif menu == "Gestión de Cobros":
                         use_container_width=True
                     )
                 except Exception as e:
-                    st.warning(f"Error al generar el documento: {str(e)}")
+                    st.warning(f"No se pudo generar el PDF: {str(e)}")
                 
-                # --- BOTÓN DE WHATSAPP CON LOGO Y ESTILO ORIGINAL ---
                 import urllib.parse
                 try:
                     clean_tel = "".join(filter(str.isdigit, str(item.get('clientes', {}).get('telefono', ''))))
@@ -1667,64 +1628,29 @@ elif menu == "Gestión de Cobros":
                                f"Mora: *RD$ {r['mora']:,.2f}*\n"
                                f"Balance Pendiente: *RD$ {r['pend']:,.2f}*\n"
                                f"Próximo Pago: {r['fecha']}\n\n"
-                               f"🔐 *VERIFICACIÓN DIGITAL:* \n{token_seguro}\n\n"
                                f"¡Gracias por su puntualidad!")
-                        
                         url = f"https://wa.me/1{clean_tel}?text={urllib.parse.quote(msg)}"
-                        
-                        # El botón con el logo de WhatsApp y el estilo exacto
-                        st.markdown(f'''
-                            <a href="{url}" target="_blank" style="text-decoration:none;">
-                                <div style="
-                                    width:100%;
-                                    background-color:#25D366;
-                                    color:white;
-                                    padding:12px;
-                                    border-radius:10px;
-                                    font-weight:bold;
-                                    text-align:center;
-                                    margin-top:10px;
-                                    display:flex;
-                                    align-items:center;
-                                    justify-content:center;
-                                    gap:10px;
-                                    cursor:pointer;">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="20" height="20">
-                                    COMPARTIR POR WHATSAPP
-                                </div>
-                            </a>
-                        ''', unsafe_allow_html=True)
+                        st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%;background-color:#25D366;color:white;border:none;padding:12px;border-radius:10px;font-weight:bold;cursor:pointer;">WhatsApp 💬</button></a>', unsafe_allow_html=True)
                 except Exception as e:
-                    st.warning(f"Error en WhatsApp: {e}")
+                    st.warning(f"No se pudo preparar el enlace de WhatsApp")
+                
+                if st.button("✅ FINALIZAR", use_container_width=True):
+                    st.rerun()
 
-                # --- BOTONES DE ACCIÓN ADICIONALES ---
-                st.write("") # Espaciador
-                c_final1, c_final2 = st.columns(2)
-                
-                with c_final1:
-                    if st.button("🔄 NUEVO COBRO", use_container_width=True):
-                        st.rerun()
-                
-                with c_final2:
-                    if st.button("✅ FINALIZAR", type="primary", use_container_width=True):
-                        # Limpiamos el estado del recibo para que el modal no se quede abierto
-                        del st.session_state[f"recibo_{item['id']}"]
-                        st.rerun()
+            # --- 4. DETECTOR MAESTRO DE RECIBOS ---
+            for key in list(st.session_state.keys()):
+                if key.startswith("recibo_"):
+                    id_para_recibo = key.replace("recibo_", "")
+                    try:
+                        res_recibo = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("id", id_para_recibo).single().execute()
                         
-    # --- 4. DETECTOR MAESTRO DE RECIBOS ---
-    for key in list(st.session_state.keys()):
-        if key.startswith("recibo_"):
-            id_para_recibo = key.replace("recibo_", "")
-            try:
-                res_recibo = conn.table("cuentas").select("*, clientes(nombre, telefono)").eq("id", id_para_recibo).single().execute()
-                
-                if res_recibo.data:
-                    item_recibo = res_recibo.data
-                    item_recibo['aux_nombre'] = item_recibo.get('clientes', {}).get('nombre', 'Cliente')
-                    mostrar_recibo_modal(item_recibo, st.session_state[key], u_id)
-                    del st.session_state[key]
-            except Exception as e:
-                st.warning(f"Error al cargar recibo: {str(e)}")
+                        if res_recibo.data:
+                            item_recibo = res_recibo.data
+                            item_recibo['aux_nombre'] = item_recibo.get('clientes', {}).get('nombre', 'Cliente')
+                            mostrar_recibo_modal(item_recibo, st.session_state[key], u_id)
+                            del st.session_state[key]
+                    except Exception as e:
+                        st.warning(f"Error al cargar recibo: {str(e)}")
 
     # --- 5. CONTROLES SUPERIORES ---
     # --- 5. CONTROLES SUPERIORES ---
