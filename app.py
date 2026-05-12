@@ -1616,6 +1616,7 @@ elif menu == "Gestión de Cobros":
                 st.balloons()
                 st.success(f"Pago registrado: **{r['factura']}**")
                 
+                # Recuperamos el token generado para la seguridad bancaria
                 token_seguro = r.get('token', 'N/A-SIN-TOKEN')
 
                 c1, c2 = st.columns(2)
@@ -1624,7 +1625,16 @@ elif menu == "Gestión de Cobros":
                 
                 st.divider()
                 
+                # --- SECCIÓN DE VERIFICACIÓN DE DATOS ---
+                st.markdown("### 📋 Verificación de Datos")
+                st.info(f"""
+                * **Cliente:** {item['aux_nombre']}
+                * **Cuota Próxima:** {r['fecha']}
+                * **ID de Seguridad:** `{token_seguro}`
+                """)
+
                 try:
+                    # Generación del PDF con el token de seguridad
                     pdf_bytes = generar_pdf_recibo_pro(
                         nombre_cliente=item['aux_nombre'], 
                         monto=r['monto'], 
@@ -1645,26 +1655,62 @@ elif menu == "Gestión de Cobros":
                     )
                 except Exception as e:
                     st.warning(f"Error al generar el documento: {str(e)}")
-        
-        import urllib.parse
-        try:
-            clean_tel = "".join(filter(str.isdigit, str(item.get('clientes', {}).get('telefono', ''))))
-            if clean_tel:
-                msg = (f"✅ *RECIBO DE PAGO ({r['factura']})*\n\n"
-                       f"Cliente: *{item['aux_nombre']}*\n"
-                       f"Abono: *RD$ {r['monto']:,.2f}*\n"
-                       f"Mora: *RD$ {r['mora']:,.2f}*\n"
-                       f"Balance Pendiente: *RD$ {r['pend']:,.2f}*\n"
-                       f"TOKEN VERIFICACIÓN: {token_seguro}\n\n"
-                       f"¡Gracias por su puntualidad!")
-                url = f"https://wa.me/1{clean_tel}?text={urllib.parse.quote(msg)}"
-                st.markdown(f'<a href="{url}" target="_blank"><button style="width:100%;background-color:#25D366;color:white;border:none;padding:12px;border-radius:10px;font-weight:bold;cursor:pointer;">WhatsApp 💬</button></a>', unsafe_allow_html=True)
-        except Exception as e:
-            st.warning(f"No se pudo preparar el WhatsApp")
-        
-        if st.button("✅ FINALIZAR", use_container_width=True):
-            st.rerun()
+                
+                # --- BOTÓN DE WHATSAPP CON LOGO Y ESTILO ORIGINAL ---
+                import urllib.parse
+                try:
+                    clean_tel = "".join(filter(str.isdigit, str(item.get('clientes', {}).get('telefono', ''))))
+                    if clean_tel:
+                        msg = (f"✅ *RECIBO DE PAGO ({r['factura']})*\n\n"
+                               f"Cliente: *{item['aux_nombre']}*\n"
+                               f"Abono: *RD$ {r['monto']:,.2f}*\n"
+                               f"Mora: *RD$ {r['mora']:,.2f}*\n"
+                               f"Balance Pendiente: *RD$ {r['pend']:,.2f}*\n"
+                               f"Próximo Pago: {r['fecha']}\n\n"
+                               f"🔐 *VERIFICACIÓN DIGITAL:* \n{token_seguro}\n\n"
+                               f"¡Gracias por su puntualidad!")
+                        
+                        url = f"https://wa.me/1{clean_tel}?text={urllib.parse.quote(msg)}"
+                        
+                        # El botón con el logo de WhatsApp y el estilo exacto
+                        st.markdown(f'''
+                            <a href="{url}" target="_blank" style="text-decoration:none;">
+                                <div style="
+                                    width:100%;
+                                    background-color:#25D366;
+                                    color:white;
+                                    padding:12px;
+                                    border-radius:10px;
+                                    font-weight:bold;
+                                    text-align:center;
+                                    margin-top:10px;
+                                    display:flex;
+                                    align-items:center;
+                                    justify-content:center;
+                                    gap:10px;
+                                    cursor:pointer;">
+                                    <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" width="20" height="20">
+                                    COMPARTIR POR WHATSAPP
+                                </div>
+                            </a>
+                        ''', unsafe_allow_html=True)
+                except Exception as e:
+                    st.warning(f"Error en WhatsApp: {e}")
 
+                # --- BOTONES DE ACCIÓN ADICIONALES ---
+                st.write("") # Espaciador
+                c_final1, c_final2 = st.columns(2)
+                
+                with c_final1:
+                    if st.button("🔄 NUEVO COBRO", use_container_width=True):
+                        st.rerun()
+                
+                with c_final2:
+                    if st.button("✅ FINALIZAR", type="primary", use_container_width=True):
+                        # Limpiamos el estado del recibo para que el modal no se quede abierto
+                        del st.session_state[f"recibo_{item['id']}"]
+                        st.rerun()
+                        
     # --- 4. DETECTOR MAESTRO DE RECIBOS ---
     for key in list(st.session_state.keys()):
         if key.startswith("recibo_"):
