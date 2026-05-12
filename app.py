@@ -2073,31 +2073,25 @@ elif menu == "Nueva Cuenta por Cobrar":
     else:
         with contenedor_formulario.container():
             if res_cli.data:
-                # INYECCIÓN DE CSS: Esto es lo que permite que el móvil "entienda" que debe abrir el teclado
-                st.markdown("""
-                    <style>
-                        /* Forzar que el campo de búsqueda sea reconocido como texto por el teclado móvil */
-                        div[data-baseweb="select"] input {
-                            inputmode: text !important;
-                            enterkeyhint: search !important;
-                        }
-                    </style>
-                """, unsafe_allow_html=True)
+                # Ordenar clientes por fecha_registro de forma descendente (más recientes primero)
+                clientes_ordenados = sorted(
+                    res_cli.data, 
+                    key=lambda x: x.get('fecha_registro') or '', 
+                    reverse=True
+                )
 
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # CAMPO ÚNICO: Autocompletado real
-                    # Al escribir, la lista de res_cli.data se filtra automáticamente debajo.
                     cliente_obj = st.selectbox(
-                        "Buscar Cliente",
-                        options=res_cli.data,
+                        "Seleccionar Cliente",
+                        options=clientes_ordenados,
                         index=None,
                         placeholder="Escribe nombre, cédula o teléfono...",
                         format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
                         key="buscador_unico_final"
                     )
-
+                    
                     capital = st.number_input(
                         "Capital/Venta (RD$)", 
                         min_value=0.0, 
