@@ -1455,6 +1455,7 @@ elif menu == "Gestión de Cobros":
     hoy = obtener_hoy_medidia_rd()  # USAR ESTA FECHA PARA TODO EL MÓDULO
     
 # --- 1. FUNCIÓN DE HISTORIAL (PLAN VS REAL) CON LÓGICA DINÁMICA ---
+    # --- 1. FUNCIÓN DE HISTORIAL (PLAN VS REAL) CON LÓGICA DINÁMICA ---
             @st.dialog("📜 ESTADO DE CUENTA DETALLADO")
             def mostrar_historial_modal(item, u_id):
                 st.subheader(f"Análisis: {item['aux_nombre']}")
