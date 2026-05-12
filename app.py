@@ -2069,14 +2069,13 @@ elif menu == "Nueva Cuenta por Cobrar":
                     for k in ["prestamo_exitoso", "pdf_ready", "wa_link", "last_name"]:
                         if k in st.session_state: del st.session_state[k]
                     st.rerun()
-
     else:
         with contenedor_formulario.container():
             if res_cli.data:
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # COMPONENTE ÚNICO: Buscador y selector integrado
+                    # COMPONENTE ÚNICO: Buscador y selector integrado (Fuerza teclado en móvil)
                     cliente_obj = st.selectbox(
                         "Seleccionar Cliente",
                         options=res_cli.data,
@@ -2093,7 +2092,7 @@ elif menu == "Nueva Cuenta por Cobrar":
                         key="capital_venta_input"
                     )
 
-                # CSS para asegurar que el teclado suba en móviles al tocar el selectbox
+                # CSS Inyectado para mejorar el foco táctil en dispositivos móviles
                 st.markdown("""
                     <style>
                         .stSelectbox div[data-baseweb="select"] {
@@ -2101,19 +2100,19 @@ elif menu == "Nueva Cuenta por Cobrar":
                         }
                     </style>
                 """, unsafe_allow_html=True)
-                    
-                    # Lógica de validación si hay un cliente seleccionado
-                    continuar = False
-                    if cliente_obj:
-                        if cliente_obj['id'] in resumen_deudas:
-                            info = resumen_deudas[cliente_obj['id']]
-                            st.error(f"⚠️ EL CLIENTE YA DEBE: RD$ {info['total']:,.2f}")
-                            continuar = st.checkbox("Autorizar nueva factura manual")
-                        else:
-                            st.success("✅ Cliente al día")
-                            continuar = True
+                
+                # --- Lógica de validación (Alineada correctamente) ---
+                continuar = False
+                if cliente_obj:
+                    if cliente_obj['id'] in resumen_deudas:
+                        info = resumen_deudas[cliente_obj['id']]
+                        st.error(f"⚠️ EL CLIENTE YA DEBE: RD$ {info['total']:,.2f}")
+                        continuar = st.checkbox("Autorizar nueva factura manual", key="auth_manual")
                     else:
-                        st.info("Por favor, selecciona un cliente para continuar.")
+                        st.success("✅ Cliente al día")
+                        continuar = True
+                else:
+                    st.info("Por favor, selecciona un cliente para continuar.")
                 
                 with col2:
                     porcentaje = st.number_input("Interés (%)", min_value=0, value=20)
