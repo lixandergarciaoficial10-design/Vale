@@ -2401,7 +2401,7 @@ elif menu == "👥 Todos mis Clientes":
 
         st.divider()
     
-     # --- 4. CENTRO DE CONTROL DE CLIENTES (Dashboard Estratégico de Cartera) ---
+        # --- 4. CENTRO DE CONTROL DE CLIENTES (Dashboard Estratégico de Cartera) ---
         
         # 1. CARGA DE DATOS (Mantenemos tu sintaxis de carga)
         res_cl = conn.table("clientes").select("*").eq("user_id", u_id).order("nombre").execute()
@@ -2517,9 +2517,9 @@ elif menu == "👥 Todos mis Clientes":
                     clientes_f.append(c)
 
         # Ordenar por prioridad crítica
-        clientes_f = sorted(clientes_f, key=lambda x: x['meta_prioridad'], reverse=True)   
+        clientes_f = sorted(clientes_f, key=lambda x: x['meta_prioridad'], reverse=True)
 
-     # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
+        # --- VENTANA DE HISTORIAL (MODAL REDISEÑADO "ULTRA PREMIUM") ---
 # --- FUNCIONES DE APOYO (Deben ir fuera del modal o antes de él) ---
 def reajustar_cuenta_post_borrado(c_id, monto_recuperado, balance_actual):
     """Recalcula el balance y el estado de la cuenta automáticamente."""
