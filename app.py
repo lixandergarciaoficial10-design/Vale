@@ -1542,113 +1542,109 @@ elif menu == "Gestión de Cobros":
         c_conf1, c_conf2 = st.columns(2)
         with c_conf1:
             # --- 2. FUNCIÓN DE CONFIRMACIÓN CON SEGURIDAD CRIPTOGRÁFICA ---
-    @st.dialog("⚠️ VERIFICAR TRANSACCIÓN")
-    def confirmar_cobro_modal(item, monto, fecha, mora, u_id):
-        import random
-        import string
-        import secrets # Para seguridad de grado bancario
-        
-        codigo_random = f"FAC-{''.join(random.choices(string.digits, k=4))}"
-        
-        st.warning(f"¿Estás seguro de registrar este pago para **{item['aux_nombre']}**?")
-        st.markdown(f"""
-        **Resumen del Cobro:**
-        * 🎫 **Factura #:** {codigo_random}
-        * 💵 **Abono Capital:** RD$ {monto:,.2f}
-        * ⚖️ **Mora Aplicada:** RD$ {mora:,.2f}
-        * 📅 **Próximo Pago:** {fecha}
-        """)
-        
-        c_conf1, c_conf2 = st.columns(2)
-        with c_conf1:
-            if st.button("✅ CONFIRMAR Y REGISTRAR", type="primary", use_container_width=True):
+            @st.dialog("⚠️ VERIFICAR TRANSACCIÓN")
+            def confirmar_cobro_modal(item, monto, fecha, mora, u_id):
+                import random
+                import string
+                import secrets # Para seguridad de grado bancario
+                
+                codigo_random = f"FAC-{''.join(random.choices(string.digits, k=4))}"
+                
+                st.warning(f"¿Estás seguro de registrar este pago para **{item['aux_nombre']}**?")
+                st.markdown(f"""
+                **Resumen del Cobro:**
+                * 🎫 **Factura #:** {codigo_random}
+                * 💵 **Abono Capital:** RD$ {monto:,.2f}
+                * ⚖️ **Mora Aplicada:** RD$ {mora:,.2f}
+                * 📅 **Próximo Pago:** {fecha}
+                """)
+                
+                c_conf1, c_conf2 = st.columns(2)
+                with c_conf1:
+                    if st.button("✅ CONFIRMAR Y REGISTRAR", type="primary", use_container_width=True):
+                        try:
+                            # A. REGISTRO EN TABLA PAGOS (Normal)
+                            conn.table("pagos").insert({
+                                "cuenta_id": str(item['id']),
+                                "monto_pagado": float(monto),
+                                "mora_pagada": float(mora) if mora else 0,
+                                "codigo_factura": codigo_random,
+                                "user_id": str(u_id),
+                                "fecha_pago": str(datetime.now().isoformat())
+                            }).execute()
+                            
+                            # B. ACTUALIZACIÓN DE BALANCE EN CUENTAS
+                            n_bal = float(item.get('balance_pendiente', 0)) - monto
+                            conn.table("cuentas").update({
+                                "balance_pendiente": max(0, n_bal),
+                                "estado": "Saldado" if n_bal <= 0 else "Activo",
+                                "proximo_pago": str(fecha),
+                                "mora_acumulada": 0
+                            }).eq("id", item['id']).execute()
+
+                            # C. GENERACIÓN DE TOKEN Y REGISTRO EN TABLA VERIFICACION
+                            caracteres = string.ascii_letters + string.digits + "!@#$%"
+                            token_cya = "".join(secrets.choice(caracteres) for _ in range(24))
+
+                            conn.table("verificacion").insert({
+                                "codigo_seguridad": token_cya,
+                                "nombre_cliente": item['aux_nombre'],
+                                "monto_abono": float(monto),
+                                "balance_pendiente": max(0, n_bal),
+                                "empresa_recaudadora": st.session_state.get("nombre_negocio", "COBROYA PRO")
+                            }).execute()
+                            
+                            # D. GUARDAR EN SESSION STATE
+                            st.session_state[f"recibo_{item['id']}"] = {
+                                "monto": monto, 
+                                "mora": mora if mora else 0, 
+                                "pend": max(0, n_bal), 
+                                "fecha": str(fecha), 
+                                "factura": codigo_random,
+                                "token": token_cya 
+                            }
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error crítico en base de datos: {e}")
+                
+                with c_conf2:
+                    if st.button("❌ CANCELAR", use_container_width=True):
+                        st.rerun()
+
+            @st.dialog("🎯 ¡COBRO REALIZADO CON ÉXITO!")
+            def mostrar_recibo_modal(item, r, u_id):
+                st.balloons()
+                st.success(f"Pago registrado: **{r['factura']}**")
+                
+                token_seguro = r.get('token', 'N/A-SIN-TOKEN')
+
+                c1, c2 = st.columns(2)
+                c1.metric("Monto Cobrado", f"RD$ {r['monto']:,.2f}")
+                c2.metric("Nuevo Balance", f"RD$ {r['pend']:,.2f}")
+                
+                st.divider()
+                
                 try:
-                    # A. REGISTRO EN TABLA PAGOS (Normal)
-                    conn.table("pagos").insert({
-                        "cuenta_id": str(item['id']),
-                        "monto_pagado": float(monto),
-                        "mora_pagada": float(mora) if mora else 0,
-                        "codigo_factura": codigo_random,
-                        "user_id": str(u_id),
-                        "fecha_pago": str(datetime.now().isoformat())
-                    }).execute()
+                    pdf_bytes = generar_pdf_recibo_pro(
+                        nombre_cliente=item['aux_nombre'], 
+                        monto=r['monto'], 
+                        balance=r['pend'], 
+                        user_id=u_id, 
+                        mora=r['mora'],
+                        factura_no=r['factura'],
+                        token_seguridad=token_seguro 
+                    )
                     
-                    # B. ACTUALIZACIÓN DE BALANCE EN CUENTAS
-                    n_bal = float(item.get('balance_pendiente', 0)) - monto
-                    conn.table("cuentas").update({
-                        "balance_pendiente": max(0, n_bal),
-                        "estado": "Saldado" if n_bal <= 0 else "Activo",
-                        "proximo_pago": str(fecha),
-                        "mora_acumulada": 0
-                    }).eq("id", item['id']).execute()
-
-                    # C. GENERACIÓN DE TOKEN Y REGISTRO EN TABLA VERIFICACION (ALTA SEGURIDAD)
-                    # Creamos un token ultra complejo (letras, números y símbolos)
-                    caracteres = string.ascii_letters + string.digits + "!@#$%"
-                    token_cya = "".join(secrets.choice(caracteres) for _ in range(24))
-
-                    conn.table("verificacion").insert({
-                        "codigo_seguridad": token_cya,
-                        "nombre_cliente": item['aux_nombre'],
-                        "monto_abono": float(monto),
-                        "balance_pendiente": max(0, n_bal),
-                        "empresa_recaudadora": st.session_state.get("nombre_negocio", "COBROYA PRO")
-                    }).execute()
-                    
-                    # D. GUARDAR TODO EN SESSION STATE PARA EL SIGUIENTE MODAL
-                    st.session_state[f"recibo_{item['id']}"] = {
-                        "monto": monto, 
-                        "mora": mora if mora else 0, 
-                        "pend": max(0, n_bal), 
-                        "fecha": str(fecha), 
-                        "factura": codigo_random,
-                        "token": token_cya # <--- Token guardado aquí
-                    }
-                    st.rerun()
+                    st.download_button(
+                        label="🖨️ IMPRIMIR RECIBO TÉRMICO",
+                        data=pdf_bytes,
+                        file_name=f"Recibo_{r['factura']}.pdf",
+                        mime="application/pdf",
+                        type="primary",
+                        use_container_width=True
+                    )
                 except Exception as e:
-                    st.error(f"Error crítico en base de datos: {e}")
-        
-        with c_conf2:
-            if st.button("❌ CANCELAR", use_container_width=True):
-                st.rerun()
-
-    # --- 3. FUNCIÓN DE RECIBO FINAL CON TOKEN DE AUDITORÍA ---
-    @st.dialog("🎯 ¡COBRO REALIZADO CON ÉXITO!")
-    def mostrar_recibo_modal(item, r, u_id):
-        st.balloons()
-        st.success(f"Pago registrado: **{r['factura']}**")
-        
-        # Recuperamos el token generado en el paso anterior
-        token_seguro = r.get('token', 'N/A-SIN-TOKEN')
-
-        c1, c2 = st.columns(2)
-        c1.metric("Monto Cobrado", f"RD$ {r['monto']:,.2f}")
-        c2.metric("Nuevo Balance", f"RD$ {r['pend']:,.2f}")
-        
-        st.divider()
-        
-        try:
-            # Generación del PDF pasando el nuevo parámetro token_seguridad
-            pdf_bytes = generar_pdf_recibo_pro(
-                nombre_cliente=item['aux_nombre'], 
-                monto=r['monto'], 
-                balance=r['pend'], 
-                user_id=u_id, 
-                mora=r['mora'],
-                factura_no=r['factura'],
-                token_seguridad=token_seguro # <--- PASAMOS EL TOKEN AQUÍ
-            )
-            
-            st.download_button(
-                label="🖨️ IMPRIMIR RECIBO TÉRMICO",
-                data=pdf_bytes,
-                file_name=f"Recibo_{r['factura']}.pdf",
-                mime="application/pdf",
-                type="primary",
-                use_container_width=True
-            )
-        except Exception as e:
-            st.warning(f"Error al generar el documento de seguridad: {str(e)}")
+                    st.warning(f"Error al generar el documento: {str(e)}")
         
         import urllib.parse
         try:
