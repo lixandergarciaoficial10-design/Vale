@@ -2069,50 +2069,47 @@ elif menu == "Nueva Cuenta por Cobrar":
                     for k in ["prestamo_exitoso", "pdf_ready", "wa_link", "last_name"]:
                         if k in st.session_state: del st.session_state[k]
                     st.rerun()
+
     else:
         with contenedor_formulario.container():
             if res_cli.data:
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # COMPONENTE ÚNICO: Buscador y selector integrado (Fuerza teclado en móvil)
-                    cliente_obj = st.selectbox(
-                        "Seleccionar Cliente",
+                    # CAMPO ÚNICO: Autocomplete inteligente (Tipo WhatsApp/Uber)
+                    # Filtra en tiempo real y selecciona directamente sin pasos extra.
+                    seleccion_cliente = st.multiselect(
+                        "Buscar Cliente",
                         options=res_cli.data,
-                        index=None,
-                        placeholder="🔍 Escribe nombre, cédula o tel...",
+                        max_selections=1,
+                        placeholder="Escribe nombre, cédula o teléfono...",
                         format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
-                        key="buscador_unico_cliente"
+                        key="buscador_autocompletado_cliente"
                     )
+
+                    # Extraemos el objeto seleccionado (es una lista de 1 o 0 elementos)
+                    cliente_obj = seleccion_cliente[0] if seleccion_cliente else None
                     
+                    # Entrada de capital vinculada al flujo
                     capital = st.number_input(
                         "Capital/Venta (RD$)", 
                         min_value=0.0, 
                         step=100.0,
                         key="capital_venta_input"
                     )
-
-                # CSS Inyectado para mejorar el foco táctil en dispositivos móviles
-                st.markdown("""
-                    <style>
-                        .stSelectbox div[data-baseweb="select"] {
-                            cursor: text;
-                        }
-                    </style>
-                """, unsafe_allow_html=True)
-                
-                # --- Lógica de validación (Alineada correctamente) ---
-                continuar = False
-                if cliente_obj:
-                    if cliente_obj['id'] in resumen_deudas:
-                        info = resumen_deudas[cliente_obj['id']]
-                        st.error(f"⚠️ EL CLIENTE YA DEBE: RD$ {info['total']:,.2f}")
-                        continuar = st.checkbox("Autorizar nueva factura manual", key="auth_manual")
+                    
+                    # Lógica de validación si hay un cliente seleccionado
+                    continuar = False
+                    if cliente_obj:
+                        if cliente_obj['id'] in resumen_deudas:
+                            info = resumen_deudas[cliente_obj['id']]
+                            st.error(f"⚠️ EL CLIENTE YA DEBE: RD$ {info['total']:,.2f}")
+                            continuar = st.checkbox("Autorizar nueva factura manual")
+                        else:
+                            st.success("✅ Cliente al día")
+                            continuar = True
                     else:
-                        st.success("✅ Cliente al día")
-                        continuar = True
-                else:
-                    st.info("Por favor, selecciona un cliente para continuar.")
+                        st.info("Por favor, selecciona un cliente para continuar.")
                 
                 with col2:
                     porcentaje = st.number_input("Interés (%)", min_value=0, value=20)
