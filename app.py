@@ -2076,71 +2076,27 @@ elif menu == "Nueva Cuenta por Cobrar":
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # EL BUSCADOR ÚNICO (ESTILO AUTOCOMPLETE)
-                    # Usamos text_input porque es el ÚNICO que garantiza teclado en móvil 100%
-                    busqueda = st.text_input(
+                    # CAMPO ÚNICO: Autocomplete inteligente (Tipo WhatsApp/Uber)
+                    # Filtra en tiempo real y selecciona directamente sin pasos extra.
+                    seleccion_cliente = st.multiselect(
                         "Buscar Cliente",
-                        placeholder="🔍 Escribe nombre, cédula o tel...",
-                        key="input_unico_search"
+                        options=res_cli.data,
+                        max_selections=1,
+                        placeholder="Escribe nombre, cédula o teléfono...",
+                        format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
+                        key="buscador_autocompletado_cliente"
                     )
 
-                    # PROCESAMIENTO SILENCIOSO
-                    # No creamos listas aparte, filtramos internamente
-                    cliente_obj = None
-                    if busqueda:
-                        # Buscamos coincidencias exactas o parciales
-                        coincidencias = [
-                            c for c in res_cli.data
-                            if busqueda.lower() in str(c.get("nombre", "")).lower()
-                            or busqueda.lower() in str(c.get("cedula", "")).lower()
-                            or busqueda.lower() in str(c.get("telefono", "")).lower()
-                        ]
-                        
-                        if coincidencias:
-                            # Si solo hay una coincidencia exacta o el usuario terminó de escribir
-                            # mostramos un selector que SOLO aparece con los resultados.
-                            # Visualmente se siente como parte del mismo proceso.
-                            cliente_obj = st.selectbox(
-                                "Resultados encontrados:",
-                                options=coincidencias,
-                                format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')})",
-                                key="selector_interno_auto"
-                            )
+                    # Extraemos el objeto seleccionado (es una lista de 1 o 0 elementos)
+                    cliente_obj = seleccion_cliente[0] if seleccion_cliente else None
                     
+                    # Entrada de capital vinculada al flujo
                     capital = st.number_input(
                         "Capital/Venta (RD$)", 
                         min_value=0.0, 
                         step=100.0,
                         key="capital_venta_input"
                     )
-
-                # --- Lógica de validación ---
-                continuar = False
-                if cliente_obj:
-                    if cliente_obj['id'] in resumen_deudas:
-                        info = resumen_deudas[cliente_obj['id']]
-                        st.error(f"⚠️ EL CLIENTE YA DEBE: RD$ {info['total']:,.2f}")
-                        continuar = st.checkbox("Autorizar nueva factura manual", key="auth_manual")
-                    else:
-                        st.success(f"✅ Seleccionado: {cliente_obj['nombre']}")
-                        continuar = True
-                elif busqueda:
-                    st.warning("Sigue escribiendo para encontrar al cliente...")
-                else:
-                    st.info("Escribe arriba para buscar un cliente.")
-
-                # --- Lógica de validación que sigue abajo ---
-                continuar = False
-                if cliente_obj:
-                    if cliente_obj['id'] in resumen_deudas:
-                        info = resumen_deudas[cliente_obj['id']]
-                        st.error(f"⚠️ EL CLIENTE YA DEBE: RD$ {info['total']:,.2f}")
-                        continuar = st.checkbox("Autorizar nueva factura manual", key="auth_manual")
-                    else:
-                        st.success("✅ Cliente al día")
-                        continuar = True
-                else:
-                    st.info("Por favor, selecciona un cliente para continuar.")
                     
                     # Lógica de validación si hay un cliente seleccionado
                     continuar = False
