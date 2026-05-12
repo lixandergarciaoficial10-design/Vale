@@ -945,8 +945,8 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0, fact
     pdf.set_text_color(100, 100, 100) # Gris oscuro
     pdf.cell(72, 3, "AUTENTICIDAD DIGITAL VERIFICADA", ln=True, align='C')
     pdf.set_font("Helvetica", "", 5)
-    pdf.multi_cell(72, 2.5, f"Validado vía Supabase Cloud Ledger. Cifrado de grado bancario AES-256. "
-                            f"Este documento es una prueba legal de pago inalterable.", align='C')
+    pdf.multi_cell(72, 2.5, f"Validado vía Supabase Cloud Ledger. Cifrado grado bancario AES-256. "
+                            f"Este documento es una prueba legal de pago validable.", align='C')
     
     # --- QR TEXTO PLANO (ESTRATEGIA LIMPIA) ---
     qr_data = (
