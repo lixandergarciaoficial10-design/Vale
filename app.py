@@ -858,6 +858,10 @@ def calcular_resumen_real(cuentas_del_cliente):
     total_deuda = sum(float(c.get('balance_pendiente', 0)) for c in cuentas_del_cliente)
     return total_deuda
     
+import qrcode
+import os
+from tempfile import NamedTemporaryFile
+
 def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
     try:
         monto, balance, mora = float(monto), float(balance), float(mora)
@@ -870,11 +874,12 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
     pdf.set_margins(4, 4, 4)
     pdf.set_auto_page_break(False)
 
-    # 1. Recuperar info del negocio (Lo que sentías que faltaba)
+    # 1. Recuperar info del negocio
     nombre_negocio = st.session_state.get("nombre_negocio", "COBROYA PRO").upper()
     rnc = st.session_state.get("rnc", "")
     direccion = st.session_state.get("direccion_negocio", "Rep. Dominicana")
     telefono = st.session_state.get("telefono_negocio", "")
+    trans_id = int(datetime.now().timestamp())
 
     # --- ENCABEZADO ---
     pdf.set_font("Helvetica", "B", 11)
@@ -882,7 +887,7 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
     
     pdf.set_font("Helvetica", "", 8)
     if rnc: pdf.cell(72, 4, f"RNC: {rnc}", ln=True, align='C')
-    pdf.cell(72, 4, direccion[:40], ln=True, align='C') # Truncamos para que no desborde
+    pdf.cell(72, 4, direccion[:40], ln=True, align='C') 
     if telefono: pdf.cell(72, 4, f"TEL: {telefono}", ln=True, align='C')
     
     pdf.cell(72, 4, "="*35, ln=True, align='C')
@@ -892,7 +897,7 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
     pdf.cell(72, 6, "COMPROBANTE DE COBRO", ln=True, align='C')
     pdf.set_font("Helvetica", "", 8)
     pdf.cell(72, 4, f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True)
-    pdf.cell(72, 4, f"No. Trans: {int(datetime.now().timestamp())}", ln=True)
+    pdf.cell(72, 4, f"No. Trans: {trans_id}", ln=True)
     pdf.cell(72, 4, f"Cliente: {nombre_cliente.upper()}", ln=True)
     pdf.cell(72, 4, "-"*40, ln=True, align='C')
 
@@ -910,54 +915,49 @@ def generar_pdf_recibo_pro(nombre_cliente, monto, balance, user_id, mora=0):
         pdf.cell(32, 6, f"RD$ {mora:,.2f}", ln=True, align='R')
 
     pdf.ln(2)
-    pdf.set_fill_color(245, 245, 245) # Gris muy suave
+    pdf.set_fill_color(245, 245, 245) 
     pdf.set_font("Helvetica", "B", 11)
     pdf.cell(40, 8, " PENDIENTE:", fill=True)
     pdf.cell(32, 8, f"RD$ {balance:,.2f} ", ln=True, align='R', fill=True)
     
-    # --- PIE ---
-    pdf.ln(10)
-    pdf.set_font("Helvetica", "", 7)
-    pdf.cell(72, 4, "_______________________", ln=True, align='C')
-    pdf.cell(72, 4, "FIRMA DEL CLIENTE", ln=True, align='C')
+    # --- BLOQUE QR (INTELIGENTE Y LEGAL) ---
+    # Generamos el contenido del QR
+    qr_data = (f"RECIBO LEGAL COBROYA\n"
+               f"Negocio: {nombre_negocio}\n"
+               f"Trans: {trans_id}\n"
+               f"Cliente: {nombre_cliente}\n"
+               f"Monto: RD$ {monto:,.2f}\n"
+               f"Autenticidad garantizada por sistema CobroYa Pro.")
     
+    qr = qrcode.QRCode(version=1, box_size=10, border=1)
+    qr.add_data(qr_data)
+    qr.make(fit=True)
+    img_qr = qr.make_image(fill_color="black", back_color="white")
+
+    # Guardar QR temporalmente para meterlo al PDF
+    with NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
+        img_qr.save(tmpfile.name)
+        # Posicionamos el QR a la derecha de la firma o al final
+        # x=50 (derecha), y=actual, ancho y alto de 18mm (pequeño pero escaneable)
+        y_pos = pdf.get_y() + 5 
+        pdf.image(tmpfile.name, x=50, y=y_pos, w=18)
+        tmp_path = tmpfile.name
+
+    # --- PIE (FIRMA) ---
     pdf.ln(5)
+    pdf.set_font("Helvetica", "", 7)
+    # Dejamos espacio a la izquierda para la firma mientras el QR está a la derecha
+    pdf.cell(45, 4, "_______________________", ln=False, align='L')
+    pdf.ln(4)
+    pdf.cell(45, 4, "FIRMA DEL CLIENTE", ln=True, align='L')
+    
+    pdf.ln(8)
     pdf.set_font("Helvetica", "I", 8)
     pdf.cell(72, 4, "¡Gracias por su pago!", ln=True, align='C')
-
-    return bytes(pdf.output())
-
-# =========================================================
-# 🧾 RECIBO DE PAGO (SIMPLE Y LIMPIO)
-# =========================================================
-def generar_recibo_pago_pro(nombre, monto, balance, metodo="Efectivo"):
-    pdf = FPDF()
-    pdf.add_page()
-
-    fecha = datetime.now().strftime('%d/%m/%Y')
-    recibo_id = f"REC-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-
-    pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(190, 10, "RECIBO DE PAGO", ln=True, align="C")
-
-    pdf.ln(5)
-
-    pdf.set_font("Helvetica", "", 11)
-    pdf.cell(100, 6, f"No: {recibo_id}")
-    pdf.cell(90, 6, f"Fecha: {fecha}", ln=True, align="R")
-
-    pdf.ln(8)
-
-    pdf.cell(190, 6, f"Recibimos de: {nombre}", ln=True)
-    pdf.cell(190, 6, f"Monto: RD$ {monto:,.2f}", ln=True)
-    pdf.cell(190, 6, f"Método de pago: {metodo}", ln=True)
-    pdf.cell(190, 6, f"Balance restante: RD$ {balance:,.2f}", ln=True)
-
-    pdf.ln(20)
-
-    pdf.line(60, pdf.get_y(), 150, pdf.get_y())
-    pdf.set_font("Helvetica", "", 10)
-    pdf.cell(190, 6, "Firma autorizada", align="C")
+    
+    # Limpiamos el archivo temporal
+    if os.path.exists(tmp_path):
+        os.remove(tmp_path)
 
     return bytes(pdf.output())
     
