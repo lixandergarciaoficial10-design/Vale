@@ -2076,21 +2076,37 @@ elif menu == "Nueva Cuenta por Cobrar":
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # RESTAURACIÓN: Buscador único de alta eficiencia (Autocomplete)
-                    # Se usa multiselect con max_selections=1 para simular comportamiento Select2
-                    seleccion_cliente = st.multiselect(
-                        "Seleccionar Cliente",
-                        options=res_cli.data,
-                        max_selections=1,
-                        placeholder="Escribe nombre, cédula o teléfono...",
-                        format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
-                        key="buscador_autocompletado_cliente"
+                    # 1. EL DISPARADOR DEL TECLADO: text_input siempre abre el teclado en móvil
+                    busqueda = st.text_input(
+                        "🔍 Buscar Cliente", 
+                        placeholder="Escribe nombre, cédula o tel...",
+                        key="input_teclado_movil"
                     )
 
-                    # Extracción directa del objeto seleccionado
-                    cliente_obj = seleccion_cliente[0] if seleccion_cliente else None
+                    # 2. FILTRADO DINÁMICO: Si no escribe nada, la lista está vacía (ahorra recursos)
+                    # Si escribe, filtramos los 1,000+ clientes al instante
+                    if busqueda:
+                        termino = busqueda.lower()
+                        clientes_filtrados = [
+                            c for c in res_cli.data
+                            if termino in str(c.get("nombre", "")).lower()
+                            or termino in str(c.get("cedula", "")).lower()
+                            or termino in str(c.get("telefono", "")).lower()
+                        ]
+                    else:
+                        clientes_filtrados = [] # Lista vacía hasta que empiece a escribir
+
+                    # 3. SELECTOR DE RESULTADOS: Aquí solo aparecen las coincidencias
+                    # Usamos selectbox para eliminar el "Select all" del multiselect
+                    cliente_obj = st.selectbox(
+                        "Seleccionar de los resultados",
+                        options=clientes_filtrados,
+                        index=None,
+                        placeholder="Toca aquí para elegir",
+                        format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
+                        key="selector_final_movil"
+                    )
                     
-                    # El flujo continúa naturalmente al siguiente input
                     capital = st.number_input(
                         "Capital/Venta (RD$)", 
                         min_value=0.0, 
