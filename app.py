@@ -2076,43 +2076,35 @@ elif menu == "Nueva Cuenta por Cobrar":
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # 1. EL DISPARADOR DEL TECLADO: text_input siempre abre el teclado en móvil
-                    busqueda = st.text_input(
-                        "🔍 Buscar Cliente", 
-                        placeholder="Escribe nombre, cédula o tel...",
-                        key="input_teclado_movil"
-                    )
-
-                    # 2. FILTRADO DINÁMICO: Si no escribe nada, la lista está vacía (ahorra recursos)
-                    # Si escribe, filtramos los 1,000+ clientes al instante
-                    if busqueda:
-                        termino = busqueda.lower()
-                        clientes_filtrados = [
-                            c for c in res_cli.data
-                            if termino in str(c.get("nombre", "")).lower()
-                            or termino in str(c.get("cedula", "")).lower()
-                            or termino in str(c.get("telefono", "")).lower()
-                        ]
-                    else:
-                        clientes_filtrados = [] # Lista vacía hasta que empiece a escribir
-
-                    # 3. SELECTOR DE RESULTADOS: Aquí solo aparecen las coincidencias
-                    # Usamos selectbox para eliminar el "Select all" del multiselect
+                    # CAMPO ÚNICO INTELIGENTE: Escribes y seleccionas en el mismo sitio
+                    # Usamos selectbox con búsqueda habilitada. 
+                    # El secreto para que abra el teclado en móvil es el 'label' claro y un placeholder directo.
                     cliente_obj = st.selectbox(
-                        "Seleccionar de los resultados",
-                        options=clientes_filtrados,
+                        "Buscar y Seleccionar Cliente",
+                        options=res_cli.data,
                         index=None,
-                        placeholder="Toca aquí para elegir",
+                        placeholder="🔍 Escribe nombre, cédula o tel...",
                         format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
-                        key="selector_final_movil"
+                        key="buscador_unico_inteligente"
                     )
                     
+                    # El campo de capital sigue inmediatamente debajo
                     capital = st.number_input(
                         "Capital/Venta (RD$)", 
                         min_value=0.0, 
                         step=100.0,
                         key="capital_venta_input"
                     )
+
+                # CSS PARA FORZAR UX MÓVIL (Pégalo una sola vez en tu app si no lo tienes)
+                st.markdown("""
+                    <style>
+                        /* Forzar que el input de búsqueda en móviles sea grande y capte el foco */
+                        .stSelectbox div[data-baseweb="select"] {
+                            cursor: text;
+                        }
+                    </style>
+                """, unsafe_allow_html=True)
                     
                     # Lógica de validación si hay un cliente seleccionado
                     continuar = False
