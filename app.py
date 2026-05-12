@@ -2076,50 +2076,21 @@ elif menu == "Nueva Cuenta por Cobrar":
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    # 1. EL BUSCADOR (Único punto de entrada)
-                    busqueda = st.text_input(
-                        "🔍 Buscar Cliente", 
-                        placeholder="Nombre, Cédula o Teléfono...",
-                        key="search_input_mobile"
+                    # RESTAURACIÓN: Buscador único de alta eficiencia (Autocomplete)
+                    # Se usa multiselect con max_selections=1 para simular comportamiento Select2
+                    seleccion_cliente = st.multiselect(
+                        "Seleccionar Cliente",
+                        options=res_cli.data,
+                        max_selections=1,
+                        placeholder="Escribe nombre, cédula o teléfono...",
+                        format_func=lambda x: f"{x.get('nombre', '')} ({x.get('cedula', 'S/C')}) - {x.get('telefono', 'S/T')}" if x else "",
+                        key="buscador_autocompletado_cliente"
                     )
 
-                    # Inicializamos el estado del cliente si no existe
-                    if 'cliente_seleccionado' not in st.session_state:
-                        st.session_state.cliente_seleccionado = None
-
-                    # 2. LÓGICA DE SUGERENCIAS TÁCTILES
-                    if len(busqueda) >= 2:
-                        termino = busqueda.lower()
-                        # Filtramos rápido en memoria
-                        coincidencias = [
-                            c for c in res_cli.data
-                            if termino in str(c.get("nombre", "")).lower()
-                            or termino in str(c.get("cedula", "")).lower()
-                            or termino in str(c.get("telefono", "")).lower()
-                        ][:5]  # Limitamos a 5 para no inundar la pantalla
-
-                        if coincidencias:
-                            st.caption("Sugerencias (toca una):")
-                            for cliente in coincidencias:
-                                # Botón ancho que parece una celda de lista
-                                label = f"👤 {cliente.get('nombre')} - {cliente.get('telefono', 'S/T')}"
-                                if st.button(label, key=f"btn_{cliente.get('id')}", use_container_width=True):
-                                    st.session_state.cliente_seleccionado = cliente
-                                    # Opcional: limpiar búsqueda al seleccionar
-                        else:
-                            st.warning("No se encontraron coincidencias.")
-
-                    # 3. VISUALIZACIÓN DE SELECCIÓN Y CONTINUACIÓN
-                    cliente_obj = st.session_state.cliente_seleccionado
-
-                    if cliente_obj:
-                        st.success(f"Seleccionado: **{cliente_obj.get('nombre')}**")
-                        # Botón para limpiar selección si se equivocan
-                        if st.button("❌ Cambiar cliente", key="clear_selection"):
-                            st.session_state.cliente_seleccionado = None
-                            st.rerun()
+                    # Extracción directa del objeto seleccionado
+                    cliente_obj = seleccion_cliente[0] if seleccion_cliente else None
                     
-                    # El input de capital siempre visible o condicionado a la selección
+                    # El flujo continúa naturalmente al siguiente input
                     capital = st.number_input(
                         "Capital/Venta (RD$)", 
                         min_value=0.0, 
