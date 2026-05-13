@@ -1421,20 +1421,33 @@ with st.sidebar:
 # === CSS CRÍTICO PARA OCULTAR BOTONES Y REPLICAR DISEÑO ===
     st.markdown("""
         <style>
-            /* 1. Ocultar botones de Streamlit pero dejarlos cliqueables */
+            /* 1. Ocultar botones de Streamlit y estirarlos sobre el diseño HTML */
             .stButton > button {
                 position: absolute;
-                width: 100%;
-                height: 45px;
+                width: 100% !important;
+                height: 48px !important; /* Alto exacto de la fila */
                 background: transparent !important;
                 border: none !important;
                 color: transparent !important;
-                z-index: 10;
+                z-index: 100 !important;
                 cursor: pointer;
-                margin-top: -50px; /* Sube el botón invisible sobre el HTML */
+                margin-top: -52px !important; /* Ajuste preciso para cubrir el HTML superior */
+                transition: background 0.2s;
             }
             
-            /* 2. Estilo de los items de navegación (Copia exacta de la imagen) */
+            /* Efecto hover sutil para feedback visual */
+            .stButton > button:hover {
+                background: rgba(0,0,0,0.02) !important;
+                border: none !important;
+            }
+
+            .stButton > button:focus, .stButton > button:active {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+            
+            /* 2. Estilo de los items de navegación (Diseño Premium) */
             .nav-btn {
                 display: flex;
                 align-items: center;
@@ -1442,34 +1455,39 @@ with st.sidebar:
                 padding: 12px 16px;
                 border-radius: 12px;
                 margin-bottom: 4px;
-                transition: all 0.2s;
                 color: #64748B;
                 font-weight: 500;
+                position: relative;
+                pointer-events: none; /* El HTML no bloquea el clic del botón invisible */
             }
+            
             .nav-btn.active {
                 background: rgba(14, 165, 233, 0.1);
                 color: #0EA5E9;
                 font-weight: 600;
             }
+
             .nav-divider {
                 height: 1px;
                 background: #F1F5F9;
                 margin: 12px 16px;
             }
             
-            /* 3. Footer de Usuario Premium */
+            /* 3. Footer de Usuario */
             .user-footer {
                 background: white;
                 border-top: 1px solid #F1F5F9;
                 padding: 16px;
                 position: relative;
+                pointer-events: none;
             }
+            
             .user-card {
                 display: flex;
                 align-items: center;
                 gap: 10px;
-                cursor: pointer;
             }
+            
             .user-avatar {
                 width: 38px;
                 height: 38px;
@@ -1480,6 +1498,7 @@ with st.sidebar:
                 justify-content: center;
                 font-size: 18px;
             }
+            
             .user-info { flex-grow: 1; overflow: hidden; }
             .user-email { font-size: 13px; font-weight: 600; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
             .user-role { font-size: 11px; color: #94A3B8; }
@@ -1503,7 +1522,7 @@ with st.sidebar:
         is_active = st.session_state.get("menu_principal") == label
         active_class = "active" if is_active else ""
 
-        # 1. Dibujamos el diseño visual
+        # 1. Dibujamos el diseño visual (El texto y el icono)
         st.markdown(f"""
             <div class="nav-btn {active_class}">
                 <span style="font-size: 18px;">{icon}</span>
@@ -1511,12 +1530,12 @@ with st.sidebar:
             </div>
         """, unsafe_allow_html=True)
 
-        # 2. El botón invisible que captura el clic
-        if st.button("", key=f"nav_action_{i}"):
+        # 2. El botón invisible (Cubre toda el área de arriba)
+        if st.button("", key=f"nav_action_{i}", use_container_width=True):
             st.session_state["menu_principal"] = label
             st.rerun()
 
-        # Separadores automáticos
+        # Separadores
         if i == 1 or i == 5:
             st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
 
@@ -1528,7 +1547,6 @@ with st.sidebar:
     # === USER FOOTER ===
     user_details_open = st.session_state.get("user_details_open", False)
 
-    # Diseño visual del footer
     st.markdown(f"""
         <div class="user-footer">
             <div class="user-card">
@@ -1542,12 +1560,11 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # Botón invisible para el toggle del usuario
-    if st.button("", key="user_toggle_action"):
+    # Botón invisible para el footer (Toggle)
+    if st.button("", key="user_toggle_action", use_container_width=True):
         st.session_state["user_details_open"] = not user_details_open
         st.rerun()
 
-    # Mostrar detalles solo si está abierto
     if user_details_open:
         st.markdown(f"""
             <div style="background: #F8FAFC; padding: 12px; margin: 0 16px; border-radius: 8px; border: 1px solid #F1F5F9;">
