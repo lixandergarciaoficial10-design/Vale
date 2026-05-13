@@ -1515,16 +1515,6 @@ with st.sidebar:
     # Creamos un espacio flexible para mandar lo siguiente al fondo
     st.markdown("<div style='flex-grow: 1; min-height: 20px;'></div>", unsafe_allow_html=True)
 
-    # Bloque visual del Plan (Copiando el diseño de la imagen)
-    st.markdown(f"""
-        <div class="plan-card">
-            <div class="plan-label">Estás en el plan</div>
-            <div class="plan-name">Starter</div>
-            <div class="plan-days">20 días restantes</div>
-            <button class="plan-btn">Mejorar Plan</button>
-        </div>
-    """, unsafe_allow_html=True)
-
     # === USER FOOTER (Se mantiene al final) ===
     user_details_open = st.session_state.get("user_details_open", False)
 
