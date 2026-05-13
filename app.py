@@ -1249,16 +1249,16 @@ with st.sidebar:
                 display: none !important;
             }
             .nav-wrapper {
-                padding: 4px 8px;
+                padding: 2px 8px;
                 display: flex;
                 flex-direction: column;
-                gap: 2px;
+                gap: 0px;
             }
             .nav-btn {
                 display: flex;
                 align-items: center;
                 gap: 12px;
-                padding: 10px 14px;
+                padding: 6px 12px;
                 border: none;
                 background: transparent;
                 color: var(--text-muted);
@@ -1431,13 +1431,13 @@ with st.sidebar:
             .stButton > button {
                 position: absolute;
                 width: 100% !important;
-                height: 48px !important; /* Alto exacto de la fila */
+                height: 38px !important; /* Alto ajustado para compactar */
                 background: transparent !important;
                 border: none !important;
                 color: transparent !important;
                 z-index: 100 !important;
                 cursor: pointer;
-                margin-top: -52px !important; /* Ajuste preciso para cubrir el HTML superior */
+                margin-top: -42px !important; /* Ajuste preciso para la nueva altura */
                 transition: background 0.2s;
             }
             
@@ -1452,6 +1452,7 @@ with st.sidebar:
                 border: none !important;
                 box-shadow: none !important;
             }
+            
             
             /* 2. Estilo de los items de navegación (Diseño Premium) */
             .nav-btn {
