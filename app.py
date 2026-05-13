@@ -1146,110 +1146,62 @@ def calcular_dias_plan(fecha_vencimiento_str):
 
 dias_restantes = calcular_dias_plan(st.session_state.get("fecha_vencimiento"))
 
-# --- 3. SIDEBAR (REDISEÑO COSMÉTICO RADICAL) ---
+# ============================================================================
 with st.sidebar:
-    import base64
     
-    # URLs de logos
-    URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"
-
-    # Variables de sesión
+    # === VARIABLES ===
     biz_name = st.session_state.get("nombre_negocio", "MI NEGOCIO").upper()
     biz_rnc = st.session_state.get("rnc", "---")
     biz_dir = st.session_state.get("direccion_negocio", "---")
     biz_tel = st.session_state.get("telefono_negocio", "---")
-    logo_b64 = st.session_state.get("mi_logo")
-    u_email = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
-    tipo_plan = st.session_state.get("tipo_plan", "Gratis").capitalize()
-
-    # Preparar logo del usuario
-    try:
-        if logo_b64 and "," in str(logo_b64):
-            img_data = logo_b64.split(",")[1]
-            src_logo_usuario = f"data:image/png;base64,{img_data}"
-        elif logo_b64:
-            src_logo_usuario = f"data:image/png;base64,{logo_b64}"
-        else:
-            src_logo_usuario = None
-    except Exception:
-        src_logo_usuario = None
-
-    # --- CSS RADICAL: Diseño app-like minimalista y profesional ---
+    u_email = st.session_state.get("user", {}).email if st.session_state.get("user") else "usuario@email.com"
+    tipo_plan = st.session_state.get("tipo_plan", "Started").capitalize()
+    
+    # Calcular días
+    fecha_venc = st.session_state.get("fecha_vencimiento")
+    if fecha_venc:
+        try:
+            if isinstance(fecha_venc, str):
+                fecha_venc = datetime.strptime(fecha_venc, "%Y-%m-%d").date()
+            dias = (fecha_venc - date.today()).days
+            dias_text = f"Faltan {max(dias, 0)} días"
+        except:
+            dias_text = "Sin límite"
+    else:
+        dias_text = "Faltan 20 días"  # Default
+    
+    # === CSS (UNA SOLA VEZ) ===
     st.markdown("""
         <style>
-            /* ==================== VARIABLES GLOBALES ==================== */
             :root {
-                --primary-purple: #6366f1;
-                --primary-purple-hover: #4f46e5;
-                --primary-purple-light: #eef2ff;
+                --primary: #6366f1;
+                --primary-light: #eef2ff;
                 --text-dark: #1f2937;
-                --text-secondary: #6b7280;
-                --border-color: #e5e7eb;
-                --bg-light: #f9fafb;
-                --bg-white: #ffffff;
-                --success-green: #10b981;
-                --warning-orange: #f59e0b;
-                --danger-red: #ef4444;
+                --text-muted: #6b7280;
+                --border: #e5e7eb;
+                --bg: #f9fafb;
             }
-
-            /* ==================== SIDEBAR BASE ==================== */
             [data-testid="stSidebar"][aria-expanded="true"] {
                 min-width: 280px !important;
                 max-width: 280px !important;
-                background-color: #ffffff !important;
+                background-color: white !important;
                 box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08) !important;
             }
-
-            [data-testid="stSidebar"][aria-expanded="false"] {
-                min-width: 0px !important;
-                max-width: 0px !important;
-                width: 0px !important;
-            }
-
-            /* ==================== HEADER DEL SIDEBAR ==================== */
-            [data-testid="stSidebarHeader"] {
-                padding: 0px !important;
-                background-color: transparent !important;
-                border-bottom: none !important;
-            }
-
-            button[data-testid="stSidebarCollapseButton"] {
-                background-color: #1f2937 !important;
-                color: white !important;
-                border-radius: 8px !important;
-                margin: 8px !important;
-                z-index: 100000 !important;
-                border: none !important;
-            }
-
-            button[data-testid="stSidebarCollapseButton"]:hover {
-                background-color: #111827 !important;
-            }
-
-            /* ==================== CONTENIDO DEL SIDEBAR ==================== */
             [data-testid="stSidebarUserContent"] {
                 padding: 0px !important;
-                margin-top: 0px !important;
-                padding-top: 0px !important;
-                padding-bottom: 140px !important;
+                padding-bottom: 180px !important;
             }
-
-            /* ==================== LOGO HEADER (CobroYa) ==================== */
-            .sidebar-logo-header {
+            .logo-header {
                 display: flex;
-                align-items: center;
                 justify-content: center;
-                padding: 12px 0px;
-                border-bottom: 1px solid var(--border-color);
+                padding: 12px 0;
+                border-bottom: 1px solid var(--border);
                 margin-bottom: 8px;
             }
-
-            .sidebar-logo-header img {
+            .logo-header img {
                 max-height: 32px;
                 object-fit: contain;
             }
-
-            /* ==================== TARJETA DE PLAN ==================== */
             .plan-card {
                 background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
                 border-radius: 16px;
@@ -1258,77 +1210,57 @@ with st.sidebar:
                 color: white;
                 text-align: center;
                 box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
-                position: relative;
-                overflow: hidden;
             }
-
-            .plan-card::before {
-                content: "★";
-                position: absolute;
-                top: 8px;
-                right: 12px;
-                font-size: 20px;
-                opacity: 0.3;
-            }
-
-            .plan-card-title {
-                font-size: 12px;
+            .plan-label {
+                font-size: 10px;
                 font-weight: 600;
                 text-transform: uppercase;
-                letter-spacing: 0.5px;
                 opacity: 0.9;
                 margin-bottom: 8px;
             }
-
-            .plan-card-name {
+            .plan-name {
                 font-size: 18px;
                 font-weight: 700;
                 margin-bottom: 4px;
             }
-
-            .plan-card-days {
+            .plan-days {
                 font-size: 14px;
                 opacity: 0.85;
                 margin-bottom: 12px;
             }
-
-            .plan-card-btn {
-                background-color: rgba(255, 255, 255, 0.25);
+            .plan-btn {
+                background-color: rgba(255,255,255,0.25);
                 color: white;
-                border: 1px solid rgba(255, 255, 255, 0.5);
+                border: 1px solid rgba(255,255,255,0.5);
                 border-radius: 8px;
                 padding: 8px 16px;
                 font-size: 12px;
                 font-weight: 600;
                 cursor: pointer;
-                transition: all 0.2s ease;
                 width: 100%;
                 text-transform: uppercase;
-                letter-spacing: 0.5px;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                transition: all 0.2s ease;
             }
-
-            .plan-card-btn:hover {
-                background-color: rgba(255, 255, 255, 0.35);
-                border-color: rgba(255, 255, 255, 0.8);
+            .plan-btn:hover {
+                background-color: rgba(255,255,255,0.35);
             }
-
-            /* ==================== NAVEGACIÓN (BOTONES) ==================== */
-            .nav-container {
-                padding: 8px 8px;
+            div[role="radiogroup"] {
+                display: none !important;
+            }
+            .nav-wrapper {
+                padding: 8px;
                 display: flex;
                 flex-direction: column;
                 gap: 4px;
             }
-
             .nav-btn {
                 display: flex;
                 align-items: center;
                 gap: 12px;
                 padding: 12px 14px;
                 border: none;
-                background-color: transparent;
-                color: var(--text-secondary);
+                background: transparent;
+                color: var(--text-muted);
                 border-radius: 12px;
                 cursor: pointer;
                 font-size: 14px;
@@ -1336,52 +1268,34 @@ with st.sidebar:
                 transition: all 0.2s ease;
                 width: 100%;
                 text-align: left;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-family: sans-serif;
             }
-
             .nav-btn:hover {
-                background-color: var(--bg-light);
+                background-color: var(--bg);
                 color: var(--text-dark);
             }
-
             .nav-btn.active {
-                background-color: var(--primary-purple-light);
-                color: var(--primary-purple);
+                background-color: var(--primary-light);
+                color: var(--primary);
                 font-weight: 600;
-                box-shadow: inset 0 0 0 1px var(--primary-purple);
+                box-shadow: inset 0 0 0 1px var(--primary);
             }
-
-            .nav-icon {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 18px;
-                width: 20px;
-                flex-shrink: 0;
-            }
-
-            /* ==================== SEPARADOR DE NAVEGACIÓN ==================== */
             .nav-divider {
                 height: 1px;
-                background-color: var(--border-color);
-                margin: 8px 0px;
+                background-color: var(--border);
+                margin: 8px 0;
             }
-
-            /* ==================== FOOTER: USUARIO Y DATOS ==================== */
             .user-footer {
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 width: 280px;
-                padding: 12px 8px 12px 8px;
-                border-top: 1px solid var(--border-color);
-                background-color: var(--bg-white);
+                padding: 12px 8px;
+                border-top: 1px solid var(--border);
+                background: white;
                 z-index: 10;
-                max-height: 140px;
-                overflow-y: auto;
             }
-
-            .user-card-trigger {
+            .user-card {
                 display: flex;
                 align-items: center;
                 gap: 12px;
@@ -1389,122 +1303,97 @@ with st.sidebar:
                 border-radius: 12px;
                 cursor: pointer;
                 transition: all 0.2s ease;
-                background-color: transparent;
-                border: 1px solid transparent;
                 width: 100%;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             }
-
-            .user-card-trigger:hover {
-                background-color: var(--bg-light);
+            .user-card:hover {
+                background-color: var(--bg);
             }
-
             .user-avatar {
                 width: 40px;
                 height: 40px;
                 border-radius: 8px;
-                background-color: var(--bg-light);
+                background-color: var(--bg);
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 font-size: 20px;
                 flex-shrink: 0;
-                overflow: hidden;
-                border: 1px solid var(--border-color);
+                border: 1px solid var(--border);
             }
-
             .user-avatar img {
                 width: 100%;
                 height: 100%;
                 object-fit: cover;
             }
-
             .user-info {
                 flex: 1;
                 min-width: 0;
             }
-
             .user-email {
                 font-size: 12px;
                 color: var(--text-dark);
                 font-weight: 600;
-                white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
+                white-space: nowrap;
             }
-
             .user-role {
                 font-size: 11px;
-                color: var(--text-secondary);
-                text-transform: capitalize;
+                color: var(--text-muted);
             }
-
             .user-chevron {
-                font-size: 14px;
-                color: var(--text-secondary);
-                transition: transform 0.2s ease;
+                font-size: 12px;
+                color: var(--text-muted);
             }
-
-            /* ==================== EXPANDER DE USUARIO (Datos Negocio) ==================== */
             .user-details {
-                background-color: var(--bg-light);
+                background-color: var(--bg);
                 border-radius: 8px;
                 padding: 12px;
                 margin-top: 8px;
-                border: 1px solid var(--border-color);
-                font-size: 12px;
+                border: 1px solid var(--border);
                 max-height: 0;
                 overflow: hidden;
-                transition: max-height 0.2s ease;
+                transition: max-height 0.3s ease;
             }
-
             .user-details.open {
                 max-height: 200px;
             }
-
             .detail-row {
                 margin-bottom: 8px;
+                font-size: 11px;
             }
-
             .detail-row:last-child {
                 margin-bottom: 0;
             }
-
             .detail-label {
-                color: var(--text-secondary);
-                font-size: 10px;
+                color: var(--text-muted);
+                font-size: 9px;
                 text-transform: uppercase;
-                letter-spacing: 0.5px;
                 font-weight: 600;
                 margin-bottom: 2px;
+                letter-spacing: 0.5px;
             }
-
             .detail-value {
                 color: var(--text-dark);
                 font-weight: 500;
                 word-break: break-word;
-                font-size: 12px;
             }
-
-            /* ==================== POWERED BY (Minimalista) ==================== */
             .powered-by {
                 text-align: center;
-                padding: 8px 8px;
+                padding: 8px;
                 font-size: 9px;
-                color: var(--text-secondary);
+                color: var(--text-muted);
                 text-transform: uppercase;
                 letter-spacing: 1px;
                 font-weight: 500;
-                border-top: 1px solid var(--border-color);
+                border-top: 1px solid var(--border);
                 margin-top: 8px;
             }
-
             .powered-logo {
                 margin-top: 6px;
                 display: flex;
                 justify-content: center;
             }
-
             .powered-logo img {
                 height: 20px;
                 opacity: 0.5;
@@ -1512,30 +1401,25 @@ with st.sidebar:
         </style>
     """, unsafe_allow_html=True)
 
-    # --- ESTRUCTURA HTML DEL SIDEBAR (REDISEÑO TOTAL) ---
-    
-    # 1. LOGO DE COBROYA EN LA CABECERA
-    st.markdown(f"""
-        <div class="sidebar-logo-header">
-            <img src="{URL_LOGO_COBROYA}" alt="CobroYa Logo">
+    # === LOGO ===
+    st.markdown("""
+        <div class="logo-header">
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" alt="CobroYa">
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. TARJETA DE PLAN
-    plan_text = f"Faltan {dias_restantes} días" if dias_restantes else "Sin límite"
+    # === PLAN CARD ===
     st.markdown(f"""
         <div class="plan-card">
-            <div class="plan-card-title">Estás en el plan</div>
-            <div class="plan-card-name">{tipo_plan}</div>
-            <div class="plan-card-days">{plan_text}</div>
-            <button class="plan-card-btn">Ver Planes</button>
+            <div class="plan-label">ESTÁS EN EL PLAN</div>
+            <div class="plan-name">{tipo_plan}</div>
+            <div class="plan-days">{dias_text}</div>
+            <button class="plan-btn">Ver Planes</button>
         </div>
     """, unsafe_allow_html=True)
 
-    # 3. NAVEGACIÓN PRINCIPAL (Botones con clic directo a sesión)
-    st.markdown("""
-        <div class="nav-container">
-    """, unsafe_allow_html=True)
+    # === NAVEGACIÓN ===
+    st.markdown('<div class="nav-wrapper">', unsafe_allow_html=True)
 
     opciones = [
         ("Panel de Control", "🏠"),
@@ -1550,44 +1434,37 @@ with st.sidebar:
     for i, (label, icon) in enumerate(opciones):
         is_active = st.session_state.get("menu_principal") == label
         active_class = "active" if is_active else ""
-        
-        # Botones usando Streamlit button para garantizar funcionamiento
-        col = st.columns([1])[0]
-        
-        # Renderizar botón HTML (para CSS personalizado)
+
+        # Botón HTML puro
         st.markdown(f"""
-            <button class="nav-btn {active_class}" 
-                    onclick="document.querySelector('[data-nav={i}]')?.click()">
-                <span class="nav-icon">{icon}</span>
+            <div class="nav-btn {active_class}" 
+                 onclick="document.querySelector('[data-nav-{i}]')?.click()">
+                <span style="font-size: 18px; width: 20px;">{icon}</span>
                 <span>{label}</span>
-            </button>
+            </div>
         """, unsafe_allow_html=True)
 
-        # Botón invisible de Streamlit para capturar el clic
-        if st.button(label=label, key=f"nav_{i}", label_visibility="collapsed", 
-                     use_container_width=True):
+        # Botón invisible (sin parámetros problemáticos)
+        if st.button("", key=f"nav_{i}"):
             st.session_state["menu_principal"] = label
             st.rerun()
 
-        # Separadores visuales
+        # Separadores
         if i == 2 or i == 5:
             st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # 4. ESPACIO PARA PIE DE PÁGINA
-    st.markdown("<div style='height: 140px;'></div>", unsafe_allow_html=True)
+    # === ESPACIADOR ===
+    st.markdown("<div style='height: 160px;'></div>", unsafe_allow_html=True)
 
-    # 5. PIE DE PÁGINA: USUARIO Y DATOS (Fixed)
-    avatar_placeholder = "👤"
+    # === USER FOOTER ===
     user_details_open = st.session_state.get("user_details_open", False)
-    
+
     st.markdown(f"""
         <div class="user-footer">
-            <div class="user-card-trigger" onclick="document.querySelector('[data-toggle-details]')?.click()">
-                <div class="user-avatar">
-                    {f'<img src="{src_logo_usuario}" alt="avatar">' if src_logo_usuario else avatar_placeholder}
-                </div>
+            <div class="user-card" onclick="document.querySelector('[data-toggle-user]')?.click()">
+                <div class="user-avatar">👤</div>
                 <div class="user-info">
                     <div class="user-email">{u_email}</div>
                     <div class="user-role">Administrador</div>
@@ -1609,22 +1486,23 @@ with st.sidebar:
                 </div>
                 <div class="detail-row">
                     <div class="detail-label">Dirección</div>
-                    <div class="detail-value" style="font-size: 11px;">{biz_dir}</div>
+                    <div class="detail-value">{biz_dir}</div>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # Botón oculto para toggle de detalles
-    if st.button("", key="toggle_user_details", label_visibility="collapsed"):
+    # Toggle user details
+    if st.button("", key="toggle_user"):
         st.session_state["user_details_open"] = not st.session_state.get("user_details_open", False)
         st.rerun()
 
-    st.markdown(f"""
+    # === POWERED BY ===
+    st.markdown("""
         <div class="powered-by">
             Powered by Lixander García
             <div class="powered-logo">
-                <img src="{URL_LOGO_COBROYA}" alt="Lixander Logo">
+                <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png">
             </div>
         </div>
     """, unsafe_allow_html=True)
