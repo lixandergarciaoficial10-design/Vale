@@ -1189,7 +1189,7 @@ with st.sidebar:
             }
             [data-testid="stSidebarUserContent"] {
                 padding: 0px !important;
-                padding-bottom: 180px !important;
+                padding-bottom: 0px !important;
             }
             .logo-header {
                 display: flex;
