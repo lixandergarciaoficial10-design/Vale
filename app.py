@@ -1170,7 +1170,7 @@ with st.sidebar:
     else:
         dias_text = "Faltan 20 días"  # Default
     
-    # === CSS (UNA SOLA VEZ) ===
+# === CSS (OPTIMIZADO PARA EVITAR SCROLL) ===
     st.markdown("""
         <style>
             :root {
@@ -1180,6 +1180,7 @@ with st.sidebar:
                 --text-muted: #6b7280;
                 --border: #e5e7eb;
                 --bg: #f9fafb;
+                --bg-white: #ffffff;
             }
             [data-testid="stSidebar"][aria-expanded="true"] {
                 min-width: 280px !important;
@@ -1187,6 +1188,7 @@ with st.sidebar:
                 background-color: white !important;
                 box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08) !important;
             }
+            /* Eliminamos el padding que forzaba el scroll hacia abajo */
             [data-testid="stSidebarUserContent"] {
                 padding: 0px !important;
                 padding-bottom: 0px !important;
@@ -1196,17 +1198,18 @@ with st.sidebar:
                 justify-content: center;
                 padding: 12px 0;
                 border-bottom: 1px solid var(--border);
-                margin-bottom: 8px;
+                margin-bottom: 4px;
             }
             .logo-header img {
                 max-height: 32px;
                 object-fit: contain;
             }
+            /* Ajuste de márgenes de la tarjeta de plan para ahorrar espacio */
             .plan-card {
                 background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
                 border-radius: 16px;
-                padding: 16px;
-                margin: 12px;
+                padding: 14px;
+                margin: 8px 12px;
                 color: white;
                 text-align: center;
                 box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
@@ -1216,48 +1219,45 @@ with st.sidebar:
                 font-weight: 600;
                 text-transform: uppercase;
                 opacity: 0.9;
-                margin-bottom: 8px;
-            }
-            .plan-name {
-                font-size: 18px;
-                font-weight: 700;
                 margin-bottom: 4px;
             }
+            .plan-name {
+                font-size: 16px;
+                font-weight: 700;
+                margin-bottom: 2px;
+            }
             .plan-days {
-                font-size: 14px;
+                font-size: 13px;
                 opacity: 0.85;
-                margin-bottom: 12px;
+                margin-bottom: 8px;
             }
             .plan-btn {
                 background-color: rgba(255,255,255,0.25);
                 color: white;
                 border: 1px solid rgba(255,255,255,0.5);
                 border-radius: 8px;
-                padding: 8px 16px;
-                font-size: 12px;
+                padding: 6px 12px;
+                font-size: 11px;
                 font-weight: 600;
                 cursor: pointer;
                 width: 100%;
                 text-transform: uppercase;
                 transition: all 0.2s ease;
             }
-            .plan-btn:hover {
-                background-color: rgba(255,255,255,0.35);
-            }
             div[role="radiogroup"] {
                 display: none !important;
             }
             .nav-wrapper {
-                padding: 8px;
+                padding: 4px 8px;
                 display: flex;
                 flex-direction: column;
-                gap: 4px;
+                gap: 2px;
             }
             .nav-btn {
                 display: flex;
                 align-items: center;
                 gap: 12px;
-                padding: 12px 14px;
+                padding: 10px 14px;
                 border: none;
                 background: transparent;
                 color: var(--text-muted);
@@ -1283,52 +1283,40 @@ with st.sidebar:
             .nav-divider {
                 height: 1px;
                 background-color: var(--border);
-                margin: 8px 0;
+                margin: 4px 0;
             }
+            /* Footer ajustado como 'relative' para que fluya después del espaciador */
             .user-footer {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                width: 280px;
-                padding: 12px 8px;
+                width: 100%;
+                padding: 10px 8px;
                 border-top: 1px solid var(--border);
                 background: white;
-                z-index: 10;
             }
             .user-card {
                 display: flex;
                 align-items: center;
-                gap: 12px;
-                padding: 10px 12px;
+                gap: 10px;
+                padding: 8px 12px;
                 border-radius: 12px;
                 cursor: pointer;
                 transition: all 0.2s ease;
                 width: 100%;
             }
-            .user-card:hover {
-                background-color: var(--bg);
-            }
+            .user-card:hover { background-color: var(--bg); }
             .user-avatar {
-                width: 40px;
-                height: 40px;
+                width: 36px;
+                height: 36px;
                 border-radius: 8px;
                 background-color: var(--bg);
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 20px;
+                font-size: 18px;
                 flex-shrink: 0;
                 border: 1px solid var(--border);
             }
-            .user-avatar img {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-            }
-            .user-info {
-                flex: 1;
-                min-width: 0;
-            }
+            .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+            .user-info { flex: 1; min-width: 0; }
             .user-email {
                 font-size: 12px;
                 color: var(--text-dark);
@@ -1337,76 +1325,103 @@ with st.sidebar:
                 text-overflow: ellipsis;
                 white-space: nowrap;
             }
-            .user-role {
-                font-size: 11px;
-                color: var(--text-muted);
-            }
-            .user-chevron {
-                font-size: 12px;
-                color: var(--text-muted);
-            }
+            .user-role { font-size: 11px; color: var(--text-muted); }
             .user-details {
                 background-color: var(--bg);
                 border-radius: 8px;
-                padding: 12px;
-                margin-top: 8px;
+                padding: 10px;
+                margin: 6px 12px;
                 border: 1px solid var(--border);
-                max-height: 0;
-                overflow: hidden;
-                transition: max-height 0.3s ease;
+                display: none;
             }
-            .user-details.open {
-                max-height: 200px;
-            }
-            .detail-row {
-                margin-bottom: 8px;
-                font-size: 11px;
-            }
-            .detail-row:last-child {
-                margin-bottom: 0;
-            }
+            .user-details.open { display: block; }
+            .detail-row { margin-bottom: 6px; font-size: 11px; }
             .detail-label {
                 color: var(--text-muted);
                 font-size: 9px;
                 text-transform: uppercase;
                 font-weight: 600;
-                margin-bottom: 2px;
-                letter-spacing: 0.5px;
+                margin-bottom: 1px;
             }
-            .detail-value {
-                color: var(--text-dark);
-                font-weight: 500;
-                word-break: break-word;
-            }
+            .detail-value { color: var(--text-dark); font-weight: 500; }
             .powered-by {
                 text-align: center;
                 padding: 8px;
-                font-size: 9px;
+                font-size: 8px;
                 color: var(--text-muted);
                 text-transform: uppercase;
                 letter-spacing: 1px;
-                font-weight: 500;
-                border-top: 1px solid var(--border);
-                margin-top: 8px;
-            }
-            .powered-logo {
-                margin-top: 6px;
-                display: flex;
-                justify-content: center;
-            }
-            .powered-logo img {
-                height: 20px;
-                opacity: 0.5;
             }
         </style>
     """, unsafe_allow_html=True)
 
-    # === LOGO ===
-    st.markdown("""
-        <div class="logo-header">
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" alt="CobroYa">
+    # === 1. LOGO HEADER ===
+    st.markdown(f'<div class="logo-header"><img src="{URL_LOGO_COBROYA}"></div>', unsafe_allow_html=True)
+
+    # === 2. NAVEGACIÓN ===
+    st.markdown('<div class="nav-wrapper">', unsafe_allow_html=True)
+    opciones = [
+        ("Panel de Control", "🏠"),
+        ("Gestión de Cobros", "💰"),
+        ("👥 Todos mis Clientes", "👥"),
+        ("Nueva Cuenta por Cobrar", "➕"),
+        ("Cuentas por Pagar", "📉"),
+        ("IA Predictiva", "🧠"),
+        ("Configuración", "⚙️")
+    ]
+
+    for i, (label, icon) in enumerate(opciones):
+        is_active = st.session_state.get("menu_principal") == label
+        active_class = "active" if is_active else ""
+        st.markdown(f'<div class="nav-btn {active_class}"><span style="font-size:18px;">{icon}</span><span>{label}</span></div>', unsafe_allow_html=True)
+        if st.button("", key=f"nav_action_{i}", use_container_width=True):
+            st.session_state["menu_principal"] = label
+            st.rerun()
+        if i == 1 or i == 5:
+            st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # === 3. ESPACIADOR FLEXIBLE (MANDA EL PLAN Y USER ABAJO) ===
+    st.markdown("<div style='flex-grow: 1; min-height: 10px;'></div>", unsafe_allow_html=True)
+
+    # === 4. TARJETA DE PLAN ===
+    plan_text = f"Faltan {dias_restantes} días" if dias_restantes else "Sin límite"
+    st.markdown(f"""
+        <div class="plan-card">
+            <div class="plan-label">Estás en el plan</div>
+            <div class="plan-name">{tipo_plan}</div>
+            <div class="plan-days">{plan_text}</div>
+            <button class="plan-btn">Mejorar Plan</button>
         </div>
     """, unsafe_allow_html=True)
+
+    # === 5. USER FOOTER ===
+    user_details_open = st.session_state.get("user_details_open", False)
+    st.markdown(f"""
+        <div class="user-footer">
+            <div class="user-card">
+                <div class="user-avatar">👤</div>
+                <div class="user-info">
+                    <div class="user-email">{u_email}</div>
+                    <div class="user-role">Administrador</div>
+                </div>
+                <div style="font-size:10px; color:#94A3B8;">{'▲' if user_details_open else '▼'}</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    if st.button("", key="user_toggle_action", use_container_width=True):
+        st.session_state["user_details_open"] = not user_details_open
+        st.rerun()
+
+    if user_details_open:
+        st.markdown(f"""
+            <div class="user-details open">
+                <div class="detail-row"><div class="detail-label">Negocio</div><div class="detail-value">{biz_name}</div></div>
+                <div class="detail-row"><div class="detail-label">RNC</div><div class="detail-value">{biz_rnc}</div></div>
+                <div class="detail-row"><div class="detail-label">Tel</div><div class="detail-value">{biz_tel}</div></div>
+            </div>
+        """, unsafe_allow_html=True)
 
 # === CSS CRÍTICO PARA OCULTAR BOTONES Y REPLICAR DISEÑO ===
     st.markdown("""
