@@ -1418,8 +1418,76 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
+# === CSS CRÍTICO PARA OCULTAR BOTONES Y REPLICAR DISEÑO ===
+    st.markdown("""
+        <style>
+            /* 1. Ocultar botones de Streamlit pero dejarlos cliqueables */
+            .stButton > button {
+                position: absolute;
+                width: 100%;
+                height: 45px;
+                background: transparent !important;
+                border: none !important;
+                color: transparent !important;
+                z-index: 10;
+                cursor: pointer;
+                margin-top: -50px; /* Sube el botón invisible sobre el HTML */
+            }
+            
+            /* 2. Estilo de los items de navegación (Copia exacta de la imagen) */
+            .nav-btn {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 16px;
+                border-radius: 12px;
+                margin-bottom: 4px;
+                transition: all 0.2s;
+                color: #64748B;
+                font-weight: 500;
+            }
+            .nav-btn.active {
+                background: rgba(14, 165, 233, 0.1);
+                color: #0EA5E9;
+                font-weight: 600;
+            }
+            .nav-divider {
+                height: 1px;
+                background: #F1F5F9;
+                margin: 12px 16px;
+            }
+            
+            /* 3. Footer de Usuario Premium */
+            .user-footer {
+                background: white;
+                border-top: 1px solid #F1F5F9;
+                padding: 16px;
+                position: relative;
+            }
+            .user-card {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                cursor: pointer;
+            }
+            .user-avatar {
+                width: 38px;
+                height: 38px;
+                background: #F1F5F9;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+            }
+            .user-info { flex-grow: 1; overflow: hidden; }
+            .user-email { font-size: 13px; font-weight: 600; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .user-role { font-size: 11px; color: #94A3B8; }
+        </style>
+    """, unsafe_allow_html=True)
+
     # === NAVEGACIÓN ===
-    st.markdown('<div class="nav-wrapper">', unsafe_allow_html=True)
+    st.markdown('<div class="nav-wrapper" style="padding: 10px;">', unsafe_allow_html=True)
 
     opciones = [
         ("Panel de Control", "🏠"),
@@ -1435,75 +1503,65 @@ with st.sidebar:
         is_active = st.session_state.get("menu_principal") == label
         active_class = "active" if is_active else ""
 
-        # Botón HTML puro
+        # 1. Dibujamos el diseño visual
         st.markdown(f"""
-            <div class="nav-btn {active_class}" 
-                 onclick="document.querySelector('[data-nav-{i}]')?.click()">
-                <span style="font-size: 18px; width: 20px;">{icon}</span>
+            <div class="nav-btn {active_class}">
+                <span style="font-size: 18px;">{icon}</span>
                 <span>{label}</span>
             </div>
         """, unsafe_allow_html=True)
 
-        # Botón invisible (sin parámetros problemáticos)
-        if st.button("", key=f"nav_{i}"):
+        # 2. El botón invisible que captura el clic
+        if st.button("", key=f"nav_action_{i}"):
             st.session_state["menu_principal"] = label
             st.rerun()
 
-        # Separadores
-        if i == 2 or i == 5:
+        # Separadores automáticos
+        if i == 1 or i == 5:
             st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
     # === ESPACIADOR ===
-    st.markdown("<div style='height: 160px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='flex-grow: 1; height: 100px;'></div>", unsafe_allow_html=True)
 
     # === USER FOOTER ===
     user_details_open = st.session_state.get("user_details_open", False)
 
+    # Diseño visual del footer
     st.markdown(f"""
         <div class="user-footer">
-            <div class="user-card" onclick="document.querySelector('[data-toggle-user]')?.click()">
+            <div class="user-card">
                 <div class="user-avatar">👤</div>
                 <div class="user-info">
                     <div class="user-email">{u_email}</div>
                     <div class="user-role">Administrador</div>
                 </div>
-                <div class="user-chevron">▼</div>
-            </div>
-            <div class="user-details {'open' if user_details_open else ''}">
-                <div class="detail-row">
-                    <div class="detail-label">Negocio</div>
-                    <div class="detail-value">{biz_name}</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">RNC</div>
-                    <div class="detail-value">{biz_rnc}</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">Teléfono</div>
-                    <div class="detail-value">{biz_tel}</div>
-                </div>
-                <div class="detail-row">
-                    <div class="detail-label">Dirección</div>
-                    <div class="detail-value">{biz_dir}</div>
-                </div>
+                <div style="font-size: 10px; color: #94A3B8;">{'▲' if user_details_open else '▼'}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # Toggle user details
-    if st.button("", key="toggle_user"):
-        st.session_state["user_details_open"] = not st.session_state.get("user_details_open", False)
+    # Botón invisible para el toggle del usuario
+    if st.button("", key="user_toggle_action"):
+        st.session_state["user_details_open"] = not user_details_open
         st.rerun()
 
-    # === POWERED BY ===
-    st.markdown("""
-        <div class="powered-by">
-            Powered by Lixander García
-            <div class="powered-logo">
-                <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png">
+    # Mostrar detalles solo si está abierto
+    if user_details_open:
+        st.markdown(f"""
+            <div style="background: #F8FAFC; padding: 12px; margin: 0 16px; border-radius: 8px; border: 1px solid #F1F5F9;">
+                <div style="font-size: 11px; color: #64748B; margin-bottom: 4px;">Negocio: <b>{biz_name}</b></div>
+                <div style="font-size: 11px; color: #64748B; margin-bottom: 4px;">RNC: <b>{biz_rnc}</b></div>
+                <div style="font-size: 11px; color: #64748B;">Tel: <b>{biz_tel}</b></div>
             </div>
+        """, unsafe_allow_html=True)
+
+    # === POWERED BY ===
+    st.markdown(f"""
+        <div style="text-align: center; padding: 20px; opacity: 0.6;">
+            <p style="font-size: 10px; color: #94A3B8; margin-bottom: 8px;">Powered by Lixander García</p>
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" style="width: 80px;">
         </div>
     """, unsafe_allow_html=True)
 
