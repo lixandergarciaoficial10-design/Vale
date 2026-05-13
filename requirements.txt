@@ -13,3 +13,4 @@ streamlit-js-eval
 folium
 streamlit-folium
 pytz
+pip install streamlit-option-menu
