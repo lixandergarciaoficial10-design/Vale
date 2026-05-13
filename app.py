@@ -1511,39 +1511,6 @@ with st.sidebar:
         </style>
     """, unsafe_allow_html=True)
 
-# === NAVEGACIÓN ===
-    st.markdown('<div class="nav-wrapper" style="padding: 10px;">', unsafe_allow_html=True)
-
-    opciones = [
-        ("Panel de Control", "🏠"),
-        ("Gestión de Cobros", "💰"),
-        ("👥 Todos mis Clientes", "👥"),
-        ("Nueva Cuenta por Cobrar", "➕"),
-        ("Cuentas por Pagar", "📉"),
-        ("IA Predictiva", "🧠"),
-        ("Configuración", "⚙️")
-    ]
-
-    for i, (label, icon) in enumerate(opciones):
-        is_active = st.session_state.get("menu_principal") == label
-        active_class = "active" if is_active else ""
-
-        st.markdown(f"""
-            <div class="nav-btn {active_class}">
-                <span style="font-size: 18px;">{icon}</span>
-                <span>{label}</span>
-            </div>
-        """, unsafe_allow_html=True)
-
-        if st.button("", key=f"nav_action_{i}", use_container_width=True):
-            st.session_state["menu_principal"] = label
-            st.rerun()
-
-        if i == 1 or i == 5:
-            st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
     # === ESTA ES LA PARTE QUE CAMBIA: EMPUJAR HACIA ABAJO Y AGREGAR EL PLAN ===
     # Creamos un espacio flexible para mandar lo siguiente al fondo
     st.markdown("<div style='flex-grow: 1; min-height: 20px;'></div>", unsafe_allow_html=True)
