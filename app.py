@@ -1199,11 +1199,11 @@ with st.sidebar:
                 justify-content: center;
                 padding: 0px;
                 border-bottom: 1px solid var(--border);
-                margin-bottom: 8px;
-                margin-top: -15px; /* Sube el logo sin cortarlo */
+                margin-bottom: 2px;
+                margin-top: -20px; /* Sube el logo sin cortarlo */
             }
             .logo-header img {
-                max-height: 32px; /* Tamaño equilibrado según tu diseño */
+                max-height: 38px; /* Tamaño equilibrado según tu diseño */
                 object-fit: contain;
             }
 
@@ -1266,7 +1266,8 @@ with st.sidebar:
                 display: flex;
                 align-items: center;
                 gap: 8px;
-                padding: 4px 12px; /* Super compacto verticalmente */
+                padding: 2px 12px; /* Super compacto verticalmente */
+                margin-bottom: 0px !important; /* ELIMINA el espacio entre botones */
                 border: none;
                 background: transparent;
                 color: var(--text-muted);
@@ -1278,7 +1279,7 @@ with st.sidebar:
                 width: 100%;
                 text-align: left;
                 font-family: sans-serif;
-                height: 32px; /* Altura fija para control total */
+                height: 30px; /* Altura fija para control total */
             }
             .nav-btn:hover {
                 background-color: var(--bg);
@@ -1441,13 +1442,13 @@ with st.sidebar:
             .stButton > button {
                 position: absolute;
                 width: 100% !important;
-                height: 32px !important; /* Alto ajustado para compactar */
+                height: 30px !important; /* Alto ajustado para compactar */
                 background: transparent !important;
                 border: none !important;
                 color: transparent !important;
                 z-index: 100 !important;
                 cursor: pointer;
-                margin-top: -32px !important; /* Ajuste preciso para la nueva altura */
+                margin-top: -30px !important; /* Ajuste preciso para la nueva altura */
                 transition: background 0.2s;
             }
             
@@ -1523,13 +1524,13 @@ with st.sidebar:
             /* Elimina el padding global de la sidebar que genera el scroll */
             [data-testid="stSidebarUserContent"] {
                 padding-top: 0px !important;
-                margin-top: -50px !important; 
+                margin-top: -80px !important; 
             }
             
             /* Ajuste del Plan Card para que no ocupe media pantalla */
             .plan-card {
-                padding: 8px 12px !important;
-                margin: 4px 12px !important;
+                padding: 6px 10px !important;
+                margin: 2px 12px !important;
             }
             
         </style>
