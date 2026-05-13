@@ -1100,213 +1100,275 @@ def obtener_prioridad(dias, balance, impagos=0):
 if "menu_principal" not in st.session_state:
     st.session_state["menu_principal"] = "Panel de Control"
 
-# --- 1. CARGA DE DATOS SUPABASE (Lógica Intacta) ---
-if "user" in st.session_state and st.session_state.user:
-    if "datos_validados" not in st.session_state:
-        try:
-            res = conn.table("configuracion").select("*").eq("user_id", st.session_state.user.id).execute()
-            if res.data:
-                conf = res.data[0]
-                st.session_state["nombre_negocio"] = conf.get("nombre_negocio", "Mi Negocio")
-                st.session_state["rnc"] = conf.get("rnc", "---")
-                st.session_state["telefono_negocio"] = conf.get("telefono", "---")
-                st.session_state["direccion_negocio"] = conf.get("direccion", "---")
-                st.session_state["mi_logo"] = conf.get("logo_base64")
-                st.session_state["datos_validados"] = True
-                st.rerun()
-        except Exception as e:
-            st.error(f"Error: {e}")
+import streamlit as st
 
-# --- 2. SIDEBAR (DISEÑO BLOQUEADO A 200PX) ---
-with st.sidebar:
-    import base64
-    
-    URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
+# ═══════════════════════════════════════════════════════════════════════════════
+# SIDEBAR PREMIUM COBROYA - VERSIÓN OPTIMIZADA
+# Consolidado en un único bloque para evitar renderizado de HTML como texto
+# ═══════════════════════════════════════════════════════════════════════════════
 
-    # Variables de sesión
-    biz_name = st.session_state.get("nombre_negocio", "MI NEGOCIO").upper()
-    biz_rnc  = st.session_state.get("rnc", "---")
-    biz_dir  = st.session_state.get("direccion_negocio", "---")
-    biz_tel  = st.session_state.get("telefono_negocio", "---")
-    logo_b64 = st.session_state.get("mi_logo")
-    u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
+# --- CARGAR FUENTES Y DATOS ---
+st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">', 
+            unsafe_allow_html=True)
 
-# --- 1. SOLUCIÓN AL NAMEERROR: Definición previa de src_logo ---
-    try:
-        if 'logo_b64' in locals() and logo_b64:
-            img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
-            src_logo = f"data:image/png;base64,{img_data}"
-        else:
-            src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-    except Exception:
+# Variables de sesión (sustituye con tus valores reales)
+biz_name = st.session_state.get("nombre_negocio", "MI NEGOCIO").upper()
+biz_rnc = st.session_state.get("rnc", "---")
+biz_dir = st.session_state.get("direccion_negocio", "---")
+biz_tel = st.session_state.get("telefono_negocio", "---")
+u_email = st.session_state.get("user").email if st.session_state.get("user") else "Sesión Activa"
+logo_b64 = st.session_state.get("mi_logo")
+
+# Resolver logo
+try:
+    if logo_b64 and isinstance(logo_b64, str):
+        img_data = logo_b64.split(",")[1] if "," in logo_b64 else logo_b64
+        src_logo = f"data:image/png;base64,{img_data}"
+    else:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+except Exception:
+    src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- 1. CSS: Estética Minimalista y Profesional ---
-    st.markdown(f"""
+# URL del logo de footer
+URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BLOQUE ÚNICO: CSS + HTML + RADIO BUTTONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+with st.sidebar:
+    # --- CSS DE ALTA FIDELIDAD ---
+    st.markdown("""
         <style>
-            /* 1. ESTRUCTURA DEL SIDEBAR (CERO SCROLL) */
-            [data-testid="stSidebar"] {{
+            /* ESTRUCTURA DEL SIDEBAR */
+            [data-testid="stSidebar"] {
                 background-color: #F8F9FB !important;
                 min-width: 300px !important;
                 max-width: 300px !important;
-            }}
+            }
 
-            [data-testid="stSidebarUserContent"] {{
+            [data-testid="stSidebarUserContent"] {
                 padding: 0px !important;
                 display: flex;
                 flex-direction: column;
-                justify-content: space-between; /* Empuja el footer al fondo */
-                height: 100vh !important; /* Altura total de la ventana */
-                margin-top: -60px !important; /* Elimina el espacio superior de Streamlit */
-                overflow: hidden !important; /* Prohíbe el scroll */
-            }}
+                justify-content: space-between;
+                height: 100vh !important;
+                margin-top: -60px !important;
+                overflow: hidden !important;
+            }
 
-            /* 2. DISEÑO DEL HEADER Y MARCA */
-            .brand-header {{
+            /* HEADER Y MARCA */
+            .brand-header {
                 text-align: center;
                 padding: 4vh 20px 2vh 20px;
-            }}
-            .client-logo-img {{
-                height: 55px; /* Tamaño exacto según imagen */
+            }
+
+            .client-logo-img {
+                height: 55px;
                 margin-bottom: 1.5vh;
                 object-fit: contain;
-            }}
-            .brand-title {{
+            }
+
+            .brand-title {
                 font-size: 16px;
                 font-weight: 800;
                 color: #1D1D1F;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                gap: 5px;
+                gap: 8px;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
                 font-family: 'SF Pro Display', -apple-system, sans-serif;
-            }}
+                margin-bottom: 1.5vh;
+            }
 
-            /* 3. TARJETA DE INFORMACIÓN (LA CAJA BLANCA) */
-            .info-box {{
+            .check-icon {
+                width: 18px;
+                height: 18px;
+                fill: #0066FF;
+            }
+
+            .brand-divider {
+                width: 30px;
+                height: 2px;
+                background: #0066FF;
+                margin: 0 auto 1.5vh auto;
+                border-radius: 2px;
+            }
+
+            /* TARJETA DE INFORMACIÓN */
+            .info-box {
                 background: white;
                 border-radius: 16px;
                 padding: 1.8vh 20px;
                 margin: 0 20px 3vh 20px;
                 border: 1px solid #E5E7EB;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.02);
-            }}
-            .info-row {{
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            }
+
+            .info-row {
                 display: flex;
-                align-items: center;
+                align-items: flex-start;
                 margin-bottom: 1.2vh;
                 gap: 12px;
-            }}
-            .info-icon-svg {{
+            }
+
+            .info-row:last-child {
+                margin-bottom: 0;
+            }
+
+            .info-icon-svg {
                 width: 16px;
                 height: 16px;
+                flex-shrink: 0;
+                margin-top: 2px;
                 opacity: 0.5;
-            }}
-            .info-text-container {{
+            }
+
+            .info-text-container {
                 display: flex;
                 flex-direction: column;
-            }}
-            .info-label {{
+                min-width: 0;
+            }
+
+            .info-label {
                 font-size: 10px;
                 color: #86868B;
                 text-transform: uppercase;
                 font-weight: 700;
                 line-height: 1.2;
-            }}
-            .info-value {{
+            }
+
+            .info-value {
                 font-size: 12px;
                 color: #1D1D1F;
                 font-weight: 500;
-                word-break: break-all;
-            }}
+                word-break: break-word;
+                line-height: 1.3;
+            }
 
-            /* 4. NAVEGACIÓN (LOS BOTONES DEL MENÚ) */
-            div[role="radiogroup"] {{
-                gap: 2px !important;
+            /* NAVEGACIÓN - CONTENEDOR */
+            div[role="radiogroup"] {
+                gap: 4px !important;
                 padding: 0 15px !important;
-            }}
-            div[role="radio"] {{
-                padding: 10px 15px !important;
+                margin: 0 !important;
+            }
+
+            /* ITEMS DEL MENÚ */
+            div[role="radio"] {
+                padding: 12px 15px !important;
                 border-radius: 12px !important;
-                border: 1px solid transparent !important;
-                transition: 0.2s;
-            }}
-            /* Estilo cuando el botón está SELECCIONADO */
-            div[role="radio"][aria-checked="true"] {{
+                border: none !important;
+                border-left: 3px solid transparent !important;
+                transition: all 0.2s ease !important;
+                background-color: transparent !important;
+            }
+
+            /* ITEM NO SELECCIONADO */
+            div[role="radio"][aria-checked="false"] {
+                border-left-color: transparent !important;
+            }
+
+            div[role="radio"][aria-checked="false"] p {
+                color: #424245 !important;
+                font-weight: 400 !important;
+            }
+
+            /* ITEM SELECCIONADO */
+            div[role="radio"][aria-checked="true"] {
                 background-color: #F0F5FF !important;
-                border: 1px solid #D1E3FF !important;
-            }}
-            div[role="radio"][aria-checked="true"] p {{
+                border-left-color: #0066FF !important;
+            }
+
+            div[role="radio"][aria-checked="true"] p {
                 color: #0066FF !important;
                 font-weight: 600 !important;
-            }}
-            /* Estilo del texto base */
-            div[role="radio"] p {{
+            }
+
+            /* TEXTO DEL MENÚ */
+            div[role="radio"] p {
                 font-size: 14px !important;
-                color: #424245 !important;
                 margin: 0 !important;
-            }}
+                display: flex;
+                align-items: center;
+                gap: 12px;
+            }
 
-            /* 5. FOOTER (LOGO COBROYA) */
-            .absolute-footer {{
-                padding: 2.5vh 0;
-                text-align: center;
-                border-top: 1px solid #F2F2F7;
-                background: #F8F9FB;
-            }}
-            .footer-logo-img {{
-                width: 105px;
-                height: auto;
-                margin-bottom: 6px;
-            }}
-            .footer-slogan {{
-                font-size: 10px;
-                color: #A1A1A6;
-                font-weight: 400;
-            }}
-
-            /* OCULTAR ELEMENTOS NATIVOS MOLESTOS */
-            [data-testid="stSidebarNav"] {{display: none !important;}}
-            [data-testid="stSidebarCollapseButton"] {{
-                background-color: #F8F9FB !important;
-                color: #1D1D1F !important;
-                top: 10px !important;
-            }}
-
-            /* INYECTOR DE ICONOS (Font Awesome) */
-            div[role="radio"] p::before {{
+            /* ICONOS CON FONT AWESOME */
+            div[role="radio"] p::before {
                 font-family: "Font Awesome 6 Free";
                 font-weight: 900;
-                margin-right: 12px;
                 display: inline-block;
                 width: 18px;
                 text-align: center;
                 opacity: 0.8;
-            }}
+                flex-shrink: 0;
+            }
 
-            /* Mapeo según el orden de tus opciones con llaves dobles corregidas */
-            div[role="radio"] > label:nth-of-type(1) p::before {{ content: "\\f00a"; }} /* Panel */
-            div[role="radio"] > label:nth-of-type(2) p::before {{ content: "\\f155"; }} /* Gestión */
-            /* La opción 3 (Clientes) usa el emoji directo en el texto, así que no le ponemos content aquí */
-            div[role="radio"] > label:nth-of-type(4) p::before {{ content: "\\f055"; }} /* Nueva Cuenta */
-            div[role="radio"] > label:nth-of-type(5) p::before {{ content: "\\f09d"; }} /* Cuentas Pagar */
-            div[role="radio"] > label:nth-of-type(6) p::before {{ content: "\\f201"; }} /* IA */
-            div[role="radio"] > label:nth-of-type(7) p::before {{ content: "\\f013"; }} /* Config */
+            /* MAPEO DE ICONOS POR ORDEN */
+            div[role="radio"]:nth-of-type(1) p::before { content: "\\f00a"; } /* Panel */
+            div[role="radio"]:nth-of-type(2) p::before { content: "\\f155"; } /* Gestión */
+            /* Opción 3 (Clientes) usa emoji directo */
+            div[role="radio"]:nth-of-type(4) p::before { content: "\\f055"; } /* Nueva Cuenta */
+            div[role="radio"]:nth-of-type(5) p::before { content: "\\f09d"; } /* Cuentas Pagar */
+            div[role="radio"]:nth-of-type(6) p::before { content: "\\f201"; } /* IA */
+            div[role="radio"]:nth-of-type(7) p::before { content: "\\f0ae"; } /* Reportes */
+            div[role="radio"]:nth-of-type(8) p::before { content: "\\f013"; } /* Configuración */
+
+            /* ESPACIADOR FLEXIBLE */
+            .flex-spacer {
+                flex-grow: 1 !important;
+            }
+
+            /* FOOTER STICKY */
+            .absolute-footer {
+                padding: 2.5vh 0;
+                text-align: center;
+                border-top: 1px solid #F2F2F7;
+                background: #F8F9FB;
+                margin-top: auto;
+            }
+
+            .footer-logo-img {
+                width: 105px;
+                height: auto;
+                margin-bottom: 6px;
+            }
+
+            .footer-powered {
+                font-size: 11px;
+                color: #86868B;
+                font-weight: 500;
+                margin-bottom: 4px;
+            }
+
+            .footer-slogan {
+                font-size: 10px;
+                color: #A1A1A6;
+                font-weight: 400;
+            }
+
+            /* OCULTAR ELEMENTOS NATIVOS */
+            [data-testid="stSidebarNav"] { display: none !important; }
+            [data-testid="stSidebarCollapseButton"] {
+                background-color: #F8F9FB !important;
+                color: #1D1D1F !important;
+                top: 10px !important;
+            }
         </style>
     """, unsafe_allow_html=True)
 
-# --- 2. CONTENIDO SUPERIOR: LOGO Y TARJETA DE DATOS ---
-    st.sidebar.markdown(f"""
+    # --- HEADER + TARJETA DE INFORMACIÓN (BLOQUE ÚNICO) ---
+    st.markdown(f"""
         <div class="brand-header">
-            <img src="{src_logo}" class="client-logo-img">
+            <img src="{src_logo}" class="client-logo-img" alt="Logo">
             
-            <div style="width: 30px; height: 2px; background: #0066FF; margin: 0 auto 1vh auto; border-radius: 2px;"></div>
+            <div class="brand-divider"></div>
             
             <div class="brand-title">
-                {biz_name} 
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="#0066FF" style="margin-bottom: 2px;">
+                {biz_name}
+                <svg class="check-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
                 </svg>
             </div>
@@ -1314,9 +1376,10 @@ with st.sidebar:
 
         <div class="info-box">
             <div class="info-row">
-                <div class="info-icon-svg">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                </div>
+                <svg class="info-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
                 <div class="info-text-container">
                     <span class="info-label">RNC</span>
                     <span class="info-value">{biz_rnc}</span>
@@ -1324,19 +1387,20 @@ with st.sidebar:
             </div>
             
             <div class="info-row">
-                <div class="info-icon-svg">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 18.92z"></path></svg>
-                </div>
+                <svg class="info-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 18.92z"></path>
+                </svg>
                 <div class="info-text-container">
                     <span class="info-label">Teléfono</span>
                     <span class="info-value">{biz_tel}</span>
                 </div>
             </div>
             
-            <div class="info-row" style="margin-bottom: 0;">
-                <div class="info-icon-svg">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                </div>
+            <div class="info-row">
+                <svg class="info-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
                 <div class="info-text-container">
                     <span class="info-label">Correo</span>
                     <span class="info-value">{u_email}</span>
@@ -1345,39 +1409,47 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # --- 3. NAVEGACIÓN (ICONOS INYECTADOS POR CSS) ---
-
-    st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">', unsafe_allow_html=True)
-
+    # --- MENÚ DE NAVEGACIÓN ---
     opciones = [
-        "Panel de Control", 
-        "Gestión de Cobros", 
-        "👥 Todos mis Clientes", 
-        "Nueva Cuenta por Cobrar", 
-        "Cuentas por Pagar", 
-        "IA Predictiva", 
+        "Panel de Control",
+        "Gestión de Cobros",
+        "👥 Todos mis Clientes",
+        "Nueva Cuenta por Cobrar",
+        "Cuentas por Pagar",
+        "IA Predictiva",
+        "Reportes",
         "Configuración"
     ]
 
-    menu = st.sidebar.radio(
+    menu = st.radio(
         "NAV",
         opciones,
         key="menu_principal",
         label_visibility="collapsed"
     )
 
-    st.sidebar.markdown('<div style="flex-grow: 1;"></div>', unsafe_allow_html=True)
+    # --- ESPACIADOR FLEXIBLE PARA EMPUJAR FOOTER ---
+    st.markdown('<div class="flex-spacer"></div>', unsafe_allow_html=True)
 
-
-    # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
-    st.sidebar.markdown(f"""
+    # --- FOOTER STICKY ---
+    st.markdown(f"""
         <div class="absolute-footer">
-            <div class="powered-by">Powered by Lixander García</div>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
-                 class="footer-logo-img">
+            <div class="footer-powered">Powered by Lixander García</div>
+            <img src="{URL_LOGO_COBROYA}" class="footer-logo-img" alt="CobroYa">
             <div class="footer-slogan">Plataforma financiera inteligente</div>
         </div>
     """, unsafe_allow_html=True)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# USO DE LA VARIABLE MENU
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Puedes usar la variable 'menu' para condicionar la lógica de tu app:
+# if menu == "Panel de Control":
+#     # Renderizar el panel
+# elif menu == "Gestión de Cobros":
+#     # Renderizar la gestión
+# ... etc
     
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 if menu == "Panel de Control":
