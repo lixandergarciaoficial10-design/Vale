@@ -1511,46 +1511,6 @@ with st.sidebar:
         </style>
     """, unsafe_allow_html=True)
 
-    # === ESTA ES LA PARTE QUE CAMBIA: EMPUJAR HACIA ABAJO Y AGREGAR EL PLAN ===
-    # Creamos un espacio flexible para mandar lo siguiente al fondo
-    st.markdown("<div style='flex-grow: 1; min-height: 20px;'></div>", unsafe_allow_html=True)
-
-    # === USER FOOTER (Se mantiene al final) ===
-    user_details_open = st.session_state.get("user_details_open", False)
-
-    st.markdown(f"""
-        <div class="user-footer">
-            <div class="user-card">
-                <div class="user-avatar">👤</div>
-                <div class="user-info">
-                    <div class="user-email">{u_email}</div>
-                    <div class="user-role">Administrador</div>
-                </div>
-                <div style="font-size: 10px; color: #94A3B8;">{'▲' if user_details_open else '▼'}</div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-
-    if st.button("", key="user_toggle_action", use_container_width=True):
-        st.session_state["user_details_open"] = not user_details_open
-        st.rerun()
-
-    if user_details_open:
-        st.markdown(f"""
-            <div style="background: #F8FAFC; padding: 12px; margin: 0 16px; border-radius: 8px; border: 1px solid #F1F5F9;">
-                <div style="font-size: 11px; color: #64748B; margin-bottom: 4px;">Negocio: <b>{biz_name}</b></div>
-                <div style="font-size: 11px; color: #64748B; margin-bottom: 4px;">RNC: <b>{biz_rnc}</b></div>
-                <div style="font-size: 11px; color: #64748B;">Tel: <b>{biz_tel}</b></div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    # === POWERED BY ===
-    st.markdown(f"""
-        <div style="text-align: center; padding: 20px; opacity: 0.6;">
-            <p style="font-size: 10px; color: #94A3B8; margin-bottom: 8px;">Powered by Lixander García</p>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" style="width: 80px;">
-        </div>
-    """, unsafe_allow_html=True)
     
 menu = st.session_state.get("menu_principal", "Panel de Control")
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
