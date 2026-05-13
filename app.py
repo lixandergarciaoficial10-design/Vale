@@ -1095,12 +1095,17 @@ def obtener_prioridad(dias, balance, impagos=0):
     score = (dias * 0.5) + ((balance / 1000) * 0.3) + (impagos * 0.2)
     return score
 
+# ============================================================================
+# REDISEÑO SIDEBAR - VERSIÓN ULTRA-LIMPIA (SOLO CSS + HTML)
+# Mantiene el radio de Streamlit pero lo estiliza como HTML puro
+# MEJOR COMPATIBILIDAD Y MENOR RIESGO DE INCOMPATIBILIDADES
+# ============================================================================
 
-# --- 0. INICIALIZACIÓN (Evita errores de variable no definida) ---
+# --- 0. INICIALIZACIÓN ---
 if "menu_principal" not in st.session_state:
     st.session_state["menu_principal"] = "Panel de Control"
 
-# --- 1. CARGA DE DATOS SUPABASE (Lógica Intacta) ---
+# --- 1. CARGA DE DATOS SUPABASE (INTACTA) ---
 if "user" in st.session_state and st.session_state.user:
     if "datos_validados" not in st.session_state:
         try:
@@ -1112,172 +1117,490 @@ if "user" in st.session_state and st.session_state.user:
                 st.session_state["telefono_negocio"] = conf.get("telefono", "---")
                 st.session_state["direccion_negocio"] = conf.get("direccion", "---")
                 st.session_state["mi_logo"] = conf.get("logo_base64")
+                st.session_state["tipo_plan"] = conf.get("tipo_plan", "Gratis")
+                st.session_state["fecha_vencimiento"] = conf.get("fecha_vencimiento")
                 st.session_state["datos_validados"] = True
                 st.rerun()
         except Exception as e:
             st.error(f"Error: {e}")
 
-# --- 2. SIDEBAR (DISEÑO BLOQUEADO A 200PX) ---
+# --- 2. CÁLCULO DE DÍAS RESTANTES ---
+from datetime import datetime, date
+
+def calcular_dias_plan(fecha_vencimiento_str):
+    if not fecha_vencimiento_str:
+        return None
+    try:
+        if isinstance(fecha_vencimiento_str, str):
+            fecha_venc = datetime.strptime(fecha_vencimiento_str, "%Y-%m-%d").date()
+        else:
+            fecha_venc = fecha_vencimiento_str
+        dias = (fecha_venc - date.today()).days
+        return max(dias, 0)
+    except Exception:
+        return None
+
+dias_restantes = calcular_dias_plan(st.session_state.get("fecha_vencimiento"))
+
+# --- 3. SIDEBAR REDISEÑO ---
 with st.sidebar:
     import base64
     
-    URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
+    URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"
 
-    # Variables de sesión
     biz_name = st.session_state.get("nombre_negocio", "MI NEGOCIO").upper()
-    biz_rnc  = st.session_state.get("rnc", "---")
-    biz_dir  = st.session_state.get("direccion_negocio", "---")
-    biz_tel  = st.session_state.get("telefono_negocio", "---")
+    biz_rnc = st.session_state.get("rnc", "---")
+    biz_dir = st.session_state.get("direccion_negocio", "---")
+    biz_tel = st.session_state.get("telefono_negocio", "---")
     logo_b64 = st.session_state.get("mi_logo")
-    u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
+    u_email = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
+    tipo_plan = st.session_state.get("tipo_plan", "Gratis").capitalize()
 
-# --- 1. SOLUCIÓN AL NAMEERROR: Definición previa de src_logo ---
     try:
-        if 'logo_b64' in locals() and logo_b64:
-            img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
-            src_logo = f"data:image/png;base64,{img_data}"
+        if logo_b64 and "," in str(logo_b64):
+            img_data = logo_b64.split(",")[1]
+            src_logo_usuario = f"data:image/png;base64,{img_data}"
+        elif logo_b64:
+            src_logo_usuario = f"data:image/png;base64,{logo_b64}"
         else:
-            src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+            src_logo_usuario = None
     except Exception:
-        src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+        src_logo_usuario = None
 
-# --- 1. CSS: Estética Minimalista y Profesional ---
-    st.markdown(f"""
+    # ========== CSS RADICAL ==========
+    st.markdown("""
         <style>
-            /* EXPANSIÓN Y SIDEBAR */
-            [data-testid="stSidebar"][aria-expanded="true"] {{
-                min-width: 300px !important;
-                max-width: 300px !important;
-                background-color: #FBFBFD !important;
-            }}
-            [data-testid="stSidebar"][aria-expanded="false"] {{
-                min-width: 0px !important;
-                max-width: 0px !important;
-                width: 0px !important;
-            }}
+            :root {
+                --primary: #6366f1;
+                --primary-light: #eef2ff;
+                --text-dark: #1f2937;
+                --text-muted: #6b7280;
+                --border: #e5e7eb;
+                --bg: #f9fafb;
+                --white: #ffffff;
+            }
 
-            /* BOTÓN DE MENÚ */
-            [data-testid="stSidebarHeader"] {{
+            /* SIDEBAR BASE */
+            [data-testid="stSidebar"][aria-expanded="true"] {
+                min-width: 280px !important;
+                max-width: 280px !important;
+                background-color: var(--white) !important;
+                box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08) !important;
+            }
+
+            /* HEADER */
+            [data-testid="stSidebarHeader"] {
                 padding: 0px !important;
-                background-color: transparent !important;
-            }}
-            button[data-testid="stSidebarCollapseButton"] {{
-                background-color: #1D1D1F !important;
+            }
+
+            button[data-testid="stSidebarCollapseButton"] {
+                background-color: #1f2937 !important;
                 color: white !important;
                 border-radius: 8px !important;
-                margin: 10px !important;
-                z-index: 100000 !important;
-            }}
+                margin: 8px !important;
+            }
 
-            /* LOGO AL TECHO */
-            [data-testid="stSidebarUserContent"] {{
-                padding-top: 0px !important;
-                margin-top: -50px !important; 
-            }}
+            /* CONTENIDO */
+            [data-testid="stSidebarUserContent"] {
+                padding: 0px !important;
+                margin-top: 0px !important;
+            }
 
-            .client-brand-card {{
-                text-align: center; 
-                padding: 15px; 
-                background: white;
-                border-bottom: 1px solid #F2F2F7;
-                margin-bottom: 20px;
-            }}
-            
-            .client-logo-img {{
-                max-width: 90%;
-                height: 55px;
+            /* LOGO HEADER */
+            .sidebar-logo {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 12px 0;
+                border-bottom: 1px solid var(--border);
+                margin-bottom: 8px;
+            }
+
+            .sidebar-logo img {
+                max-height: 32px;
                 object-fit: contain;
-            }}
+            }
 
-            /* NAVEGACIÓN */
-            div[role="radiogroup"] {{
-                gap: 12px !important;
-                padding-left: 10px !important;
-            }}
-            div[role="radio"] p {{ 
-                font-size: 14px !important; 
-                color: #1D1D1F !important;
-                font-weight: 400;
-                padding: 6px 0 !important;
-            }}
-
-            /* FOOTER PROFESIONAL (Minimalista) */
-            .absolute-footer {{
-                margin-top: 40px !important;
-                padding: 20px 0px 10px 0px !important;
-                border-top: 1px solid #F2F2F7;
+            /* PLAN CARD */
+            .plan-card {
+                background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                border-radius: 16px;
+                padding: 16px;
+                margin: 12px;
+                color: white;
                 text-align: center;
+                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+            }
+
+            .plan-card::before {
+                content: "★";
+                position: absolute;
+                top: 8px;
+                right: 12px;
+                font-size: 20px;
+                opacity: 0.3;
+            }
+
+            .plan-card-label {
+                font-size: 12px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                opacity: 0.9;
+                margin-bottom: 8px;
+            }
+
+            .plan-card-name {
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 4px;
+            }
+
+            .plan-card-days {
+                font-size: 14px;
+                opacity: 0.85;
+                margin-bottom: 12px;
+            }
+
+            .plan-card-btn {
+                background-color: rgba(255, 255, 255, 0.25);
+                color: white;
+                border: 1px solid rgba(255, 255, 255, 0.5);
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                width: 100%;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .plan-card-btn:hover {
+                background-color: rgba(255, 255, 255, 0.35);
+            }
+
+            /* NAV WRAPPER - Ocultar radio de Streamlit */
+            div[role="radiogroup"] {
+                display: none !important;
+            }
+
+            /* NAV CONTAINER */
+            .nav-wrapper {
+                padding: 8px;
                 display: flex;
                 flex-direction: column;
+                gap: 4px;
+            }
+
+            .nav-btn {
+                display: flex;
                 align-items: center;
-                width: 100%;
-            }}
-
-            .powered-by {{
-                font-size: 9px !important;
-                color: #A1A1A6;
-                text-transform: uppercase;
-                letter-spacing: 1.5px;
+                gap: 12px;
+                padding: 12px 14px;
+                border: none;
+                background: transparent;
+                color: var(--text-muted);
+                border-radius: 12px;
+                cursor: pointer;
+                font-size: 14px;
                 font-weight: 500;
-                margin-bottom: 10px;
-            }}
+                transition: all 0.2s ease;
+                width: 100%;
+                text-align: left;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            }
 
-            .footer-logo-img {{
-                width: 100px; /* Tamaño equilibrado para verse serio */
-                height: auto;
-                opacity: 0.8;
-            }}
+            .nav-btn:hover {
+                background-color: var(--bg);
+                color: var(--text-dark);
+            }
 
-            [data-testid="stAppViewBlockContainer"] {{
-                max-width: 100% !important;
-            }}
+            .nav-btn.active {
+                background-color: var(--primary-light);
+                color: var(--primary);
+                font-weight: 600;
+                box-shadow: inset 0 0 0 1px var(--primary);
+            }
+
+            .nav-icon {
+                font-size: 18px;
+                width: 20px;
+                flex-shrink: 0;
+            }
+
+            .nav-divider {
+                height: 1px;
+                background-color: var(--border);
+                margin: 8px 0;
+            }
+
+            /* USER FOOTER */
+            .user-footer {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 280px;
+                padding: 12px 8px;
+                border-top: 1px solid var(--border);
+                background: var(--white);
+                z-index: 10;
+                max-height: 150px;
+                overflow-y: auto;
+            }
+
+            .user-trigger {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 10px 12px;
+                border-radius: 12px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                background: transparent;
+                width: 100%;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            }
+
+            .user-trigger:hover {
+                background-color: var(--bg);
+            }
+
+            .user-avatar {
+                width: 40px;
+                height: 40px;
+                border-radius: 8px;
+                background-color: var(--bg);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                flex-shrink: 0;
+                overflow: hidden;
+                border: 1px solid var(--border);
+            }
+
+            .user-avatar img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+            .user-info {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .user-email {
+                font-size: 12px;
+                color: var(--text-dark);
+                font-weight: 600;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .user-role {
+                font-size: 11px;
+                color: var(--text-muted);
+            }
+
+            .user-chevron {
+                font-size: 14px;
+                color: var(--text-muted);
+                transition: transform 0.2s ease;
+            }
+
+            .user-details {
+                background-color: var(--bg);
+                border-radius: 8px;
+                padding: 12px;
+                margin-top: 8px;
+                border: 1px solid var(--border);
+                font-size: 12px;
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease;
+            }
+
+            .user-details.open {
+                max-height: 200px;
+            }
+
+            .detail-row {
+                margin-bottom: 8px;
+            }
+
+            .detail-row:last-child {
+                margin-bottom: 0;
+            }
+
+            .detail-label {
+                color: var(--text-muted);
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                font-weight: 600;
+                margin-bottom: 2px;
+            }
+
+            .detail-value {
+                color: var(--text-dark);
+                font-weight: 500;
+                word-break: break-word;
+                font-size: 12px;
+            }
+
+            /* POWERED BY */
+            .powered-by {
+                text-align: center;
+                padding: 8px;
+                font-size: 9px;
+                color: var(--text-muted);
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                font-weight: 500;
+                border-top: 1px solid var(--border);
+                margin-top: 8px;
+            }
+
+            .powered-logo {
+                margin-top: 6px;
+                display: flex;
+                justify-content: center;
+            }
+
+            .powered-logo img {
+                height: 20px;
+                opacity: 0.5;
+            }
+
+            /* SIDEBAR SCROLL SPACING */
+            [data-testid="stSidebarUserContent"] {
+                padding-bottom: 170px !important;
+            }
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
-    st.sidebar.markdown(f"""
-        <div class="client-brand-card">
-            <img src="{src_logo}" class="client-logo-img">
-            <div style="font-family: sans-serif; margin-top: 10px;">
-                <b style="font-size:14px; color:#1D1D1F;">{biz_name}</b>
-                <div style="font-size:10px; color:#86868B; margin-top:5px;">
-                    <p style="margin:0;">RNC: {biz_rnc} | 📞 {biz_tel}</p>
-                    <p style='color:#1D1D1F; font-weight:600; margin-top:3px;'>{u_email}</p>
+    # ========== CONTENIDO HTML ==========
+
+    # Logo Header
+    st.markdown(f"""
+        <div class="sidebar-logo">
+            <img src="{URL_LOGO_COBROYA}" alt="CobroYa">
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Plan Card
+    plan_text = f"Faltan {dias_restantes} días" if dias_restantes else "Sin límite"
+    st.markdown(f"""
+        <div class="plan-card">
+            <div class="plan-card-label">Estás en el plan</div>
+            <div class="plan-card-name">{tipo_plan}</div>
+            <div class="plan-card-days">{plan_text}</div>
+            <button class="plan-card-btn">Ver Planes</button>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Navigation (HTML overlay + Streamlit radio invisible)
+    st.markdown('<div class="nav-wrapper">', unsafe_allow_html=True)
+
+    opciones = [
+        ("Panel de Control", "🏠"),
+        ("Gestión de Cobros", "💰"),
+        ("👥 Todos mis Clientes", "👥"),
+        ("Nueva Cuenta por Cobrar", "➕"),
+        ("Cuentas por Pagar", "📉"),
+        ("IA Predictiva", "🧠"),
+        ("Configuración", "⚙️")
+    ]
+
+    # Renderizar cada opción
+    for i, (label, icon) in enumerate(opciones):
+        is_active = st.session_state.get("menu_principal") == label
+        active_class = "active" if is_active else ""
+
+        # HTML visual
+        st.markdown(f"""
+            <button class="nav-btn {active_class}" onclick="document.querySelector('[data-menu={i}]').click()">
+                <span class="nav-icon">{icon}</span>
+                <span>{label}</span>
+            </button>
+        """, unsafe_allow_html=True)
+
+        # Botón invisible de Streamlit
+        st.radio(
+            label=label,
+            options=[label],
+            key=f"menu_main_{i}",
+            label_visibility="collapsed",
+            horizontal=True,
+            on_change=lambda val=label: st.session_state.update({"menu_principal": val})
+        )
+
+        # Botón alternativo invisible para asegurar clic
+        if st.button(label, key=f"nav_click_{i}", label_visibility="collapsed", use_container_width=True):
+            st.session_state["menu_principal"] = label
+            st.rerun()
+
+        # Separadores
+        if i == 2 or i == 5:
+            st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Spacer para el footer
+    st.markdown("<div style='height: 150px;'></div>", unsafe_allow_html=True)
+
+    # User Footer
+    user_details_open = st.session_state.get("user_details_open", False)
+
+    st.markdown(f"""
+        <div class="user-footer">
+            <div class="user-trigger" onclick="document.querySelector('[data-toggle-user]').click()">
+                <div class="user-avatar">
+                    {f'<img src="{src_logo_usuario}">' if src_logo_usuario else '👤'}
+                </div>
+                <div class="user-info">
+                    <div class="user-email">{u_email}</div>
+                    <div class="user-role">Administrador</div>
+                </div>
+                <div class="user-chevron">▼</div>
+            </div>
+            <div class="user-details {'open' if user_details_open else ''}">
+                <div class="detail-row">
+                    <div class="detail-label">Negocio</div>
+                    <div class="detail-value">{biz_name}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">RNC</div>
+                    <div class="detail-value">{biz_rnc}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Teléfono</div>
+                    <div class="detail-value">{biz_tel}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Dirección</div>
+                    <div class="detail-value" style="font-size: 11px;">{biz_dir}</div>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-# --- 3. NAVEGACIÓN (Corregida para 1 solo clic) ---
-    opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
-    
-    mapeo_visual = {
-        "Panel de Control": "🏠 Panel de Control",
-        "Gestión de Cobros": "💰 Gestión de Cobros",
-        "👥 Todos mis Clientes": "👥 Todos mis Clientes",
-        "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
-        "Cuentas por Pagar": "📉 Cuentas por Pagar",
-        "IA Predictiva": "🧠 IA Predictiva",
-        "Configuración": "⚙️ Configuración"
-    }
+    # Toggle User Details
+    if st.button("T", key="toggle_user", label_visibility="collapsed"):
+        st.session_state["user_details_open"] = not st.session_state.get("user_details_open", False)
+        st.rerun()
 
-    # Al usar key="menu_principal", el radio lee y escribe 
-    # directamente en st.session_state["menu_principal"]
-    menu = st.sidebar.radio(
-        "NAV",
-        opciones,
-        key="menu_principal",
-        format_func=lambda x: mapeo_visual.get(x, x),
-        label_visibility="collapsed"
-    )
-
-    # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
-    st.sidebar.markdown(f"""
-        <div class="absolute-footer">
-            <span class="powered-by">Powered by Lixander García</span>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
-                 class="footer-logo-img" 
-                 onerror="this.style.display='none'">
+    # Powered By
+    st.markdown(f"""
+        <div class="powered-by">
+            Powered by Lixander García
+            <div class="powered-logo">
+                <img src="{URL_LOGO_COBROYA}">
+            </div>
         </div>
     """, unsafe_allow_html=True)
     
