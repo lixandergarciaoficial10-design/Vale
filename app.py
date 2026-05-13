@@ -1,18 +1,9 @@
 import streamlit as st
-import streamlit as st
-
-# --- BLOQUE DE VERIFICACIÓN LOADER.IO ---
-# Este código detecta si Loader.io está preguntando por el token
-import os
-
-# Verificamos si la URL termina en el código de loaderio
-current_path = st.context.path_params if hasattr(st, "context") else {}
-
-# Truco para capturar la ruta en Streamlit
-if "loaderio-4c62e7266bd534b6141601bbd68c7e69" in st.query_params:
-    st.write("loaderio-4c62e7266bd534b6141601bbd68c7e69")
+import sys
+# Si Loader.io busca el archivo, se lo damos en texto plano y cerramos el proceso
+if "loaderio" in st.query_params:
+    st.text("loaderio-4c62e7266bd534b6141601bbd68c7e69")
     st.stop()
-# ---------------------------------------
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
