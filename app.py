@@ -1197,56 +1197,56 @@ with st.sidebar:
             .logo-header {
                 display: flex;
                 justify-content: center;
-                padding: 5px 0;
+                padding: 0px;
                 border-bottom: 1px solid var(--border);
-                margin-bottom: 4px;
-                margin-top: -25px; /* <--- ESTA LÍNEA para subir el logo al tope */
+                margin-bottom: 8px;
+                margin-top: -15px; /* Sube el logo sin cortarlo */
             }
             .logo-header img {
-                max-height: 24px;
+                max-height: 32px; /* Tamaño equilibrado según tu diseño */
                 object-fit: contain;
             }
 
             /* Ajuste para eliminar el espacio vacío superior de la barra lateral */
             [data-testid="stSidebarUserContent"] {
                 padding-top: 0px !important;
-                margin-top: -50px !important; /* Prueba con -50px para que suba del todo */
+                margin-top: -60px !important; /* Fuerza a todo el contenido a subir al tope */
             }
             
             /* Ajuste de márgenes de la tarjeta de plan para ahorrar espacio */
             .plan-card {
                 background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-                border-radius: 16px;
-                padding: 14px;
-                margin: 8px 12px;
+                border-radius: 12px;
+                padding: 10px; /* Reducido de 14px */
+                margin: 4px 12px; /* Reducido de 8px */
                 color: white;
                 text-align: center;
                 box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
             }
             .plan-label {
-                font-size: 10px;
+                font-size: 9px;
                 font-weight: 600;
                 text-transform: uppercase;
                 opacity: 0.9;
-                margin-bottom: 4px;
-            }
-            .plan-name {
-                font-size: 16px;
-                font-weight: 700;
                 margin-bottom: 2px;
             }
+            .plan-name {
+                font-size: 14px;
+                font-weight: 700;
+                margin-bottom: 0px;
+            }
             .plan-days {
-                font-size: 13px;
+                font-size: 11px;
                 opacity: 0.85;
-                margin-bottom: 8px;
+                margin-bottom: 6px;
             }
             .plan-btn {
                 background-color: rgba(255,255,255,0.25);
                 color: white;
                 border: 1px solid rgba(255,255,255,0.5);
-                border-radius: 8px;
-                padding: 6px 12px;
-                font-size: 11px;
+                border-radius: 6px;
+                padding: 4px 10px;
+                font-size: 10px;
                 font-weight: 600;
                 cursor: pointer;
                 width: 100%;
@@ -1257,20 +1257,20 @@ with st.sidebar:
                 display: none !important;
             }
             .nav-wrapper {
-                padding: 2px 8px;
+                padding: 0px 8px;
                 display: flex;
                 flex-direction: column;
-                gap: 0px;
+                gap: 0px; /* Elimina espacio entre botones */
             }
             .nav-btn {
                 display: flex;
                 align-items: center;
-                gap: 10px;
-                padding: 4px 14px;
+                gap: 8px;
+                padding: 4px 12px; /* Super compacto verticalmente */
                 border: none;
                 background: transparent;
                 color: var(--text-muted);
-                border-radius: 12px;
+                border-radius: 10px;
                 cursor: pointer;
                 font-size: 13px;
                 font-weight: 500;
@@ -1278,6 +1278,7 @@ with st.sidebar:
                 width: 100%;
                 text-align: left;
                 font-family: sans-serif;
+                height: 32px; /* Altura fija para control total */
             }
             .nav-btn:hover {
                 background-color: var(--bg);
@@ -1297,7 +1298,7 @@ with st.sidebar:
             /* Footer ajustado como 'relative' para que fluya después del espaciador */
             .user-footer {
                 width: 100%;
-                padding: 10px 8px;
+                padding: 6px 8px; /* Reducido de 10px */
                 border-top: 1px solid var(--border);
                 background: white;
             }
@@ -1305,25 +1306,26 @@ with st.sidebar:
                 display: flex;
                 align-items: center;
                 gap: 10px;
-                padding: 8px 12px;
-                border-radius: 12px;
+                padding: 4px 12px; /* Reducido de 8px */
+                border-radius: 10px;
                 cursor: pointer;
                 transition: all 0.2s ease;
                 width: 100%;
             }
             .user-card:hover { background-color: var(--bg); }
             .user-avatar {
-                width: 36px;
-                height: 36px;
+                width: 32px; /* Reducido de 36px */
+                height: 32px;
                 border-radius: 8px;
                 background-color: var(--bg);
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 18px;
+                font-size: 16px;
                 flex-shrink: 0;
                 border: 1px solid var(--border);
             }
+            
             .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
             .user-info { flex: 1; min-width: 0; }
             .user-email {
