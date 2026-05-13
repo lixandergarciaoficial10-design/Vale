@@ -1441,13 +1441,13 @@ with st.sidebar:
             .stButton > button {
                 position: absolute;
                 width: 100% !important;
-                height: 30px !important; /* Alto ajustado para compactar */
+                height: 32px !important; /* Alto ajustado para compactar */
                 background: transparent !important;
                 border: none !important;
                 color: transparent !important;
                 z-index: 100 !important;
                 cursor: pointer;
-                margin-top: -34px !important; /* Ajuste preciso para la nueva altura */
+                margin-top: -32px !important; /* Ajuste preciso para la nueva altura */
                 transition: background 0.2s;
             }
             
@@ -1519,9 +1519,21 @@ with st.sidebar:
             .user-info { flex-grow: 1; overflow: hidden; }
             .user-email { font-size: 13px; font-weight: 600; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
             .user-role { font-size: 11px; color: #94A3B8; }
+
+            /* Elimina el padding global de la sidebar que genera el scroll */
+            [data-testid="stSidebarUserContent"] {
+                padding-top: 0px !important;
+                margin-top: -50px !important; 
+            }
+            
+            /* Ajuste del Plan Card para que no ocupe media pantalla */
+            .plan-card {
+                padding: 8px 12px !important;
+                margin: 4px 12px !important;
+            }
+            
         </style>
     """, unsafe_allow_html=True)
-
     
 menu = st.session_state.get("menu_principal", "Panel de Control")
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
