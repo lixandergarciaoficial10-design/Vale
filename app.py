@@ -1141,7 +1141,7 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-    # --- 1. CSS: Estética Minimalista y Profesional ---
+# --- 1. CSS: Estética Minimalista y Profesional ---
     st.markdown(f"""
         <style>
             /* 1. ESTRUCTURA DEL SIDEBAR (CERO SCROLL) */
@@ -1345,12 +1345,10 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-# --- 3. NAVEGACIÓN (ICONOS INYECTADOS POR CSS PARA EVITAR ERRORES) ---
+    # --- 3. NAVEGACIÓN (ICONOS INYECTADOS POR CSS) ---
 
-    # Inyectamos la librería de iconos para que el CSS los reconozca
     st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">', unsafe_allow_html=True)
 
-    # IMPORTANTE: Los nombres deben ser EXACTOS a los que pusiste en el CSS (Paso 1)
     opciones = [
         "Panel de Control", 
         "Gestión de Cobros", 
@@ -1361,7 +1359,6 @@ with st.sidebar:
         "Configuración"
     ]
 
-    # No usamos format_func con iconos aquí para que no se rompa el diseño
     menu = st.sidebar.radio(
         "NAV",
         opciones,
@@ -1369,11 +1366,10 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
-    # Truco de espacio flexible para empujar el footer al fondo (Cero Scroll)
     st.sidebar.markdown('<div style="flex-grow: 1;"></div>', unsafe_allow_html=True)
 
 
-    # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA (REPLICADO) ---
+    # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
     st.sidebar.markdown(f"""
         <div class="absolute-footer">
             <div class="powered-by">Powered by Lixander García</div>
@@ -1382,7 +1378,6 @@ with st.sidebar:
             <div class="footer-slogan">Plataforma financiera inteligente</div>
         </div>
     """, unsafe_allow_html=True)
-    
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 if menu == "Panel de Control":
     from datetime import datetime, timedelta
