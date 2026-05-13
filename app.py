@@ -1189,36 +1189,30 @@ with st.sidebar:
                 background-color: white !important;
                 box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08) !important;
             }
-            /* Eliminamos el padding que forzaba el scroll hacia abajo */
             [data-testid="stSidebarUserContent"] {
                 padding: 0px !important;
                 padding-bottom: 0px !important;
+                padding-top: 0px !important;
+                margin-top: -60px !important;
+                gap: 0px !important;
             }
             .logo-header {
                 display: flex;
                 justify-content: center;
                 padding: 0px;
                 border-bottom: 1px solid var(--border);
-                margin-bottom: 2px;
-                margin-top: -20px; /* Sube el logo sin cortarlo */
+                margin-top: -15px !important;
+                margin-bottom: 2px !important;
             }
             .logo-header img {
-                max-height: 38px; /* Tamaño equilibrado según tu diseño */
+                max-height: 32px !important;
                 object-fit: contain;
             }
-
-            /* Ajuste para eliminar el espacio vacío superior de la barra lateral */
-            [data-testid="stSidebarUserContent"] {
-                padding-top: 0px !important;
-                margin-top: -60px !important; /* Fuerza a todo el contenido a subir al tope */
-            }
-            
-            /* Ajuste de márgenes de la tarjeta de plan para ahorrar espacio */
             .plan-card {
                 background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
                 border-radius: 12px;
-                padding: 10px; /* Reducido de 14px */
-                margin: 4px 12px; /* Reducido de 8px */
+                padding: 8px !important;
+                margin: 4px 12px;
                 color: white;
                 text-align: center;
                 box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
@@ -1260,14 +1254,14 @@ with st.sidebar:
                 padding: 0px 8px;
                 display: flex;
                 flex-direction: column;
-                gap: 0px; /* Elimina espacio entre botones */
+                gap: 0px !important;
             }
             .nav-btn {
                 display: flex;
                 align-items: center;
                 gap: 8px;
-                padding: 2px 12px; /* Super compacto verticalmente */
-                margin-bottom: 0px !important; /* ELIMINA el espacio entre botones */
+                padding: 2px 12px;
+                margin-bottom: 0px !important;
                 border: none;
                 background: transparent;
                 color: var(--text-muted);
@@ -1279,7 +1273,7 @@ with st.sidebar:
                 width: 100%;
                 text-align: left;
                 font-family: sans-serif;
-                height: 30px; /* Altura fija para control total */
+                height: 32px !important;
             }
             .nav-btn:hover {
                 background-color: var(--bg);
@@ -1294,12 +1288,11 @@ with st.sidebar:
             .nav-divider {
                 height: 1px;
                 background-color: var(--border);
-                margin: 4px 0;
+                margin: 0px !important;
             }
-            /* Footer ajustado como 'relative' para que fluya después del espaciador */
             .user-footer {
                 width: 100%;
-                padding: 6px 8px; /* Reducido de 10px */
+                padding: 4px 8px !important;
                 border-top: 1px solid var(--border);
                 background: white;
             }
@@ -1307,7 +1300,7 @@ with st.sidebar:
                 display: flex;
                 align-items: center;
                 gap: 10px;
-                padding: 4px 12px; /* Reducido de 8px */
+                padding: 4px 12px;
                 border-radius: 10px;
                 cursor: pointer;
                 transition: all 0.2s ease;
@@ -1315,7 +1308,7 @@ with st.sidebar:
             }
             .user-card:hover { background-color: var(--bg); }
             .user-avatar {
-                width: 32px; /* Reducido de 36px */
+                width: 32px;
                 height: 32px;
                 border-radius: 8px;
                 background-color: var(--bg);
@@ -1326,7 +1319,6 @@ with st.sidebar:
                 flex-shrink: 0;
                 border: 1px solid var(--border);
             }
-            
             .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
             .user-info { flex: 1; min-width: 0; }
             .user-email {
@@ -1438,74 +1430,62 @@ with st.sidebar:
 # === CSS CRÍTICO PARA OCULTAR BOTONES Y REPLICAR DISEÑO ===
     st.markdown("""
         <style>
-            /* 1. Ocultar botones de Streamlit y estirarlos sobre el diseño HTML */
             .stButton > button {
                 position: absolute;
                 width: 100% !important;
-                height: 30px !important; /* Alto ajustado para compactar */
+                height: 32px !important;
                 background: transparent !important;
                 border: none !important;
                 color: transparent !important;
                 z-index: 100 !important;
                 cursor: pointer;
-                margin-top: -30px !important; /* Ajuste preciso para la nueva altura */
+                margin-top: -32px !important;
                 transition: background 0.2s;
             }
-            
-            /* Efecto hover sutil para feedback visual */
             .stButton > button:hover {
                 background: rgba(0,0,0,0.02) !important;
                 border: none !important;
             }
-
             .stButton > button:focus, .stButton > button:active {
                 background: transparent !important;
                 border: none !important;
                 box-shadow: none !important;
             }
-            
-            
-            /* 2. Estilo de los items de navegación (Diseño Premium) */
             .nav-btn {
                 display: flex;
                 align-items: center;
                 gap: 12px;
-                padding: 12px 16px;
+                padding: 2px 16px;
                 border-radius: 12px;
-                margin-bottom: 4px;
+                margin-bottom: 0px !important;
                 color: #64748B;
                 font-weight: 500;
                 position: relative;
-                pointer-events: none; /* El HTML no bloquea el clic del botón invisible */
+                pointer-events: none;
+                height: 32px !important;
             }
-            
             .nav-btn.active {
                 background: rgba(14, 165, 233, 0.1);
                 color: #0EA5E9;
                 font-weight: 600;
             }
-
             .nav-divider {
                 height: 1px;
                 background: #F1F5F9;
-                margin: 12px 16px;
+                margin: 0px !important;
             }
-            
-            /* 3. Footer de Usuario */
             .user-footer {
                 background: white;
                 border-top: 1px solid #F1F5F9;
-                padding: 16px;
+                padding: 4px 8px !important;
                 position: relative;
                 pointer-events: none;
             }
-            
             .user-card {
                 display: flex;
                 align-items: center;
                 gap: 10px;
             }
-            
             .user-avatar {
                 width: 38px;
                 height: 38px;
@@ -1516,23 +1496,18 @@ with st.sidebar:
                 justify-content: center;
                 font-size: 18px;
             }
-            
             .user-info { flex-grow: 1; overflow: hidden; }
             .user-email { font-size: 13px; font-weight: 600; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
             .user-role { font-size: 11px; color: #94A3B8; }
-
-            /* Elimina el padding global de la sidebar que genera el scroll */
             [data-testid="stSidebarUserContent"] {
                 padding-top: 0px !important;
-                margin-top: -80px !important; 
+                margin-top: -80px !important;
+                gap: 0px !important;
             }
-            
-            /* Ajuste del Plan Card para que no ocupe media pantalla */
             .plan-card {
-                padding: 6px 10px !important;
+                padding: 8px !important;
                 margin: 2px 12px !important;
             }
-            
         </style>
     """, unsafe_allow_html=True)
     
