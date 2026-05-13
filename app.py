@@ -1197,14 +1197,22 @@ with st.sidebar:
             .logo-header {
                 display: flex;
                 justify-content: center;
-                padding: 12px 0;
+                padding: 5px 0;
                 border-bottom: 1px solid var(--border);
                 margin-bottom: 4px;
+                margin-top: -25px; /* <--- ESTA LÍNEA para subir el logo al tope */
             }
             .logo-header img {
-                max-height: 32px;
+                max-height: 24px;
                 object-fit: contain;
             }
+
+            /* Ajuste para eliminar el espacio vacío superior de la barra lateral */
+            [data-testid="stSidebarUserContent"] {
+                padding-top: 0px !important;
+                margin-top: -50px !important; /* Prueba con -50px para que suba del todo */
+            }
+            
             /* Ajuste de márgenes de la tarjeta de plan para ahorrar espacio */
             .plan-card {
                 background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
@@ -1257,14 +1265,14 @@ with st.sidebar:
             .nav-btn {
                 display: flex;
                 align-items: center;
-                gap: 12px;
-                padding: 6px 12px;
+                gap: 10px;
+                padding: 4px 14px;
                 border: none;
                 background: transparent;
                 color: var(--text-muted);
                 border-radius: 12px;
                 cursor: pointer;
-                font-size: 14px;
+                font-size: 13px;
                 font-weight: 500;
                 transition: all 0.2s ease;
                 width: 100%;
@@ -1431,13 +1439,13 @@ with st.sidebar:
             .stButton > button {
                 position: absolute;
                 width: 100% !important;
-                height: 38px !important; /* Alto ajustado para compactar */
+                height: 30px !important; /* Alto ajustado para compactar */
                 background: transparent !important;
                 border: none !important;
                 color: transparent !important;
                 z-index: 100 !important;
                 cursor: pointer;
-                margin-top: -42px !important; /* Ajuste preciso para la nueva altura */
+                margin-top: -34px !important; /* Ajuste preciso para la nueva altura */
                 transition: background 0.2s;
             }
             
