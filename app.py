@@ -1507,7 +1507,7 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    
+menu = st.session_state.get("menu_principal", "Panel de Control")
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 if menu == "Panel de Control":
     from datetime import datetime, timedelta
