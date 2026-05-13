@@ -1169,343 +1169,94 @@ with st.sidebar:
             dias_text = "Sin límite"
     else:
         dias_text = "Faltan 20 días"  # Default
-    
-    # === CSS (UNA SOLA VEZ) ===
-    st.markdown("""
-        <style>
-            :root {
-                --primary: #6366f1;
-                --primary-light: #eef2ff;
-                --text-dark: #1f2937;
-                --text-muted: #6b7280;
-                --border: #e5e7eb;
-                --bg: #f9fafb;
-            }
-            [data-testid="stSidebar"][aria-expanded="true"] {
-                min-width: 280px !important;
-                max-width: 280px !important;
-                background-color: white !important;
-                box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08) !important;
-            }
-            [data-testid="stSidebarUserContent"] {
-                padding: 0px !important;
-                padding-bottom: 180px !important;
-            }
-            .logo-header {
-                display: flex;
-                justify-content: center;
-                padding: 12px 0;
-                border-bottom: 1px solid var(--border);
-                margin-bottom: 8px;
-            }
-            .logo-header img {
-                max-height: 32px;
-                object-fit: contain;
-            }
-            .plan-card {
-                background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-                border-radius: 16px;
-                padding: 16px;
-                margin: 12px;
-                color: white;
-                text-align: center;
-                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
-            }
-            .plan-label {
-                font-size: 10px;
-                font-weight: 600;
-                text-transform: uppercase;
-                opacity: 0.9;
-                margin-bottom: 8px;
-            }
-            .plan-name {
-                font-size: 18px;
-                font-weight: 700;
-                margin-bottom: 4px;
-            }
-            .plan-days {
-                font-size: 14px;
-                opacity: 0.85;
-                margin-bottom: 12px;
-            }
-            .plan-btn {
-                background-color: rgba(255,255,255,0.25);
-                color: white;
-                border: 1px solid rgba(255,255,255,0.5);
-                border-radius: 8px;
-                padding: 8px 16px;
-                font-size: 12px;
-                font-weight: 600;
-                cursor: pointer;
-                width: 100%;
-                text-transform: uppercase;
-                transition: all 0.2s ease;
-            }
-            .plan-btn:hover {
-                background-color: rgba(255,255,255,0.35);
-            }
-            div[role="radiogroup"] {
-                display: none !important;
-            }
-            .nav-wrapper {
-                padding: 8px;
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
-            }
-            .nav-btn {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                padding: 12px 14px;
-                border: none;
-                background: transparent;
-                color: var(--text-muted);
-                border-radius: 12px;
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: 500;
-                transition: all 0.2s ease;
-                width: 100%;
-                text-align: left;
-                font-family: sans-serif;
-            }
-            .nav-btn:hover {
-                background-color: var(--bg);
-                color: var(--text-dark);
-            }
-            .nav-btn.active {
-                background-color: var(--primary-light);
-                color: var(--primary);
-                font-weight: 600;
-                box-shadow: inset 0 0 0 1px var(--primary);
-            }
-            .nav-divider {
-                height: 1px;
-                background-color: var(--border);
-                margin: 8px 0;
-            }
-            .user-footer {
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                width: 280px;
-                padding: 12px 8px;
-                border-top: 1px solid var(--border);
-                background: white;
-                z-index: 10;
-            }
-            .user-card {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                padding: 10px 12px;
-                border-radius: 12px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                width: 100%;
-            }
-            .user-card:hover {
-                background-color: var(--bg);
-            }
-            .user-avatar {
-                width: 40px;
-                height: 40px;
-                border-radius: 8px;
-                background-color: var(--bg);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 20px;
-                flex-shrink: 0;
-                border: 1px solid var(--border);
-            }
-            .user-avatar img {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-            }
-            .user-info {
-                flex: 1;
-                min-width: 0;
-            }
-            .user-email {
-                font-size: 12px;
-                color: var(--text-dark);
-                font-weight: 600;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-            .user-role {
-                font-size: 11px;
-                color: var(--text-muted);
-            }
-            .user-chevron {
-                font-size: 12px;
-                color: var(--text-muted);
-            }
-            .user-details {
-                background-color: var(--bg);
-                border-radius: 8px;
-                padding: 12px;
-                margin-top: 8px;
-                border: 1px solid var(--border);
-                max-height: 0;
-                overflow: hidden;
-                transition: max-height 0.3s ease;
-            }
-            .user-details.open {
-                max-height: 200px;
-            }
-            .detail-row {
-                margin-bottom: 8px;
-                font-size: 11px;
-            }
-            .detail-row:last-child {
-                margin-bottom: 0;
-            }
-            .detail-label {
-                color: var(--text-muted);
-                font-size: 9px;
-                text-transform: uppercase;
-                font-weight: 600;
-                margin-bottom: 2px;
-                letter-spacing: 0.5px;
-            }
-            .detail-value {
-                color: var(--text-dark);
-                font-weight: 500;
-                word-break: break-word;
-            }
-            .powered-by {
-                text-align: center;
-                padding: 8px;
-                font-size: 9px;
-                color: var(--text-muted);
-                text-transform: uppercase;
-                letter-spacing: 1px;
-                font-weight: 500;
-                border-top: 1px solid var(--border);
-                margin-top: 8px;
-            }
-            .powered-logo {
-                margin-top: 6px;
-                display: flex;
-                justify-content: center;
-            }
-            .powered-logo img {
-                height: 20px;
-                opacity: 0.5;
-            }
-        </style>
-    """, unsafe_allow_html=True)
 
-    # === LOGO ===
-    st.markdown("""
-        <div class="logo-header">
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" alt="CobroYa">
-        </div>
-    """, unsafe_allow_html=True)
+# --- 1. CSS CRÍTICO PARA OCULTAR BOTONES Y REPLICAR DISEÑO ---
+st.markdown("""
+    <style>
+        /* Ocultar botones de Streamlit y estirarlos sobre el diseño HTML */
+        .stButton > button {
+            position: absolute;
+            width: 100% !important;
+            height: 48px !important; 
+            background: transparent !important;
+            border: none !important;
+            color: transparent !important;
+            z-index: 100 !important;
+            cursor: pointer;
+            margin-top: -52px !important; /* Ajuste para cubrir el div superior */
+            transition: background 0.2s;
+        }
+        
+        .stButton > button:hover {
+            background: rgba(0,0,0,0.03) !important;
+            border: none !important;
+        }
 
-    # === PLAN CARD ===
-    st.markdown(f"""
-        <div class="plan-card">
-            <div class="plan-label">ESTÁS EN EL PLAN</div>
-            <div class="plan-name">{tipo_plan}</div>
-            <div class="plan-days">{dias_text}</div>
-            <button class="plan-btn">Ver Planes</button>
-        </div>
-    """, unsafe_allow_html=True)
+        .stButton > button:focus, .stButton > button:active {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+        
+        /* Diseño de los ítems de navegación */
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 4px;
+            color: #64748B;
+            font-weight: 500;
+            position: relative;
+            pointer-events: none; /* Evita que el HTML bloquee el clic del botón invisible */
+        }
+        
+        .nav-btn.active {
+            background: rgba(14, 165, 233, 0.1);
+            color: #0EA5E9;
+            font-weight: 600;
+        }
 
-# === CSS CRÍTICO PARA OCULTAR BOTONES Y REPLICAR DISEÑO ===
-    st.markdown("""
-        <style>
-            /* 1. Ocultar botones de Streamlit y estirarlos sobre el diseño HTML */
-            .stButton > button {
-                position: absolute;
-                width: 100% !important;
-                height: 48px !important; /* Alto exacto de la fila */
-                background: transparent !important;
-                border: none !important;
-                color: transparent !important;
-                z-index: 100 !important;
-                cursor: pointer;
-                margin-top: -52px !important; /* Ajuste preciso para cubrir el HTML superior */
-                transition: background 0.2s;
-            }
-            
-            /* Efecto hover sutil para feedback visual */
-            .stButton > button:hover {
-                background: rgba(0,0,0,0.02) !important;
-                border: none !important;
-            }
+        .nav-divider {
+            height: 1px;
+            background: #F1F5F9;
+            margin: 12px 16px;
+        }
+        
+        /* Footer de Usuario */
+        .user-footer {
+            background: white;
+            border-top: 1px solid #F1F5F9;
+            padding: 16px;
+            position: relative;
+            pointer-events: none;
+        }
+        
+        .user-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-avatar {
+            width: 38px;
+            height: 38px;
+            background: #F1F5F9;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        .user-info { flex-grow: 1; overflow: hidden; }
+        .user-email { font-size: 13px; font-weight: 600; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .user-role { font-size: 11px; color: #94A3B8; }
+    </style>
+""", unsafe_allow_html=True)
 
-            .stButton > button:focus, .stButton > button:active {
-                background: transparent !important;
-                border: none !important;
-                box-shadow: none !important;
-            }
-            
-            /* 2. Estilo de los items de navegación (Diseño Premium) */
-            .nav-btn {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                padding: 12px 16px;
-                border-radius: 12px;
-                margin-bottom: 4px;
-                color: #64748B;
-                font-weight: 500;
-                position: relative;
-                pointer-events: none; /* El HTML no bloquea el clic del botón invisible */
-            }
-            
-            .nav-btn.active {
-                background: rgba(14, 165, 233, 0.1);
-                color: #0EA5E9;
-                font-weight: 600;
-            }
-
-            .nav-divider {
-                height: 1px;
-                background: #F1F5F9;
-                margin: 12px 16px;
-            }
-            
-            /* 3. Footer de Usuario */
-            .user-footer {
-                background: white;
-                border-top: 1px solid #F1F5F9;
-                padding: 16px;
-                position: relative;
-                pointer-events: none;
-            }
-            
-            .user-card {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-            
-            .user-avatar {
-                width: 38px;
-                height: 38px;
-                background: #F1F5F9;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 18px;
-            }
-            
-            .user-info { flex-grow: 1; overflow: hidden; }
-            .user-email { font-size: 13px; font-weight: 600; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .user-role { font-size: 11px; color: #94A3B8; }
-        </style>
-    """, unsafe_allow_html=True)
-
-    # === NAVEGACIÓN ===
+# === 2. NAVEGACIÓN (BLOQUE VISUAL + BOTONES) ===
     st.markdown('<div class="nav-wrapper" style="padding: 10px;">', unsafe_allow_html=True)
 
     opciones = [
@@ -1522,7 +1273,7 @@ with st.sidebar:
         is_active = st.session_state.get("menu_principal") == label
         active_class = "active" if is_active else ""
 
-        # 1. Dibujamos el diseño visual (El texto y el icono)
+        # Dibuja el diseño visual (Icono + Texto)
         st.markdown(f"""
             <div class="nav-btn {active_class}">
                 <span style="font-size: 18px;">{icon}</span>
@@ -1530,23 +1281,25 @@ with st.sidebar:
             </div>
         """, unsafe_allow_html=True)
 
-        # 2. El botón invisible (Cubre toda el área de arriba)
+        # El botón invisible de Streamlit (Capa superior)
+        # El margen negativo -52px lo posiciona justo encima del div anterior
         if st.button("", key=f"nav_action_{i}", use_container_width=True):
             st.session_state["menu_principal"] = label
             st.rerun()
 
-        # Separadores
+        # Separadores lógicos según tu diseño
         if i == 1 or i == 5:
             st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # === ESPACIADOR ===
-    st.markdown("<div style='flex-grow: 1; height: 100px;'></div>", unsafe_allow_html=True)
+    # === ESPACIADOR PARA EMPUJAR EL FOOTER ===
+    st.markdown("<div style='flex-grow: 1; height: 50px;'></div>", unsafe_allow_html=True)
 
-    # === USER FOOTER ===
+# === 3. USER FOOTER (DISEÑO EXACTO) ===
     user_details_open = st.session_state.get("user_details_open", False)
 
+    # El contenedor visual del footer
     st.markdown(f"""
         <div class="user-footer">
             <div class="user-card">
@@ -1560,11 +1313,13 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # Botón invisible para el footer (Toggle)
+    # Botón invisible para el Toggle del Footer
+    # Debe tener la misma lógica de margen negativo para cubrir la tarjeta visual
     if st.button("", key="user_toggle_action", use_container_width=True):
         st.session_state["user_details_open"] = not user_details_open
         st.rerun()
 
+    # Bloque de detalles desplegable
     if user_details_open:
         st.markdown(f"""
             <div style="background: #F8FAFC; padding: 12px; margin: 0 16px; border-radius: 8px; border: 1px solid #F1F5F9;">
@@ -1574,11 +1329,12 @@ with st.sidebar:
             </div>
         """, unsafe_allow_html=True)
 
-    # === POWERED BY ===
+    # === 4. POWERED BY (LOGO FINAL) ===
     st.markdown(f"""
         <div style="text-align: center; padding: 20px; opacity: 0.6;">
             <p style="font-size: 10px; color: #94A3B8; margin-bottom: 8px;">Powered by Lixander García</p>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" style="width: 80px;">
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
+                 style="width: 80px;">
         </div>
     """, unsafe_allow_html=True)
 
