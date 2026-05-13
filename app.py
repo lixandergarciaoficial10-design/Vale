@@ -1171,7 +1171,7 @@ with st.sidebar:
         dias_text = "Faltan 20 días"  # Default
 
     URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"    
-# === CSS (OPTIMIZADO PARA EVITAR SCROLL) ===
+# === CSS (DISEÑO PREMIUM) ===
     st.markdown("""
         <style>
             :root {
@@ -1183,116 +1183,139 @@ with st.sidebar:
                 --bg: #f9fafb;
                 --bg-white: #ffffff;
             }
+
             [data-testid="stSidebar"][aria-expanded="true"] {
-                min-width: 280px !important;
-                max-width: 280px !important;
+                min-width: 260px !important;
+                max-width: 260px !important;
                 background-color: white !important;
-                box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08) !important;
+                box-shadow: 2px 0 12px rgba(0,0,0,0.06) !important;
             }
+
             [data-testid="stSidebarUserContent"] {
                 padding: 0px !important;
-                padding-bottom: 0px !important;
                 padding-top: 0px !important;
+                padding-bottom: 0px !important;
                 margin-top: -60px !important;
                 gap: 0px !important;
+                display: flex !important;
+                flex-direction: column !important;
             }
+
             .logo-header {
                 display: flex;
+                align-items: center;
                 justify-content: center;
-                padding: 0px;
+                padding: 18px 20px 14px 20px;
                 border-bottom: 1px solid var(--border);
                 margin-top: -15px !important;
-                margin-bottom: 2px !important;
+                margin-bottom: 0px !important;
             }
             .logo-header img {
-                max-height: 32px !important;
+                max-height: 36px !important;
                 object-fit: contain;
             }
-            .plan-card {
-                background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-                border-radius: 12px;
-                padding: 8px !important;
-                margin: 4px 12px;
-                color: white;
-                text-align: center;
-                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
-            }
-            .plan-label {
-                font-size: 9px;
-                font-weight: 600;
-                text-transform: uppercase;
-                opacity: 0.9;
-                margin-bottom: 2px;
-            }
-            .plan-name {
-                font-size: 14px;
-                font-weight: 700;
-                margin-bottom: 0px;
-            }
-            .plan-days {
-                font-size: 11px;
-                opacity: 0.85;
-                margin-bottom: 6px;
-            }
-            .plan-btn {
-                background-color: rgba(255,255,255,0.25);
-                color: white;
-                border: 1px solid rgba(255,255,255,0.5);
-                border-radius: 6px;
-                padding: 4px 10px;
-                font-size: 10px;
-                font-weight: 600;
-                cursor: pointer;
-                width: 100%;
-                text-transform: uppercase;
-                transition: all 0.2s ease;
-            }
+
             div[role="radiogroup"] {
                 display: none !important;
             }
+
             .nav-wrapper {
-                padding: 0px 8px;
+                padding: 10px 12px 6px 12px;
                 display: flex;
                 flex-direction: column;
-                gap: 0px !important;
+                gap: 2px !important;
             }
+
             .nav-btn {
                 display: flex;
                 align-items: center;
-                gap: 8px;
-                padding: 2px 12px;
+                gap: 12px;
+                padding: 0px 16px;
                 margin-bottom: 0px !important;
                 border: none;
                 background: transparent;
                 color: var(--text-muted);
-                border-radius: 10px;
+                border-radius: 12px;
                 cursor: pointer;
-                font-size: 13px;
+                font-size: 14px;
                 font-weight: 500;
-                transition: all 0.2s ease;
+                transition: background 0.2s ease, color 0.2s ease;
                 width: 100%;
                 text-align: left;
-                font-family: sans-serif;
-                height: 32px !important;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                height: 44px !important;
+                position: relative;
+                pointer-events: none;
+            }
+            .nav-btn span:first-child {
+                font-size: 20px;
+                width: 24px;
+                text-align: center;
+                flex-shrink: 0;
             }
             .nav-btn:hover {
                 background-color: var(--bg);
                 color: var(--text-dark);
             }
             .nav-btn.active {
-                background-color: var(--primary-light);
-                color: var(--primary);
+                background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
+                color: white !important;
                 font-weight: 600;
-                box-shadow: inset 0 0 0 1px var(--primary);
+                box-shadow: 0 4px 14px rgba(99,102,241,0.35);
             }
+
             .nav-divider {
                 height: 1px;
                 background-color: var(--border);
-                margin: 0px !important;
+                margin: 4px 0px !important;
             }
+
+            .plan-card {
+                background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                border-radius: 16px;
+                padding: 16px !important;
+                margin: 8px 14px !important;
+                color: white;
+                text-align: center;
+                box-shadow: 0 6px 18px rgba(99,102,241,0.35);
+            }
+            .plan-star {
+                font-size: 22px;
+                margin-bottom: 4px;
+            }
+            .plan-label {
+                font-size: 12px;
+                font-weight: 500;
+                opacity: 0.9;
+                margin-bottom: 2px;
+            }
+            .plan-name {
+                font-size: 20px;
+                font-weight: 700;
+                margin-bottom: 2px;
+            }
+            .plan-days {
+                font-size: 12px;
+                opacity: 0.85;
+                margin-bottom: 12px;
+            }
+            .plan-btn {
+                background-color: rgba(255,255,255,0.22);
+                color: white;
+                border: 1.5px solid rgba(255,255,255,0.55);
+                border-radius: 10px;
+                padding: 8px 14px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                width: 100%;
+                transition: all 0.2s ease;
+                letter-spacing: 0px;
+            }
+
             .user-footer {
                 width: 100%;
-                padding: 4px 8px !important;
+                padding: 8px 12px !important;
                 border-top: 1px solid var(--border);
                 background: white;
             }
@@ -1300,29 +1323,35 @@ with st.sidebar:
                 display: flex;
                 align-items: center;
                 gap: 10px;
-                padding: 4px 12px;
-                border-radius: 10px;
+                padding: 8px 12px;
+                border-radius: 12px;
                 cursor: pointer;
-                transition: all 0.2s ease;
+                transition: background 0.2s ease;
                 width: 100%;
             }
             .user-card:hover { background-color: var(--bg); }
             .user-avatar {
-                width: 32px;
-                height: 32px;
-                border-radius: 8px;
-                background-color: var(--bg);
+                width: 38px;
+                height: 38px;
+                border-radius: 50%;
+                background: linear-gradient(135deg, #6366f1, #8b5cf6);
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 16px;
+                font-size: 18px;
                 flex-shrink: 0;
-                border: 1px solid var(--border);
+                color: white;
+                overflow: hidden;
             }
-            .user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+            .user-avatar img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                border-radius: 50%;
+            }
             .user-info { flex: 1; min-width: 0; }
-            .user-email {
-                font-size: 12px;
+            .user-name {
+                font-size: 13px;
                 color: var(--text-dark);
                 font-weight: 600;
                 overflow: hidden;
@@ -1332,9 +1361,9 @@ with st.sidebar:
             .user-role { font-size: 11px; color: var(--text-muted); }
             .user-details {
                 background-color: var(--bg);
-                border-radius: 8px;
+                border-radius: 10px;
                 padding: 10px;
-                margin: 6px 12px;
+                margin: 4px 14px 8px 14px;
                 border: 1px solid var(--border);
                 display: none;
             }
@@ -1348,14 +1377,6 @@ with st.sidebar:
                 margin-bottom: 1px;
             }
             .detail-value { color: var(--text-dark); font-weight: 500; }
-            .powered-by {
-                text-align: center;
-                padding: 8px;
-                font-size: 8px;
-                color: var(--text-muted);
-                text-transform: uppercase;
-                letter-spacing: 1px;
-            }
         </style>
     """, unsafe_allow_html=True)
 
@@ -1377,7 +1398,7 @@ with st.sidebar:
     for i, (label, icon) in enumerate(opciones):
         is_active = st.session_state.get("menu_principal") == label
         active_class = "active" if is_active else ""
-        st.markdown(f'<div class="nav-btn {active_class}"><span style="font-size:18px;">{icon}</span><span>{label}</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="nav-btn {active_class}"><span style="font-size:20px;">{icon}</span><span>{label}</span></div>', unsafe_allow_html=True)
         if st.button("", key=f"nav_action_{i}", use_container_width=True):
             st.session_state["menu_principal"] = label
             st.rerun()
@@ -1385,31 +1406,33 @@ with st.sidebar:
             st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # === 3. ESPACIADOR FLEXIBLE (MANDA EL PLAN Y USER ABAJO) ===
-    st.markdown("<div style='flex-grow: 1; min-height: 10px;'></div>", unsafe_allow_html=True)
+    # === 3. ESPACIADOR FLEXIBLE ===
+    st.markdown("<div style='flex-grow:1; min-height:10px;'></div>", unsafe_allow_html=True)
 
     # === 4. TARJETA DE PLAN ===
-    plan_text = f"Faltan {dias_restantes} días" if dias_restantes else "Sin límite"
+    plan_text = f"Tu suscripción vence en {dias_restantes} días" if dias_restantes else "Sin límite de tiempo"
     st.markdown(f"""
         <div class="plan-card">
+            <div class="plan-star">⭐</div>
             <div class="plan-label">Estás en el plan</div>
             <div class="plan-name">{tipo_plan}</div>
             <div class="plan-days">{plan_text}</div>
-            <button class="plan-btn">Mejorar Plan</button>
+            <button class="plan-btn">Ver planes</button>
         </div>
     """, unsafe_allow_html=True)
 
     # === 5. USER FOOTER ===
     user_details_open = st.session_state.get("user_details_open", False)
+    u_name_display = u_email.split("@")[0].replace(".", " ").title()
     st.markdown(f"""
         <div class="user-footer">
             <div class="user-card">
                 <div class="user-avatar">👤</div>
                 <div class="user-info">
-                    <div class="user-email">{u_email}</div>
+                    <div class="user-name">{u_name_display}</div>
                     <div class="user-role">Administrador</div>
                 </div>
-                <div style="font-size:10px; color:#94A3B8;">{'▲' if user_details_open else '▼'}</div>
+                <div style="font-size:11px; color:#94A3B8;">{'▲' if user_details_open else '▼'}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
@@ -1421,92 +1444,41 @@ with st.sidebar:
     if user_details_open:
         st.markdown(f"""
             <div class="user-details open">
+                <div class="detail-row"><div class="detail-label">Email</div><div class="detail-value">{u_email}</div></div>
                 <div class="detail-row"><div class="detail-label">Negocio</div><div class="detail-value">{biz_name}</div></div>
                 <div class="detail-row"><div class="detail-label">RNC</div><div class="detail-value">{biz_rnc}</div></div>
                 <div class="detail-row"><div class="detail-label">Tel</div><div class="detail-value">{biz_tel}</div></div>
             </div>
         """, unsafe_allow_html=True)
 
-# === CSS CRÍTICO PARA OCULTAR BOTONES Y REPLICAR DISEÑO ===
+# === CSS CRÍTICO: BOTONES INVISIBLES SINCRONIZADOS ===
     st.markdown("""
         <style>
             .stButton > button {
                 position: absolute;
                 width: 100% !important;
-                height: 32px !important;
+                height: 44px !important;
                 background: transparent !important;
                 border: none !important;
                 color: transparent !important;
                 z-index: 100 !important;
                 cursor: pointer;
-                margin-top: -32px !important;
-                transition: background 0.2s;
+                margin-top: -44px !important;
+                box-shadow: none !important;
+                outline: none !important;
             }
-            .stButton > button:hover {
-                background: rgba(0,0,0,0.02) !important;
-                border: none !important;
-            }
-            .stButton > button:focus, .stButton > button:active {
+            .stButton > button:hover,
+            .stButton > button:focus,
+            .stButton > button:active {
                 background: transparent !important;
                 border: none !important;
                 box-shadow: none !important;
+                outline: none !important;
             }
-            .nav-btn {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                padding: 2px 16px;
-                border-radius: 12px;
-                margin-bottom: 0px !important;
-                color: #64748B;
-                font-weight: 500;
-                position: relative;
-                pointer-events: none;
-                height: 32px !important;
-            }
-            .nav-btn.active {
-                background: rgba(14, 165, 233, 0.1);
-                color: #0EA5E9;
-                font-weight: 600;
-            }
-            .nav-divider {
-                height: 1px;
-                background: #F1F5F9;
-                margin: 0px !important;
-            }
-            .user-footer {
-                background: white;
-                border-top: 1px solid #F1F5F9;
-                padding: 4px 8px !important;
-                position: relative;
-                pointer-events: none;
-            }
-            .user-card {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-            .user-avatar {
-                width: 38px;
-                height: 38px;
-                background: #F1F5F9;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 18px;
-            }
-            .user-info { flex-grow: 1; overflow: hidden; }
-            .user-email { font-size: 13px; font-weight: 600; color: #1E293B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-            .user-role { font-size: 11px; color: #94A3B8; }
             [data-testid="stSidebarUserContent"] {
                 padding-top: 0px !important;
                 margin-top: -80px !important;
                 gap: 0px !important;
-            }
-            .plan-card {
-                padding: 8px !important;
-                margin: 2px 12px !important;
             }
         </style>
     """, unsafe_allow_html=True)
