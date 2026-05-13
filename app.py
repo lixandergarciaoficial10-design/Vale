@@ -1100,318 +1100,271 @@ def obtener_prioridad(dias, balance, impagos=0):
 if "menu_principal" not in st.session_state:
     st.session_state["menu_principal"] = "Panel de Control"
 
-# Definir variables con valores por defecto para que la app no explote
-src_logo = st.session_state.get('logo_url', "https://via.placeholder.com/150")
-biz_name = st.session_state.get('nombre_negocio', "NOMBRE DEL NEGOCIO")
-biz_rnc = st.session_state.get('rnc_negocio', "000-00000-0")
-biz_tel = st.session_state.get('telefono_negocio', "809-000-0000")
-u_email = st.session_state.get('email_usuario', "usuario@correo.com")
-    
-st.markdown("""
-    <style>
-        [data-testid="stSidebar"] {
-            background-color: #F8F9FB !important;
-            min-width: 300px !important;
-            max-width: 300px !important;
-        }
- 
-        [data-testid="stSidebarUserContent"] {
-            padding: 0 !important;
-            display: flex !important;
-            flex-direction: column !important;
-            height: 100vh !important;
-            margin-top: -60px !important;
-            overflow: hidden !important;
-        }
- 
-        .sidebar-top {
-            flex: 0 0 auto;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding-bottom: 20px;
-            padding-right: 8px;
-        }
- 
-        .sidebar-spacer {
-            flex: 1 1 auto;
-        }
- 
-        .brand-section {
-            text-align: center;
-            padding: 30px 20px 20px;
-        }
- 
-        .logo-img {
-            height: 55px;
-            object-fit: contain;
-            margin-bottom: 15px;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-        }
- 
-        .brand-divider {
-            width: 30px;
-            height: 2px;
-            background: #0066FF;
-            margin: 0 auto 15px;
-            border-radius: 2px;
-        }
- 
-        .brand-title {
-            font-size: 15px;
-            font-weight: 800;
-            color: #1D1D1F;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-family: system-ui, -apple-system, sans-serif;
-            margin: 0;
-        }
- 
-        .check-icon {
-            width: 18px;
-            height: 18px;
-            fill: #0066FF;
-        }
- 
-        .info-card {
-            background: white;
-            border-radius: 16px;
-            padding: 16px 18px;
-            margin: 0 18px 25px;
-            border: 1px solid #E5E7EB;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-        }
- 
-        .info-item {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 12px;
-            align-items: flex-start;
-        }
- 
-        .info-item:last-child {
-            margin-bottom: 0;
-        }
- 
-        .info-icon {
-            width: 16px;
-            height: 16px;
-            flex-shrink: 0;
-            margin-top: 2px;
-            color: #999;
-            stroke: currentColor;
-            fill: none;
-            stroke-width: 1.5;
-        }
- 
-        .info-text {
-            flex: 1;
-            min-width: 0;
-        }
- 
-        .info-label {
-            font-size: 9px;
-            color: #86868B;
-            text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-            margin: 0 0 2px 0;
-        }
- 
-        .info-value {
-            font-size: 12px;
-            color: #1D1D1F;
-            font-weight: 500;
-            word-break: break-word;
-            margin: 0;
-            line-height: 1.3;
-        }
- 
-        div[role="radiogroup"] {
-            gap: 2px !important;
-            padding: 0 12px !important;
-        }
- 
-        div[role="radio"] {
-            padding: 11px 14px !important;
-            border-radius: 10px !important;
-            border: none !important;
-            border-left: 3px solid transparent !important;
-            transition: all 0.15s ease !important;
-            background: transparent !important;
-            margin: 0 !important;
-        }
- 
-        div[role="radio"][aria-checked="false"] {
-            border-left-color: transparent !important;
-        }
- 
-        div[role="radio"][aria-checked="false"] p {
-            color: #424245 !important;
-            font-weight: 400 !important;
-            font-size: 13px !important;
-        }
- 
-        div[role="radio"][aria-checked="true"] {
-            background-color: #F0F5FF !important;
-            border-left-color: #0066FF !important;
-        }
- 
-        div[role="radio"][aria-checked="true"] p {
-            color: #0066FF !important;
-            font-weight: 600 !important;
-            font-size: 13px !important;
-        }
- 
-        div[role="radio"] p {
-            margin: 0 !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 11px !important;
-        }
- 
-        div[role="radio"] p::before {
-            font-family: "Font Awesome 6 Free" !important;
-            font-weight: 900 !important;
-            display: inline-block !important;
-            width: 16px !important;
-            text-align: center !important;
-            opacity: 0.75 !important;
-            flex-shrink: 0 !important;
-            font-size: 14px !important;
-        }
- 
-        div[role="radio"]:nth-of-type(1) p::before { content: "\\f00a"; }
-        div[role="radio"]:nth-of-type(2) p::before { content: "\\f155"; }
-        div[role="radio"]:nth-of-type(4) p::before { content: "\\f055"; }
-        div[role="radio"]:nth-of-type(5) p::before { content: "\\f09d"; }
-        div[role="radio"]:nth-of-type(6) p::before { content: "\\f201"; }
-        div[role="radio"]:nth-of-type(7) p::before { content: "\\f0ae"; }
-        div[role="radio"]:nth-of-type(8) p::before { content: "\\f013"; }
- 
-        [data-testid="stSidebarNav"] { display: none !important; }
- 
-        .footer-section {
-            flex: 0 0 auto;
-            padding: 20px 0 0;
-            border-top: 1px solid #F2F2F7;
-            background: #F8F9FB;
-            text-align: center;
-        }
- 
-        .footer-by {
-            font-size: 10px;
-            color: #86868B;
-            font-weight: 500;
-            margin: 0 0 8px 0;
-        }
- 
-        .footer-logo {
-            height: 32px;
-            object-fit: contain;
-            margin-bottom: 6px;
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-        }
- 
-        .footer-text {
-            font-size: 10px;
-            color: #A1A1A6;
-            font-weight: 400;
-            margin: 0;
-        }
-    </style>
-""", unsafe_allow_html=True)
- 
-# ============================================================================
-# SIDEBAR
-# ============================================================================
- 
+import streamlit as st
+import base64
+
+# --- 0. INICIALIZACIÓN (Lógica intacta) ---
+if "menu_principal" not in st.session_state:
+    st.session_state["menu_principal"] = "Panel de Control"
+
+# --- 1. CARGA DE DATOS SUPABASE (Lógica Intacta) ---
+if "user" in st.session_state and st.session_state.user:
+    if "datos_validados" not in st.session_state:
+        try:
+            # Aquí iría tu consulta real a Supabase como tenías
+            res = conn.table("configuracion").select("*").eq("user_id", st.session_state.user.id).execute()
+            if res.data:
+                conf = res.data[0]
+                st.session_state["nombre_negocio"] = conf.get("nombre_negocio", "Mi Negocio")
+                st.session_state["rnc"] = conf.get("rnc", "---")
+                st.session_state["telefono_negocio"] = conf.get("telefono", "---")
+                st.session_state["direccion_negocio"] = conf.get("direccion", "---")
+                st.session_state["mi_logo"] = conf.get("logo_base64")
+                st.session_state["datos_validados"] = True
+                st.rerun()
+        except Exception as e:
+            st.error(f"Error: {e}")
+
+# --- 2. SIDEBAR (DISEÑO NUEVO - RÉPLICA EXACTA DE LA IMAGEN) ---
 with st.sidebar:
-    # SECCIÓN SUPERIOR (Header + Info)
+    
+    # Variables de sesión
+    biz_name = st.session_state.get("nombre_negocio", "MI NEGOCIO").upper()
+    biz_rnc  = st.session_state.get("rnc", "0000000000000")
+    biz_tel  = st.session_state.get("telefono_negocio", "809-518-8880")
+    u_email  = st.session_state.user.email if st.session_state.get("user") else "elmejorjefe06@gmail.com"
+    logo_b64 = st.session_state.get("mi_logo")
+
+    # Lógica para el Logo (Si el cliente tiene logo, usa ese. Si no, usa el de Apple por defecto como en la imagen)
+    try:
+        if 'logo_b64' in locals() and logo_b64:
+            img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
+            src_logo = f"data:image/png;base64,{img_data}"
+        else:
+            # Logo por defecto tipo Apple si no hay logo subido
+            src_logo = "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"
+    except Exception:
+        src_logo = "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"
+
+    # --- CSS: ESTILO EXACTO DE LA IMAGEN ---
+    st.markdown("""
+        <style>
+            /* ANCHO DEL SIDEBAR */
+            [data-testid="stSidebar"] {
+                min-width: 320px !important;
+                max-width: 320px !important;
+                background-color: #FFFFFF !important;
+                border-right: 1px solid #F0F0F0;
+            }
+
+            /* QUITAR EL PADDING POR DEFECTO DE STREAMLIT */
+            [data-testid="stSidebar"] .stVerticalBlock {
+                padding-top: 20px !important;
+                padding-left: 20px !important;
+                padding-right: 20px !important;
+            }
+
+            /* ESTILO DE LA TARJETA DE DATOS (RNC, TELEFONO, ETC) */
+            .info-card {
+                background-color: #FBFBFB;
+                border-radius: 12px;
+                padding: 15px;
+                margin-top: 10px;
+                margin-bottom: 15px;
+                border: 1px solid #F0F0F0;
+                font-family: sans-serif;
+            }
+            .info-row {
+                display: flex;
+                align-items: center;
+                margin-bottom: 8px;
+                font-size: 12px;
+                color: #555;
+            }
+            .info-label {
+                color: #999;
+                font-size: 10px;
+                margin-bottom: 2px;
+                font-weight: 500;
+            }
+            .info-value {
+                font-weight: 500;
+                color: #1D1D1F;
+            }
+            .info-icon {
+                margin-right: 10px;
+                color: #666;
+                font-size: 16px;
+                width: 20px;
+                text-align: center;
+            }
+
+            /* LOGO CENTRADO */
+            .logo-container {
+                text-align: center;
+                margin-bottom: 5px;
+            }
+            .logo-img {
+                max-width: 60px;
+                height: auto;
+            }
+            .company-name {
+                text-align: center;
+                font-weight: 700;
+                font-size: 14px;
+                color: #1D1D1F;
+                margin-top: 5px;
+                letter-spacing: 0.5px;
+                margin-bottom: 5px;
+            }
+            .verified-badge {
+                color: #007AFF;
+                font-size: 14px;
+                margin-left: 5px;
+            }
+
+            /* ESTILO DE LOS BOTONES DE NAVEGACIÓN */
+            div[data-testid="stVerticalBlock"] > div[style*="flex-direction: column;"] > div[data-testid="stVerticalBlock"] {
+                gap: 5px !important;
+            }
+            
+            /* SIMULAR BOTONES CON BORDES REDONDEADOS */
+            .stRadio > div {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+            .stRadio label {
+                border-radius: 8px !important;
+                padding: 8px 10px !important;
+                background-color: transparent !important;
+                font-size: 14px !important;
+                color: #555 !important;
+                display: flex !important;
+                align-items: center !important;
+                width: 100% !important;
+            }
+            
+            /* BOTÓN ACTIVO (El que está seleccionado) - AZUL CLARO */
+            .stRadio label[data-baseweb="radio"]:has(input:checked) {
+                background-color: #F2F7FF !important;
+                color: #1E88E5 !important;
+                font-weight: 600 !important;
+                border-left: 4px solid #1E88E5 !important;
+                border-radius: 8px !important;
+            }
+
+            /* FOOTER "CobroYa" - EXACTAMENTE IGUAL A LA IMAGEN */
+            .footer-container {
+                margin-top: 40px;
+                text-align: center;
+                border-top: 1px solid #F0F0F0;
+                padding-top: 20px;
+            }
+            .footer-logo-text {
+                font-family: 'Segoe UI', sans-serif;
+                font-weight: 700;
+                font-size: 18px;
+                color: #2C3E50;
+                margin-bottom: 5px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            .cobroya-icon {
+                background: linear-gradient(135deg, #6C63FF, #3F3D9E);
+                color: white;
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-right: 8px;
+                font-size: 12px;
+            }
+            .footer-sub {
+                font-size: 10px;
+                color: #999;
+                margin-top: 2px;
+            }
+            
+            /* OCULTAR EL TÍTULO DEL RADIO */
+            .stRadio > div > p {
+                display: none !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # --- HEADER: LOGO Y NOMBRE ---
     st.markdown(f"""
-        <div class="sidebar-top">
-            <div class="brand-section">
-                <img src="{src_logo}" class="logo-img" alt="Logo">
-                <div class="brand-divider"></div>
-                <h2 class="brand-title">
-                    {biz_name}
-                    <svg class="check-icon" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                    </svg>
-                </h2>
+        <div class="logo-container">
+            <img src="{src_logo}" class="logo-img" onerror="this.src='https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg'">
+            <div class="company-name">
+                {biz_name} <span class="verified-badge">✔</span>
             </div>
- 
-            <div class="info-card">
-                <div class="info-item">
-                    <svg class="info-icon" viewBox="0 0 24 24">
-                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                    <div class="info-text">
-                        <p class="info-label">RNC</p>
-                        <p class="info-value">{biz_rnc}</p>
-                    </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # --- TARJETA DE INFORMACIÓN (RNC, TELÉFONO, CORREO) ---
+    # Usamos HTML + Unicode para simular los iconos exactos de la imagen
+    st.markdown(f"""
+        <div class="info-card">
+            <div class="info-row">
+                <span class="info-icon">📄</span>
+                <div>
+                    <div class="info-label">RNC</div>
+                    <div class="info-value">{biz_rnc}</div>
                 </div>
- 
-                <div class="info-item">
-                    <svg class="info-icon" viewBox="0 0 24 24">
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 18.92z"/>
-                    </svg>
-                    <div class="info-text">
-                        <p class="info-label">Teléfono</p>
-                        <p class="info-value">{biz_tel}</p>
-                    </div>
+            </div>
+            <div class="info-row">
+                <span class="info-icon">📞</span>
+                <div>
+                    <div class="info-label">Teléfono</div>
+                    <div class="info-value">{biz_tel}</div>
                 </div>
- 
-                <div class="info-item">
-                    <svg class="info-icon" viewBox="0 0 24 24">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                        <polyline points="22,6 12,13 2,6"/>
-                    </svg>
-                    <div class="info-text">
-                        <p class="info-label">Correo</p>
-                        <p class="info-value">{u_email}</p>
-                    </div>
+            </div>
+            <div class="info-row" style="margin-bottom:0;">
+                <span class="info-icon">✉️</span>
+                <div>
+                    <div class="info-label">Correo</div>
+                    <div class="info-value">{u_email}</div>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
- 
-    # MENÚ DE NAVEGACIÓN
-    opciones = [
-        "Panel de Control",
-        "Gestión de Cobros",
-        "👥 Todos mis Clientes",
-        "Nueva Cuenta por Cobrar",
-        "Cuentas por Pagar",
-        "IA Predictiva",
-        "Reportes",
-        "Configuración"
-    ]
- 
-    menu_principal = st.radio(
-        "NAV",
+
+    # --- NAVEGACIÓN (RÉPLICA EXACTA DE ICONOS) ---
+    # Mapeo de opciones visuales
+    opciones = ["Panel de Control", "Gestión de Cobros", "Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Reportes", "Configuración"]
+    
+    mapeo_iconos = {
+        "Panel de Control": "▣ Panel de Control",
+        "Gestión de Cobros": "💰 Gestión de Cobros",
+        "Todos mis Clientes": "👥 Todos mis Clientes  👫",
+        "Nueva Cuenta por Cobrar": "⊕ Nueva Cuenta por Cobrar",
+        "Cuentas por Pagar": "📥 Cuentas por Pagar",
+        "IA Predictiva": "📈 IA Predictiva",
+        "Reportes": "📊 Reportes",
+        "Configuración": "⚙️ Configuración"
+    }
+
+    # Mostramos el menú
+    menu_seleccionado = st.radio(
+        "Navegación",
         opciones,
         key="menu_principal",
+        format_func=lambda x: mapeo_iconos.get(x, x),
         label_visibility="collapsed"
     )
- 
-    # ESPACIADOR
-    st.markdown('<div class="sidebar-spacer"></div>', unsafe_allow_html=True)
- 
-    # FOOTER
-    st.markdown("""
-        <div class="footer-section">
-            <p class="footer-by">Powered by Lixander García</p>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" class="footer-logo" alt="CobroYa">
-            <p class="footer-text">Plataforma financiera inteligente</p>
+
+    # --- FOOTER EXACTO (COBROYA) ---
+    st.markdown(f"""
+        <div class="footer-container">
+            <div class="footer-logo-text">
+                <span class="cobroya-icon">C</span> CobroYa
+            </div>
+            <div class="footer-sub">Plataforma financiera inteligente</div>
         </div>
     """, unsafe_allow_html=True)
     
