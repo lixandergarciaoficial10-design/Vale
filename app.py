@@ -1297,7 +1297,7 @@ with st.sidebar:
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 2. CONTENIDO SUPERIOR: LOGO Y TARJETA DE DATOS (NIVEL APPLE) ---
+# --- 2. CONTENIDO SUPERIOR: LOGO Y TARJETA DE DATOS ---
     st.sidebar.markdown(f"""
         <div class="brand-header">
             <img src="{src_logo}" class="client-logo-img">
@@ -1378,6 +1378,7 @@ with st.sidebar:
             <div class="footer-slogan">Plataforma financiera inteligente</div>
         </div>
     """, unsafe_allow_html=True)
+    
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 if menu == "Panel de Control":
     from datetime import datetime, timedelta
