@@ -32,8 +32,36 @@ if "consulta_activa" not in st.session_state:
 if "datos_ruta_consultados" not in st.session_state:
     st.session_state.datos_ruta_consultados = []
 
+import streamlit as st
+from st_supabase_connection import SupabaseConnection
+
 # 1. CONFIGURACIÓN INICIAL Y CONEXIÓN
-st.set_page_config(page_title="CobroYa Global", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(
+    page_title="CobroYa", 
+    page_icon="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png", # He puesto el link de tu Supabase, asegúrate de que sea la ruta a tu logo
+    layout="wide", 
+    initial_sidebar_state="collapsed"
+)
+
+# ESTO QUITA LA BARRA DE ARRIBA Y EL LOGO DE STREAMLIT SIN ROMPER MENÚ
+st.markdown("""
+    <style>
+        /* Oculta la barra de encabezado de Streamlit */
+        header[data-testid="stHeader"] {
+            visibility: hidden;
+            height: 0%;
+        }
+        /* Oculta el menú de opciones (hamburguesa) pero permite que tu app funcione */
+        #MainMenu {visibility: hidden;}
+        /* Oculta el pie de página */
+        footer {visibility: hidden;}
+        /* Ajusta el espacio superior para que no quede un hueco blanco */
+        .block-container {
+            padding-top: 0rem;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
 conn = st.connection("supabase", type=SupabaseConnection)
 
 # Inicializar estados de sesión
