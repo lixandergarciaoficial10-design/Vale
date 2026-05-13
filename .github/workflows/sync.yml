@@ -1,16 +1,3 @@
----
-title: Sistema-Cobros
-emoji: 💰
-colorFrom: blue
-colorTo: green
-sdk: streamlit
-app_file: app.py
-pinned: false
----
-
-# Sistema de Cobros CobroYa
-Este es el repositorio oficial de mi SaaS de gestión financiera.
-
 name: Sync to Hugging Face Hub
 on:
   push:
