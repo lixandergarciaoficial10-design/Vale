@@ -1408,16 +1408,6 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # === PLAN CARD ===
-    st.markdown(f"""
-        <div class="plan-card">
-            <div class="plan-label">ESTÁS EN EL PLAN</div>
-            <div class="plan-name">{tipo_plan}</div>
-            <div class="plan-days">{dias_text}</div>
-            <button class="plan-btn">Ver Planes</button>
-        </div>
-    """, unsafe_allow_html=True)
-
 # === CSS CRÍTICO PARA OCULTAR BOTONES Y REPLICAR DISEÑO ===
     st.markdown("""
         <style>
