@@ -1141,7 +1141,7 @@ with st.sidebar:
     except Exception:
         src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-# --- 1. CSS: Estética Minimalista y Profesional ---
+    # --- 1. CSS: Estética Minimalista y Profesional ---
     st.markdown(f"""
         <style>
             /* 1. ESTRUCTURA DEL SIDEBAR (CERO SCROLL) */
@@ -1274,8 +1274,9 @@ with st.sidebar:
                 color: #1D1D1F !important;
                 top: 10px !important;
             }}
+
             /* INYECTOR DE ICONOS (Font Awesome) */
-            div[role="radio"] p::before {
+            div[role="radio"] p::before {{
                 font-family: "Font Awesome 6 Free";
                 font-weight: 900;
                 margin-right: 12px;
@@ -1283,16 +1284,16 @@ with st.sidebar:
                 width: 18px;
                 text-align: center;
                 opacity: 0.8;
-            }
+            }}
 
-            /* Mapeo según el orden de tus opciones */
-            div[role="radio"] > label:nth-of-type(1) p::before { content: "\f00a"; } /* Panel */
-            div[role="radio"] > label:nth-of-type(2) p::before { content: "\f155"; } /* Gestión */
+            /* Mapeo según el orden de tus opciones con llaves dobles corregidas */
+            div[role="radio"] > label:nth-of-type(1) p::before {{ content: "\\f00a"; }} /* Panel */
+            div[role="radio"] > label:nth-of-type(2) p::before {{ content: "\\f155"; }} /* Gestión */
             /* La opción 3 (Clientes) usa el emoji directo en el texto, así que no le ponemos content aquí */
-            div[role="radio"] > label:nth-of-type(4) p::before { content: "\f055"; } /* Nueva Cuenta */
-            div[role="radio"] > label:nth-of-type(5) p::before { content: "\f09d"; } /* Cuentas Pagar */
-            div[role="radio"] > label:nth-of-type(6) p::before { content: "\f201"; } /* IA */
-            div[role="radio"] > label:nth-of-type(7) p::before { content: "\f013"; } /* Config */
+            div[role="radio"] > label:nth-of-type(4) p::before {{ content: "\\f055"; }} /* Nueva Cuenta */
+            div[role="radio"] > label:nth-of-type(5) p::before {{ content: "\\f09d"; }} /* Cuentas Pagar */
+            div[role="radio"] > label:nth-of-type(6) p::before {{ content: "\\f201"; }} /* IA */
+            div[role="radio"] > label:nth-of-type(7) p::before {{ content: "\\f013"; }} /* Config */
         </style>
     """, unsafe_allow_html=True)
 
