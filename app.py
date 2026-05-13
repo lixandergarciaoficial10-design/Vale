@@ -38,7 +38,7 @@ from st_supabase_connection import SupabaseConnection
 # 1. CONFIGURACIÓN INICIAL Y CONEXIÓN
 st.set_page_config(
     page_title="CobroYa", 
-    page_icon="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1)%20(1).png", # He puesto el link de tu Supabase, asegúrate de que sea la ruta a tu logo
+    page_icon="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/Adobe%20Express%20-%20file.png", # He puesto el link de tu Supabase, asegúrate de que sea la ruta a tu logo
     layout="wide", 
     initial_sidebar_state="collapsed"
 )
