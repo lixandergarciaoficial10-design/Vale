@@ -1099,7 +1099,8 @@ def obtener_prioridad(dias, balance, impagos=0):
 # --- 0. INICIALIZACIÓN (Evita errores de variable no definida) ---
 if "menu_principal" not in st.session_state:
     st.session_state["menu_principal"] = "Panel de Control"
-
+    
+src_logo = "https://tu-link-del-logo-aqui.com/logo.png"
 st.markdown("""
     <style>
         [data-testid="stSidebar"] {
