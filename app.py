@@ -1505,7 +1505,7 @@ with st.sidebar:
         </style>
     """, unsafe_allow_html=True)
 
-    # === NAVEGACIÓN ===
+# === NAVEGACIÓN ===
     st.markdown('<div class="nav-wrapper" style="padding: 10px;">', unsafe_allow_html=True)
 
     opciones = [
@@ -1522,7 +1522,6 @@ with st.sidebar:
         is_active = st.session_state.get("menu_principal") == label
         active_class = "active" if is_active else ""
 
-        # 1. Dibujamos el diseño visual (El texto y el icono)
         st.markdown(f"""
             <div class="nav-btn {active_class}">
                 <span style="font-size: 18px;">{icon}</span>
@@ -1530,21 +1529,30 @@ with st.sidebar:
             </div>
         """, unsafe_allow_html=True)
 
-        # 2. El botón invisible (Cubre toda el área de arriba)
         if st.button("", key=f"nav_action_{i}", use_container_width=True):
             st.session_state["menu_principal"] = label
             st.rerun()
 
-        # Separadores
         if i == 1 or i == 5:
             st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # === ESPACIADOR ===
-    st.markdown("<div style='flex-grow: 1; height: 100px;'></div>", unsafe_allow_html=True)
+    # === ESTA ES LA PARTE QUE CAMBIA: EMPUJAR HACIA ABAJO Y AGREGAR EL PLAN ===
+    # Creamos un espacio flexible para mandar lo siguiente al fondo
+    st.markdown("<div style='flex-grow: 1; min-height: 20px;'></div>", unsafe_allow_html=True)
 
-    # === USER FOOTER ===
+    # Bloque visual del Plan (Copiando el diseño de la imagen)
+    st.markdown(f"""
+        <div class="plan-card">
+            <div class="plan-label">Estás en el plan</div>
+            <div class="plan-name">Starter</div>
+            <div class="plan-days">20 días restantes</div>
+            <button class="plan-btn">Mejorar Plan</button>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # === USER FOOTER (Se mantiene al final) ===
     user_details_open = st.session_state.get("user_details_open", False)
 
     st.markdown(f"""
@@ -1560,7 +1568,6 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # Botón invisible para el footer (Toggle)
     if st.button("", key="user_toggle_action", use_container_width=True):
         st.session_state["user_details_open"] = not user_details_open
         st.rerun()
@@ -1581,7 +1588,7 @@ with st.sidebar:
             <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" style="width: 80px;">
         </div>
     """, unsafe_allow_html=True)
-
+    
 menu = st.session_state.get("menu_principal", "Panel de Control")
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 if menu == "Panel de Control":
