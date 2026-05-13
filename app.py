@@ -1095,18 +1095,10 @@ def obtener_prioridad(dias, balance, impagos=0):
     score = (dias * 0.5) + ((balance / 1000) * 0.3) + (impagos * 0.2)
     return score
 
-# ============================================================================
-# REDISEÑO COSMÉTICO RADICAL - SIDEBAR COBROYA (VERSIÓN MEJORADA)
-# Mantiene TODA la lógica de sesión y Supabase intacta.
-# Solución robusta para navegación con session_state.
-# ============================================================================
 
 # --- 0. INICIALIZACIÓN (Evita errores de variable no definida) ---
 if "menu_principal" not in st.session_state:
     st.session_state["menu_principal"] = "Panel de Control"
-
-if "user_details_open" not in st.session_state:
-    st.session_state["user_details_open"] = False
 
 # --- 1. CARGA DE DATOS SUPABASE (Lógica Intacta) ---
 if "user" in st.session_state and st.session_state.user:
@@ -1120,370 +1112,175 @@ if "user" in st.session_state and st.session_state.user:
                 st.session_state["telefono_negocio"] = conf.get("telefono", "---")
                 st.session_state["direccion_negocio"] = conf.get("direccion", "---")
                 st.session_state["mi_logo"] = conf.get("logo_base64")
-                st.session_state["tipo_plan"] = conf.get("tipo_plan", "Gratis")
-                st.session_state["fecha_vencimiento"] = conf.get("fecha_vencimiento")
                 st.session_state["datos_validados"] = True
                 st.rerun()
         except Exception as e:
             st.error(f"Error: {e}")
 
-# --- 2. CÁLCULO DE DÍAS RESTANTES DEL PLAN ---
-from datetime import datetime, date
-
-def calcular_dias_plan(fecha_vencimiento_str):
-    """Calcula días restantes del plan."""
-    if not fecha_vencimiento_str:
-        return None
-    try:
-        if isinstance(fecha_vencimiento_str, str):
-            fecha_venc = datetime.strptime(fecha_vencimiento_str, "%Y-%m-%d").date()
-        else:
-            fecha_venc = fecha_vencimiento_str
-        dias = (fecha_venc - date.today()).days
-        return max(dias, 0)
-    except Exception:
-        return None
-
-dias_restantes = calcular_dias_plan(st.session_state.get("fecha_vencimiento"))
-
-# ============================================================================
+# --- 2. SIDEBAR (DISEÑO BLOQUEADO A 200PX) ---
 with st.sidebar:
+    import base64
     
-    # === VARIABLES ===
+    URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
+
+    # Variables de sesión
     biz_name = st.session_state.get("nombre_negocio", "MI NEGOCIO").upper()
-    biz_rnc = st.session_state.get("rnc", "---")
-    biz_dir = st.session_state.get("direccion_negocio", "---")
-    biz_tel = st.session_state.get("telefono_negocio", "---")
-    u_email = st.session_state.get("user", {}).email if st.session_state.get("user") else "usuario@email.com"
-    tipo_plan = st.session_state.get("tipo_plan", "Started").capitalize()
-    
-    # Calcular días
-    fecha_venc = st.session_state.get("fecha_vencimiento")
-    if fecha_venc:
-        try:
-            if isinstance(fecha_venc, str):
-                fecha_venc = datetime.strptime(fecha_venc, "%Y-%m-%d").date()
-            dias = (fecha_venc - date.today()).days
-            dias_text = f"Faltan {max(dias, 0)} días"
-        except:
-            dias_text = "Sin límite"
-    else:
-        dias_text = "Faltan 20 días"  # Default
+    biz_rnc  = st.session_state.get("rnc", "---")
+    biz_dir  = st.session_state.get("direccion_negocio", "---")
+    biz_tel  = st.session_state.get("telefono_negocio", "---")
+    logo_b64 = st.session_state.get("mi_logo")
+    u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-    URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"    
-# === CSS (DISEÑO PREMIUM) ===
-    st.markdown("""
+# --- 1. SOLUCIÓN AL NAMEERROR: Definición previa de src_logo ---
+    try:
+        if 'logo_b64' in locals() and logo_b64:
+            img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
+            src_logo = f"data:image/png;base64,{img_data}"
+        else:
+            src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+    except Exception:
+        src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+
+# --- 1. CSS: Estética Minimalista y Profesional ---
+    st.markdown(f"""
         <style>
-            :root {
-                --primary: #6366f1;
-                --primary-light: #eef2ff;
-                --text-dark: #1f2937;
-                --text-muted: #6b7280;
-                --border: #e5e7eb;
-                --bg: #f9fafb;
-                --bg-white: #ffffff;
-            }
+            /* EXPANSIÓN Y SIDEBAR */
+            [data-testid="stSidebar"][aria-expanded="true"] {{
+                min-width: 300px !important;
+                max-width: 300px !important;
+                background-color: #FBFBFD !important;
+            }}
+            [data-testid="stSidebar"][aria-expanded="false"] {{
+                min-width: 0px !important;
+                max-width: 0px !important;
+                width: 0px !important;
+            }}
 
-            [data-testid="stSidebar"][aria-expanded="true"] {
-                min-width: 260px !important;
-                max-width: 260px !important;
-                background-color: white !important;
-                box-shadow: 2px 0 12px rgba(0,0,0,0.06) !important;
-            }
-
-            [data-testid="stSidebarUserContent"] {
+            /* BOTÓN DE MENÚ */
+            [data-testid="stSidebarHeader"] {{
                 padding: 0px !important;
+                background-color: transparent !important;
+            }}
+            button[data-testid="stSidebarCollapseButton"] {{
+                background-color: #1D1D1F !important;
+                color: white !important;
+                border-radius: 8px !important;
+                margin: 10px !important;
+                z-index: 100000 !important;
+            }}
+
+            /* LOGO AL TECHO */
+            [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
-                padding-bottom: 0px !important;
-                margin-top: -60px !important;
-                gap: 0px !important;
-                display: flex !important;
-                flex-direction: column !important;
-            }
+                margin-top: -50px !important; 
+            }}
 
-            .logo-header {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 18px 20px 14px 20px;
-                border-bottom: 1px solid var(--border);
-                margin-top: -15px !important;
-                margin-bottom: 0px !important;
-            }
-            .logo-header img {
-                max-height: 36px !important;
+            .client-brand-card {{
+                text-align: center; 
+                padding: 15px; 
+                background: white;
+                border-bottom: 1px solid #F2F2F7;
+                margin-bottom: 20px;
+            }}
+            
+            .client-logo-img {{
+                max-width: 90%;
+                height: 55px;
                 object-fit: contain;
-            }
+            }}
 
-            div[role="radiogroup"] {
-                display: none !important;
-            }
+            /* NAVEGACIÓN */
+            div[role="radiogroup"] {{
+                gap: 12px !important;
+                padding-left: 10px !important;
+            }}
+            div[role="radio"] p {{ 
+                font-size: 14px !important; 
+                color: #1D1D1F !important;
+                font-weight: 400;
+                padding: 6px 0 !important;
+            }}
 
-            .nav-wrapper {
-                padding: 10px 12px 6px 12px;
+            /* FOOTER PROFESIONAL (Minimalista) */
+            .absolute-footer {{
+                margin-top: 40px !important;
+                padding: 20px 0px 10px 0px !important;
+                border-top: 1px solid #F2F2F7;
+                text-align: center;
                 display: flex;
                 flex-direction: column;
-                gap: 2px !important;
-            }
-
-            .nav-btn {
-                display: flex;
                 align-items: center;
-                gap: 12px;
-                padding: 0px 16px;
-                margin-bottom: 0px !important;
-                border: none;
-                background: transparent;
-                color: var(--text-muted);
-                border-radius: 12px;
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: 500;
-                transition: background 0.2s ease, color 0.2s ease;
                 width: 100%;
-                text-align: left;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-                height: 44px !important;
-                position: relative;
-                pointer-events: none;
-            }
-            .nav-btn span:first-child {
-                font-size: 20px;
-                width: 24px;
-                text-align: center;
-                flex-shrink: 0;
-            }
-            .nav-btn:hover {
-                background-color: var(--bg);
-                color: var(--text-dark);
-            }
-            .nav-btn.active {
-                background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
-                color: white !important;
-                font-weight: 600;
-                box-shadow: 0 4px 14px rgba(99,102,241,0.35);
-            }
+            }}
 
-            .nav-divider {
-                height: 1px;
-                background-color: var(--border);
-                margin: 4px 0px !important;
-            }
-
-            .plan-card {
-                background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-                border-radius: 16px;
-                padding: 16px !important;
-                margin: 8px 14px !important;
-                color: white;
-                text-align: center;
-                box-shadow: 0 6px 18px rgba(99,102,241,0.35);
-            }
-            .plan-star {
-                font-size: 22px;
-                margin-bottom: 4px;
-            }
-            .plan-label {
-                font-size: 12px;
-                font-weight: 500;
-                opacity: 0.9;
-                margin-bottom: 2px;
-            }
-            .plan-name {
-                font-size: 20px;
-                font-weight: 700;
-                margin-bottom: 2px;
-            }
-            .plan-days {
-                font-size: 12px;
-                opacity: 0.85;
-                margin-bottom: 12px;
-            }
-            .plan-btn {
-                background-color: rgba(255,255,255,0.22);
-                color: white;
-                border: 1.5px solid rgba(255,255,255,0.55);
-                border-radius: 10px;
-                padding: 8px 14px;
-                font-size: 13px;
-                font-weight: 600;
-                cursor: pointer;
-                width: 100%;
-                transition: all 0.2s ease;
-                letter-spacing: 0px;
-            }
-
-            .user-footer {
-                width: 100%;
-                padding: 8px 12px !important;
-                border-top: 1px solid var(--border);
-                background: white;
-            }
-            .user-card {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                padding: 8px 12px;
-                border-radius: 12px;
-                cursor: pointer;
-                transition: background 0.2s ease;
-                width: 100%;
-            }
-            .user-card:hover { background-color: var(--bg); }
-            .user-avatar {
-                width: 38px;
-                height: 38px;
-                border-radius: 50%;
-                background: linear-gradient(135deg, #6366f1, #8b5cf6);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 18px;
-                flex-shrink: 0;
-                color: white;
-                overflow: hidden;
-            }
-            .user-avatar img {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                border-radius: 50%;
-            }
-            .user-info { flex: 1; min-width: 0; }
-            .user-name {
-                font-size: 13px;
-                color: var(--text-dark);
-                font-weight: 600;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-            .user-role { font-size: 11px; color: var(--text-muted); }
-            .user-details {
-                background-color: var(--bg);
-                border-radius: 10px;
-                padding: 10px;
-                margin: 4px 14px 8px 14px;
-                border: 1px solid var(--border);
-                display: none;
-            }
-            .user-details.open { display: block; }
-            .detail-row { margin-bottom: 6px; font-size: 11px; }
-            .detail-label {
-                color: var(--text-muted);
-                font-size: 9px;
+            .powered-by {{
+                font-size: 9px !important;
+                color: #A1A1A6;
                 text-transform: uppercase;
-                font-weight: 600;
-                margin-bottom: 1px;
-            }
-            .detail-value { color: var(--text-dark); font-weight: 500; }
+                letter-spacing: 1.5px;
+                font-weight: 500;
+                margin-bottom: 10px;
+            }}
+
+            .footer-logo-img {{
+                width: 100px; /* Tamaño equilibrado para verse serio */
+                height: auto;
+                opacity: 0.8;
+            }}
+
+            [data-testid="stAppViewBlockContainer"] {{
+                max-width: 100% !important;
+            }}
         </style>
     """, unsafe_allow_html=True)
 
-    # === 1. LOGO HEADER ===
-    st.markdown(f'<div class="logo-header"><img src="{"https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"}"></div>', unsafe_allow_html=True)
-
-    # === 2. NAVEGACIÓN ===
-    st.markdown('<div class="nav-wrapper">', unsafe_allow_html=True)
-    opciones = [
-        ("Panel de Control", "🏠"),
-        ("Gestión de Cobros", "💰"),
-        ("👥 Todos mis Clientes", "👥"),
-        ("Nueva Cuenta por Cobrar", "➕"),
-        ("Cuentas por Pagar", "📉"),
-        ("IA Predictiva", "🧠"),
-        ("Configuración", "⚙️")
-    ]
-
-    for i, (label, icon) in enumerate(opciones):
-        is_active = st.session_state.get("menu_principal") == label
-        active_class = "active" if is_active else ""
-        st.markdown(f'<div class="nav-btn {active_class}"><span style="font-size:20px;">{icon}</span><span>{label}</span></div>', unsafe_allow_html=True)
-        if st.button("", key=f"nav_action_{i}", use_container_width=True):
-            st.session_state["menu_principal"] = label
-            st.rerun()
-        if i == 1 or i == 5:
-            st.markdown('<div class="nav-divider"></div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # === 3. ESPACIADOR FLEXIBLE ===
-    st.markdown("<div style='flex-grow:1; min-height:10px;'></div>", unsafe_allow_html=True)
-
-    # === 4. TARJETA DE PLAN ===
-    plan_text = f"Tu suscripción vence en {dias_restantes} días" if dias_restantes else "Sin límite de tiempo"
-    st.markdown(f"""
-        <div class="plan-card">
-            <div class="plan-star">⭐</div>
-            <div class="plan-label">Estás en el plan</div>
-            <div class="plan-name">{tipo_plan}</div>
-            <div class="plan-days">{plan_text}</div>
-            <button class="plan-btn">Ver planes</button>
-        </div>
-    """, unsafe_allow_html=True)
-
-    # === 5. USER FOOTER ===
-    user_details_open = st.session_state.get("user_details_open", False)
-    u_name_display = u_email.split("@")[0].replace(".", " ").title()
-    st.markdown(f"""
-        <div class="user-footer">
-            <div class="user-card">
-                <div class="user-avatar">👤</div>
-                <div class="user-info">
-                    <div class="user-name">{u_name_display}</div>
-                    <div class="user-role">Administrador</div>
+    # --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
+    st.sidebar.markdown(f"""
+        <div class="client-brand-card">
+            <img src="{src_logo}" class="client-logo-img">
+            <div style="font-family: sans-serif; margin-top: 10px;">
+                <b style="font-size:14px; color:#1D1D1F;">{biz_name}</b>
+                <div style="font-size:10px; color:#86868B; margin-top:5px;">
+                    <p style="margin:0;">RNC: {biz_rnc} | 📞 {biz_tel}</p>
+                    <p style='color:#1D1D1F; font-weight:600; margin-top:3px;'>{u_email}</p>
                 </div>
-                <div style="font-size:11px; color:#94A3B8;">{'▲' if user_details_open else '▼'}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    if st.button("", key="user_toggle_action", use_container_width=True):
-        st.session_state["user_details_open"] = not user_details_open
-        st.rerun()
+# --- 3. NAVEGACIÓN (Corregida para 1 solo clic) ---
+    opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
+    
+    mapeo_visual = {
+        "Panel de Control": "🏠 Panel de Control",
+        "Gestión de Cobros": "💰 Gestión de Cobros",
+        "👥 Todos mis Clientes": "👥 Todos mis Clientes",
+        "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
+        "Cuentas por Pagar": "📉 Cuentas por Pagar",
+        "IA Predictiva": "🧠 IA Predictiva",
+        "Configuración": "⚙️ Configuración"
+    }
 
-    if user_details_open:
-        st.markdown(f"""
-            <div class="user-details open">
-                <div class="detail-row"><div class="detail-label">Email</div><div class="detail-value">{u_email}</div></div>
-                <div class="detail-row"><div class="detail-label">Negocio</div><div class="detail-value">{biz_name}</div></div>
-                <div class="detail-row"><div class="detail-label">RNC</div><div class="detail-value">{biz_rnc}</div></div>
-                <div class="detail-row"><div class="detail-label">Tel</div><div class="detail-value">{biz_tel}</div></div>
-            </div>
-        """, unsafe_allow_html=True)
+    # Al usar key="menu_principal", el radio lee y escribe 
+    # directamente en st.session_state["menu_principal"]
+    menu = st.sidebar.radio(
+        "NAV",
+        opciones,
+        key="menu_principal",
+        format_func=lambda x: mapeo_visual.get(x, x),
+        label_visibility="collapsed"
+    )
 
-# === CSS CRÍTICO: BOTONES INVISIBLES SINCRONIZADOS ===
-    st.markdown("""
-        <style>
-            .stButton > button {
-                position: absolute;
-                width: 100% !important;
-                height: 44px !important;
-                background: transparent !important;
-                border: none !important;
-                color: transparent !important;
-                z-index: 100 !important;
-                cursor: pointer;
-                margin-top: -44px !important;
-                box-shadow: none !important;
-                outline: none !important;
-            }
-            .stButton > button:hover,
-            .stButton > button:focus,
-            .stButton > button:active {
-                background: transparent !important;
-                border: none !important;
-                box-shadow: none !important;
-                outline: none !important;
-            }
-            [data-testid="stSidebarUserContent"] {
-                padding-top: 0px !important;
-                margin-top: -80px !important;
-                gap: 0px !important;
-            }
-        </style>
+    # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
+    st.sidebar.markdown(f"""
+        <div class="absolute-footer">
+            <span class="powered-by">Powered by Lixander García</span>
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
+                 class="footer-logo-img" 
+                 onerror="this.style.display='none'">
+        </div>
     """, unsafe_allow_html=True)
     
-menu = st.session_state.get("menu_principal", "Panel de Control")
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 if menu == "Panel de Control":
     from datetime import datetime, timedelta
