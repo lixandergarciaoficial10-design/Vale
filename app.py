@@ -1144,125 +1144,214 @@ with st.sidebar:
 # --- 1. CSS: Estética Minimalista y Profesional ---
     st.markdown(f"""
         <style>
-            /* EXPANSIÓN Y SIDEBAR */
-            [data-testid="stSidebar"][aria-expanded="true"] {{
+            /* 1. ESTRUCTURA DEL SIDEBAR (CERO SCROLL) */
+            [data-testid="stSidebar"] {{
+                background-color: #F8F9FB !important;
                 min-width: 300px !important;
                 max-width: 300px !important;
-                background-color: #FBFBFD !important;
-            }}
-            [data-testid="stSidebar"][aria-expanded="false"] {{
-                min-width: 0px !important;
-                max-width: 0px !important;
-                width: 0px !important;
             }}
 
-            /* BOTÓN DE MENÚ */
-            [data-testid="stSidebarHeader"] {{
-                padding: 0px !important;
-                background-color: transparent !important;
-            }}
-            button[data-testid="stSidebarCollapseButton"] {{
-                background-color: #1D1D1F !important;
-                color: white !important;
-                border-radius: 8px !important;
-                margin: 10px !important;
-                z-index: 100000 !important;
-            }}
-
-            /* LOGO AL TECHO */
             [data-testid="stSidebarUserContent"] {{
-                padding-top: 0px !important;
-                margin-top: -50px !important; 
-            }}
-
-            .client-brand-card {{
-                text-align: center; 
-                padding: 15px; 
-                background: white;
-                border-bottom: 1px solid #F2F2F7;
-                margin-bottom: 20px;
-            }}
-            
-            .client-logo-img {{
-                max-width: 90%;
-                height: 55px;
-                object-fit: contain;
-            }}
-
-            /* NAVEGACIÓN */
-            div[role="radiogroup"] {{
-                gap: 12px !important;
-                padding-left: 10px !important;
-            }}
-            div[role="radio"] p {{ 
-                font-size: 14px !important; 
-                color: #1D1D1F !important;
-                font-weight: 400;
-                padding: 6px 0 !important;
-            }}
-
-            /* FOOTER PROFESIONAL (Minimalista) */
-            .absolute-footer {{
-                margin-top: 40px !important;
-                padding: 20px 0px 10px 0px !important;
-                border-top: 1px solid #F2F2F7;
-                text-align: center;
+                padding: 0px !important;
                 display: flex;
                 flex-direction: column;
+                justify-content: space-between; /* Empuja el footer al fondo */
+                height: 100vh !important; /* Altura total de la ventana */
+                margin-top: -60px !important; /* Elimina el espacio superior de Streamlit */
+                overflow: hidden !important; /* Prohíbe el scroll */
+            }}
+
+            /* 2. DISEÑO DEL HEADER Y MARCA */
+            .brand-header {{
+                text-align: center;
+                padding: 4vh 20px 2vh 20px;
+            }}
+            .client-logo-img {{
+                height: 55px; /* Tamaño exacto según imagen */
+                margin-bottom: 1.5vh;
+                object-fit: contain;
+            }}
+            .brand-title {{
+                font-size: 16px;
+                font-weight: 800;
+                color: #1D1D1F;
+                display: flex;
                 align-items: center;
-                width: 100%;
-            }}
-
-            .powered-by {{
-                font-size: 9px !important;
-                color: #A1A1A6;
+                justify-content: center;
+                gap: 5px;
                 text-transform: uppercase;
-                letter-spacing: 1.5px;
+                letter-spacing: 0.5px;
+                font-family: 'SF Pro Display', -apple-system, sans-serif;
+            }}
+
+            /* 3. TARJETA DE INFORMACIÓN (LA CAJA BLANCA) */
+            .info-box {{
+                background: white;
+                border-radius: 16px;
+                padding: 1.8vh 20px;
+                margin: 0 20px 3vh 20px;
+                border: 1px solid #E5E7EB;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+            }}
+            .info-row {{
+                display: flex;
+                align-items: center;
+                margin-bottom: 1.2vh;
+                gap: 12px;
+            }}
+            .info-icon-svg {{
+                width: 16px;
+                height: 16px;
+                opacity: 0.5;
+            }}
+            .info-text-container {{
+                display: flex;
+                flex-direction: column;
+            }}
+            .info-label {{
+                font-size: 10px;
+                color: #86868B;
+                text-transform: uppercase;
+                font-weight: 700;
+                line-height: 1.2;
+            }}
+            .info-value {{
+                font-size: 12px;
+                color: #1D1D1F;
                 font-weight: 500;
-                margin-bottom: 10px;
+                word-break: break-all;
             }}
 
+            /* 4. NAVEGACIÓN (LOS BOTONES DEL MENÚ) */
+            div[role="radiogroup"] {{
+                gap: 2px !important;
+                padding: 0 15px !important;
+            }}
+            div[role="radio"] {{
+                padding: 10px 15px !important;
+                border-radius: 12px !important;
+                border: 1px solid transparent !important;
+                transition: 0.2s;
+            }}
+            /* Estilo cuando el botón está SELECCIONADO */
+            div[role="radio"][aria-checked="true"] {{
+                background-color: #F0F5FF !important;
+                border: 1px solid #D1E3FF !important;
+            }}
+            div[role="radio"][aria-checked="true"] p {{
+                color: #0066FF !important;
+                font-weight: 600 !important;
+            }}
+            /* Estilo del texto base */
+            div[role="radio"] p {{
+                font-size: 14px !important;
+                color: #424245 !important;
+                margin: 0 !important;
+            }}
+
+            /* 5. FOOTER (LOGO COBROYA) */
+            .absolute-footer {{
+                padding: 2.5vh 0;
+                text-align: center;
+                border-top: 1px solid #F2F2F7;
+                background: #F8F9FB;
+            }}
             .footer-logo-img {{
-                width: 100px; /* Tamaño equilibrado para verse serio */
+                width: 105px;
                 height: auto;
-                opacity: 0.8;
+                margin-bottom: 6px;
+            }}
+            .footer-slogan {{
+                font-size: 10px;
+                color: #A1A1A6;
+                font-weight: 400;
             }}
 
-            [data-testid="stAppViewBlockContainer"] {{
-                max-width: 100% !important;
+            /* OCULTAR ELEMENTOS NATIVOS MOLESTOS */
+            [data-testid="stSidebarNav"] {{display: none !important;}}
+            [data-testid="stSidebarCollapseButton"] {{
+                background-color: #F8F9FB !important;
+                color: #1D1D1F !important;
+                top: 10px !important;
             }}
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
+    # --- 2. CONTENIDO SUPERIOR: LOGO Y TARJETA DE DATOS (NIVEL APPLE) ---
     st.sidebar.markdown(f"""
-        <div class="client-brand-card">
+        <div class="brand-header">
             <img src="{src_logo}" class="client-logo-img">
-            <div style="font-family: sans-serif; margin-top: 10px;">
-                <b style="font-size:14px; color:#1D1D1F;">{biz_name}</b>
-                <div style="font-size:10px; color:#86868B; margin-top:5px;">
-                    <p style="margin:0;">RNC: {biz_rnc} | 📞 {biz_tel}</p>
-                    <p style='color:#1D1D1F; font-weight:600; margin-top:3px;'>{u_email}</p>
+            
+            <div style="width: 30px; height: 2px; background: #0066FF; margin: 0 auto 1vh auto; border-radius: 2px;"></div>
+            
+            <div class="brand-title">
+                {biz_name} 
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#0066FF" style="margin-bottom: 2px;">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <div class="info-row">
+                <div class="info-icon-svg">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                </div>
+                <div class="info-text-container">
+                    <span class="info-label">RNC</span>
+                    <span class="info-value">{biz_rnc}</span>
+                </div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-icon-svg">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 18.92z"></path></svg>
+                </div>
+                <div class="info-text-container">
+                    <span class="info-label">Teléfono</span>
+                    <span class="info-value">{biz_tel}</span>
+                </div>
+            </div>
+            
+            <div class="info-row" style="margin-bottom: 0;">
+                <div class="info-icon-svg">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                </div>
+                <div class="info-text-container">
+                    <span class="info-label">Correo</span>
+                    <span class="info-value">{u_email}</span>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-# --- 3. NAVEGACIÓN (Corregida para 1 solo clic) ---
-    opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
-    
+    # --- 3. NAVEGACIÓN (ICONOS EXACTOS Y LOGICA DE 1 CLIC) ---
+
+    # Inyectamos la librería de iconos para que se vean exactos
+    st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">', unsafe_allow_html=True)
+
+    opciones = [
+        "Panel de Control", 
+        "Gestión de Cobros", 
+        "👥 Todos mis Clientes", 
+        "Nueva Cuenta por Cobrar", 
+        "Cuentas por Pagar", 
+        "IA Predictiva", 
+        "Configuración"
+    ]
+
+    # Mapeo con los iconos exactos de la imagen (usando HTML para los que requieren precisión)
     mapeo_visual = {
-        "Panel de Control": "🏠 Panel de Control",
-        "Gestión de Cobros": "💰 Gestión de Cobros",
+        "Panel de Control": "⊞  Panel de Control",
+        "Gestión de Cobros": "＄ Gestión de Cobros",
         "👥 Todos mis Clientes": "👥 Todos mis Clientes",
-        "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
-        "Cuentas por Pagar": "📉 Cuentas por Pagar",
-        "IA Predictiva": "🧠 IA Predictiva",
-        "Configuración": "⚙️ Configuración"
+        "Nueva Cuenta por Cobrar": "⊕  Nueva Cuenta por Cobrar",
+        "Cuentas por Pagar": "💳 Cuentas por Pagar",
+        "IA Predictiva": "📈 IA Predictiva",
+        "Configuración": "⚙  Configuración"
     }
 
-    # Al usar key="menu_principal", el radio lee y escribe 
-    # directamente en st.session_state["menu_principal"]
+    # El radio button que controla la navegación
     menu = st.sidebar.radio(
         "NAV",
         opciones,
@@ -1271,13 +1360,17 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
-    # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
+    # Truco para empujar el footer al fondo sin importar el tamaño de pantalla
+    st.sidebar.markdown('<div style="flex-grow: 1;"></div>', unsafe_allow_html=True)
+
+
+    # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA (REPLICADO) ---
     st.sidebar.markdown(f"""
         <div class="absolute-footer">
-            <span class="powered-by">Powered by Lixander García</span>
+            <div class="powered-by">Powered by Lixander García</div>
             <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
-                 class="footer-logo-img" 
-                 onerror="this.style.display='none'">
+                 class="footer-logo-img">
+            <div class="footer-slogan">Plataforma financiera inteligente</div>
         </div>
     """, unsafe_allow_html=True)
     
