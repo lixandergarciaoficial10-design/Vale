@@ -1170,8 +1170,7 @@ with st.sidebar:
     else:
         dias_text = "Faltan 20 días"  # Default
 
-URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"
-    
+    URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"    
 # === CSS (OPTIMIZADO PARA EVITAR SCROLL) ===
     st.markdown("""
         <style>
