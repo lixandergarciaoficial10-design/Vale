@@ -20,10 +20,6 @@ from datetime import datetime
 import streamlit as st
 import re
 from st_supabase_connection import SupabaseConnection
-# Si Loader.io busca el archivo, se lo damos en texto plano y cerramos el proceso
-if "loaderio" in st.query_params:
-    st.text("loaderio-4c62e7266bd534b6141601bbd68c7e69")
-    st.stop()
 
 # --- INICIALIZACIÓN DE VARIABLES PARA EL MAPA ---
 if "mostrar_mapa" not in st.session_state:
