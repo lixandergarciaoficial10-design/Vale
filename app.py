@@ -1169,6 +1169,8 @@ with st.sidebar:
             dias_text = "Sin límite"
     else:
         dias_text = "Faltan 20 días"  # Default
+
+URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"
     
 # === CSS (OPTIMIZADO PARA EVITAR SCROLL) ===
     st.markdown("""
@@ -1356,7 +1358,7 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     # === 1. LOGO HEADER ===
-    st.markdown(f'<div class="logo-header"><img src="{URL_LOGO_COBROYA}"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="logo-header"><img src="{"https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"}"></div>', unsafe_allow_html=True)
 
     # === 2. NAVEGACIÓN ===
     st.markdown('<div class="nav-wrapper">', unsafe_allow_html=True)
