@@ -1100,257 +1100,233 @@ def obtener_prioridad(dias, balance, impagos=0):
 if "menu_principal" not in st.session_state:
     st.session_state["menu_principal"] = "Panel de Control"
 
-import streamlit as st
-
-# Cargar Font Awesome una sola vez al inicio
-st.markdown(
-    '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">',
-    unsafe_allow_html=True
-)
-
-# Variables de sesión
-biz_name = st.session_state.get("nombre_negocio", "APPLE ENTERPRISE").upper()
-biz_rnc = st.session_state.get("rnc", "000000000000")
-biz_tel = st.session_state.get("telefono_negocio", "809-518-8880")
-u_email = st.session_state.get("user").email if st.session_state.get("user") else "correo@gmail.com"
-logo_b64 = st.session_state.get("mi_logo")
-
-# Resolver logo
-try:
-    if logo_b64 and isinstance(logo_b64, str) and logo_b64:
-        src_logo = f"data:image/png;base64,{logo_b64.split(',')[-1]}"
-    else:
-        src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-except:
-    src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
-
+st.markdown("""
+    <style>
+        [data-testid="stSidebar"] {
+            background-color: #F8F9FB !important;
+            min-width: 300px !important;
+            max-width: 300px !important;
+        }
+ 
+        [data-testid="stSidebarUserContent"] {
+            padding: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100vh !important;
+            margin-top: -60px !important;
+            overflow: hidden !important;
+        }
+ 
+        .sidebar-top {
+            flex: 0 0 auto;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-bottom: 20px;
+            padding-right: 8px;
+        }
+ 
+        .sidebar-spacer {
+            flex: 1 1 auto;
+        }
+ 
+        .brand-section {
+            text-align: center;
+            padding: 30px 20px 20px;
+        }
+ 
+        .logo-img {
+            height: 55px;
+            object-fit: contain;
+            margin-bottom: 15px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+ 
+        .brand-divider {
+            width: 30px;
+            height: 2px;
+            background: #0066FF;
+            margin: 0 auto 15px;
+            border-radius: 2px;
+        }
+ 
+        .brand-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: #1D1D1F;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+        }
+ 
+        .check-icon {
+            width: 18px;
+            height: 18px;
+            fill: #0066FF;
+        }
+ 
+        .info-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px 18px;
+            margin: 0 18px 25px;
+            border: 1px solid #E5E7EB;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+ 
+        .info-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 12px;
+            align-items: flex-start;
+        }
+ 
+        .info-item:last-child {
+            margin-bottom: 0;
+        }
+ 
+        .info-icon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            color: #999;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.5;
+        }
+ 
+        .info-text {
+            flex: 1;
+            min-width: 0;
+        }
+ 
+        .info-label {
+            font-size: 9px;
+            color: #86868B;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            margin: 0 0 2px 0;
+        }
+ 
+        .info-value {
+            font-size: 12px;
+            color: #1D1D1F;
+            font-weight: 500;
+            word-break: break-word;
+            margin: 0;
+            line-height: 1.3;
+        }
+ 
+        div[role="radiogroup"] {
+            gap: 2px !important;
+            padding: 0 12px !important;
+        }
+ 
+        div[role="radio"] {
+            padding: 11px 14px !important;
+            border-radius: 10px !important;
+            border: none !important;
+            border-left: 3px solid transparent !important;
+            transition: all 0.15s ease !important;
+            background: transparent !important;
+            margin: 0 !important;
+        }
+ 
+        div[role="radio"][aria-checked="false"] {
+            border-left-color: transparent !important;
+        }
+ 
+        div[role="radio"][aria-checked="false"] p {
+            color: #424245 !important;
+            font-weight: 400 !important;
+            font-size: 13px !important;
+        }
+ 
+        div[role="radio"][aria-checked="true"] {
+            background-color: #F0F5FF !important;
+            border-left-color: #0066FF !important;
+        }
+ 
+        div[role="radio"][aria-checked="true"] p {
+            color: #0066FF !important;
+            font-weight: 600 !important;
+            font-size: 13px !important;
+        }
+ 
+        div[role="radio"] p {
+            margin: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            gap: 11px !important;
+        }
+ 
+        div[role="radio"] p::before {
+            font-family: "Font Awesome 6 Free" !important;
+            font-weight: 900 !important;
+            display: inline-block !important;
+            width: 16px !important;
+            text-align: center !important;
+            opacity: 0.75 !important;
+            flex-shrink: 0 !important;
+            font-size: 14px !important;
+        }
+ 
+        div[role="radio"]:nth-of-type(1) p::before { content: "\\f00a"; }
+        div[role="radio"]:nth-of-type(2) p::before { content: "\\f155"; }
+        div[role="radio"]:nth-of-type(4) p::before { content: "\\f055"; }
+        div[role="radio"]:nth-of-type(5) p::before { content: "\\f09d"; }
+        div[role="radio"]:nth-of-type(6) p::before { content: "\\f201"; }
+        div[role="radio"]:nth-of-type(7) p::before { content: "\\f0ae"; }
+        div[role="radio"]:nth-of-type(8) p::before { content: "\\f013"; }
+ 
+        [data-testid="stSidebarNav"] { display: none !important; }
+ 
+        .footer-section {
+            flex: 0 0 auto;
+            padding: 20px 0 0;
+            border-top: 1px solid #F2F2F7;
+            background: #F8F9FB;
+            text-align: center;
+        }
+ 
+        .footer-by {
+            font-size: 10px;
+            color: #86868B;
+            font-weight: 500;
+            margin: 0 0 8px 0;
+        }
+ 
+        .footer-logo {
+            height: 32px;
+            object-fit: contain;
+            margin-bottom: 6px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+ 
+        .footer-text {
+            font-size: 10px;
+            color: #A1A1A6;
+            font-weight: 400;
+            margin: 0;
+        }
+    </style>
+""", unsafe_allow_html=True)
+ 
 # ============================================================================
-# SIDEBAR - BLOQUE ÚNICO
+# SIDEBAR
 # ============================================================================
-
+ 
 with st.sidebar:
-    # CSS TODO EN UN BLOQUE
-    st.markdown("""
-        <style>
-            [data-testid="stSidebar"] {
-                background-color: #F8F9FB !important;
-                min-width: 300px !important;
-                max-width: 300px !important;
-            }
-
-            [data-testid="stSidebarUserContent"] {
-                padding: 0 !important;
-                display: flex !important;
-                flex-direction: column !important;
-                height: 100vh !important;
-                margin-top: -60px !important;
-                overflow: hidden !important;
-            }
-
-            .sidebar-top {
-                flex: 0 0 auto;
-                overflow-y: auto;
-                overflow-x: hidden;
-                padding-bottom: 20px;
-            }
-
-            .sidebar-spacer {
-                flex: 1 1 auto;
-            }
-
-            .brand-section {
-                text-align: center;
-                padding: 30px 20px 20px;
-            }
-
-            .logo-img {
-                height: 55px;
-                object-fit: contain;
-                margin-bottom: 15px;
-                display: block;
-                margin-left: auto;
-                margin-right: auto;
-            }
-
-            .brand-divider {
-                width: 30px;
-                height: 2px;
-                background: #0066FF;
-                margin: 0 auto 15px;
-                border-radius: 2px;
-            }
-
-            .brand-title {
-                font-size: 15px;
-                font-weight: 800;
-                color: #1D1D1F;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                gap: 8px;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-                font-family: system-ui, -apple-system, sans-serif;
-                margin: 0;
-            }
-
-            .check-icon {
-                width: 18px;
-                height: 18px;
-                fill: #0066FF;
-            }
-
-            .info-card {
-                background: white;
-                border-radius: 16px;
-                padding: 16px 18px;
-                margin: 0 18px 25px;
-                border: 1px solid #E5E7EB;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-            }
-
-            .info-item {
-                display: flex;
-                gap: 10px;
-                margin-bottom: 12px;
-                align-items: flex-start;
-            }
-
-            .info-item:last-child {
-                margin-bottom: 0;
-            }
-
-            .info-icon {
-                width: 16px;
-                height: 16px;
-                flex-shrink: 0;
-                margin-top: 2px;
-                color: #999;
-                stroke: currentColor;
-                fill: none;
-                stroke-width: 1.5;
-            }
-
-            .info-text {
-                flex: 1;
-                min-width: 0;
-            }
-
-            .info-label {
-                font-size: 9px;
-                color: #86868B;
-                text-transform: uppercase;
-                font-weight: 700;
-                letter-spacing: 0.3px;
-                margin: 0 0 2px 0;
-            }
-
-            .info-value {
-                font-size: 12px;
-                color: #1D1D1F;
-                font-weight: 500;
-                word-break: break-word;
-                margin: 0;
-                line-height: 1.3;
-            }
-
-            div[role="radiogroup"] {
-                gap: 2px !important;
-                padding: 0 12px !important;
-            }
-
-            div[role="radio"] {
-                padding: 11px 14px !important;
-                border-radius: 10px !important;
-                border: none !important;
-                border-left: 3px solid transparent !important;
-                transition: all 0.15s ease !important;
-                background: transparent !important;
-                margin: 0 !important;
-            }
-
-            div[role="radio"][aria-checked="false"] {
-                border-left-color: transparent !important;
-            }
-
-            div[role="radio"][aria-checked="false"] p {
-                color: #424245 !important;
-                font-weight: 400 !important;
-                font-size: 13px !important;
-            }
-
-            div[role="radio"][aria-checked="true"] {
-                background-color: #F0F5FF !important;
-                border-left-color: #0066FF !important;
-            }
-
-            div[role="radio"][aria-checked="true"] p {
-                color: #0066FF !important;
-                font-weight: 600 !important;
-                font-size: 13px !important;
-            }
-
-            div[role="radio"] p {
-                margin: 0 !important;
-                display: flex !important;
-                align-items: center !important;
-                gap: 11px !important;
-            }
-
-            div[role="radio"] p::before {
-                font-family: "Font Awesome 6 Free" !important;
-                font-weight: 900 !important;
-                display: inline-block !important;
-                width: 16px !important;
-                text-align: center !important;
-                opacity: 0.75 !important;
-                flex-shrink: 0 !important;
-                font-size: 14px !important;
-            }
-
-            div[role="radio"]:nth-of-type(1) p::before { content: "\\f00a"; }
-            div[role="radio"]:nth-of-type(2) p::before { content: "\\f155"; }
-            div[role="radio"]:nth-of-type(4) p::before { content: "\\f055"; }
-            div[role="radio"]:nth-of-type(5) p::before { content: "\\f09d"; }
-            div[role="radio"]:nth-of-type(6) p::before { content: "\\f201"; }
-            div[role="radio"]:nth-of-type(7) p::before { content: "\\f0ae"; }
-            div[role="radio"]:nth-of-type(8) p::before { content: "\\f013"; }
-
-            [data-testid="stSidebarNav"] { display: none !important; }
-
-            .footer-section {
-                flex: 0 0 auto;
-                padding: 20px 0 0;
-                border-top: 1px solid #F2F2F7;
-                background: #F8F9FB;
-                text-align: center;
-            }
-
-            .footer-by {
-                font-size: 10px;
-                color: #86868B;
-                font-weight: 500;
-                margin: 0 0 8px 0;
-            }
-
-            .footer-logo {
-                height: 32px;
-                object-fit: contain;
-                margin-bottom: 6px;
-                display: block;
-                margin-left: auto;
-                margin-right: auto;
-            }
-
-            .footer-text {
-                font-size: 10px;
-                color: #A1A1A6;
-                font-weight: 400;
-                margin: 0;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
     # SECCIÓN SUPERIOR (Header + Info)
     st.markdown(f"""
         <div class="sidebar-top">
@@ -1364,7 +1340,7 @@ with st.sidebar:
                     </svg>
                 </h2>
             </div>
-
+ 
             <div class="info-card">
                 <div class="info-item">
                     <svg class="info-icon" viewBox="0 0 24 24">
@@ -1376,7 +1352,7 @@ with st.sidebar:
                         <p class="info-value">{biz_rnc}</p>
                     </div>
                 </div>
-
+ 
                 <div class="info-item">
                     <svg class="info-icon" viewBox="0 0 24 24">
                         <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 18.92z"/>
@@ -1386,7 +1362,7 @@ with st.sidebar:
                         <p class="info-value">{biz_tel}</p>
                     </div>
                 </div>
-
+ 
                 <div class="info-item">
                     <svg class="info-icon" viewBox="0 0 24 24">
                         <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
@@ -1400,7 +1376,7 @@ with st.sidebar:
             </div>
         </div>
     """, unsafe_allow_html=True)
-
+ 
     # MENÚ DE NAVEGACIÓN
     opciones = [
         "Panel de Control",
@@ -1412,17 +1388,17 @@ with st.sidebar:
         "Reportes",
         "Configuración"
     ]
-
+ 
     menu_principal = st.radio(
         "NAV",
         opciones,
         key="menu_principal",
         label_visibility="collapsed"
     )
-
+ 
     # ESPACIADOR
     st.markdown('<div class="sidebar-spacer"></div>', unsafe_allow_html=True)
-
+ 
     # FOOTER
     st.markdown("""
         <div class="footer-section">
@@ -1431,10 +1407,6 @@ with st.sidebar:
             <p class="footer-text">Plataforma financiera inteligente</p>
         </div>
     """, unsafe_allow_html=True)
-
-# ============================================================================
-# USAR LA VARIABLE MENU
-# ============================================================================
     
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 if menu == "Panel de Control":
