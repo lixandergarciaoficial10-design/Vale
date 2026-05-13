@@ -51,10 +51,6 @@ st.markdown("""
             visibility: hidden;
             height: 0%;
         }
-        /* Oculta el menú de opciones (hamburguesa) pero permite que tu app funcione */
-        #MainMenu {visibility: hidden;}
-        /* Oculta el pie de página */
-        footer {visibility: hidden;}
         /* Ajusta el espacio superior para que no quede un hueco blanco */
         .block-container {
             padding-top: 0rem;
