@@ -1173,125 +1173,177 @@ with st.sidebar:
 # --- 1. CSS: Estética Minimalista y Profesional ---
     st.markdown(f"""
         <style>
+            /* IMPORTACIÓN DE FUENTE MODERNA */
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
             /* EXPANSIÓN Y SIDEBAR */
-            [data-testid="stSidebar"][aria-expanded="true"] {{
-                min-width: 300px !important;
-                max-width: 300px !important;
-                background-color: #FBFBFD !important;
-            }}
-            [data-testid="stSidebar"][aria-expanded="false"] {{
-                min-width: 0px !important;
-                max-width: 0px !important;
-                width: 0px !important;
+            [data-testid="stSidebar"] {{
+                min-width: 280px !important;
+                max-width: 280px !important;
+                background-color: #FFFFFF !important;
+                border-right: 1px solid #F0F0F2 !important;
             }}
 
-            /* BOTÓN DE MENÚ */
+            /* BLOQUEO DE SCROLL EN SIDEBAR */
+            [data-testid="stSidebar"] > div:first-child {{
+                overflow: hidden !important;
+            }}
+
+            /* BOTÓN DE MENÚ COLAPSIBLE */
             [data-testid="stSidebarHeader"] {{
                 padding: 0px !important;
                 background-color: transparent !important;
             }}
+            
             button[data-testid="stSidebarCollapseButton"] {{
                 background-color: #1D1D1F !important;
                 color: white !important;
                 border-radius: 8px !important;
                 margin: 10px !important;
-                z-index: 100000 !important;
+                transition: transform 0.2s ease;
             }}
 
-            /* LOGO AL TECHO */
+            /* AJUSTE DE CONTENIDO SUPERIOR (LOGO AL TECHO) */
             [data-testid="stSidebarUserContent"] {{
                 padding-top: 0px !important;
-                margin-top: -50px !important; 
+                margin-top: -45px !important; 
             }}
 
             .client-brand-card {{
-                text-align: center; 
-                padding: 15px; 
-                background: white;
-                border-bottom: 1px solid #F2F2F7;
-                margin-bottom: 20px;
+                text-align: left; 
+                padding: 25px 20px; 
+                background: #FFFFFF;
+                margin-bottom: 10px;
             }}
             
             .client-logo-img {{
-                max-width: 90%;
-                height: 55px;
+                max-width: 100%;
+                height: 40px;
                 object-fit: contain;
-            }}
-
-            /* NAVEGACIÓN */
-            div[role="radiogroup"] {{
-                gap: 12px !important;
-                padding-left: 10px !important;
-            }}
-            div[role="radio"] p {{ 
-                font-size: 14px !important; 
-                color: #1D1D1F !important;
-                font-weight: 400;
-                padding: 6px 0 !important;
-            }}
-
-            /* FOOTER PROFESIONAL (Minimalista) */
-            .absolute-footer {{
-                margin-top: 40px !important;
-                padding: 20px 0px 10px 0px !important;
-                border-top: 1px solid #F2F2F7;
-                text-align: center;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                width: 100%;
-            }}
-
-            .powered-by {{
-                font-size: 9px !important;
-                color: #A1A1A6;
-                text-transform: uppercase;
-                letter-spacing: 1.5px;
-                font-weight: 500;
                 margin-bottom: 10px;
             }}
 
-            .footer-logo-img {{
-                width: 100px; /* Tamaño equilibrado para verse serio */
-                height: auto;
-                opacity: 0.8;
+            /* NAVEGACIÓN PREMIUM (ELIMINA CÍRCULO, AÑADE SOMBREADO) */
+            div[role="radiogroup"] {{
+                gap: 6px !important;
+                padding: 0 15px !important;
             }}
 
+            /* Ocultar el círculo nativo de radio */
+            div[role="radio"] [data-testid="stWidgetLabel"] > div:first-child {{
+                display: none !important;
+            }}
+
+            /* Estilo base del item de menú */
+            div[role="radio"] {{
+                background-color: transparent !important;
+                border-radius: 10px !important;
+                padding: 8px 16px !important;
+                transition: all 0.2s ease-in-out !important;
+                border: 1px solid transparent !important;
+            }}
+
+            /* Hover: Resalte suave */
+            div[role="radio"]:hover {{
+                background-color: #F5F5F7 !important;
+            }}
+
+            /* SELECCIONADO: Sombreado sutil y fondo */
+            div[role="radio"][aria-checked="true"] {{
+                background-color: #FFFFFF !important;
+                border: 1px solid #E5E5E7 !important;
+                box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.05) !important;
+            }}
+
+            div[role="radio"] p {{ 
+                font-family: 'Inter', sans-serif !important;
+                font-size: 14px !important; 
+                color: #48484A !important;
+                font-weight: 500 !important;
+                margin: 0 !important;
+            }}
+
+            div[role="radio"][aria-checked="true"] p {{
+                color: #000000 !important;
+                font-weight: 600 !important;
+            }}
+
+            /* FOOTER FIJO AL FONDO */
+            .absolute-footer {{
+                position: absolute;
+                bottom: 20px;
+                left: 0;
+                width: 100%;
+                padding: 20px;
+                border-top: 1px solid #F2F2F7;
+                background-color: white;
+                text-align: center;
+            }}
+
+            .powered-by {{
+                font-family: 'Inter', sans-serif !important;
+                font-size: 10px !important;
+                color: #A1A1A6;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                font-weight: 600;
+                margin-bottom: 8px;
+                display: block;
+            }}
+
+            .footer-logo-img {{
+                width: 80px;
+                height: auto;
+                filter: grayscale(100%);
+                opacity: 0.6;
+            }}
+
+            /* LIMPIEZA DE CONTENEDOR PRINCIPAL */
             [data-testid="stAppViewBlockContainer"] {{
                 max-width: 100% !important;
+                padding-top: 2rem !important;
             }}
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
+# --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
     st.sidebar.markdown(f"""
         <div class="client-brand-card">
             <img src="{src_logo}" class="client-logo-img">
-            <div style="font-family: sans-serif; margin-top: 10px;">
-                <b style="font-size:14px; color:#1D1D1F;">{biz_name}</b>
-                <div style="font-size:10px; color:#86868B; margin-top:5px;">
-                    <p style="margin:0;">RNC: {biz_rnc} | 📞 {biz_tel}</p>
-                    <p style='color:#1D1D1F; font-weight:600; margin-top:3px;'>{u_email}</p>
+            <div style="font-family: 'Inter', sans-serif; margin-top: 12px;">
+                <b style="font-size:15px; color:#1D1D1F; letter-spacing:-0.3px;">{biz_name}</b>
+                <div style="font-size:11px; color:#86868B; margin-top:4px; line-height:1.4;">
+                    <p style="margin:0; opacity:0.8;">RNC: {biz_rnc} • {biz_tel}</p>
+                    <p style='color:#007AFF; font-weight:600; margin-top:4px;'>{u_email}</p>
                 </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-# --- 3. NAVEGACIÓN (Corregida para 1 solo clic) ---
-    opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
+    # --- 3. NAVEGACIÓN (SaaS Premium Style) ---
+    # Mantengo los nombres exactos en 'opciones' para que tu lógica 'if menu ==' no se rompa.
+    opciones = [
+        "Panel de Control", 
+        "Gestión de Cobros", 
+        "👥 Todos mis Clientes", 
+        "Nueva Cuenta por Cobrar", 
+        "Cuentas por Pagar", 
+        "IA Predictiva", 
+        "Configuración"
+    ]
     
+    # Mapeo visual con iconos minimalistas (Unicode uniformes)
     mapeo_visual = {
-        "Panel de Control": "🏠 Panel de Control",
-        "Gestión de Cobros": "💰 Gestión de Cobros",
-        "👥 Todos mis Clientes": "👥 Todos mis Clientes",
-        "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
-        "Cuentas por Pagar": "📉 Cuentas por Pagar",
-        "IA Predictiva": "🧠 IA Predictiva",
-        "Configuración": "⚙️ Configuración"
+        "Panel de Control": "⊞  Panel de Control",
+        "Gestión de Cobros": "◈  Gestión de Cobros",
+        "👥 Todos mis Clientes": "≡  Todos los Clientes",
+        "Nueva Cuenta por Cobrar": "⊕  Nueva Cuenta",
+        "Cuentas por Pagar": "⊖  Cuentas por Pagar",
+        "IA Predictiva": "⌬  IA Predictiva",
+        "Configuración": "⚙  Configuración"
     }
 
-    # Al usar key="menu_principal", el radio lee y escribe 
-    # directamente en st.session_state["menu_principal"]
+    # El radio lee/escribe en st.session_state["menu_principal"]
     menu = st.sidebar.radio(
         "NAV",
         opciones,
@@ -1309,11 +1361,12 @@ with st.sidebar:
                  onerror="this.style.display='none'">
         </div>
     """, unsafe_allow_html=True)
-    
-# --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
+
+# --- 5. MÓDULOS DE NEGOCIO ---
+# Aquí tu lógica funcionará perfecto porque 'menu' sigue capturando el string original.
 if menu == "Panel de Control":
     from datetime import datetime, timedelta
-
+    
     st.title("💼 Business Intelligence Dashboard")
     
     # --- 1. MEMORIA DEL FILTRO (SESSION STATE) ---
