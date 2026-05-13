@@ -1274,6 +1274,25 @@ with st.sidebar:
                 color: #1D1D1F !important;
                 top: 10px !important;
             }}
+            /* INYECTOR DE ICONOS (Font Awesome) */
+            div[role="radio"] p::before {
+                font-family: "Font Awesome 6 Free";
+                font-weight: 900;
+                margin-right: 12px;
+                display: inline-block;
+                width: 18px;
+                text-align: center;
+                opacity: 0.8;
+            }
+
+            /* Mapeo según el orden de tus opciones */
+            div[role="radio"] > label:nth-of-type(1) p::before { content: "\f00a"; } /* Panel */
+            div[role="radio"] > label:nth-of-type(2) p::before { content: "\f155"; } /* Gestión */
+            /* La opción 3 (Clientes) usa el emoji directo en el texto, así que no le ponemos content aquí */
+            div[role="radio"] > label:nth-of-type(4) p::before { content: "\f055"; } /* Nueva Cuenta */
+            div[role="radio"] > label:nth-of-type(5) p::before { content: "\f09d"; } /* Cuentas Pagar */
+            div[role="radio"] > label:nth-of-type(6) p::before { content: "\f201"; } /* IA */
+            div[role="radio"] > label:nth-of-type(7) p::before { content: "\f013"; } /* Config */
         </style>
     """, unsafe_allow_html=True)
 
@@ -1325,11 +1344,12 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
 
-    # --- 3. NAVEGACIÓN (ICONOS EXACTOS Y LOGICA DE 1 CLIC) ---
+# --- 3. NAVEGACIÓN (ICONOS INYECTADOS POR CSS PARA EVITAR ERRORES) ---
 
-    # Inyectamos la librería de iconos para que se vean exactos
+    # Inyectamos la librería de iconos para que el CSS los reconozca
     st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">', unsafe_allow_html=True)
 
+    # IMPORTANTE: Los nombres deben ser EXACTOS a los que pusiste en el CSS (Paso 1)
     opciones = [
         "Panel de Control", 
         "Gestión de Cobros", 
@@ -1340,27 +1360,15 @@ with st.sidebar:
         "Configuración"
     ]
 
-    # Mapeo con los iconos exactos de la imagen (usando HTML para los que requieren precisión)
-    mapeo_visual = {
-        "Panel de Control": "⊞  Panel de Control",
-        "Gestión de Cobros": "＄ Gestión de Cobros",
-        "👥 Todos mis Clientes": "👥 Todos mis Clientes",
-        "Nueva Cuenta por Cobrar": "⊕  Nueva Cuenta por Cobrar",
-        "Cuentas por Pagar": "💳 Cuentas por Pagar",
-        "IA Predictiva": "📈 IA Predictiva",
-        "Configuración": "⚙  Configuración"
-    }
-
-    # El radio button que controla la navegación
+    # No usamos format_func con iconos aquí para que no se rompa el diseño
     menu = st.sidebar.radio(
         "NAV",
         opciones,
         key="menu_principal",
-        format_func=lambda x: mapeo_visual.get(x, x),
         label_visibility="collapsed"
     )
 
-    # Truco para empujar el footer al fondo sin importar el tamaño de pantalla
+    # Truco de espacio flexible para empujar el footer al fondo (Cero Scroll)
     st.sidebar.markdown('<div style="flex-grow: 1;"></div>', unsafe_allow_html=True)
 
 
