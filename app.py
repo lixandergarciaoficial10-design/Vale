@@ -38,22 +38,26 @@ from st_supabase_connection import SupabaseConnection
 # 1. CONFIGURACIÓN INICIAL Y CONEXIÓN
 st.set_page_config(
     page_title="CobroYa", 
-    page_icon="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/Adobe%20Express%20-%20file.png", # He puesto el link de tu Supabase, asegúrate de que sea la ruta a tu logo
+    page_icon="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/Adobe%20Express%20-%20file.png",
     layout="wide", 
     initial_sidebar_state="collapsed"
 )
 
-# ESTO QUITA LA BARRA DE ARRIBA Y EL LOGO DE STREAMLIT SIN ROMPER MENÚ
+# LIMPIEZA VISUAL (SIN TOCAR EL MENÚ DE HAMBURGUESA)
 st.markdown("""
     <style>
-        /* Oculta la barra de encabezado de Streamlit */
+        /* Quita la barra decorativa superior pero deja los botones funcionales */
         header[data-testid="stHeader"] {
-            visibility: hidden;
-            height: 0%;
+            background-color: rgba(0,0,0,0); /* La hace transparente */
+            color: transparent;
         }
-        /* Ajusta el espacio superior para que no quede un hueco blanco */
+        
+        /* Quita el pie de página "Made with Streamlit" */
+        footer {visibility: hidden;}
+        
+        /* Ajusta el espacio para que el contenido suba hasta arriba */
         .block-container {
-            padding-top: 0rem;
+            padding-top: 1rem;
         }
     </style>
     """, unsafe_allow_html=True)
