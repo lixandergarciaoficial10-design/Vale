@@ -1099,8 +1099,14 @@ def obtener_prioridad(dias, balance, impagos=0):
 # --- 0. INICIALIZACIÓN (Evita errores de variable no definida) ---
 if "menu_principal" not in st.session_state:
     st.session_state["menu_principal"] = "Panel de Control"
+
+# Definir variables con valores por defecto para que la app no explote
+src_logo = st.session_state.get('logo_url', "https://via.placeholder.com/150")
+biz_name = st.session_state.get('nombre_negocio', "NOMBRE DEL NEGOCIO")
+biz_rnc = st.session_state.get('rnc_negocio', "000-00000-0")
+biz_tel = st.session_state.get('telefono_negocio', "809-000-0000")
+u_email = st.session_state.get('email_usuario', "usuario@correo.com")
     
-src_logo = "https://tu-link-del-logo-aqui.com/logo.png"
 st.markdown("""
     <style>
         [data-testid="stSidebar"] {
