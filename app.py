@@ -1152,225 +1152,189 @@ import base64
 # --- CONFIGURACIÓN DE PÁGINA (OPCIONAL PERO RECOMENDADO) ---
 # st.set_page_config(layout="wide")
 
-# --- 2. SIDEBAR (DISEÑO PREMIUM 272PX) ---
+import streamlit as st
+
+# --- SIDEBAR PROFESIONAL (BLOQUEADO A 272PX Y SIN SCROLL) ---
 with st.sidebar:
-    # 1. Recuperación de variables de sesión
+    # Variables de sesión (manteniendo tu lógica)
     biz_name = st.session_state.get("nombre_negocio", "APPLE ENTERPRISE").upper()
     biz_rnc  = st.session_state.get("rnc", "0000000000000")
     biz_tel  = st.session_state.get("telefono_negocio", "809519688900")
     u_email  = st.session_state.user.email if st.session_state.get("user") else "elmejorjefe06@gmail.com"
-    logo_b64 = st.session_state.get("mi_logo")
     
-    # URL del logo de CobroYa para el footer
+    # Logo Apple por defecto o el tuyo
+    src_logo = "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"
     URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"
 
-    # Lógica de Logo Principal
-    try:
-        if logo_b64:
-            img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
-            src_logo = f"data:image/png;base64,{img_data}"
-        else:
-            # Logo Apple por defecto según mockup
-            src_logo = "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"
-    except Exception:
-        src_logo = "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"
-
-    # --- CSS: ESPECIFICACIONES EXACTAS ---
-    st.markdown(f"""
+    # --- CSS AGRESIVO PARA ELIMINAR SCROLL Y FIJAR ANCHO ---
+    st.markdown(
+        """
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-            /* ESTRUCTURA GENERAL DEL SIDEBAR */
-            [data-testid="stSidebar"] {{
+            /* 1. ELIMINAR EL MALDITO SCROLL Y FIJAR ANCHO */
+            [data-testid="stSidebar"] {
                 min-width: 272px !important;
                 max-width: 272px !important;
+                width: 272px !important;
                 background-color: #FFFFFF !important;
                 border-right: 1px solid #E2E8F0 !important;
-            }}
+            }
 
-            /* ELIMINAR SCROLL VISUAL Y PADDING */
-            [data-testid="stSidebarContent"] {{
-                padding: 24px 20px 24px 20px !important;
+            /* OCULTAR BARRA EN TODOS LOS NAVEGADORES */
+            [data-testid="stSidebarContent"] {
+                padding: 24px 20px !important;
                 background-color: #FFFFFF !important;
                 overflow-y: auto;
-                scrollbar-width: none;
-                -ms-overflow-style: none;
-            }}
-            [data-testid="stSidebarContent"]::-webkit-scrollbar {{
-                display: none;
-            }}
+                scrollbar-width: none !important; /* Firefox */
+                -ms-overflow-style: none !important; /* IE */
+            }
 
-            /* AJUSTE DEL HEADER DE STREAMLIT */
-            [data-testid="stSidebarHeader"] {{
-                display: none;
-            }}
+            [data-testid="stSidebarContent"]::-webkit-scrollbar {
+                display: none !important; /* Chrome/Safari */
+                width: 0 !important;
+                height: 0 !important;
+            }
 
-            /* TARJETA DE EMPRESA (PUNTO 4-7) */
-            .company-card {{
+            /* 2. TARJETA DE EMPRESA (MATCH EXACTO image_cbdf9d.png) */
+            .company-card {
                 width: 100%;
-                min-height: 190px;
-                padding: 24px;
+                padding: 24px 15px;
                 border: 1px solid #E2E8F0;
                 border-radius: 24px;
                 background: #FFFFFF;
                 text-align: center;
                 margin-bottom: 28px;
-                box-sizing: border-box;
-            }}
+            }
 
-            .company-logo-img {{
+            .company-logo {
                 width: 52px;
-                height: 52px;
-                object-fit: contain;
-                margin-bottom: 18px;
-            }}
+                margin-bottom: 16px;
+            }
 
-            .company-name {{
+            .company-name {
                 font-family: 'Inter', sans-serif;
-                font-size: 22px;
+                font-size: 20px;
                 font-weight: 700;
                 color: #0F172A;
-                line-height: 28px;
                 letter-spacing: -0.02em;
-                margin-bottom: 14px;
-            }}
+                margin-bottom: 10px;
+            }
 
-            .company-details {{
+            .company-info {
                 font-family: 'Inter', sans-serif;
-                font-size: 13px;
-                font-weight: 500;
+                font-size: 12px;
                 color: #64748B;
-                line-height: 22px;
-            }}
+                line-height: 1.6;
+            }
 
-            .company-email {{
-                font-weight: 600;
-                color: #334155;
-            }}
-
-            /* NAVEGACIÓN ESTILO STRIPE/LINEAR (PUNTO 8-14) */
-            div[role="radiogroup"] {{
+            /* 3. NAVEGACIÓN (SIN ICONOS DE STREAMLIT, SOLO TEXTO/EMOJI) */
+            div[role="radiogroup"] {
                 gap: 8px !important;
-                padding: 0px !important;
-            }}
+            }
 
-            div[role="radio"] {{
+            div[role="radio"] {
                 background-color: transparent !important;
-                border: none !important;
                 padding: 0px !important;
-                margin: 0px !important;
-            }}
+            }
 
-            /* Estado Normal del Item */
-            div[role="radio"] > div {{
+            div[role="radio"] > div {
                 height: 48px !important;
-                padding: 0px 14px !important;
+                padding: 0 14px !important;
                 border-radius: 14px !important;
                 display: flex !important;
                 align-items: center !important;
                 transition: 0.2s ease !important;
-            }}
+                border: none !important;
+            }
 
-            div[role="radio"]:hover > div {{
+            /* Hover y Activo */
+            div[role="radio"]:hover > div {
                 background-color: #F8FAFC !important;
-            }}
+            }
 
-            /* Estado Activo (Punto 12) */
-            div[role="radio"][aria-checked="true"] > div {{
+            div[role="radio"][aria-checked="true"] > div {
                 background-color: #EFF6FF !important;
-            }}
+                position: relative;
+            }
 
-            /* Tipografía de los Items */
-            div[role="radio"] p {{
-                font-family: 'Inter', sans-serif !important;
-                font-size: 16px !important;
-                font-weight: 500 !important;
-                color: #334155 !important;
-            }}
-
-            div[role="radio"][aria-checked="true"] p {{
-                color: #2563EB !important;
-                font-weight: 600 !important;
-            }}
-
-            /* Indicador Círculo Rojo (Punto 12) */
-            div[role="radio"][aria-checked="true"] > div::before {{
+            /* EL PUNTO ROJO ACTIVO */
+            div[role="radio"][aria-checked="true"] > div::before {
                 content: '';
                 position: absolute;
                 left: -6px;
-                width: 10px;
-                height: 10px;
+                width: 8px;
+                height: 8px;
                 background-color: #FB7185;
-                border-radius: 999px;
-            }}
+                border-radius: 50%;
+            }
 
-            /* FOOTER SIDEBAR (PUNTO 15) */
-            .sidebar-footer {{
-                margin-top: 40px;
-                padding-top: 24px;
+            /* Texto del menú */
+            div[role="radio"] p {
+                font-family: 'Inter', sans-serif !important;
+                font-size: 15px !important;
+                color: #334155 !important;
+                font-weight: 500 !important;
+                margin: 0 !important;
+            }
+
+            div[role="radio"][aria-checked="true"] p {
+                color: #2563EB !important;
+                font-weight: 600 !important;
+            }
+
+            /* 4. FOOTER */
+            .sidebar-footer {
+                margin-top: 50px;
+                padding-top: 20px;
                 border-top: 1px solid #F1F5F9;
                 text-align: center;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-            }}
+            }
 
-            .powered-by {{
-                font-family: 'Inter', sans-serif;
-                font-size: 11px;
-                letter-spacing: 0.18em;
+            .powered-by {
+                font-size: 10px;
+                letter-spacing: 0.15em;
                 text-transform: uppercase;
                 color: #94A3B8;
-                font-weight: 500;
-                margin-bottom: 12px;
-            }}
+                font-weight: 600;
+            }
 
-            .footer-logo-img {{
-                height: 28px;
-                width: auto;
-                filter: brightness(0) saturate(100%) invert(31%) sepia(94%) saturate(1450%) hue-rotate(213deg) brightness(97%) contrast(93%); /* Color #2563EB */
-            }}
-
-            /* Eliminar padding superior extra de Streamlit */
-            [data-testid="stSidebarUserContent"] {{
-                padding-top: 0px !important;
-            }}
+            .footer-logo {
+                width: 80px;
+                margin-top: 10px;
+                opacity: 0.7;
+            }
         </style>
-    """, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True
+    )
 
-    # --- 2. CONTENIDO SUPERIOR: TARJETA DE EMPRESA ---
+    # --- RENDERIZADO DEL CONTENIDO ---
+    
+    # 1. Card Superior
     st.markdown(f"""
         <div class="company-card">
-            <img src="{src_logo}" class="company-logo-img">
+            <img src="{src_logo}" class="company-logo">
             <div class="company-name">{biz_name}</div>
-            <div class="company-details">
+            <div class="company-info">
                 RNC: {biz_rnc} | {biz_tel}<br>
-                <span class="company-email">{u_email}</span>
+                <b style="color:#334155;">{u_email}</b>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # --- 3. NAVEGACIÓN ---
-    opciones = [
-        "Panel de Control", 
-        "Gestión de Cobros", 
-        "Todos mis Clientes", 
-        "Nueva Cuenta", 
-        "Cuentas por Pagar", 
-        "IA Predictiva", 
-        "Configuración"
-    ]
+    # 2. Menú de Navegación
+    opciones = ["Panel de Control", "Gestión de Cobros", "Todos mis Clientes", "Nueva Cuenta", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     
-    # Mapeo de iconos usando Emojis (Streamlit radio no soporta SVG directo fácilmente sin componentes extra, 
-    # pero he ajustado el espaciado para que se vea premium)
+    # Mapeo visual con emojis para que se vea como en image_cb72e1.png
     mapeo_visual = {
-        "Panel de Control": "📊 &nbsp; Panel de Control",
-        "Gestión de Cobros": "💳 &nbsp; Gestión de Cobros",
-        "Todos mis Clientes": "👥 &nbsp; Todos mis Clientes",
-        "Nueva Cuenta": "➕ &nbsp; Nueva Cuenta",
-        "Cuentas por Pagar": "📑 &nbsp; Cuentas por Pagar",
-        "IA Predictiva": "🧠 &nbsp; IA Predictiva",
-        "Configuración": "⚙️ &nbsp; Configuración"
+        "Panel de Control": "📊 Panel de Control",
+        "Gestión de Cobros": "💳 Gestión de Cobros",
+        "Todos mis Clientes": "👥 Todos mis Clientes",
+        "Nueva Cuenta": "➕ Nueva Cuenta",
+        "Cuentas por Pagar": "📑 Cuentas por Pagar",
+        "IA Predictiva": "🧠 IA Predictiva",
+        "Configuración": "⚙️ Configuración"
     }
 
     menu = st.radio(
@@ -1381,11 +1345,11 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
-    # --- 4. FOOTER SIDEBAR ---
+    # 3. Footer
     st.markdown(f"""
         <div class="sidebar-footer">
-            <span class="powered-by">Powered by Lixander García</span>
-            <img src="{URL_LOGO_COBROYA}" class="footer-logo-img">
+            <div class="powered-by">Powered by Lixander García</div>
+            <img src="{URL_LOGO_COBROYA}" class="footer-logo">
         </div>
     """, unsafe_allow_html=True)
     
