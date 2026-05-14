@@ -1315,21 +1315,25 @@ if menu == "Panel de Control":
     import plotly.express as px
     from datetime import datetime, timedelta
 
-# --- 1. ESTILOS CSS (DISEÑO PREMIUM REPLICADO) ---
+if menu == "Panel de Control":
+    import pandas as pd
+    import plotly.express as px
+    from datetime import datetime, timedelta
+
+    # --- 1. ESTILOS CSS (DISEÑO PREMIUM REPLICADO) ---
     st.markdown("""
         <style>
             .main { background-color: #F8FAFC; }
-            
-            /* Tarjeta KPI con línea inferior de color */
             .kpi-card {
                 background: #FFFFFF;
                 border-radius: 14px;
-                padding: 18px;
+                padding: 18px 18px 0px 18px;
                 border: 1px solid #E2E8F0;
                 display: flex;
                 flex-direction: column;
                 position: relative;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                overflow: hidden;
+                box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
             }
             .border-blue { border-bottom: 4px solid #2563EB; }
             .border-green { border-bottom: 4px solid #16A34A; }
@@ -1345,22 +1349,18 @@ if menu == "Panel de Control":
                 justify-content: center;
                 margin-bottom: 12px;
             }
-            /* Colores de fondo de iconos */
             .bg-blue-light { background-color: #DBEAFE; color: #2563EB; }
             .bg-green-light { background-color: #DCFCE7; color: #16A34A; }
             .bg-red-light { background-color: #FEE2E2; color: #EF4444; }
             .bg-purple-light { background-color: #EDE9FE; color: #7C3AED; }
             
             .kpi-title { color: #64748B; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-            
-            /* Colores de números exactos */
             .val-blue { color: #2563EB; }
             .val-green { color: #16A34A; }
             .val-red { color: #EF4444; }
             .val-purple { color: #7C3AED; }
             .kpi-value { font-size: 26px; font-weight: 800; margin-top: 4px; }
 
-            /* Tarjetas de Secciones */
             .section-card {
                 background: #FFFFFF;
                 border-radius: 16px;
@@ -1373,123 +1373,62 @@ if menu == "Panel de Control":
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 2. NOTIFICACIONES (SEGURO CONTRA ERRORES) ---
+    # --- 2. NOTIFICACIONES ---
     notif_mensaje = None
     try:
         res_config = conn.table("configuracion").select("notificaciones_admin").eq("user_id", u_id).execute()
-        if res_config.data and "notificaciones_admin" in res_config.data[0]:
-            notif_mensaje = res_config.data[0]['notificaciones_admin']
-    except Exception:
-        notif_mensaje = None
+        if res_config.data:
+            notif_mensaje = res_config.data[0].get('notificaciones_admin')
+    except: pass
 
     if notif_mensaje:
-        st.markdown(f"""
-            <div class='notif-box'>
-                <div style='display: flex; align-items: center; gap: 10px;'>
-                    <svg style="width:24px;height:24px;color:#3B82F6;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>
-                    <div>
-                        <small style='color: #94A3B8; font-weight: bold;'>AVISO</small><br>
-                        <div style='margin-top:2px; color: #E2E8F0;'>{notif_mensaje}</div>
-                    </div>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div class='notif-box'>🔔 {notif_mensaje}</div>", unsafe_allow_html=True)
 
-    # --- 3. CABECERA Y LÓGICA DE FILTROS DE TIEMPO ---
+    # --- 3. CABECERA Y FILTROS ---
     col_head1, col_head2 = st.columns([2, 1])
     with col_head1:
         st.markdown("<h2 style='color: #0F172A; font-weight: 800; margin-bottom: 0;'>Dashboard General</h2>", unsafe_allow_html=True)
     with col_head2:
-        # Selector de tiempo real
-        filtro_tiempo = st.selectbox("Filtrar por fecha:", ["Todo el tiempo", "Hoy", "Últimos 7 días", "Este mes", "Último año"], label_visibility="collapsed")
+        filtro_tiempo = st.selectbox("Filtrar:", ["Todo el tiempo", "Hoy", "Últimos 7 días", "Este mes", "Último año"], label_visibility="collapsed")
 
-    # Calcular la fecha de inicio según el filtro
-    hoy = datetime.now()
-    fecha_inicio = None
-    if filtro_tiempo == "Hoy": fecha_inicio = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif filtro_tiempo == "Últimos 7 días": fecha_inicio = hoy - timedelta(days=7)
-    elif filtro_tiempo == "Este mes": fecha_inicio = hoy.replace(day=1, hour=0, minute=0, second=0)
-    elif filtro_tiempo == "Último año": fecha_inicio = hoy - timedelta(days=365)
-
-    # --- 4. EXTRACCIÓN DE DATOS FILTRADOS DESDE SUPABASE ---
+    # --- 4. EXTRACCIÓN DE DATOS ---
     q_c = conn.table("cuentas").select("*, cliente:clientes(nombre)").eq("user_id", u_id)
     q_p = conn.table("pagos").select("*").eq("user_id", u_id)
     q_g = conn.table("gastos").select("*").eq("user_id", u_id)
-
-    # APLICAR EL FILTRO REAL A LAS CONSULTAS
-    if fecha_inicio:
-        f_iso = fecha_inicio.isoformat()
-        q_c = q_c.gte("fecha_creacion", f_iso)
-        q_p = q_p.gte("fecha_pago", f_iso)
-        q_g = q_g.gte("fecha_gasto", f_iso)
 
     res_cuentas = q_c.execute()
     res_pagos = q_p.execute()
     res_gastos = q_g.execute()
 
-    # Cálculos Reales
     total_en_calle = sum(c['balance_pendiente'] for c in res_cuentas.data) if res_cuentas.data else 0
     total_recibido = sum(p['monto_pagado'] for p in res_pagos.data) if res_pagos.data else 0
     total_gastos = sum(g['monto'] for g in res_gastos.data if g['estado'] == 'Pagado') if res_gastos.data else 0
     clientes_activos = len(set(c['cliente_id'] for c in res_cuentas.data if c['estado'] == 'Activo')) if res_cuentas.data else 0
 
-# --- 5. BLOQUE KPI PREMIUM CON LÍNEAS GRÁFICAS (REPLICADO EXACTO) ---
-    
-    # Definimos el trazo de la "mini gráfica" para cada color
+    # --- 5. TARJETAS KPI PREMIUM ---
     def get_sparkline(color):
         return f'''
-        <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width: 100%; height: 30px; margin-top: 10px;">
+        <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width: 100%; height: 35px; margin-top: 5px;">
             <path d="M0 25 Q 15 5, 30 15 T 60 10 T 100 5" fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round"/>
-            <path d="M0 25 Q 15 5, 30 15 T 60 10 T 100 5 V 30 H 0 Z" fill="url(#grad-{color})" opacity="0.1"/>
-            <defs>
-                <linearGradient id="grad-{color}" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" style="stop-color:{color};stop-opacity:1" />
-                    <stop offset="100%" style="stop-color:{color};stop-opacity:0" />
-                </linearGradient>
-            </defs>
-        </svg>
-        '''
+            <path d="M0 25 Q 15 5, 30 15 T 60 10 T 100 5 V 30 H 0 Z" fill="{color}" opacity="0.1"/>
+        </svg>'''
 
     icon_calle = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v20m0-20L5 9m7-7l7 7"/></svg>'
     icon_caja = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M7 15h0M2 9.5h20"/></svg>'
     icon_gastos = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 6l-9.5 9.5-5-5L1 18"/></svg>'
-    icon_users = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>'
+    icon_users = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>'
 
     c1, c2, c3, c4 = st.columns(4)
 
     with c1:
-        st.markdown(f"""<div class="kpi-card border-blue">
-            <div class="icon-wrapper bg-blue-light">{icon_calle}</div>
-            <div class="kpi-title">En la Calle</div>
-            <div class="kpi-value val-blue">RD$ {total_en_calle:,.0f}</div>
-            {get_sparkline('#2563EB')}
-        </div>""", unsafe_allow_html=True)
-
+        st.markdown(f'<div class="kpi-card border-blue"><div class="icon-wrapper bg-blue-light">{icon_calle}</div><div class="kpi-title">En la Calle</div><div class="kpi-value val-blue">RD$ {total_en_calle:,.0f}</div>{get_sparkline("#2563EB")}</div>', unsafe_allow_html=True)
     with c2:
-        st.markdown(f"""<div class="kpi-card border-green">
-            <div class="icon-wrapper bg-green-light">{icon_caja}</div>
-            <div class="kpi-title">Recibo en Caja</div>
-            <div class="kpi-value val-green">RD$ {total_recibido:,.0f}</div>
-            {get_sparkline('#16A34A')}
-        </div>""", unsafe_allow_html=True)
-
+        st.markdown(f'<div class="kpi-card border-green"><div class="icon-wrapper bg-green-light">{icon_caja}</div><div class="kpi-title">Recibo en Caja</div><div class="kpi-value val-green">RD$ {total_recibido:,.0f}</div>{get_sparkline("#16A34A")}</div>', unsafe_allow_html=True)
     with c3:
-        st.markdown(f"""<div class="kpi-card border-red">
-            <div class="icon-wrapper bg-red-light">{icon_gastos}</div>
-            <div class="kpi-title">Gastos</div>
-            <div class="kpi-value val-red">RD$ {total_gastos:,.0f}</div>
-            {get_sparkline('#EF4444')}
-        </div>""", unsafe_allow_html=True)
-
+        st.markdown(f'<div class="kpi-card border-red"><div class="icon-wrapper bg-red-light">{icon_gastos}</div><div class="kpi-title">Gastos</div><div class="kpi-value val-red">RD$ {total_gastos:,.0f}</div>{get_sparkline("#EF4444")}</div>', unsafe_allow_html=True)
     with c4:
-        st.markdown(f"""<div class="kpi-card border-purple">
-            <div class="icon-wrapper bg-purple-light">{icon_users}</div>
-            <div class="kpi-title">Clientes</div>
-            <div class="kpi-value val-purple">{clientes_activos}</div>
-            {get_sparkline('#7C3AED')}
-        </div>""", unsafe_allow_html=True)
+        st.markdown(f'<div class="kpi-card border-purple"><div class="icon-wrapper bg-purple-light">{icon_users}</div><div class="kpi-title">Clientes</div><div class="kpi-value val-purple">{clientes_activos}</div>{get_sparkline("#7C3AED")}</div>', unsafe_allow_html=True)
+
         
     # --- 6. SALUD DE CARTERA (INDICADORES SECUNDARIOS) ---
     st.markdown("<div class='section-card'><div class='section-title'>📊 Salud de Cartera</div>", unsafe_allow_html=True)
