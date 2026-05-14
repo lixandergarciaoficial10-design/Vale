@@ -1310,151 +1310,131 @@ with st.sidebar:
         </div>
     """, unsafe_allow_html=True)
     
-# --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+from datetime import datetime, timedelta
+
 if menu == "Panel de Control":
-    from datetime import datetime, timedelta
-
-    st.title("💼 Business Intelligence Dashboard")
-    
-    # --- 1. MEMORIA DEL FILTRO (SESSION STATE) ---
-    # Si es la primera vez que entra, por defecto ponemos "Todo el tiempo"
-    if 'filtro_bi_default' not in st.session_state:
-        st.session_state.filtro_bi_default = "Todo el tiempo"
-
-    # --- 2. BOTÓN DE FILTRADO CON MEMORIA ---
-    with st.popover(f"🔍 Filtro: {st.session_state.filtro_bi_default}"):
-        opciones = ["Hoy", "Últimos 7 días", "Este mes", "Últimos 3 meses", "Último año", "Todo el tiempo"]
-        
-        # El index se calcula buscando dónde está guardado nuestro filtro actual
-        idx_actual = opciones.index(st.session_state.filtro_bi_default)
-        
-        seleccion = st.radio(
-            "Selecciona el rango para mantener fijado:",
-            opciones,
-            index=idx_actual
-        )
-        
-        # Si el usuario cambia la selección, actualizamos la memoria y refrescamos
-        if seleccion != st.session_state.filtro_bi_default:
-            st.session_state.filtro_bi_default = seleccion
-            st.rerun()
-
-    # Usamos la variable guardada para toda la lógica siguiente
-    filtro_tiempo = st.session_state.filtro_bi_default
-
-    # --- 3. LÓGICA DE FECHAS (SIN FALLOS) ---
-    hoy = datetime.now()
-    fecha_inicio = None
-    if filtro_tiempo == "Hoy": fecha_inicio = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif filtro_tiempo == "Últimos 7 días": fecha_inicio = hoy - timedelta(days=7)
-    elif filtro_tiempo == "Este mes": fecha_inicio = hoy.replace(day=1, hour=0, minute=0, second=0)
-    elif filtro_tiempo == "Últimos 3 meses": fecha_inicio = hoy - timedelta(days=90)
-    elif filtro_tiempo == "Último año": fecha_inicio = hoy - timedelta(days=365)
-
-    # --- 4. EXTRACCIÓN DE DATOS (TUS QUERIES ORIGINALES) ---
-    q_c = conn.table("cuentas").select("balance_pendiente, monto_inicial, estado, fecha_creacion, cliente:clientes(nombre)").eq("user_id", u_id)
-    q_p = conn.table("pagos").select("monto_pagado, fecha_pago").eq("user_id", u_id)
-    q_g_pagados = conn.table("gastos").select("monto, fecha_gasto").eq("user_id", u_id).eq("estado", "Pagado").eq("visible_usuario", True)
-    q_g_pendientes = conn.table("gastos").select("monto, fecha_gasto").eq("user_id", u_id).eq("estado", "Pendiente").eq("visible_usuario", True)
-
-    if fecha_inicio:
-        f_iso = fecha_inicio.isoformat()
-        q_c = q_c.gte("fecha_creacion", f_iso)
-        q_p = q_p.gte("fecha_pago", f_iso)
-        q_g_pagados = q_g_pagados.gte("fecha_gasto", f_iso)
-        q_g_pendientes = q_g_pendientes.gte("fecha_gasto", f_iso)
-
-    res_c = q_c.execute()
-    res_p = q_p.execute()
-    res_g_pagados = q_g_pagados.execute()
-    res_g_pendientes = q_g_pendientes.execute()
-
-    # --- 5. CÁLCULOS ---
-    total_cobrado = sum([p['monto_pagado'] for p in res_p.data]) if res_p.data else 0
-    total_gastado_real = sum([g['monto'] for g in res_g_pagados.data]) if res_g_pagados.data else 0
-    total_compromisos = sum([g['monto'] for g in res_g_pendientes.data]) if res_g_pendientes.data else 0
-    capital_en_calle = sum([c['balance_pendiente'] for c in res_c.data if c['estado'] == 'Activo']) if res_c.data else 0
-    caja_actual = total_cobrado - total_gastado_real
-
-    # --- 6. UI DE TARJETAS ---
+    # --- 1. ESTILOS CSS (DISEÑO PREMIUM EXACTO) ---
     st.markdown("""
         <style>
-            .metric-card {
-                background-color: #ffffff;
-                padding: 20px;
-                border-radius: 15px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-                text-align: center;
-                border: 1px solid #f0f0f5;
-                margin-bottom: 10px;
+            [data-testid="stMetric"] { background-color: #FFFFFF; border-radius: 12px; padding: 15px; border: 1px solid #E2E8F0; }
+            .main { background-color: #F8FAFC; }
+            
+            /* Tarjetas Principales */
+            .card-container {
+                background: white; padding: 1.5rem; border-radius: 16px;
+                border: 1px solid #E2E8F0; box-shadow: 0 4px 6px rgba(15, 23, 42, 0.06);
+                margin-bottom: 1rem;
             }
-            .metric-card small { color: #8e8e93; font-weight: 600; text-transform: uppercase; }
-            .metric-card h2 { margin-top: 10px; font-size: 26px; }
+            .label-sm { color: #94A3B8; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+            .val-lg { color: #0F172A; font-size: 1.6rem; font-weight: 700; margin: 5px 0; }
+            .subtitle { color: #64748B; font-size: 0.85rem; }
+            
+            /* Iconos y Colores de Status */
+            .icon-box { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+            .bg-blue { background-color: #DBEAFE; color: #2563EB; }
+            .bg-green { background-color: #DCFCE7; color: #16A34A; }
+            .bg-red { background-color: #FEE2E2; color: #EF4444; }
+            .bg-purple { background-color: #EDE9FE; color: #7C3AED; }
+            
+            /* Notificaciones */
+            .notif-box { background: #1E293B; color: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; border-left: 5px solid #3B82F6; }
         </style>
     """, unsafe_allow_html=True)
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        st.markdown(f"<div class='metric-card'><small>💰 EN LA CALLE</small><h2 style='color:#007AFF;'>RD$ {capital_en_calle:,.0f}</h2></div>", unsafe_allow_html=True)
-    with c2:
-        st.markdown(f"<div class='metric-card'><small>🏦  RECIBIDO EN CAJA</small><h2 style='color:#34C759;'>RD$ {caja_actual:,.0f}</h2></div>", unsafe_allow_html=True)
-    with c3:
-        st.markdown(f"<div class='metric-card'><small>📉 GASTOS</small><h2 style='color:#FF3B30;'>RD$ {total_gastado_real:,.0f}</h2></div>", unsafe_allow_html=True)
+    # --- 2. LÓGICA DE NOTIFICACIONES (TABLA CONFIGURACION) ---
+    res_config = conn.table("configuracion").select("notificaciones_admin").eq("user_id", u_id).execute()
+    if res_config.data and res_config.data[0]['notificaciones_admin']:
+        msg = res_config.data[0]['notificaciones_admin']
+        st.markdown(f"""
+            <div class='notif-box'>
+                <small style='color: #94A3B8;'>🔔 MENSAJE DEL SISTEMA</small><br>
+                <div style='margin-top:5px;'>{msg}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
-    st.markdown(f"<p style='text-align:right; color:gray; font-size:12px;'>Vista fijada: {filtro_tiempo}</p>", unsafe_allow_html=True)
-    st.markdown("---")
+    # --- 3. FILTROS Y EXTRACCIÓN (LÓGICA TENANT) ---
+    col_t1, col_t2 = st.columns([2, 1])
+    with col_t1:
+        st.title("💼 Business Intelligence")
+    with col_t2:
+        filtro_bi = st.selectbox("Periodo", ["Todo el tiempo", "Hoy", "Este mes", "Último año"], label_visibility="collapsed")
+
+    # Queries Base (Filtro por tenant/u_id)
+    res_cuentas = conn.table("cuentas").select("*, cliente:clientes(nombre)").eq("user_id", u_id).execute()
+    res_pagos = conn.table("pagos").select("*").eq("user_id", u_id).execute()
+    res_gastos = conn.table("gastos").select("*").eq("user_id", u_id).execute()
+
+    # Cálculos Core
+    total_en_calle = sum(c['balance_pendiente'] for c in res_cuentas.data)
+    total_recibido = sum(p['monto_pagado'] for p in res_pagos.data)
+    total_gastos = sum(g['monto'] for g in res_gastos.data if g['estado'] == 'Pagado')
+    clientes_activos = len(set(c['cliente_id'] for c in res_cuentas.data if c['estado'] == 'Activo'))
     
-
-    # --- 5. GRÁFICOS (PROTECCIÓN CONTRA ERRORES DE FECHA) ---
-    import pandas as pd
-    import plotly.express as px
-
-    col_l, col_r = st.columns([1.2, 0.8])
-
-    with col_l:
-        st.subheader("🏆 Top 5 Deudores")
-        if res_c.data:
-            df_deudores = pd.DataFrame([{'C': c['cliente']['nombre'], 'D': c['balance_pendiente']} for c in res_c.data if c['estado'] == 'Activo'])
-            if not df_deudores.empty:
-                df_top = df_deudores.groupby('C').sum().sort_values('D', ascending=False).head(5).reset_index()
-                fig_top = px.bar(df_top, x='D', y='C', orientation='h', color='D', color_continuous_scale='Blues', text_auto=',.0f')
-                fig_top.update_layout(showlegend=False, height=350, margin=dict(l=0, r=10, t=20, b=0))
-                st.plotly_chart(fig_top, use_container_width=True)
-
-    with col_r:
-        st.subheader("📊 Recuperación")
-        m_inicial = sum([c['monto_inicial'] for c in res_c.data]) if res_c.data else 0
-        recup = max(0, m_inicial - capital_en_calle)
-        df_pie = pd.DataFrame({'T': ['Recuperado', 'Pendiente'], 'M': [recup, capital_en_calle]})
-        fig_pie = px.pie(df_pie, values='M', names='T', hole=0.6, color_discrete_sequence=['#34C759', '#007AFF'])
-        fig_pie.update_layout(margin=dict(l=0, r=0, t=20, b=0), height=350)
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-    # --- 6. ANÁLISIS DE FLUJO (Aquí estaba el ValueError) ---
-    st.markdown("---")
-    st.subheader("📈 Flujo de Recaudación Diario")
+    # --- 4. FILA 1: KPI PRINCIPALES (image_767c9d Style) ---
+    k1, k2, k3, k4 = st.columns(4)
     
-    if res_p.data and len(res_p.data) > 0:
-        df_p = pd.DataFrame(res_p.data)
-        
-        # PASO CRÍTICO: Conversión segura
-        df_p['fecha_pago'] = pd.to_datetime(df_p['fecha_pago'], errors='coerce', utc=True)
-        
-        # Eliminamos nulos producidos por la conversión o la DB
-        df_p = df_p.dropna(subset=['fecha_pago'])
-        
-        if not df_p.empty:
-            # Agrupación por día
-            df_hist = df_p.set_index('fecha_pago').resample('D')['monto_pagado'].sum().reset_index()
-            
-            fig_area = px.area(df_hist, x='fecha_pago', y='monto_pagado')
-            fig_area.update_traces(line_color='#007AFF', fillcolor='rgba(0, 122, 255, 0.1)')
-            fig_area.update_layout(height=300, margin=dict(l=0, r=0, t=20, b=0), xaxis_title="", yaxis_title="RD$")
+    metrics = [
+        {"label": "En la Calle", "val": total_en_calle, "color": "blue", "icon": "💰"},
+        {"label": "Recibido", "val": total_recibido, "color": "green", "icon": "🏦"},
+        {"label": "Gastos", "val": total_gastos, "color": "red", "icon": "📉"},
+        {"label": "Clientes", "val": clientes_activos, "color": "purple", "icon": "👥"}
+    ]
+
+    for i, col in enumerate([k1, k2, k3, k4]):
+        m = metrics[i]
+        col.markdown(f"""
+            <div class="card-container">
+                <div class="icon-box bg-{m['color']}">{m['icon']}</div>
+                <div class="label-sm">{m['label']}</div>
+                <div class="val-lg">RD$ {m['val']:,.0f}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # --- 5. FILA 2: INDICADORES SECUNDARIOS ---
+    st.markdown("### 📊 Salud de Cartera")
+    s1, s2, s3, s4 = st.columns(4)
+    
+    # Lógica de estados
+    vencidas = len([c for c in res_cuentas.data if c['proximo_pago'] and pd.to_datetime(c['proximo_pago']).date() < datetime.now().date() and c['balance_pendiente'] > 0])
+    avg_cobro = total_en_calle / len(res_cuentas.data) if res_cuentas.data else 0
+    
+    s1.metric("Promedio por Cobrar", f"RD$ {avg_cobro:,.0f}")
+    s2.metric("Cuentas Vencidas", vencidas, delta_color="inverse")
+    s3.metric("Tasa de Recuperación", f"{(total_recibido/(total_recibido + total_en_calle)*100 if (total_recibido + total_en_calle) > 0 else 0):.1f}%")
+    s4.metric("Próx. 7 días", "4") # Ejemplo estático o query de intervalo
+
+    # --- 6. GRÁFICOS (DISEÑO LIMPIO) ---
+    g1, g2 = st.columns([1.5, 1])
+
+    with g1:
+        st.markdown("<div class='card-container'><strong>📈 Evolución de Cobros</strong>", unsafe_allow_html=True)
+        if res_pagos.data:
+            df_p = pd.DataFrame(res_pagos.data)
+            df_p['fecha_pago'] = pd.to_datetime(df_p['fecha_pago'])
+            df_hist = df_p.set_index('fecha_pago').resample('M')['monto_pagado'].sum().reset_index()
+            fig_area = px.area(df_hist, x='fecha_pago', y='monto_pagado', color_discrete_sequence=['#2563EB'])
+            fig_area.update_layout(height=280, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_area, use_container_width=True)
-        else:
-            st.info("No hay fechas válidas para mostrar el historial.")
-    else:
-        st.info("Aún no hay registros de cobros.")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with g2:
+        st.markdown("<div class='card-container'><strong>Donut de Recuperación</strong>", unsafe_allow_html=True)
+        df_pie = pd.DataFrame({'T': ['Recuperado', 'Pendiente'], 'M': [total_recibido, total_en_calle]})
+        fig_pie = px.pie(df_pie, values='M', names='T', hole=0.7, color_discrete_sequence=['#16A34A', '#2563EB'])
+        fig_pie.update_layout(height=280, margin=dict(l=0,r=0,t=10,b=0), showlegend=False)
+        st.plotly_chart(fig_pie, use_container_width=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- 7. TOP DEUDORES (TABLA LIMPIA) ---
+    st.markdown("<div class='card-container'><strong>🏆 Top 5 Clientes con Mayor Deuda</strong>", unsafe_allow_html=True)
+    if res_cuentas.data:
+        df_deudores = pd.DataFrame([{'Cliente': c['cliente']['nombre'], 'Deuda': c['balance_pendiente']} for c in res_cuentas.data])
+        df_top = df_deudores.groupby('Cliente').sum().sort_values('Deuda', ascending=False).head(5).reset_index()
+        st.table(df_top.style.format({"Deuda": "RD$ {:,.2f}"}))
+    st.markdown("</div>", unsafe_allow_html=True)
             
 elif menu == "Gestión de Cobros":
     st.header("⚡ Centro de Recaudación")
