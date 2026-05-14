@@ -1146,153 +1146,234 @@ if "user" in st.session_state and st.session_state.user:
         except Exception as e:
             st.error(f"Error: {e}")
 
-# --- 2. SIDEBAR (DISEÑO BLOQUEADO A 200PX) ---
+import streamlit as st
+import base64
+
+# --- CONFIGURACIÓN DE PÁGINA (OPCIONAL PERO RECOMENDADO) ---
+# st.set_page_config(layout="wide")
+
+# --- 2. SIDEBAR (DISEÑO PREMIUM 272PX) ---
 with st.sidebar:
-    import base64
-    
-    URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
-
-    # Variables de sesión
-    biz_name = st.session_state.get("nombre_negocio", "MI NEGOCIO").upper()
-    biz_rnc  = st.session_state.get("rnc", "---")
-    biz_dir  = st.session_state.get("direccion_negocio", "---")
-    biz_tel  = st.session_state.get("telefono_negocio", "---")
+    # 1. Recuperación de variables de sesión
+    biz_name = st.session_state.get("nombre_negocio", "APPLE ENTERPRISE").upper()
+    biz_rnc  = st.session_state.get("rnc", "0000000000000")
+    biz_tel  = st.session_state.get("telefono_negocio", "809519688900")
+    u_email  = st.session_state.user.email if st.session_state.get("user") else "elmejorjefe06@gmail.com"
     logo_b64 = st.session_state.get("mi_logo")
-    u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
+    
+    # URL del logo de CobroYa para el footer
+    URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"
 
-# --- 1. SOLUCIÓN AL NAMEERROR: Definición previa de src_logo ---
+    # Lógica de Logo Principal
     try:
-        if 'logo_b64' in locals() and logo_b64:
+        if logo_b64:
             img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
             src_logo = f"data:image/png;base64,{img_data}"
         else:
-            src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+            # Logo Apple por defecto según mockup
+            src_logo = "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"
     except Exception:
-        src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+        src_logo = "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"
 
-# --- 1. CSS: Estética Minimalista y Profesional ---
+    # --- CSS: ESPECIFICACIONES EXACTAS ---
     st.markdown(f"""
         <style>
-            /* EXPANSIÓN Y SIDEBAR */
-            [data-testid="stSidebar"][aria-expanded="true"] {{
-                min-width: 300px !important;
-                max-width: 300px !important;
-                background-color: #FBFBFD !important;
-            }}
-            [data-testid="stSidebar"][aria-expanded="false"] {{
-                min-width: 0px !important;
-                max-width: 0px !important;
-                width: 0px !important;
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+            /* ESTRUCTURA GENERAL DEL SIDEBAR */
+            [data-testid="stSidebar"] {{
+                min-width: 272px !important;
+                max-width: 272px !important;
+                background-color: #FFFFFF !important;
+                border-right: 1px solid #E2E8F0 !important;
             }}
 
-            /* BOTÓN DE MENÚ */
+            /* ELIMINAR SCROLL VISUAL Y PADDING */
+            [data-testid="stSidebarContent"] {{
+                padding: 24px 20px 24px 20px !important;
+                background-color: #FFFFFF !important;
+                overflow-y: auto;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }}
+            [data-testid="stSidebarContent"]::-webkit-scrollbar {{
+                display: none;
+            }}
+
+            /* AJUSTE DEL HEADER DE STREAMLIT */
             [data-testid="stSidebarHeader"] {{
-                padding: 0px !important;
-                background-color: transparent !important;
-            }}
-            button[data-testid="stSidebarCollapseButton"] {{
-                background-color: #1D1D1F !important;
-                color: white !important;
-                border-radius: 8px !important;
-                margin: 10px !important;
-                z-index: 100000 !important;
+                display: none;
             }}
 
-            /* LOGO AL TECHO */
-            [data-testid="stSidebarUserContent"] {{
-                padding-top: 0px !important;
-                margin-top: -50px !important; 
+            /* TARJETA DE EMPRESA (PUNTO 4-7) */
+            .company-card {{
+                width: 100%;
+                min-height: 190px;
+                padding: 24px;
+                border: 1px solid #E2E8F0;
+                border-radius: 24px;
+                background: #FFFFFF;
+                text-align: center;
+                margin-bottom: 28px;
+                box-sizing: border-box;
             }}
 
-            .client-brand-card {{
-                text-align: center; 
-                padding: 15px; 
-                background: white;
-                border-bottom: 1px solid #F2F2F7;
-                margin-bottom: 20px;
-            }}
-            
-            .client-logo-img {{
-                max-width: 90%;
-                height: 55px;
+            .company-logo-img {{
+                width: 52px;
+                height: 52px;
                 object-fit: contain;
+                margin-bottom: 18px;
             }}
 
-            /* NAVEGACIÓN */
+            .company-name {{
+                font-family: 'Inter', sans-serif;
+                font-size: 22px;
+                font-weight: 700;
+                color: #0F172A;
+                line-height: 28px;
+                letter-spacing: -0.02em;
+                margin-bottom: 14px;
+            }}
+
+            .company-details {{
+                font-family: 'Inter', sans-serif;
+                font-size: 13px;
+                font-weight: 500;
+                color: #64748B;
+                line-height: 22px;
+            }}
+
+            .company-email {{
+                font-weight: 600;
+                color: #334155;
+            }}
+
+            /* NAVEGACIÓN ESTILO STRIPE/LINEAR (PUNTO 8-14) */
             div[role="radiogroup"] {{
-                gap: 12px !important;
-                padding-left: 10px !important;
-            }}
-            div[role="radio"] p {{ 
-                font-size: 14px !important; 
-                color: #1D1D1F !important;
-                font-weight: 400;
-                padding: 6px 0 !important;
+                gap: 8px !important;
+                padding: 0px !important;
             }}
 
-            /* FOOTER PROFESIONAL (Minimalista) */
-            .absolute-footer {{
-                margin-top: 40px !important;
-                padding: 20px 0px 10px 0px !important;
-                border-top: 1px solid #F2F2F7;
+            div[role="radio"] {{
+                background-color: transparent !important;
+                border: none !important;
+                padding: 0px !important;
+                margin: 0px !important;
+            }}
+
+            /* Estado Normal del Item */
+            div[role="radio"] > div {{
+                height: 48px !important;
+                padding: 0px 14px !important;
+                border-radius: 14px !important;
+                display: flex !important;
+                align-items: center !important;
+                transition: 0.2s ease !important;
+            }}
+
+            div[role="radio"]:hover > div {{
+                background-color: #F8FAFC !important;
+            }}
+
+            /* Estado Activo (Punto 12) */
+            div[role="radio"][aria-checked="true"] > div {{
+                background-color: #EFF6FF !important;
+            }}
+
+            /* Tipografía de los Items */
+            div[role="radio"] p {{
+                font-family: 'Inter', sans-serif !important;
+                font-size: 16px !important;
+                font-weight: 500 !important;
+                color: #334155 !important;
+            }}
+
+            div[role="radio"][aria-checked="true"] p {{
+                color: #2563EB !important;
+                font-weight: 600 !important;
+            }}
+
+            /* Indicador Círculo Rojo (Punto 12) */
+            div[role="radio"][aria-checked="true"] > div::before {{
+                content: '';
+                position: absolute;
+                left: -6px;
+                width: 10px;
+                height: 10px;
+                background-color: #FB7185;
+                border-radius: 999px;
+            }}
+
+            /* FOOTER SIDEBAR (PUNTO 15) */
+            .sidebar-footer {{
+                margin-top: 40px;
+                padding-top: 24px;
+                border-top: 1px solid #F1F5F9;
                 text-align: center;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                width: 100%;
             }}
 
             .powered-by {{
-                font-size: 9px !important;
-                color: #A1A1A6;
+                font-family: 'Inter', sans-serif;
+                font-size: 11px;
+                letter-spacing: 0.18em;
                 text-transform: uppercase;
-                letter-spacing: 1.5px;
+                color: #94A3B8;
                 font-weight: 500;
-                margin-bottom: 10px;
+                margin-bottom: 12px;
             }}
 
             .footer-logo-img {{
-                width: 100px; /* Tamaño equilibrado para verse serio */
-                height: auto;
-                opacity: 0.8;
+                height: 28px;
+                width: auto;
+                filter: brightness(0) saturate(100%) invert(31%) sepia(94%) saturate(1450%) hue-rotate(213deg) brightness(97%) contrast(93%); /* Color #2563EB */
             }}
 
-            [data-testid="stAppViewBlockContainer"] {{
-                max-width: 100% !important;
+            /* Eliminar padding superior extra de Streamlit */
+            [data-testid="stSidebarUserContent"] {{
+                padding-top: 0px !important;
             }}
         </style>
     """, unsafe_allow_html=True)
 
-    # --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
-    st.sidebar.markdown(f"""
-        <div class="client-brand-card">
-            <img src="{src_logo}" class="client-logo-img">
-            <div style="font-family: sans-serif; margin-top: 10px;">
-                <b style="font-size:14px; color:#1D1D1F;">{biz_name}</b>
-                <div style="font-size:10px; color:#86868B; margin-top:5px;">
-                    <p style="margin:0;">RNC: {biz_rnc} | 📞 {biz_tel}</p>
-                    <p style='color:#1D1D1F; font-weight:600; margin-top:3px;'>{u_email}</p>
-                </div>
+    # --- 2. CONTENIDO SUPERIOR: TARJETA DE EMPRESA ---
+    st.markdown(f"""
+        <div class="company-card">
+            <img src="{src_logo}" class="company-logo-img">
+            <div class="company-name">{biz_name}</div>
+            <div class="company-details">
+                RNC: {biz_rnc} | {biz_tel}<br>
+                <span class="company-email">{u_email}</span>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-# --- 3. NAVEGACIÓN (Corregida para 1 solo clic) ---
-    opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
+    # --- 3. NAVEGACIÓN ---
+    opciones = [
+        "Panel de Control", 
+        "Gestión de Cobros", 
+        "Todos mis Clientes", 
+        "Nueva Cuenta", 
+        "Cuentas por Pagar", 
+        "IA Predictiva", 
+        "Configuración"
+    ]
     
+    # Mapeo de iconos usando Emojis (Streamlit radio no soporta SVG directo fácilmente sin componentes extra, 
+    # pero he ajustado el espaciado para que se vea premium)
     mapeo_visual = {
-        "Panel de Control": "🏠 Panel de Control",
-        "Gestión de Cobros": "💰 Gestión de Cobros",
-        "👥 Todos mis Clientes": "👥 Todos mis Clientes",
-        "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
-        "Cuentas por Pagar": "📉 Cuentas por Pagar",
-        "IA Predictiva": "🧠 IA Predictiva",
-        "Configuración": "⚙️ Configuración"
+        "Panel de Control": "📊 &nbsp; Panel de Control",
+        "Gestión de Cobros": "💳 &nbsp; Gestión de Cobros",
+        "Todos mis Clientes": "👥 &nbsp; Todos mis Clientes",
+        "Nueva Cuenta": "➕ &nbsp; Nueva Cuenta",
+        "Cuentas por Pagar": "📑 &nbsp; Cuentas por Pagar",
+        "IA Predictiva": "🧠 &nbsp; IA Predictiva",
+        "Configuración": "⚙️ &nbsp; Configuración"
     }
 
-    # Al usar key="menu_principal", el radio lee y escribe 
-    # directamente en st.session_state["menu_principal"]
-    menu = st.sidebar.radio(
+    menu = st.radio(
         "NAV",
         opciones,
         key="menu_principal",
@@ -1300,13 +1381,11 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
-    # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
-    st.sidebar.markdown(f"""
-        <div class="absolute-footer">
+    # --- 4. FOOTER SIDEBAR ---
+    st.markdown(f"""
+        <div class="sidebar-footer">
             <span class="powered-by">Powered by Lixander García</span>
-            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
-                 class="footer-logo-img" 
-                 onerror="this.style.display='none'">
+            <img src="{URL_LOGO_COBROYA}" class="footer-logo-img">
         </div>
     """, unsafe_allow_html=True)
     
