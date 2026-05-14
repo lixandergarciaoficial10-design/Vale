@@ -1146,198 +1146,153 @@ if "user" in st.session_state and st.session_state.user:
         except Exception as e:
             st.error(f"Error: {e}")
 
-import streamlit as st
-import base64
-
-# --- CONFIGURACIÓN DE PÁGINA (OPCIONAL PERO RECOMENDADO) ---
-# st.set_page_config(layout="wide")
-
-import streamlit as st
-
-# --- SIDEBAR PROFESIONAL (BLOQUEADO A 272PX Y SIN SCROLL) ---
+# --- 2. SIDEBAR (DISEÑO BLOQUEADO A 200PX) ---
 with st.sidebar:
-    # Variables de sesión (manteniendo tu lógica)
-    biz_name = st.session_state.get("nombre_negocio", "APPLE ENTERPRISE").upper()
-    biz_rnc  = st.session_state.get("rnc", "0000000000000")
-    biz_tel  = st.session_state.get("telefono_negocio", "809519688900")
-    u_email  = st.session_state.user.email if st.session_state.get("user") else "elmejorjefe06@gmail.com"
+    import base64
     
-    # Logo Apple por defecto o el tuyo
-    src_logo = "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"
-    URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png"
+    URL_LOGO_COBROYA = "https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
 
-    # --- CSS AGRESIVO PARA ELIMINAR SCROLL Y FIJAR ANCHO ---
-    st.markdown(
-        """
-        <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    # Variables de sesión
+    biz_name = st.session_state.get("nombre_negocio", "MI NEGOCIO").upper()
+    biz_rnc  = st.session_state.get("rnc", "---")
+    biz_dir  = st.session_state.get("direccion_negocio", "---")
+    biz_tel  = st.session_state.get("telefono_negocio", "---")
+    logo_b64 = st.session_state.get("mi_logo")
+    u_email  = st.session_state.user.email if st.session_state.get("user") else "Sesión Activa"
 
-            /* 1. ELIMINAR EL MALDITO SCROLL Y FIJAR ANCHO */
-            [data-testid="stSidebar"] {
-                min-width: 272px !important;
-                max-width: 272px !important;
-                width: 272px !important;
-                background-color: #FFFFFF !important;
-                border-right: 1px solid #E2E8F0 !important;
-            }
+# --- 1. SOLUCIÓN AL NAMEERROR: Definición previa de src_logo ---
+    try:
+        if 'logo_b64' in locals() and logo_b64:
+            img_data = logo_b64.split(",")[1] if "," in str(logo_b64) else logo_b64
+            src_logo = f"data:image/png;base64,{img_data}"
+        else:
+            src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
+    except Exception:
+        src_logo = "https://cdn-icons-png.flaticon.com/512/3135/3135715.png"
 
-            /* OCULTAR BARRA EN TODOS LOS NAVEGADORES */
-            [data-testid="stSidebarContent"] {
-                padding: 24px 20px !important;
-                background-color: #FFFFFF !important;
-                overflow-y: auto;
-                scrollbar-width: none !important; /* Firefox */
-                -ms-overflow-style: none !important; /* IE */
-            }
-
-            [data-testid="stSidebarContent"]::-webkit-scrollbar {
-                display: none !important; /* Chrome/Safari */
-                width: 0 !important;
-                height: 0 !important;
-            }
-
-            /* 2. TARJETA DE EMPRESA (MATCH EXACTO image_cbdf9d.png) */
-            .company-card {
-                width: 100%;
-                padding: 24px 15px;
-                border: 1px solid #E2E8F0;
-                border-radius: 24px;
-                background: #FFFFFF;
-                text-align: center;
-                margin-bottom: 28px;
-            }
-
-            .company-logo {
-                width: 52px;
-                margin-bottom: 16px;
-            }
-
-            .company-name {
-                font-family: 'Inter', sans-serif;
-                font-size: 20px;
-                font-weight: 700;
-                color: #0F172A;
-                letter-spacing: -0.02em;
-                margin-bottom: 10px;
-            }
-
-            .company-info {
-                font-family: 'Inter', sans-serif;
-                font-size: 12px;
-                color: #64748B;
-                line-height: 1.6;
-            }
-
-            /* 3. NAVEGACIÓN (SIN ICONOS DE STREAMLIT, SOLO TEXTO/EMOJI) */
-            div[role="radiogroup"] {
-                gap: 8px !important;
-            }
-
-            div[role="radio"] {
-                background-color: transparent !important;
-                padding: 0px !important;
-            }
-
-            div[role="radio"] > div {
-                height: 48px !important;
-                padding: 0 14px !important;
-                border-radius: 14px !important;
-                display: flex !important;
-                align-items: center !important;
-                transition: 0.2s ease !important;
-                border: none !important;
-            }
-
-            /* Hover y Activo */
-            div[role="radio"]:hover > div {
-                background-color: #F8FAFC !important;
-            }
-
-            div[role="radio"][aria-checked="true"] > div {
-                background-color: #EFF6FF !important;
-                position: relative;
-            }
-
-            /* EL PUNTO ROJO ACTIVO */
-            div[role="radio"][aria-checked="true"] > div::before {
-                content: '';
-                position: absolute;
-                left: -6px;
-                width: 8px;
-                height: 8px;
-                background-color: #FB7185;
-                border-radius: 50%;
-            }
-
-            /* Texto del menú */
-            div[role="radio"] p {
-                font-family: 'Inter', sans-serif !important;
-                font-size: 15px !important;
-                color: #334155 !important;
-                font-weight: 500 !important;
-                margin: 0 !important;
-            }
-
-            div[role="radio"][aria-checked="true"] p {
-                color: #2563EB !important;
-                font-weight: 600 !important;
-            }
-
-            /* 4. FOOTER */
-            .sidebar-footer {
-                margin-top: 50px;
-                padding-top: 20px;
-                border-top: 1px solid #F1F5F9;
-                text-align: center;
-            }
-
-            .powered-by {
-                font-size: 10px;
-                letter-spacing: 0.15em;
-                text-transform: uppercase;
-                color: #94A3B8;
-                font-weight: 600;
-            }
-
-            .footer-logo {
-                width: 80px;
-                margin-top: 10px;
-                opacity: 0.7;
-            }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    # --- RENDERIZADO DEL CONTENIDO ---
-    
-    # 1. Card Superior
+# --- 1. CSS: Estética Minimalista y Profesional ---
     st.markdown(f"""
-        <div class="company-card">
-            <img src="{src_logo}" class="company-logo">
-            <div class="company-name">{biz_name}</div>
-            <div class="company-info">
-                RNC: {biz_rnc} | {biz_tel}<br>
-                <b style="color:#334155;">{u_email}</b>
+        <style>
+            /* EXPANSIÓN Y SIDEBAR */
+            [data-testid="stSidebar"][aria-expanded="true"] {{
+                min-width: 300px !important;
+                max-width: 300px !important;
+                background-color: #FBFBFD !important;
+            }}
+            [data-testid="stSidebar"][aria-expanded="false"] {{
+                min-width: 0px !important;
+                max-width: 0px !important;
+                width: 0px !important;
+            }}
+
+            /* BOTÓN DE MENÚ */
+            [data-testid="stSidebarHeader"] {{
+                padding: 0px !important;
+                background-color: transparent !important;
+            }}
+            button[data-testid="stSidebarCollapseButton"] {{
+                background-color: #1D1D1F !important;
+                color: white !important;
+                border-radius: 8px !important;
+                margin: 10px !important;
+                z-index: 100000 !important;
+            }}
+
+            /* LOGO AL TECHO */
+            [data-testid="stSidebarUserContent"] {{
+                padding-top: 0px !important;
+                margin-top: -50px !important; 
+            }}
+
+            .client-brand-card {{
+                text-align: center; 
+                padding: 15px; 
+                background: white;
+                border-bottom: 1px solid #F2F2F7;
+                margin-bottom: 20px;
+            }}
+            
+            .client-logo-img {{
+                max-width: 90%;
+                height: 55px;
+                object-fit: contain;
+            }}
+
+            /* NAVEGACIÓN */
+            div[role="radiogroup"] {{
+                gap: 12px !important;
+                padding-left: 10px !important;
+            }}
+            div[role="radio"] p {{ 
+                font-size: 14px !important; 
+                color: #1D1D1F !important;
+                font-weight: 400;
+                padding: 6px 0 !important;
+            }}
+
+            /* FOOTER PROFESIONAL (Minimalista) */
+            .absolute-footer {{
+                margin-top: 40px !important;
+                padding: 20px 0px 10px 0px !important;
+                border-top: 1px solid #F2F2F7;
+                text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                width: 100%;
+            }}
+
+            .powered-by {{
+                font-size: 9px !important;
+                color: #A1A1A6;
+                text-transform: uppercase;
+                letter-spacing: 1.5px;
+                font-weight: 500;
+                margin-bottom: 10px;
+            }}
+
+            .footer-logo-img {{
+                width: 100px; /* Tamaño equilibrado para verse serio */
+                height: auto;
+                opacity: 0.8;
+            }}
+
+            [data-testid="stAppViewBlockContainer"] {{
+                max-width: 100% !important;
+            }}
+        </style>
+    """, unsafe_allow_html=True)
+
+    # --- 2. CONTENIDO SUPERIOR: LOGO Y MARCA ---
+    st.sidebar.markdown(f"""
+        <div class="client-brand-card">
+            <img src="{src_logo}" class="client-logo-img">
+            <div style="font-family: sans-serif; margin-top: 10px;">
+                <b style="font-size:14px; color:#1D1D1F;">{biz_name}</b>
+                <div style="font-size:10px; color:#86868B; margin-top:5px;">
+                    <p style="margin:0;">RNC: {biz_rnc} | 📞 {biz_tel}</p>
+                    <p style='color:#1D1D1F; font-weight:600; margin-top:3px;'>{u_email}</p>
+                </div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. Menú de Navegación
-    opciones = ["Panel de Control", "Gestión de Cobros", "Todos mis Clientes", "Nueva Cuenta", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
+# --- 3. NAVEGACIÓN (Corregida para 1 solo clic) ---
+    opciones = ["Panel de Control", "Gestión de Cobros", "👥 Todos mis Clientes", "Nueva Cuenta por Cobrar", "Cuentas por Pagar", "IA Predictiva", "Configuración"]
     
-    # Mapeo visual con emojis para que se vea como en image_cb72e1.png
     mapeo_visual = {
-        "Panel de Control": "📊 Panel de Control",
-        "Gestión de Cobros": "💳 Gestión de Cobros",
-        "Todos mis Clientes": "👥 Todos mis Clientes",
-        "Nueva Cuenta": "➕ Nueva Cuenta",
-        "Cuentas por Pagar": "📑 Cuentas por Pagar",
+        "Panel de Control": "🏠 Panel de Control",
+        "Gestión de Cobros": "💰 Gestión de Cobros",
+        "👥 Todos mis Clientes": "👥 Todos mis Clientes",
+        "Nueva Cuenta por Cobrar": "➕ Nueva Cuenta por Cobrar",
+        "Cuentas por Pagar": "📉 Cuentas por Pagar",
         "IA Predictiva": "🧠 IA Predictiva",
         "Configuración": "⚙️ Configuración"
     }
 
-    menu = st.radio(
+    # Al usar key="menu_principal", el radio lee y escribe 
+    # directamente en st.session_state["menu_principal"]
+    menu = st.sidebar.radio(
         "NAV",
         opciones,
         key="menu_principal",
@@ -1345,11 +1300,13 @@ with st.sidebar:
         label_visibility="collapsed"
     )
 
-    # 3. Footer
-    st.markdown(f"""
-        <div class="sidebar-footer">
-            <div class="powered-by">Powered by Lixander García</div>
-            <img src="{URL_LOGO_COBROYA}" class="footer-logo">
+    # --- 4. FOOTER: DISTRIBUCIÓN DE EMPRESA SERIA ---
+    st.sidebar.markdown(f"""
+        <div class="absolute-footer">
+            <span class="powered-by">Powered by Lixander García</span>
+            <img src="https://dqwqrzbskjzxjgihqrzc.supabase.co/storage/v1/object/public/logo/IMG_4803-removebg-preview%20(1).png" 
+                 class="footer-logo-img" 
+                 onerror="this.style.display='none'">
         </div>
     """, unsafe_allow_html=True)
     
