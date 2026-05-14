@@ -1409,15 +1409,41 @@ if menu == "Panel de Control":
     # --- 6. GRÁFICOS (DISEÑO LIMPIO) ---
     g1, g2 = st.columns([1.5, 1])
 
-    with g1:
+    wwith g1:
         st.markdown("<div class='card-container'><strong>📈 Evolución de Cobros</strong>", unsafe_allow_html=True)
-        if res_pagos.data:
+        if res_pagos.data and len(res_pagos.data) > 0:
             df_p = pd.DataFrame(res_pagos.data)
-            df_p['fecha_pago'] = pd.to_datetime(df_p['fecha_pago'])
-            df_hist = df_p.set_index('fecha_pago').resample('M')['monto_pagado'].sum().reset_index()
-            fig_area = px.area(df_hist, x='fecha_pago', y='monto_pagado', color_discrete_sequence=['#2563EB'])
-            fig_area.update_layout(height=280, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig_area, use_container_width=True)
+            
+            # --- CORRECCIÓN DEL ERROR DE FECHA ---
+            # Usamos format='ISO8601' y errors='coerce' para evitar el ValueError
+            df_p['fecha_pago'] = pd.to_datetime(df_p['fecha_pago'], format='ISO8601', errors='coerce')
+            
+            # Limpiamos nulos en caso de que alguna fecha venga corrupta
+            df_p = df_p.dropna(subset=['fecha_pago'])
+            
+            if not df_p.empty:
+                # Agrupamos por mes (o por día 'D' si prefieres más detalle)
+                df_hist = df_p.set_index('fecha_pago').resample('M')['monto_pagado'].sum().reset_index()
+                
+                # Si solo hay un mes, el gráfico de área no se ve bien, así que validamos
+                fig_area = px.area(df_hist, x='fecha_pago', y='monto_pagado', color_discrete_sequence=['#2563EB'])
+                
+                # Estilización del gráfico para que combine con el diseño premium
+                fig_area.update_layout(
+                    height=280, 
+                    margin=dict(l=0,r=0,t=10,b=0), 
+                    paper_bgcolor='rgba(0,0,0,0)', 
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    xaxis_title="",
+                    yaxis_title="RD$",
+                    xaxis=dict(showgrid=False),
+                    yaxis=dict(showgrid=True, gridcolor='#F1F5F9')
+                )
+                st.plotly_chart(fig_area, use_container_width=True)
+            else:
+                st.info("No hay datos de fecha válidos para graficar.")
+        else:
+            st.info("Aún no hay registros de cobros para mostrar el historial.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with g2:
