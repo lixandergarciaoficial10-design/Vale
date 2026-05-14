@@ -1421,6 +1421,12 @@ if menu == "Panel de Control":
     res_pagos = q_p.execute()
     res_gastos = q_g.execute()
 
+    # --- CÁLCULOS DE TOTALES (CORRECCIÓN DEL NAMEERROR) ---
+    total_en_calle = sum(c['balance_pendiente'] for c in res_cuentas.data) if res_cuentas.data else 0
+    total_recibido = sum(p['monto_pagado'] for p in res_pagos.data) if res_pagos.data else 0
+    total_gastos = sum(g['monto'] for g in res_gastos.data if g['estado'] == 'Pagado') if res_gastos.data else 0
+    clientes_activos = len(set(c['cliente_id'] for c in res_cuentas.data if c['estado'] == 'Activo')) if res_cuentas.data else 0
+
     # --- 5. TARJETAS KPI PREMIUM ---
     def get_sparkline(color):
         return f'''
@@ -1445,7 +1451,6 @@ if menu == "Panel de Control":
     with c4:
         st.markdown(f'<div class="kpi-card border-purple"><div class="icon-wrapper bg-purple-light">{icon_users}</div><div class="kpi-title">Clientes</div><div class="kpi-value val-purple">{clientes_activos}</div>{get_sparkline("#7C3AED")}</div>', unsafe_allow_html=True)
 
-        
     # --- 6. SALUD DE CARTERA (INDICADORES SECUNDARIOS) ---
     st.markdown("<div class='section-card'><div class='section-title'>📊 Salud de Cartera</div>", unsafe_allow_html=True)
     s1, s2, s3, s4 = st.columns(4)
