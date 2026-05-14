@@ -1315,57 +1315,60 @@ if menu == "Panel de Control":
     import plotly.express as px
     from datetime import datetime, timedelta
 
-    # --- 1. ESTILOS CSS (DISEÑO PREMIUM EXACTO) ---
+# --- 1. ESTILOS CSS (DISEÑO PREMIUM REPLICADO) ---
     st.markdown("""
         <style>
             .main { background-color: #F8FAFC; }
             
-            /* Tarjetas Principales Modernas */
+            /* Tarjeta KPI con línea inferior de color */
             .kpi-card {
                 background: #FFFFFF;
-                border-radius: 16px;
-                padding: 20px;
+                border-radius: 14px;
+                padding: 18px;
                 border: 1px solid #E2E8F0;
-                box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
                 display: flex;
                 flex-direction: column;
-                margin-bottom: 15px;
+                position: relative;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.02);
             }
-            .kpi-header {
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                margin-bottom: 12px;
-            }
+            .border-blue { border-bottom: 4px solid #2563EB; }
+            .border-green { border-bottom: 4px solid #16A34A; }
+            .border-red { border-bottom: 4px solid #EF4444; }
+            .border-purple { border-bottom: 4px solid #7C3AED; }
+
             .icon-wrapper {
-                width: 44px;
-                height: 44px;
-                border-radius: 12px;
+                width: 42px;
+                height: 42px;
+                border-radius: 10px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                margin-bottom: 12px;
             }
-            /* Colores Exactos de Fondos de Iconos */
-            .bg-blue-light { background-color: #DBEAFE; }
-            .bg-green-light { background-color: #DCFCE7; }
-            .bg-red-light { background-color: #FEE2E2; }
-            .bg-purple-light { background-color: #EDE9FE; }
+            /* Colores de fondo de iconos */
+            .bg-blue-light { background-color: #DBEAFE; color: #2563EB; }
+            .bg-green-light { background-color: #DCFCE7; color: #16A34A; }
+            .bg-red-light { background-color: #FEE2E2; color: #EF4444; }
+            .bg-purple-light { background-color: #EDE9FE; color: #7C3AED; }
             
-            .kpi-title { color: #64748B; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-            .kpi-value { color: #0F172A; font-size: 28px; font-weight: 800; line-height: 1.2; }
+            .kpi-title { color: #64748B; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
             
-            /* Contenedores Generales */
+            /* Colores de números exactos */
+            .val-blue { color: #2563EB; }
+            .val-green { color: #16A34A; }
+            .val-red { color: #EF4444; }
+            .val-purple { color: #7C3AED; }
+            .kpi-value { font-size: 26px; font-weight: 800; margin-top: 4px; }
+
+            /* Tarjetas de Secciones */
             .section-card {
                 background: #FFFFFF;
                 border-radius: 16px;
                 padding: 20px;
                 border: 1px solid #E2E8F0;
-                box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.05);
                 margin-bottom: 20px;
             }
-            .section-title { color: #0F172A; font-size: 18px; font-weight: 700; margin-bottom: 15px; }
-            
-            /* Notificaciones */
+            .section-title { color: #0F172A; font-size: 17px; font-weight: 700; margin-bottom: 15px; }
             .notif-box { background: #1E293B; color: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; border-left: 5px solid #3B82F6; }
         </style>
     """, unsafe_allow_html=True)
