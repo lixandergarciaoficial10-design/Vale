@@ -1435,20 +1435,44 @@ if menu == "Panel de Control":
     total_gastos = sum(g['monto'] for g in res_gastos.data if g['estado'] == 'Pagado') if res_gastos.data else 0
     clientes_activos = len(set(c['cliente_id'] for c in res_cuentas.data if c['estado'] == 'Activo')) if res_cuentas.data else 0
 
-    # --- 5. TARJETAS PRINCIPALES (GRID 2x2 COMO EN LA FOTO) ---
-    # SVGs Exactos incrustados en HTML
-    svg_wallet = '<svg style="width:22px;height:22px;color:#2563EB" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>'
-    svg_inbox = '<svg style="width:22px;height:22px;color:#16A34A" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>'
-    svg_down = '<svg style="width:22px;height:22px;color:#EF4444" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg>'
-    svg_users = '<svg style="width:22px;height:22px;color:#7C3AED" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>'
+# --- 5. TARJETAS PRINCIPALES (4 COLUMNAS EN LAPTOP / 2x2 EN MÓVIL) ---
+    
+    # Definimos los SVGs exactos estilo "Gema/Premium"
+    icon_calle = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>'
+    icon_caja = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v3"></path><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"></path><path d="M3 8h18"></path><path d="M10 12h4"></path></svg>'
+    icon_gastos = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline><polyline points="17 18 23 18 23 12"></polyline></svg>'
+    icon_clientes = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>'
 
-    r1c1, r1c2 = st.columns(2)
-    r2c1, r2c2 = st.columns(2)
+    # Usamos 4 columnas. Streamlit en móvil automáticamente las agrupa 2x2.
+    c1, c2, c3, c4 = st.columns(4)
 
-    r1c1.markdown(f"""<div class="kpi-card"><div class="kpi-header"><div class="icon-wrapper bg-blue-light">{svg_wallet}</div><span class="kpi-title">En la Calle</span></div><div class="kpi-value">RD$ {total_en_calle:,.0f}</div></div>""", unsafe_allow_html=True)
-    r1c2.markdown(f"""<div class="kpi-card"><div class="kpi-header"><div class="icon-wrapper bg-green-light">{svg_inbox}</div><span class="kpi-title">Recibido en Caja</span></div><div class="kpi-value">RD$ {total_recibido:,.0f}</div></div>""", unsafe_allow_html=True)
-    r2c1.markdown(f"""<div class="kpi-card"><div class="kpi-header"><div class="icon-wrapper bg-red-light">{svg_down}</div><span class="kpi-title">Gastos</span></div><div class="kpi-value">RD$ {total_gastos:,.0f}</div></div>""", unsafe_allow_html=True)
-    r2c2.markdown(f"""<div class="kpi-card"><div class="kpi-header"><div class="icon-wrapper bg-purple-light">{svg_users}</div><span class="kpi-title">Clientes Activos</span></div><div class="kpi-value" style="color:#7C3AED;">{clientes_activos}</div></div>""", unsafe_allow_html=True)
+    with c1:
+        st.markdown(f"""<div class="kpi-card border-bottom-blue">
+            <div class="icon-wrapper bg-blue-light">{icon_calle}</div>
+            <div class="kpi-title">En la Calle</div>
+            <div class="kpi-value val-blue">RD$ {total_en_calle:,.0f}</div>
+        </div>""", unsafe_allow_html=True)
+
+    with c2:
+        st.markdown(f"""<div class="kpi-card border-bottom-green">
+            <div class="icon-wrapper bg-green-light">{icon_caja}</div>
+            <div class="kpi-title">Recibo en Caja</div>
+            <div class="kpi-value val-green">RD$ {total_recibido:,.0f}</div>
+        </div>""", unsafe_allow_html=True)
+
+    with c3:
+        st.markdown(f"""<div class="kpi-card border-bottom-red">
+            <div class="icon-wrapper bg-red-light">{icon_gastos}</div>
+            <div class="kpi-title">Gastos</div>
+            <div class="kpi-value val-red">RD$ {total_gastos:,.0f}</div>
+        </div>""", unsafe_allow_html=True)
+
+    with c4:
+        st.markdown(f"""<div class="kpi-card border-bottom-purple">
+            <div class="icon-wrapper bg-purple-light">{icon_clientes}</div>
+            <div class="kpi-title">Clientes</div>
+            <div class="kpi-value val-purple">{clientes_activos}</div>
+        </div>""", unsafe_allow_html=True)
 
     # --- 6. SALUD DE CARTERA (INDICADORES SECUNDARIOS) ---
     st.markdown("<div class='section-card'><div class='section-title'>📊 Salud de Cartera</div>", unsafe_allow_html=True)
