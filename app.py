@@ -1463,7 +1463,7 @@ if menu == "Panel de Control":
         st.markdown(f"""<div class="kpi-card border-blue">
             <div class="icon-wrapper bg-blue-light">{icon_calle}</div>
             <div class="kpi-title">En la Calle</div>
-            <div class="kpi-value val-blue">RD$ {total_calle:,.0f}</div>
+            <div class="kpi-value val-blue">RD$ {total_en_calle:,.0f}</div>
             {get_sparkline('#2563EB')}
         </div>""", unsafe_allow_html=True)
 
@@ -1490,6 +1490,7 @@ if menu == "Panel de Control":
             <div class="kpi-value val-purple">{clientes_act}</div>
             {get_sparkline('#7C3AED')}
         </div>""", unsafe_allow_html=True)
+        
     # --- 6. SALUD DE CARTERA (INDICADORES SECUNDARIOS) ---
     st.markdown("<div class='section-card'><div class='section-title'>📊 Salud de Cartera</div>", unsafe_allow_html=True)
     s1, s2, s3, s4 = st.columns(4)
