@@ -706,7 +706,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
                 <hr style="border-top: 1px solid #e2e8f0; margin: 12px 0;">
                 <ul class="features" style="list-style-type: none; padding: 0; font-size: 13px; color: #334155; line-height: 1.6;">
                     <li>✓ Capacidad ampliada (10,000 clientes)</li>
-                    <li>✓ Hasta 50,000 cuentas activas</li>
+                    <li>✓ Hasta 25,000 cuentas activas</li>
                     <li>✓ Tabla de amortización automática</li>                  
                     <li>✓ Dashboards predictivos </li>
                     <li>✓ Gestión de cobros y pagos completa</li>
@@ -723,7 +723,7 @@ if st.session_state.get("estado_suscripcion") != "valido":
                     <li>✓ Asistencia en migración de datos</li>
                     <li>✓ Asesoría estratégica especializada a solicitud</li>
                     <li>✓ Participación prioritaria en nuevas funcionalidades</li>
-                    <li>✓ Hasta 20 inicios de sesión simultáneos</li>
+                    <li>✓ Hasta 10 inicios de sesión simultáneos</li>
                 </ul>
             </div>
             """, unsafe_allow_html=True)
