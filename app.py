@@ -1477,8 +1477,8 @@ if menu == "Panel de Control":
             df_p = df_p.dropna(subset=['fecha_pago'])
             
             if not df_p.empty:
-                # Lógica del Toggle (Diario o Mensual)
-                agrupacion = 'M' if tipo_grafico == "Mensual" else 'D'
+                # Lógica del Toggle (Diario o Mensual) - CORREGIDO 'M' por 'ME'
+                agrupacion = 'ME' if tipo_grafico == "Mensual" else 'D'
                 df_hist = df_p.set_index('fecha_pago').resample(agrupacion)['monto_pagado'].sum().reset_index()
                 
                 fig_area = px.area(df_hist, x='fecha_pago', y='monto_pagado', color_discrete_sequence=['#3B82F6'])
