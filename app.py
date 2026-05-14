@@ -73,6 +73,59 @@ if "user" not in st.session_state:
 if "page" not in st.session_state:
     st.session_state.page = "login"
 
+# =====================================================================
+# BLOQUE 1: SISTEMA DINÁMICO DE LÍMITES Y PERMISOS (Lixander Edition)
+# =====================================================================
+def cargar_limites_usuario():
+    """Carga la configuración de límites desde la DB al session_state"""
+    if "settings" not in st.session_state:
+        # Usamos el ID del dueño de la cuenta (owner_id) para buscar sus límites
+        owner_id = st.session_state.get("owner_id")
+        if owner_id:
+            try:
+                res = conn.table("configuracion").select("*").eq("user_id", owner_id).execute()
+                if res.data:
+                    st.session_state.settings = res.data[0]
+                else:
+                    # Fallback de seguridad: Límites de Plan Free
+                    st.session_state.settings = {
+                        "limite_clientes": 5, 
+                        "limite_cuentas": 10, 
+                        "limite_sesiones": 1, 
+                        "gps_habilitado": False, 
+                        "dashboard_habilitado": False
+                    }
+            except Exception:
+                pass
+
+def verificar_permiso(tipo_accion):
+    """Verifica si el usuario puede realizar una acción según sus límites"""
+    conf = st.session_state.get("settings", {})
+    o_id = st.session_state.get("owner_id")
+    
+    if not o_id: return False
+
+    if tipo_accion == "cliente":
+        # Contamos clientes actuales en la DB
+        res = conn.table("clientes").select("id", count="exact").eq("user_id", o_id).execute()
+        actuales = res.count if res.count is not None else 0
+        limite = conf.get("limite_clientes", 5)
+        if actuales >= limite:
+            st.error(f"🚫 Límite de clientes alcanzado ({limite}). Mejora tu plan.")
+            return False
+            
+    if tipo_accion == "prestamo":
+        # Contamos préstamos activos (Cuentas)
+        res = conn.table("cuentas").select("id", count="exact").eq("user_id", o_id).eq("estado", "Activo").execute()
+        actuales = res.count if res.count is not None else 0
+        limite = conf.get("limite_cuentas", 10)
+        if actuales >= limite:
+            st.error(f"🚫 Límite de préstamos activos alcanzado ({limite}).")
+            return False
+            
+    return True
+# =====================================================================
+
 # --- LÓGICA DE CONTROL DE ACCESO (EL MURO) ---
 if not st.session_state.authenticated:
     # 2. TU CSS RADICAL (Intacto y Completo)
@@ -275,6 +328,7 @@ if not st.session_state.authenticated:
                                 # 3. Entramos a la App
                                 st.session_state.user = res.user
                                 st.session_state.authenticated = True
+                                cargar_limites_usuario()
                                 login_exitoso = True
                                 st.success("¡Bienvenido a CobroYa!")
                                 st.rerun()
@@ -1312,6 +1366,22 @@ with st.sidebar:
     
 # --- 5. MÓDULOS DE NEGOCIO (LÓGICA DE PRESTAMISTA REAL) ---
 if menu == "Panel de Control":
+    # 🛡️ VALIDACIÓN DE LÍMITE (BLOQUE 2)
+    # Verificamos si el dashboard está habilitado en los settings cargados
+    if not st.session_state.settings.get("dashboard_habilitado", False):
+        st.info("### 📊 Panel de Control Premium")
+        st.warning("El acceso al Dashboard de Business Intelligence no está incluido en tu plan actual.")
+        st.markdown("""
+        **Beneficios de activar este módulo:**
+        * 📈 Gráficos de crecimiento mensual.
+        * 🔍 Filtros avanzados por fechas (Hoy, Mes, Año).
+        * 💰 Análisis de rentabilidad y proyección de cobros.
+        
+        *Contacta con soporte para actualizar tu plan.*
+        """)
+        st.stop()  # Detiene la ejecución para que no vea ni use los filtros de abajo
+
+    # 🔓 SI TIENE PERMISO, SE EJECUTA EL RESTO:
     from datetime import datetime, timedelta
 
     st.title("💼 Business Intelligence Dashboard")
