@@ -1487,7 +1487,7 @@ if menu == "Panel de Control":
         st.markdown(f"""<div class="kpi-card border-purple">
             <div class="icon-wrapper bg-purple-light">{icon_users}</div>
             <div class="kpi-title">Clientes</div>
-            <div class="kpi-value val-purple">{clientes_act}</div>
+            <div class="kpi-value val-purple">{clientes_activos}</div>
             {get_sparkline('#7C3AED')}
         </div>""", unsafe_allow_html=True)
         
