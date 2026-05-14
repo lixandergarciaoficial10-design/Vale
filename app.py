@@ -1384,26 +1384,42 @@ if menu == "Panel de Control":
     if notif_mensaje:
         st.markdown(f"<div class='notif-box'>🔔 {notif_mensaje}</div>", unsafe_allow_html=True)
 
-    # --- 3. CABECERA Y FILTROS ---
+# --- 3. CABECERA Y LÓGICA DE FILTROS (CORREGIDO) ---
     col_head1, col_head2 = st.columns([2, 1])
     with col_head1:
         st.markdown("<h2 style='color: #0F172A; font-weight: 800; margin-bottom: 0;'>Dashboard General</h2>", unsafe_allow_html=True)
     with col_head2:
         filtro_tiempo = st.selectbox("Filtrar:", ["Todo el tiempo", "Hoy", "Últimos 7 días", "Este mes", "Último año"], label_visibility="collapsed")
 
-    # --- 4. EXTRACCIÓN DE DATOS ---
+    # Calculamos la fecha según la opción elegida
+    hoy = datetime.now()
+    fecha_filtro = None
+    if filtro_tiempo == "Hoy":
+        fecha_filtro = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif filtro_tiempo == "Últimos 7 días":
+        fecha_filtro = hoy - timedelta(days=7)
+    elif filtro_tiempo == "Este mes":
+        fecha_filtro = hoy.replace(day=1, hour=0, minute=0, second=0)
+    elif filtro_tiempo == "Último año":
+        fecha_filtro = hoy - timedelta(days=365)
+
+    # --- 4. EXTRACCIÓN DE DATOS CON FILTRO REAL ---
+    # Iniciamos las consultas
     q_c = conn.table("cuentas").select("*, cliente:clientes(nombre)").eq("user_id", u_id)
     q_p = conn.table("pagos").select("*").eq("user_id", u_id)
     q_g = conn.table("gastos").select("*").eq("user_id", u_id)
 
+    # APLICAMOS EL FILTRO SOLO SI NO ES "Todo el tiempo"
+    if fecha_filtro:
+        f_iso = fecha_filtro.isoformat()
+        q_c = q_c.gte("fecha_creacion", f_iso)
+        q_p = q_p.gte("fecha_pago", f_iso)
+        q_g = q_g.gte("fecha_gasto", f_iso)
+
+    # Ahora sí, ejecutamos
     res_cuentas = q_c.execute()
     res_pagos = q_p.execute()
     res_gastos = q_g.execute()
-
-    total_en_calle = sum(c['balance_pendiente'] for c in res_cuentas.data) if res_cuentas.data else 0
-    total_recibido = sum(p['monto_pagado'] for p in res_pagos.data) if res_pagos.data else 0
-    total_gastos = sum(g['monto'] for g in res_gastos.data if g['estado'] == 'Pagado') if res_gastos.data else 0
-    clientes_activos = len(set(c['cliente_id'] for c in res_cuentas.data if c['estado'] == 'Activo')) if res_cuentas.data else 0
 
     # --- 5. TARJETAS KPI PREMIUM ---
     def get_sparkline(color):
