@@ -1384,14 +1384,14 @@ if menu == "Panel de Control":
     if notif_mensaje:
         st.markdown(f"<div class='notif-box'>🔔 {notif_mensaje}</div>", unsafe_allow_html=True)
 
-# --- 3. CABECERA Y LÓGICA DE FILTROS (CORREGIDO) ---
+# --- 3. CABECERA Y LÓGICA DE FILTROS ---
     col_head1, col_head2 = st.columns([2, 1])
     with col_head1:
         st.markdown("<h2 style='color: #0F172A; font-weight: 800; margin-bottom: 0;'>Dashboard General</h2>", unsafe_allow_html=True)
     with col_head2:
-        filtro_tiempo = st.selectbox("Filtrar:", ["Todo el tiempo", "Hoy", "Últimos 7 días", "Este mes", "Último año"], label_visibility="collapsed")
+        filtro_tiempo = st.selectbox("Filtrar Dashboard:", ["Todo el tiempo", "Hoy", "Últimos 7 días", "Este mes", "Último año"], label_visibility="collapsed")
 
-    # Calculamos la fecha según la opción elegida
+    # Lógica de fechas para el filtro (Solo afectará a Pagos y Gastos)
     hoy = datetime.now()
     fecha_filtro = None
     if filtro_tiempo == "Hoy":
@@ -1403,28 +1403,33 @@ if menu == "Panel de Control":
     elif filtro_tiempo == "Último año":
         fecha_filtro = hoy - timedelta(days=365)
 
-    # --- 4. EXTRACCIÓN DE DATOS CON FILTRO REAL ---
-    # Iniciamos las consultas
-    q_c = conn.table("cuentas").select("*, cliente:clientes(nombre)").eq("user_id", u_id)
+    # --- 4. EXTRACCIÓN DE DATOS ---
+    
+    # A. Datos Globales (No se ven afectados por el filtro para Salud de Cartera)
+    res_cuentas = conn.table("cuentas").select("*, cliente:clientes(nombre)").eq("user_id", u_id).execute()
+    # Necesitamos pagos globales solo para la "Tasa de Éxito" real de la empresa
+    res_pagos_all = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
+    
+    # B. Datos Filtrados (Para los KPIs del Dashboard y Gráficos)
     q_p = conn.table("pagos").select("*").eq("user_id", u_id)
     q_g = conn.table("gastos").select("*").eq("user_id", u_id)
 
-    # APLICAMOS EL FILTRO SOLO SI NO ES "Todo el tiempo"
     if fecha_filtro:
         f_iso = fecha_filtro.isoformat()
-        q_c = q_c.gte("fecha_creacion", f_iso)
         q_p = q_p.gte("fecha_pago", f_iso)
         q_g = q_g.gte("fecha_gasto", f_iso)
 
-    # Ahora sí, ejecutamos
-    res_cuentas = q_c.execute()
     res_pagos = q_p.execute()
     res_gastos = q_g.execute()
 
-    # --- CÁLCULOS DE TOTALES (CORRECCIÓN DEL NAMEERROR) ---
-    total_en_calle = sum(c['balance_pendiente'] for c in res_cuentas.data) if res_cuentas.data else 0
+    # --- CÁLCULOS ---
+    # Dashboard (Filtrado)
     total_recibido = sum(p['monto_pagado'] for p in res_pagos.data) if res_pagos.data else 0
     total_gastos = sum(g['monto'] for g in res_gastos.data if g['estado'] == 'Pagado') if res_gastos.data else 0
+    
+    # Salud y Globales (Siempre fijos)
+    total_en_calle = sum(c['balance_pendiente'] for c in res_cuentas.data) if res_cuentas.data else 0
+    total_recibido_global = sum(p['monto_pagado'] for p in res_pagos_all.data) if res_pagos_all.data else 0
     clientes_activos = len(set(c['cliente_id'] for c in res_cuentas.data if c['estado'] == 'Activo')) if res_cuentas.data else 0
 
     # --- 5. TARJETAS KPI PREMIUM ---
@@ -1451,14 +1456,17 @@ if menu == "Panel de Control":
     with c4:
         st.markdown(f'<div class="kpi-card border-purple"><div class="icon-wrapper bg-purple-light">{icon_users}</div><div class="kpi-title">Clientes</div><div class="kpi-value val-purple">{clientes_activos}</div>{get_sparkline("#7C3AED")}</div>', unsafe_allow_html=True)
 
-    # --- 6. SALUD DE CARTERA (INDICADORES SECUNDARIOS) ---
+    # --- 6. SALUD DE CARTERA (INDICADORES SECUNDARIOS - SIEMPRE GLOBAL) ---
     st.markdown("<div class='section-card'><div class='section-title'>📊 Salud de Cartera</div>", unsafe_allow_html=True)
     s1, s2, s3, s4 = st.columns(4)
     
+    # Cálculos globales
     vencidas = len([c for c in res_cuentas.data if c['proximo_pago'] and pd.to_datetime(c['proximo_pago']).date() < datetime.now().date() and c['balance_pendiente'] > 0]) if res_cuentas.data else 0
     prox_vencer = len([c for c in res_cuentas.data if c['proximo_pago'] and datetime.now().date() <= pd.to_datetime(c['proximo_pago']).date() <= (datetime.now() + timedelta(days=7)).date() and c['balance_pendiente'] > 0]) if res_cuentas.data else 0
     avg_cobro = total_en_calle / len(res_cuentas.data) if res_cuentas.data and len(res_cuentas.data) > 0 else 0
-    tasa_exito = (total_recibido/(total_recibido + total_en_calle)*100) if (total_recibido + total_en_calle) > 0 else 0
+    
+    # La tasa de éxito debe ser global para que tenga sentido financiero
+    tasa_exito = (total_recibido_global / (total_recibido_global + total_en_calle) * 100) if (total_recibido_global + total_en_calle) > 0 else 0
     
     s1.metric("Promedio por Cobrar", f"RD$ {avg_cobro:,.0f}")
     s2.metric("Cuentas Vencidas", vencidas)
