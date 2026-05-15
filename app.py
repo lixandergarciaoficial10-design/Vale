@@ -1456,23 +1456,68 @@ if menu == "Panel de Control":
     with c4:
         st.markdown(f'<div class="kpi-card border-purple"><div class="icon-wrapper bg-purple-light">{icon_users}</div><div class="kpi-title">Clientes</div><div class="kpi-value val-purple">{clientes_activos}</div>{get_sparkline("#7C3AED")}</div>', unsafe_allow_html=True)
 
-    # --- 6. SALUD DE CARTERA (INDICADORES SECUNDARIOS - SIEMPRE GLOBAL) ---
+    
     st.markdown("<div class='section-card'><div class='section-title'>📊 Salud de Cartera</div>", unsafe_allow_html=True)
-    s1, s2, s3, s4 = st.columns(4)
     
-    # Cálculos globales
-    vencidas = len([c for c in res_cuentas.data if c['proximo_pago'] and pd.to_datetime(c['proximo_pago']).date() < datetime.now().date() and c['balance_pendiente'] > 0]) if res_cuentas.data else 0
-    prox_vencer = len([c for c in res_cuentas.data if c['proximo_pago'] and datetime.now().date() <= pd.to_datetime(c['proximo_pago']).date() <= (datetime.now() + timedelta(days=7)).date() and c['balance_pendiente'] > 0]) if res_cuentas.data else 0
-    avg_cobro = total_en_calle / len(res_cuentas.data) if res_cuentas.data and len(res_cuentas.data) > 0 else 0
-    
-    # La tasa de éxito debe ser global para que tenga sentido financiero
+    # 1. Inicializamos los contadores para el Dashboard
+    cuentas_atrasadas = 0
+    cuentas_cobrar_hoy = 0
+    cuentas_proximos_7 = 0
+    monto_total_hoy = 0
+
+    # 2. Procesamos cada cuenta con la lógica del módulo de cobros
+    if res_cuentas.data:
+        hoy = datetime.now().date()
+        for cuenta in res_cuentas.data:
+            cuenta_id = cuenta['id']
+            
+            # Obtenemos pagos y plan (Igual que en tu módulo de cobros)
+            res_p = conn.table("pagos").select("monto_pagado").eq("cuenta_id", cuenta_id).execute()
+            saldo_recorrido = sum(float(p['monto_pagado']) for p in res_p.data) if res_p.data else 0
+            
+            res_pl = conn.table("plan_cuotas").select("fecha_esperada, monto_cuota").eq("cuenta_id", cuenta_id).order("numero_cuota").execute()
+            plan = res_pl.data if res_pl.data else []
+            
+            # Aplicamos la lógica de filtros reales
+            for cuota in plan:
+                m_cuota = float(cuota['monto_cuota'])
+                f_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
+                
+                if saldo_recorrido >= m_cuota:
+                    saldo_recorrido -= m_cuota
+                else:
+                    # Esta es la cuota que debe actualmente
+                    if f_cuota < hoy:
+                        cuentas_atrasadas += 1
+                    elif f_cuota == hoy:
+                        cuentas_cobrar_hoy += 1
+                        monto_total_hoy += m_cuota
+                    elif hoy < f_cuota <= (hoy + timedelta(days=7)):
+                        cuentas_proximos_7 += 1
+                    
+                    break # Pasamos a la siguiente factura
+
+    # 3. Cálculo de Tasa de Éxito
     tasa_exito = (total_recibido_global / (total_recibido_global + total_en_calle) * 100) if (total_recibido_global + total_en_calle) > 0 else 0
+
+    # 4. Renderizado de Tarjetas con Estilo KPI
+    s1, s2, s3, s4 = st.columns(4)
+
+    with s1:
+        st.markdown(f'<div class="kpi-card border-blue"><div class="icon-wrapper bg-blue-light">📅</div><div class="kpi-title">Cobrarles Hoy</div><div class="kpi-value val-blue">{cuentas_cobrar_hoy}</div>{get_sparkline("#3B82F6")}</div>', unsafe_allow_html=True)
     
-    s1.metric("Promedio por Cobrar", f"RD$ {avg_cobro:,.0f}")
-    s2.metric("Cuentas Vencidas", vencidas)
-    s3.metric("Próximos a Vencer (7d)", prox_vencer)
-    s4.metric("Tasa de Éxito", f"{tasa_exito:.1f}%")
+    with s2:
+        st.markdown(f'<div class="kpi-card border-red"><div class="icon-wrapper bg-red-light">🚨</div><div class="kpi-title">Cuentas Vencidas</div><div class="kpi-value val-red">{cuentas_atrasadas}</div>{get_sparkline("#EF4444")}</div>', unsafe_allow_html=True)
+    
+    with s3:
+        st.markdown(f'<div class="kpi-card border-orange"><div class="icon-wrapper bg-orange-light">⏳</div><div class="kpi-title">Próx. 7 Días</div><div class="kpi-value val-orange">{cuentas_proximos_7}</div>{get_sparkline("#F59E0B")}</div>', unsafe_allow_html=True)
+    
+    with s4:
+        st.markdown(f'<div class="kpi-card border-green"><div class="icon-wrapper bg-green-light">✅</div><div class="kpi-title">Tasa de Éxito</div><div class="kpi-value val-green">{tasa_exito:.1f}%</div>{get_sparkline("#10B981")}</div>', unsafe_allow_html=True)
+
     st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- Siguiente bloque de gráficos ---
 
     # --- 7. GRÁFICOS INTERACTIVOS ---
     g1, g2 = st.columns([1.5, 1])
