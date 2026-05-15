@@ -1543,17 +1543,53 @@ if menu == "Panel de Control":
     except:
         tasa_exito = 0
 
-    # 5. Renderizado de Tarjetas con Estilo KPI
+# 5. Renderizado de Mini-Tarjetas (Compactas y sin gráficas)
     s1, s2, s3, s4 = st.columns(4)
 
     with s1:
-        st.markdown(f'<div class="kpi-card border-blue"><div class="icon-wrapper bg-blue-light">📅</div><div class="kpi-title">Cobrarles Hoy</div><div class="kpi-value val-blue">{cuentas_cobrar_hoy}</div><div style="font-size: 12px; color: #64748B; font-weight: 600; margin-top: -3px; z-index: 1;">RD$ {monto_total_hoy:,.0f} a recaudar</div>{get_sparkline("#3B82F6")}</div>', unsafe_allow_html=True)
+        st.markdown(f'''
+        <div style="border-left: 4px solid #3B82F6; background: #ffffff; padding: 10px 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+            <div style="background: #EFF6FF; padding: 8px; border-radius: 8px; font-size: 16px;">📅</div>
+            <div>
+                <div style="font-size: 11px; color: #64748B; font-weight: 600; text-transform: uppercase;">Cobrarles Hoy</div>
+                <div style="font-size: 18px; color: #3B82F6; font-weight: 800; line-height: 1.1;">{cuentas_cobrar_hoy}</div>
+                <div style="font-size: 10px; color: #94A3B8; margin-top: 2px;">RD$ {monto_total_hoy:,.0f} a recaudar</div>
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+        
     with s2:
-        st.markdown(f'<div class="kpi-card border-red"><div class="icon-wrapper bg-red-light">🚨</div><div class="kpi-title">Cuentas Vencidas</div><div class="kpi-value val-red">{cuentas_atrasadas}</div>{get_sparkline("#EF4444")}</div>', unsafe_allow_html=True)
+        st.markdown(f'''
+        <div style="border-left: 4px solid #EF4444; background: #ffffff; padding: 10px 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+            <div style="background: #FEF2F2; padding: 8px; border-radius: 8px; font-size: 16px;">🚨</div>
+            <div>
+                <div style="font-size: 11px; color: #64748B; font-weight: 600; text-transform: uppercase;">Vencidas</div>
+                <div style="font-size: 18px; color: #EF4444; font-weight: 800; line-height: 1.1;">{cuentas_atrasadas}</div>
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+        
     with s3:
-        st.markdown(f'<div class="kpi-card border-orange"><div class="icon-wrapper bg-orange-light">⏳</div><div class="kpi-title">Próx. 7 Días</div><div class="kpi-value val-orange">{cuentas_proximos_7}</div>{get_sparkline("#F59E0B")}</div>', unsafe_allow_html=True)
+        st.markdown(f'''
+        <div style="border-left: 4px solid #F59E0B; background: #ffffff; padding: 10px 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+            <div style="background: #FFFBEB; padding: 8px; border-radius: 8px; font-size: 16px;">⏳</div>
+            <div>
+                <div style="font-size: 11px; color: #64748B; font-weight: 600; text-transform: uppercase;">Próx. 7 Días</div>
+                <div style="font-size: 18px; color: #F59E0B; font-weight: 800; line-height: 1.1;">{cuentas_proximos_7}</div>
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+        
     with s4:
-        st.markdown(f'<div class="kpi-card border-green"><div class="icon-wrapper bg-green-light">✅</div><div class="kpi-title">Tasa de Éxito</div><div class="kpi-value val-green">{tasa_exito:.1f}%</div>{get_sparkline("#10B981")}</div>', unsafe_allow_html=True)
+        st.markdown(f'''
+        <div style="border-left: 4px solid #10B981; background: #ffffff; padding: 10px 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+            <div style="background: #ECFDF5; padding: 8px; border-radius: 8px; font-size: 16px;">✅</div>
+            <div>
+                <div style="font-size: 11px; color: #64748B; font-weight: 600; text-transform: uppercase;">Tasa Éxito</div>
+                <div style="font-size: 18px; color: #10B981; font-weight: 800; line-height: 1.1;">{tasa_exito:.1f}%</div>
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
