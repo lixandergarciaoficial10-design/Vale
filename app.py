@@ -1456,7 +1456,8 @@ if menu == "Panel de Control":
     with c4:
         st.markdown(f'<div class="kpi-card border-purple"><div class="icon-wrapper bg-purple-light">{icon_users}</div><div class="kpi-title">Clientes</div><div class="kpi-value val-purple">{clientes_activos}</div>{get_sparkline("#7C3AED")}</div>', unsafe_allow_html=True)
 
-    
+
+    # --- 6. SALUD DE CARTERA (INDICADORES REALES - LÓGICA DE CASCADA EXACTA) ---
     st.markdown("<div class='section-card'><div class='section-title'>📊 Salud de Cartera</div>", unsafe_allow_html=True)
     
     # 1. Inicializamos los contadores para el Dashboard
@@ -1465,59 +1466,96 @@ if menu == "Panel de Control":
     cuentas_proximos_7 = 0
     monto_total_hoy = 0
 
-    # 2. Procesamos cada cuenta con la lógica del módulo de cobros
+    # 2. Obtenemos la fecha exacta (Zona Horaria RD) igual que en tu módulo
+    from datetime import datetime, timezone, timedelta
+    tz_rd = timezone(timedelta(hours=-4))
+    hoy = datetime.now(tz_rd).date()
+
+    # 3. Procesamos cada cuenta con la lógica WATERFALL de tu archivo
     if res_cuentas.data:
-        hoy = datetime.now().date()
         for cuenta in res_cuentas.data:
+            # Solo procesamos cuentas activas que deban dinero
+            if float(cuenta.get('balance_pendiente', 0)) <= 0:
+                continue
+                
             cuenta_id = cuenta['id']
             
-            # Obtenemos pagos y plan (Igual que en tu módulo de cobros)
-            res_p = conn.table("pagos").select("monto_pagado").eq("cuenta_id", cuenta_id).execute()
-            saldo_recorrido = sum(float(p['monto_pagado']) for p in res_p.data) if res_p.data else 0
-            
-            res_pl = conn.table("plan_cuotas").select("fecha_esperada, monto_cuota").eq("cuenta_id", cuenta_id).order("numero_cuota").execute()
-            plan = res_pl.data if res_pl.data else []
-            
-            # Aplicamos la lógica de filtros reales
-            for cuota in plan:
-                m_cuota = float(cuota['monto_cuota'])
-                f_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
+            # PASO 1: Obtener TODOS los pagos realizados
+            try:
+                res_pagos_ind = conn.table("pagos").select("monto_pagado").eq("cuenta_id", cuenta_id).execute()
+                pagos_ind = res_pagos_ind.data if res_pagos_ind.data else []
+            except:
+                pagos_ind = []
                 
-                if saldo_recorrido >= m_cuota:
-                    saldo_recorrido -= m_cuota
+            # PASO 2: Obtener plan de cuotas
+            try:
+                res_plan = conn.table("plan_cuotas").select("numero_cuota, fecha_esperada, monto_cuota").eq("cuenta_id", cuenta_id).order("numero_cuota").execute()
+                plan_cuotas = res_plan.data if res_plan.data else []
+            except:
+                plan_cuotas = []
+                
+            # PASO 3: Calcular saldo_recorrido (suma de TODOS los pagos)
+            saldo_recorrido = sum(float(p.get('monto_pagado', 0)) for p in pagos_ind)
+            
+            # PASO 4: WATERFALL - Recorrer plan
+            cuota_hoy = None
+            cuotas_vencidas = []
+            cuotas_proximo_7_dias = []
+            monto_pendiente_esta_cuota = 0
+            
+            for cuota in plan_cuotas:
+                monto_cuota = float(cuota['monto_cuota'])
+                fecha_cuota = pd.to_datetime(cuota['fecha_esperada']).date()
+                
+                # ✅ WATERFALL: ¿Hay dinero para pagar esta cuota?
+                if saldo_recorrido >= monto_cuota:
+                    saldo_recorrido -= monto_cuota  # Consumir dinero
                 else:
-                    # Esta es la cuota que debe actualmente
-                    if f_cuota < hoy:
-                        cuentas_atrasadas += 1
-                    elif f_cuota == hoy:
-                        cuentas_cobrar_hoy += 1
-                        monto_total_hoy += m_cuota
-                    elif hoy < f_cuota <= (hoy + timedelta(days=7)):
-                        cuentas_proximos_7 += 1
-                    
-                    break # Pasamos a la siguiente factura
+                    # SOLO AHORA comparar fechas de cuota REALMENTE pendiente
+                    if fecha_cuota < hoy:
+                        cuotas_vencidas.append(fecha_cuota)
+                    elif fecha_cuota == hoy:
+                        cuota_hoy = fecha_cuota
+                        monto_pendiente_esta_cuota += (monto_cuota - saldo_recorrido)
+                        saldo_recorrido = 0 # El saldo sobrante ya se consumió
+                    elif hoy < fecha_cuota <= (hoy + pd.Timedelta(days=7)):
+                        cuotas_proximo_7_dias.append(fecha_cuota)
+            
+            # --- CATEGORIZACIÓN (Exactamente igual a tus filtros) ---
+            cumple_atrasado = len(cuotas_vencidas) > 0
+            cumple_cobrar_hoy = cuota_hoy is not None
+            cumple_proximo_7 = len(cuotas_proximo_7_dias) > 0 or cumple_cobrar_hoy
+            
+            # Sumamos a los contadores globales del dashboard
+            if cumple_atrasado:
+                cuentas_atrasadas += 1
+            if cumple_cobrar_hoy:
+                cuentas_cobrar_hoy += 1
+                monto_total_hoy += monto_pendiente_esta_cuota
+            if cumple_proximo_7:
+                cuentas_proximos_7 += 1
 
-    # 3. Cálculo de Tasa de Éxito
-    tasa_exito = (total_recibido_global / (total_recibido_global + total_en_calle) * 100) if (total_recibido_global + total_en_calle) > 0 else 0
+    # 4. Cálculo de Tasa de Éxito Global (Pagado Histórico vs Capital en la calle)
+    try:
+        res_pagos_historicos = conn.table("pagos").select("monto_pagado").eq("user_id", u_id).execute()
+        total_recibido_historico = sum(float(p['monto_pagado']) for p in res_pagos_historicos.data) if res_pagos_historicos.data else 0
+        tasa_exito = (total_recibido_historico / (total_recibido_historico + total_en_calle) * 100) if (total_recibido_historico + total_en_calle) > 0 else 0
+    except:
+        tasa_exito = 0
 
-    # 4. Renderizado de Tarjetas con Estilo KPI
+    # 5. Renderizado de Tarjetas con Estilo KPI
     s1, s2, s3, s4 = st.columns(4)
 
     with s1:
-        st.markdown(f'<div class="kpi-card border-blue"><div class="icon-wrapper bg-blue-light">📅</div><div class="kpi-title">Cobrarles Hoy</div><div class="kpi-value val-blue">{cuentas_cobrar_hoy}</div>{get_sparkline("#3B82F6")}</div>', unsafe_allow_html=True)
-    
+        st.markdown(f'<div class="kpi-card border-blue"><div class="icon-wrapper bg-blue-light">📅</div><div class="kpi-title">Cobrarles Hoy</div><div class="kpi-value val-blue">{cuentas_cobrar_hoy}</div><div style="font-size: 12px; color: #64748B; font-weight: 600; margin-top: -3px; z-index: 1;">RD$ {monto_total_hoy:,.0f} a recaudar</div>{get_sparkline("#3B82F6")}</div>', unsafe_allow_html=True)
     with s2:
         st.markdown(f'<div class="kpi-card border-red"><div class="icon-wrapper bg-red-light">🚨</div><div class="kpi-title">Cuentas Vencidas</div><div class="kpi-value val-red">{cuentas_atrasadas}</div>{get_sparkline("#EF4444")}</div>', unsafe_allow_html=True)
-    
     with s3:
         st.markdown(f'<div class="kpi-card border-orange"><div class="icon-wrapper bg-orange-light">⏳</div><div class="kpi-title">Próx. 7 Días</div><div class="kpi-value val-orange">{cuentas_proximos_7}</div>{get_sparkline("#F59E0B")}</div>', unsafe_allow_html=True)
-    
     with s4:
         st.markdown(f'<div class="kpi-card border-green"><div class="icon-wrapper bg-green-light">✅</div><div class="kpi-title">Tasa de Éxito</div><div class="kpi-value val-green">{tasa_exito:.1f}%</div>{get_sparkline("#10B981")}</div>', unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
-
-    # --- Siguiente bloque de gráficos ---
 
     # --- 7. GRÁFICOS INTERACTIVOS ---
     g1, g2 = st.columns([1.5, 1])
