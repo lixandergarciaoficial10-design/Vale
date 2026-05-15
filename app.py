@@ -1689,34 +1689,88 @@ elif menu == "Gestión de Cobros":
         with tab1:
             if plan:
                 import pandas as pd
+                from datetime import datetime, timezone, timedelta
                 
-                # LÓGICA DE ESTADO DE CUENTA CON SALDO_RECORRIDO (WATERFALL)
-                saldo_recorrido = sum(float(p.get('monto_pagado', 0)) for p in pagos)
+                # Inyección de CSS para forzar scroll horizontal y evitar que el texto baje a otra línea
+                st.markdown("""
+                    <style>
+                    [data-testid="stTable"] table {
+                        white-space: nowrap !important;
+                    }
+                    [data-testid="stTable"] {
+                        overflow-x: auto !important;
+                    }
+                    </style>
+                    """, unsafe_allow_html=True)
+
+                # Función para formatear la fecha estilo: mayo 15 5:14 pm
+                def formatear_fecha_rd(iso_str):
+                    if not iso_str: return ""
+                    try:
+                        dt_pd = pd.to_datetime(iso_str)
+                        dt = dt_pd.to_pydatetime()
+                        if dt.tzinfo is None:
+                            dt = dt.replace(tzinfo=timezone.utc)
+                        # Aplicar hora RD (UTC-4)
+                        dt_rd = dt.astimezone(timezone(timedelta(hours=-4)))
+                        meses = {1:'enero', 2:'febrero', 3:'marzo', 4:'abril', 5:'mayo', 6:'junio', 
+                                 7:'julio', 8:'agosto', 9:'septiembre', 10:'octubre', 11:'noviembre', 12:'diciembre'}
+                        return f"{meses[dt_rd.month]} {dt_rd.day} {dt_rd.strftime('%I:%M %p').lower()}"
+                    except:
+                        return str(iso_str).split("T")[0]
+
                 mis_pagos_lista = sorted(pagos, key=lambda x: x.get('fecha_pago', x.get('created_at', str(hoy))))
                 
+                # Crear cola de pagos para distribuirlos exactamente en las cuotas
+                pagos_disponibles = []
+                for p in mis_pagos_lista:
+                    pagos_disponibles.append({
+                        'monto_restante': float(p.get('monto_pagado', 0)),
+                        'fecha': p.get('fecha_pago', p.get('created_at', str(hoy)))
+                    })
+
                 datos_plan = []
                 for p_idx, cuota in enumerate(plan):
-                    monto_esperado = float(cuota['monto_cuota'])
+                    monto_original = float(cuota['monto_cuota'])
+                    monto_esperado = monto_original
                     
-                    # Manejo seguro de la fecha para evitar errores de tipo
                     try:
                         fecha_esperada = pd.to_datetime(cuota['fecha_esperada']).date()
                     except:
                         fecha_esperada = hoy
                     
-                    auditoria_txt = "-"
+                    pagos_esta_cuota = []
                     
-                    if saldo_recorrido >= monto_esperado:
+                    # Lógica para ir consumiendo los pagos disponibles y asignarlos a esta cuota
+                    while monto_esperado > 0.01 and pagos_disponibles:
+                        pago_actual = pagos_disponibles[0]
+                        if pago_actual['monto_restante'] > 0.01:
+                            if pago_actual['monto_restante'] >= monto_esperado:
+                                pagos_esta_cuota.append({'monto': monto_esperado, 'fecha': pago_actual['fecha']})
+                                pago_actual['monto_restante'] -= monto_esperado
+                                monto_esperado = 0
+                            else:
+                                pagos_esta_cuota.append({'monto': pago_actual['monto_restante'], 'fecha': pago_actual['fecha']})
+                                monto_esperado -= pago_actual['monto_restante']
+                                pago_actual['monto_restante'] = 0
+                                pagos_disponibles.pop(0)
+                        else:
+                            pagos_disponibles.pop(0)
+                    
+                    # Variables en blanco por defecto
+                    auditoria_txt = ""
+                    fecha_real_txt = ""
+                    estado_actual = ""
+                    
+                    # Evaluando el estado según lo que se pudo cubrir
+                    if monto_esperado <= 0.01:
                         estado_actual = "✅ COMPLETA"
-                        saldo_recorrido -= monto_esperado
+                        # Fecha real: la del último pago que completó la cuota
+                        ultima_fecha_iso = pagos_esta_cuota[-1]['fecha'] if pagos_esta_cuota else None
+                        fecha_real_txt = formatear_fecha_rd(ultima_fecha_iso)
                         
-                        # Lógica de Auditoría (Fechas) para cuotas completas
-                        if p_idx < len(mis_pagos_lista):
-                            try:
-                                f_pago_real = pd.to_datetime(mis_pagos_lista[p_idx].get('fecha_pago')).date()
-                            except:
-                                f_pago_real = hoy
-                                
+                        if ultima_fecha_iso:
+                            f_pago_real = pd.to_datetime(ultima_fecha_iso).date()
                             if f_pago_real > fecha_esperada:
                                 dias = (f_pago_real - fecha_esperada).days
                                 auditoria_txt = f"{dias} días de retraso"
@@ -1728,11 +1782,19 @@ elif menu == "Gestión de Cobros":
                         else:
                             auditoria_txt = "Al día"
                             
-                    elif saldo_recorrido > 0:
-                        faltante = monto_esperado - saldo_recorrido
-                        estado_actual = f"⚠️ INCOMPLETA. Faltó RD$ {faltante:,.2f} solo pagó RD$ {saldo_recorrido:,.2f}"
+                    elif monto_esperado < monto_original:
+                        estado_actual = f"⚠️ INCOMPLETA. Faltó RD$ {monto_esperado:,.2f}"
                         auditoria_txt = "Incompleto"
-                        saldo_recorrido = 0
+                        
+                        # Si está incompleta, desglosar todos los abonos en la columna de fecha real
+                        textos_pagos = []
+                        for p_det in pagos_esta_cuota:
+                            f_form = formatear_fecha_rd(p_det['fecha']).split(" ")[0:2] # Solo mes y día para ahorrar espacio
+                            mes_dia = " ".join(f_form)
+                            textos_pagos.append(f"RD$ {p_det['monto']:,.0f} el {mes_dia}")
+                        
+                        fecha_real_txt = " | ".join(textos_pagos)
+                        
                     else:
                         if fecha_esperada < hoy:
                             estado_actual = "🚨 VENCIDA"
@@ -1740,12 +1802,13 @@ elif menu == "Gestión de Cobros":
                             auditoria_txt = f"{dias_atraso} días de atraso"
                         else:
                             estado_actual = "⏳ PENDIENTE"
-                            auditoria_txt = "-"
+                            auditoria_txt = ""
                     
                     datos_plan.append({
                         "Cuota #": cuota['numero_cuota'],
                         "Fecha de Pago": cuota['fecha_esperada'],
-                        "Monto (RD$)": f"{monto_esperado:,.2f}",
+                        "Fecha Real del Pago": fecha_real_txt,
+                        "Monto (RD$)": f"{monto_original:,.2f}",
                         "Estatus": estado_actual,
                         "Auditoría de Pago": auditoria_txt
                     })
