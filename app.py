@@ -1660,7 +1660,7 @@ elif menu == "Gestión de Cobros":
     if 'datos_ruta_consultados' not in st.session_state:
         st.session_state.datos_ruta_consultados = []
     
-    # --- FUNCIÓN AUXILIAR: OBTENER FECHA HOY A LAS 12:00 RD ---
+# --- FUNCIÓN AUXILIAR: OBTENER FECHA HOY A LAS 12:00 RD ---
     def obtener_hoy_medidia_rd():
         """Retorna la fecha de hoy a las 12:00 PM Zona Horaria RD (UTC-4)"""
         from datetime import datetime, timezone, timedelta
@@ -1688,27 +1688,66 @@ elif menu == "Gestión de Cobros":
         
         with tab1:
             if plan:
+                import pandas as pd
+                
                 # LÓGICA DE ESTADO DE CUENTA CON SALDO_RECORRIDO (WATERFALL)
                 saldo_recorrido = sum(float(p.get('monto_pagado', 0)) for p in pagos)
+                mis_pagos_lista = sorted(pagos, key=lambda x: x.get('fecha_pago', x.get('created_at', str(hoy))))
                 
                 datos_plan = []
-                for cuota in plan:
+                for p_idx, cuota in enumerate(plan):
                     monto_esperado = float(cuota['monto_cuota'])
+                    
+                    # Manejo seguro de la fecha para evitar errores de tipo
+                    try:
+                        fecha_esperada = pd.to_datetime(cuota['fecha_esperada']).date()
+                    except:
+                        fecha_esperada = hoy
+                    
+                    auditoria_txt = "-"
                     
                     if saldo_recorrido >= monto_esperado:
                         estado_actual = "✅ COMPLETA"
                         saldo_recorrido -= monto_esperado
+                        
+                        # Lógica de Auditoría (Fechas) para cuotas completas
+                        if p_idx < len(mis_pagos_lista):
+                            try:
+                                f_pago_real = pd.to_datetime(mis_pagos_lista[p_idx].get('fecha_pago')).date()
+                            except:
+                                f_pago_real = hoy
+                                
+                            if f_pago_real > fecha_esperada:
+                                dias = (f_pago_real - fecha_esperada).days
+                                auditoria_txt = f"{dias} días de retraso"
+                            elif f_pago_real < fecha_esperada:
+                                dias = (fecha_esperada - f_pago_real).days
+                                auditoria_txt = f"{dias} días adelantado"
+                            else:
+                                auditoria_txt = "Al día"
+                        else:
+                            auditoria_txt = "Al día"
+                            
                     elif saldo_recorrido > 0:
-                        estado_actual = "⚠️ INCOMPLETA"
+                        faltante = monto_esperado - saldo_recorrido
+                        estado_actual = f"⚠️ INCOMPLETA. Faltó RD$ {faltante:,.2f} solo pagó RD$ {saldo_recorrido:,.2f}"
+                        auditoria_txt = "Incompleto"
                         saldo_recorrido = 0
                     else:
-                        estado_actual = "⏳ PENDIENTE"
+                        if fecha_esperada < hoy:
+                            estado_actual = "🚨 VENCIDA"
+                            dias_atraso = (hoy - fecha_esperada).days
+                            auditoria_txt = f"{dias_atraso} días de atraso"
+                        else:
+                            estado_actual = "⏳ PENDIENTE"
+                            auditoria_txt = "-"
                     
                     datos_plan.append({
                         "Cuota #": cuota['numero_cuota'],
                         "Fecha de Pago": cuota['fecha_esperada'],
                         "Monto (RD$)": f"{monto_esperado:,.2f}",
-                        "Estatus": estado_actual
+                        "Estatus": estado_actual,
+                        "Auditoría de Pago": auditoria_txt
                     })
                 
                 st.table(pd.DataFrame(datos_plan))
@@ -1717,6 +1756,7 @@ elif menu == "Gestión de Cobros":
         
         with tab2:
             if pagos:
+                import pandas as pd
                 df_pagos = pd.DataFrame(pagos)
                 col_fecha = 'fecha_pago' if 'fecha_pago' in df_pagos.columns else 'created_at'
                 df_pagos['Fecha'] = pd.to_datetime(df_pagos[col_fecha]).dt.date
@@ -1754,7 +1794,7 @@ elif menu == "Gestión de Cobros":
         st.markdown(f"""
         **Resumen del Cobro:**
         * 🎫 **Factura #:** {codigo_random}
-        * 💵 **Abono Capital:** RD$ {monto:,.2f}
+        * 💵 **Abono:** RD$ {monto:,.2f}
         * ⚖️ **Mora Aplicada:** RD$ {mora:,.2f}
         * 📅 **Próximo Pago:** {fecha}
         """)
