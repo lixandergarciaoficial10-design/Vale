@@ -1836,7 +1836,7 @@ elif menu == "Gestión de Cobros":
                 total_mora = sum(float(p.get('mora_pagada', 0)) if p.get('mora_pagada') else 0 for p in pagos)
                 
                 c1, c2 = st.columns(2)
-                c1.metric("Total Capital Recibido", f"RD$ {total_cap:,.2f}")
+                c1.metric("Total Recibido", f"RD$ {total_cap:,.2f}")
                 c2.metric("Total Moras Recibidas", f"RD$ {total_mora:,.2f}")
             else:
                 if not plan:
